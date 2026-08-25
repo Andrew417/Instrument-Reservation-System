@@ -1,0 +1,1106 @@
+import { db, pool } from '../db/index.ts';
+import {
+  users,
+  admins,
+  instruments,
+  reservations,
+  reservationSeries,
+  notifications,
+  hardLimits,
+} from '../db/schema.ts';
+import { eq, and, sql, inArray, gte, lte } from 'drizzle-orm';
+
+export interface TimeSlot {
+  date: string; // 'YYYY-MM-DD'
+  startTime: string; // 'HH:mm' (e.g. '09:00', '14:30')
+  duration: number; // Duration in hours (e.g. 1, 2, 1.5)
+}
+
+export interface ReservationSubmissionInput {
+  userId?: string;
+  adminId?: string;
+  instrumentId: string;
+  serviceName: string; // Required free-text (e.g. 'Sunday Morning Service', 'Youth Choir Practice')
+  date: string; // 'YYYY-MM-DD'
+  startTime: string; // 'HH:mm'
+  duration: number; // in hours
+  reservationType: 'in_church' | 'outside_church';
+  feeAcknowledged?: boolean;
+}
+
+export interface SeriesSubmissionInput {
+  userId?: string;
+  adminId?: string;
+  instrumentId: string;
+  serviceName: string; // Applies to the whole series
+  patternType: 'weekly' | 'custom';
+  occurrences: TimeSlot[];
+  reservationType: 'in_church' | 'outside_church';
+  feeAcknowledged?: boolean;
+}
+
+export interface EvaluationResult {
+  status: 'approved' | 'pending';
+  reasons: string[];
+  isTrustedOrAdmin: boolean;
+  outsideFeeSnapshot: string | null;
+  startTimeUtc: Date;
+  endTimeUtc: Date;
+  timeRangeSqlString: string;
+}
+
+/**
+ * Parses date ('YYYY-MM-DD') and time ('HH:mm') into UTC Date objects,
+ * and formats the PostgreSQL tstzrange string.
+ */
+export function buildTimeRange(date: string, startTime: string, duration: number) {
+  // Validate format
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(startTime.trim());
+
+  if (!dateMatch || !timeMatch) {
+    throw new Error('Invalid date or time format. Expected YYYY-MM-DD and HH:mm.');
+  }
+
+  const [_, year, month, day] = dateMatch.map(Number);
+  const [__, hours, minutes] = timeMatch.map(Number);
+
+  if (duration <= 0) {
+    throw new Error('Duration must be greater than 0.');
+  }
+
+  const start = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+  const end = new Date(start.getTime() + Math.round(duration * 3600 * 1000));
+
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+  const timeRangeSqlString = `[${startIso},${endIso})`;
+
+  return { start, end, timeRangeSqlString };
+}
+
+/**
+ * 1. Working Hours Check:
+ * Must be strictly within 09:00:00 - 22:00:00 UTC on the same calendar day.
+ */
+export function validateWorkingHours(start: Date, end: Date) {
+  const startHour = start.getUTCHours() + start.getUTCMinutes() / 60;
+  const endHour = end.getUTCHours() + end.getUTCMinutes() / 60;
+
+  const startDay = `${start.getUTCFullYear()}-${start.getUTCMonth()}-${start.getUTCDate()}`;
+  const endDay = `${end.getUTCFullYear()}-${end.getUTCMonth()}-${end.getUTCDate()}`;
+
+  if (startDay !== endDay) {
+    throw new Error('Reservation cannot span multiple calendar days.');
+  }
+
+  if (startHour < 9 || endHour > 22 || startHour >= endHour) {
+    throw new Error(
+      `Reservation time (${start.toISOString().substring(11, 16)} - ${end.toISOString().substring(11, 16)}) falls outside working hours (09:00 - 22:00 UTC).`
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Fetches default or current hard limits from DB
+ */
+export async function getHardLimits() {
+  const limits = await db.select().from(hardLimits).limit(1);
+  if (limits.length > 0) {
+    return limits[0];
+  }
+  return {
+    maxActiveReservations: 5,
+    maxReservationsPerDay: 5,
+    maxDurationHours: 5,
+    maxConcurrentPerType: 2,
+    maxSeriesOccurrences: 8,
+    maxSubmissionsPerHour: 10,
+  };
+}
+
+/**
+ * =========================================================================
+ * 1. SINGLE RESERVATION SUBMISSION EVALUATION LOGIC (Exact Sequence)
+ * =========================================================================
+ */
+export async function evaluateReservationSubmission(
+  input: ReservationSubmissionInput,
+  options?: { skipRateLimitCheck?: boolean; preloadedLimits?: any }
+): Promise<EvaluationResult> {
+  const {
+    userId,
+    adminId,
+    instrumentId,
+    date,
+    startTime,
+    duration,
+    reservationType,
+    feeAcknowledged,
+  } = input;
+
+  // 1. Working hours check
+  const { start, end, timeRangeSqlString } = buildTimeRange(date, startTime, duration);
+  validateWorkingHours(start, end);
+
+  // Fetch instrument
+  const instrumentRes = await db
+    .select()
+    .from(instruments)
+    .where(and(eq(instruments.id, instrumentId), eq(instruments.isRemoved, false)))
+    .limit(1);
+
+  if (instrumentRes.length === 0) {
+    throw new Error('Instrument not found or has been removed.');
+  }
+  const instrument = instrumentRes[0];
+
+  const limits = options?.preloadedLimits || (await getHardLimits());
+
+  // 2. Submission rate limit (skip if series-level check already evaluated it)
+  if (!options?.skipRateLimitCheck && userId) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentSubmissions = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.userId, userId),
+          gte(reservations.createdAt, oneHourAgo)
+        )
+      );
+
+    const submissionCount = Number(recentSubmissions[0]?.count || 0);
+    if (submissionCount >= limits.maxSubmissionsPerHour) {
+      throw new Error(
+        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`
+      );
+    }
+  }
+
+  // 3. Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
+  // Applies to EVERY user type, no exceptions (including Trusted and Admin).
+  const conflicts = await db
+    .select({ id: reservations.id, timeRange: reservations.timeRange })
+    .from(reservations)
+    .where(
+      sql`${reservations.instrumentId} = ${instrumentId}
+        AND ${reservations.status} = 'approved'
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`
+    )
+    .limit(1);
+
+  if (conflicts.length > 0) {
+    throw new Error('This time slot conflicts with an existing approved reservation on this instrument.');
+  }
+
+  // 4. Trusted or Admin check
+  let isTrustedOrAdmin = false;
+  if (adminId) {
+    isTrustedOrAdmin = true;
+  } else if (userId) {
+    const userRes = await db
+      .select({ isTrusted: users.isTrusted })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (userRes.length > 0 && userRes[0].isTrusted) {
+      isTrustedOrAdmin = true;
+    }
+  }
+
+  let calculatedStatus: 'approved' | 'pending' = 'pending';
+  const reasons: string[] = [];
+
+  if (isTrustedOrAdmin) {
+    // Auto-approve immediately and skip all remaining hard limit checks
+    calculatedStatus = 'approved';
+    reasons.push('Auto-approved via Trusted User / Admin privilege');
+  } else {
+    // 5. Instrument mode + hard limits checks
+    let limitExceeded = false;
+
+    // Check 5a: max_active_reservations (Pending + Approved, series counts as 1)
+    if (userId) {
+      const activeRes = await db
+        .select({
+          activeCount: sql<number>`COUNT(DISTINCT COALESCE(${reservations.seriesId}, ${reservations.id}))::int`,
+        })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.userId, userId),
+            inArray(reservations.status, ['pending', 'approved'])
+          )
+        );
+
+      const activeCount = Number(activeRes[0]?.activeCount || 0);
+      if (activeCount >= limits.maxActiveReservations) {
+        limitExceeded = true;
+        reasons.push(
+          `Active reservations limit reached (${activeCount}/${limits.maxActiveReservations} active slots). Forced to Pending.`
+        );
+      }
+    }
+
+    // Check 5b: max_reservations_per_day
+    if (userId) {
+      const dateStr = start.toISOString().substring(0, 10);
+      const dayRes = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(reservations)
+        .where(
+          sql`${reservations.userId} = ${userId}
+            AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
+            AND lower(${reservations.timeRange})::date = ${dateStr}::date`
+        );
+
+      const dayCount = Number(dayRes[0]?.count || 0);
+      if (dayCount >= limits.maxReservationsPerDay) {
+        limitExceeded = true;
+        reasons.push(
+          `Daily reservation limit reached for ${dateStr} (${dayCount}/${limits.maxReservationsPerDay}). Forced to Pending.`
+        );
+      }
+    }
+
+    // Check 5c: max_duration_hours
+    if (duration > limits.maxDurationHours) {
+      limitExceeded = true;
+      reasons.push(
+        `Duration (${duration}h) exceeds maximum allowed duration (${limits.maxDurationHours}h). Forced to Pending.`
+      );
+    }
+
+    // Check 5d: max_concurrent_per_type (counts each individual occurrence)
+    if (userId) {
+      const concurrentRes = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(reservations)
+        .innerJoin(instruments, eq(reservations.instrumentId, instruments.id))
+        .where(
+          and(
+            eq(reservations.userId, userId),
+            inArray(reservations.status, ['pending', 'approved']),
+            eq(instruments.type, instrument.type)
+          )
+        );
+
+      const concurrentCount = Number(concurrentRes[0]?.count || 0);
+      if (concurrentCount >= limits.maxConcurrentPerType) {
+        limitExceeded = true;
+        reasons.push(
+          `Concurrent active reservations limit for instrument type '${instrument.type}' reached (${concurrentCount}/${limits.maxConcurrentPerType}). Forced to Pending.`
+        );
+      }
+    }
+
+    // Instrument mode check + limit decision
+    if (instrument.bookingMode === 'instant' && !limitExceeded) {
+      calculatedStatus = 'approved';
+      reasons.push('Auto-approved via Instant Booking mode');
+    } else {
+      calculatedStatus = 'pending';
+      if (instrument.bookingMode === 'manual') {
+        reasons.push('Instrument is set to Manual Approval mode');
+      }
+    }
+  }
+
+  // 6. Outside church fee requirement
+  let outsideFeeSnapshot: string | null = null;
+  if (reservationType === 'outside_church') {
+    if (!feeAcknowledged) {
+      throw new Error(
+        `Outside church reservation requires fee acknowledgment (fee: ${instrument.outsideFeePerDay} EGP/day).`
+      );
+    }
+    outsideFeeSnapshot = instrument.outsideFeePerDay;
+  }
+
+  return {
+    status: calculatedStatus,
+    reasons,
+    isTrustedOrAdmin,
+    outsideFeeSnapshot,
+    startTimeUtc: start,
+    endTimeUtc: end,
+    timeRangeSqlString,
+  };
+}
+
+/**
+ * 7. Helper: Auto-reject overlapping pending reservations when a reservation is approved
+ */
+export async function autoRejectOverlappingPending(
+  instrumentId: string,
+  start: Date,
+  end: Date,
+  approvedReservationId?: string
+) {
+  const query = sql`
+    UPDATE reservations
+    SET status = 'auto_rejected',
+        rejection_reason = 'Another reservation was approved for this time slot'
+    WHERE instrument_id = ${instrumentId}
+      AND status = 'pending'
+      ${approvedReservationId ? sql`AND id != ${approvedReservationId}` : sql``}
+      AND time_range && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')
+    RETURNING id, user_id, time_range;
+  `;
+
+  const result = await db.execute(query);
+  const autoRejectedRows = (result as any).rows || [];
+
+  // Notify affected users
+  for (const row of autoRejectedRows) {
+    if (row.user_id) {
+      await db.insert(notifications).values({
+        userId: row.user_id,
+        type: 'reservation_auto_rejected',
+        message: 'Your pending reservation was auto-rejected because another reservation was approved for this time slot.',
+      });
+    }
+  }
+
+  return autoRejectedRows;
+}
+
+/**
+ * Creates a single reservation end-to-end
+ */
+export async function createReservation(input: ReservationSubmissionInput) {
+  const evalResult = await evaluateReservationSubmission(input);
+
+  const [newReservation] = await db
+    .insert(reservations)
+    .values({
+      userId: input.userId || null,
+      adminId: input.adminId || null,
+      instrumentId: input.instrumentId,
+      serviceName: (input.serviceName || '').trim() || 'Not specified',
+      timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+      reservationType: input.reservationType,
+      feeSnapshot: evalResult.outsideFeeSnapshot,
+      status: evalResult.status,
+      rejectionReason: null,
+    })
+    .returning();
+
+  // If approved: auto-reject other overlapping pending reservations
+  if (evalResult.status === 'approved') {
+    await autoRejectOverlappingPending(
+      input.instrumentId,
+      evalResult.startTimeUtc,
+      evalResult.endTimeUtc,
+      newReservation.id
+    );
+
+    // 8. Notification for approved user
+    if (input.userId) {
+      await db.insert(notifications).values({
+        userId: input.userId,
+        type: 'reservation_approved',
+        message: `Your reservation on ${input.date} (${input.startTime} - ${evalResult.endTimeUtc.toISOString().substring(11, 16)} UTC) has been approved.`,
+      });
+    }
+  } else if (input.userId) {
+    // Notification for pending submission
+    await db.insert(notifications).values({
+      userId: input.userId,
+      type: 'reservation_submitted',
+      message: `Your reservation request on ${input.date} (${input.startTime}) has been submitted and is pending administrator review.`,
+    });
+  }
+
+  return {
+    reservation: newReservation,
+    evaluation: evalResult,
+  };
+}
+
+/**
+ * =========================================================================
+ * 2. RECURRING SERIES SUBMISSION LOGIC
+ * =========================================================================
+ */
+export async function createReservationSeries(input: SeriesSubmissionInput) {
+  const {
+    userId,
+    adminId,
+    instrumentId,
+    patternType,
+    occurrences,
+    reservationType,
+    feeAcknowledged,
+  } = input;
+
+  if (!occurrences || occurrences.length === 0) {
+    throw new Error('Series must have at least one occurrence.');
+  }
+
+  const limits = await getHardLimits();
+
+  // 1. Occurrence count check: reject if > max_series_occurrences (hard block for all users)
+  if (occurrences.length > limits.maxSeriesOccurrences) {
+    throw new Error(
+      `Series exceeds maximum allowed occurrences of ${limits.maxSeriesOccurrences} (provided ${occurrences.length}).`
+    );
+  }
+
+  // 2. Working hours check for each occurrence
+  const parsedOccurrences = occurrences.map((occ, idx) => {
+    const { start, end, timeRangeSqlString } = buildTimeRange(occ.date, occ.startTime, occ.duration);
+    try {
+      validateWorkingHours(start, end);
+    } catch (err: any) {
+      throw new Error(`Occurrence #${idx + 1} (${occ.date} ${occ.startTime}): ${err.message}`);
+    }
+    return { ...occ, start, end, timeRangeSqlString, index: idx + 1 };
+  });
+
+  // 3. Self-overlap check within series
+  for (let i = 0; i < parsedOccurrences.length; i++) {
+    for (let j = i + 1; j < parsedOccurrences.length; j++) {
+      const a = parsedOccurrences[i];
+      const b = parsedOccurrences[j];
+
+      // Overlap condition: startA < endB AND startB < endA
+      if (a.start < b.end && b.start < a.end) {
+        throw new Error(
+          `Self-overlap detected within series: Occurrence #${a.index} (${a.date} ${a.startTime}) overlaps with Occurrence #${b.index} (${b.date} ${b.startTime}).`
+        );
+      }
+    }
+  }
+
+  // 4. Conflict check against existing approved reservations
+  const conflictingOccurrences: any[] = [];
+  for (const occ of parsedOccurrences) {
+    const conflicts = await db
+      .select({ id: reservations.id, timeRange: reservations.timeRange })
+      .from(reservations)
+      .where(
+        sql`${reservations.instrumentId} = ${instrumentId}
+          AND ${reservations.status} = 'approved'
+          AND ${reservations.timeRange} && tstzrange(${occ.start.toISOString()}, ${occ.end.toISOString()}, '[)')`
+      );
+
+    if (conflicts.length > 0) {
+      conflictingOccurrences.push({
+        occurrenceIndex: occ.index,
+        date: occ.date,
+        startTime: occ.startTime,
+        duration: occ.duration,
+        conflictingReservationId: conflicts[0].id,
+      });
+    }
+  }
+
+  if (conflictingOccurrences.length > 0) {
+    const error: any = new Error(
+      `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations.`
+    );
+    error.conflicts = conflictingOccurrences;
+    throw error;
+  }
+
+  // 5. Rate limit check for the series submission
+  if (userId) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentSubmissions = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.userId, userId),
+          gte(reservations.createdAt, oneHourAgo)
+        )
+      );
+
+    const submissionCount = Number(recentSubmissions[0]?.count || 0);
+    if (submissionCount >= limits.maxSubmissionsPerHour) {
+      throw new Error(
+        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`
+      );
+    }
+  }
+
+  // 6. Create series row in database
+  const [newSeries] = await db
+    .insert(reservationSeries)
+    .values({
+      userId: userId || null,
+      adminId: adminId || null,
+      instrumentId,
+      patternType,
+    })
+    .returning();
+
+  // 7. Process each occurrence through single evaluation (steps 4-8)
+  // For max_active_reservations, the whole series counts as 1 (handled once).
+  const createdOccurrences: any[] = [];
+
+  for (const occ of parsedOccurrences) {
+    const evalResult = await evaluateReservationSubmission(
+      {
+        userId,
+        adminId,
+        instrumentId,
+        date: occ.date,
+        startTime: occ.startTime,
+        duration: occ.duration,
+        reservationType,
+        feeAcknowledged,
+      },
+      { skipRateLimitCheck: true, preloadedLimits: limits }
+    );
+
+    const [resRow] = await db
+      .insert(reservations)
+      .values({
+        seriesId: newSeries.id,
+        userId: userId || null,
+        adminId: adminId || null,
+        instrumentId,
+        serviceName: (input.serviceName || '').trim() || 'Not specified',
+        timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+        reservationType,
+        feeSnapshot: evalResult.outsideFeeSnapshot,
+        status: evalResult.status,
+        rejectionReason: null,
+      })
+      .returning();
+
+    if (evalResult.status === 'approved') {
+      await autoRejectOverlappingPending(
+        instrumentId,
+        evalResult.startTimeUtc,
+        evalResult.endTimeUtc,
+        resRow.id
+      );
+    }
+
+    createdOccurrences.push({
+      reservation: resRow,
+      evaluation: evalResult,
+    });
+  }
+
+  // User notification for series creation
+  if (userId) {
+    const approvedCount = createdOccurrences.filter((c) => c.reservation.status === 'approved').length;
+    await db.insert(notifications).values({
+      userId,
+      type: 'series_submitted',
+      message: `Your recurring series (${createdOccurrences.length} occurrences) has been created (${approvedCount} approved, ${createdOccurrences.length - approvedCount} pending review).`,
+    });
+  }
+
+  return {
+    series: newSeries,
+    occurrences: createdOccurrences,
+  };
+}
+
+/**
+ * =========================================================================
+ * 3. EDITING A RESERVATION
+ * =========================================================================
+ */
+export async function editReservation(
+  reservationId: string,
+  updates: {
+    instrumentId?: string;
+    serviceName?: string;
+    date?: string;
+    startTime?: string;
+    duration?: number;
+    reservationType?: 'in_church' | 'outside_church';
+    feeAcknowledged?: boolean;
+  },
+  caller: { userId?: string; adminId?: string; isSuperAdmin?: boolean }
+) {
+  const existingRes = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (existingRes.length === 0) {
+    throw new Error('Reservation not found.');
+  }
+
+  const existing = existingRes[0];
+
+  // Authorization check
+  if (!caller.adminId && (!caller.userId || existing.userId !== caller.userId)) {
+    throw new Error('You are not authorized to edit this reservation.');
+  }
+
+  const instrumentId = updates.instrumentId || existing.instrumentId;
+
+  // Extract current time range if not updated
+  // If date/startTime/duration provided, compute new range
+  let start: Date;
+  let end: Date;
+
+  if (updates.date || updates.startTime || updates.duration) {
+    // Need all three or fallback
+    if (!updates.date || !updates.startTime || !updates.duration) {
+      throw new Error('When editing time, date, startTime, and duration must all be provided.');
+    }
+    const tr = buildTimeRange(updates.date, updates.startTime, updates.duration);
+    start = tr.start;
+    end = tr.end;
+  } else {
+    // Query postgres to extract bounds of existing time_range
+    const boundsRes: any = await db.execute(
+      sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`
+    );
+    start = new Date(boundsRes.rows[0].start_time);
+    end = new Date(boundsRes.rows[0].end_time);
+  }
+
+  validateWorkingHours(start, end);
+
+  // Check conflicts with OTHER approved reservations on this instrument
+  const conflicts = await db
+    .select({ id: reservations.id })
+    .from(reservations)
+    .where(
+      sql`${reservations.instrumentId} = ${instrumentId}
+        AND ${reservations.id} != ${reservationId}
+        AND ${reservations.status} = 'approved'
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`
+    )
+    .limit(1);
+
+  if (conflicts.length > 0) {
+    throw new Error('The updated time slot conflicts with an existing approved reservation.');
+  }
+
+  // Fetch instrument
+  const [instrument] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, instrumentId))
+    .limit(1);
+
+  if (!instrument) {
+    throw new Error('Target instrument not found.');
+  }
+
+  // Check Trusted or Admin status
+  let isTrustedOrAdmin = false;
+  if (existing.adminId || caller.adminId) {
+    isTrustedOrAdmin = true;
+  } else if (existing.userId) {
+    const [u] = await db.select().from(users).where(eq(users.id, existing.userId)).limit(1);
+    if (u?.isTrusted) isTrustedOrAdmin = true;
+  }
+
+  let newStatus: 'approved' | 'pending' = 'pending';
+
+  if (isTrustedOrAdmin) {
+    // Always re-run and auto-approve again (skip limit/mode checks, conflict check already passed)
+    newStatus = 'approved';
+  } else if (existing.status === 'pending') {
+    // Stays pending, conflict check already passed
+    newStatus = 'pending';
+  } else if (existing.status === 'approved') {
+    if (instrument.bookingMode === 'manual') {
+      newStatus = 'pending';
+    } else {
+      // Check hard limits
+      const limits = await getHardLimits();
+      let limitExceeded = false;
+      const durationHours = (end.getTime() - start.getTime()) / (3600 * 1000);
+
+      if (durationHours > limits.maxDurationHours) limitExceeded = true;
+
+      if (!limitExceeded && existing.userId) {
+        // Active reservations check (exclude current reservation)
+        const activeRes = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(reservations)
+          .where(
+            and(
+              eq(reservations.userId, existing.userId),
+              sql`${reservations.id} != ${reservationId}`,
+              inArray(reservations.status, ['pending', 'approved'])
+            )
+          );
+        if (Number(activeRes[0]?.count || 0) >= limits.maxActiveReservations) {
+          limitExceeded = true;
+        }
+      }
+
+      newStatus = limitExceeded ? 'pending' : 'approved';
+    }
+  }
+
+  let outsideFee = existing.feeSnapshot;
+  const resType = updates.reservationType || existing.reservationType;
+  if (resType === 'outside_church') {
+    if (!updates.feeAcknowledged && !existing.feeSnapshot) {
+      throw new Error('Outside church reservation requires fee acknowledgment.');
+    }
+    outsideFee = instrument.outsideFeePerDay;
+  } else {
+    outsideFee = null;
+  }
+
+  const [updated] = await db
+    .update(reservations)
+    .set({
+      instrumentId,
+      serviceName: updates.serviceName !== undefined ? updates.serviceName.trim() : existing.serviceName,
+      timeRange: sql`tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')` as any,
+      reservationType: resType,
+      feeSnapshot: outsideFee,
+      status: newStatus,
+      rejectionReason: null,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  if (newStatus === 'approved') {
+    await autoRejectOverlappingPending(instrumentId, start, end, reservationId);
+  }
+
+  return updated;
+}
+
+/**
+ * =========================================================================
+ * 4. CANCELLATION LOGIC
+ * =========================================================================
+ */
+export async function cancelReservation(
+  reservationId: string,
+  options: { cancelMode?: 'single' | 'series' },
+  caller: { userId?: string; adminId?: string }
+) {
+  const [target] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!target) {
+    throw new Error('Reservation not found.');
+  }
+
+  // Authorization check
+  if (!caller.adminId && (!caller.userId || target.userId !== caller.userId)) {
+    throw new Error('You are not authorized to cancel this reservation.');
+  }
+
+  if (options.cancelMode === 'series' && target.seriesId) {
+    // Cancel all FUTURE occurrences in this series (pending or approved)
+    const cancelled = await db
+      .update(reservations)
+      .set({ status: 'cancelled' })
+      .where(
+        and(
+          eq(reservations.seriesId, target.seriesId),
+          inArray(reservations.status, ['pending', 'approved']),
+          sql`lower(${reservations.timeRange}) > NOW()`
+        )
+      )
+      .returning();
+
+    return { mode: 'series', cancelledCount: cancelled.length, reservations: cancelled };
+  }
+
+  // Cancel single occurrence
+  const [cancelled] = await db
+    .update(reservations)
+    .set({ status: 'cancelled' })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  return { mode: 'single', reservation: cancelled };
+}
+
+/**
+ * =========================================================================
+ * 5. ADMIN ACTIONS
+ * =========================================================================
+ */
+export async function adminApproveReservation(reservationId: string, adminId: string) {
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error('Reservation not found.');
+
+  // Extract time range
+  const boundsRes: any = await db.execute(
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`
+  );
+  const start = new Date(boundsRes.rows[0].start_time);
+  const end = new Date(boundsRes.rows[0].end_time);
+
+  // Check if conflict exists
+  const conflicts = await db
+    .select({ id: reservations.id })
+    .from(reservations)
+    .where(
+      sql`${reservations.instrumentId} = ${res.instrumentId}
+        AND ${reservations.id} != ${reservationId}
+        AND ${reservations.status} = 'approved'
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`
+    )
+    .limit(1);
+
+  if (conflicts.length > 0) {
+    throw new Error('Cannot approve: this time slot conflicts with another already approved reservation.');
+  }
+
+  const [approved] = await db
+    .update(reservations)
+    .set({
+      status: 'approved',
+      rejectionReason: null,
+      adminId,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  // Auto-reject other pending overlapping
+  await autoRejectOverlappingPending(res.instrumentId, start, end, reservationId);
+
+  // Notify user
+  if (res.userId) {
+    await db.insert(notifications).values({
+      userId: res.userId,
+      type: 'reservation_approved',
+      message: 'Your reservation has been approved by an administrator.',
+    });
+  }
+
+  return approved;
+}
+
+export async function adminRejectReservation(
+  reservationId: string,
+  reason: string,
+  adminId: string
+) {
+  if (!reason || !reason.trim()) {
+    throw new Error('A rejection reason is required.');
+  }
+
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error('Reservation not found.');
+
+  const [rejected] = await db
+    .update(reservations)
+    .set({
+      status: 'rejected',
+      rejectionReason: reason.trim(),
+      adminId,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  if (res.userId) {
+    await db.insert(notifications).values({
+      userId: res.userId,
+      type: 'reservation_rejected',
+      message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
+    });
+  }
+
+  return rejected;
+}
+
+export async function adminApproveSeries(seriesId: string, adminId: string) {
+  // Find all future pending occurrences in this series
+  const pendingOccurrences = await db
+    .select()
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.seriesId, seriesId),
+        eq(reservations.status, 'pending'),
+        sql`lower(${reservations.timeRange}) > NOW()`
+      )
+    );
+
+  const approvedList: any[] = [];
+
+  for (const occ of pendingOccurrences) {
+    try {
+      const app = await adminApproveReservation(occ.id, adminId);
+      approvedList.push(app);
+    } catch (e: any) {
+      console.warn(`Could not approve occurrence ${occ.id} in series:`, e.message);
+    }
+  }
+
+  return { seriesId, approvedCount: approvedList.length, approved: approvedList };
+}
+
+export async function adminRejectSeries(seriesId: string, reason: string, adminId: string) {
+  if (!reason || !reason.trim()) {
+    throw new Error('A rejection reason is required.');
+  }
+
+  const futureOccurrences = await db
+    .select()
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.seriesId, seriesId),
+        inArray(reservations.status, ['pending', 'approved']),
+        sql`lower(${reservations.timeRange}) > NOW()`
+      )
+    );
+
+  const rejectedList = await db
+    .update(reservations)
+    .set({
+      status: 'rejected',
+      rejectionReason: reason.trim(),
+      adminId,
+    })
+    .where(
+      and(
+        eq(reservations.seriesId, seriesId),
+        inArray(reservations.status, ['pending', 'approved']),
+        sql`lower(${reservations.timeRange}) > NOW()`
+      )
+    )
+    .returning();
+
+  // Notify user
+  if (futureOccurrences.length > 0 && futureOccurrences[0].userId) {
+    await db.insert(notifications).values({
+      userId: futureOccurrences[0].userId,
+      type: 'series_rejected',
+      message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
+    });
+  }
+
+  return { seriesId, rejectedCount: rejectedList.length, rejected: rejectedList };
+}
+
+/**
+ * =========================================================================
+ * 6. STATUS TRANSITIONS (Scheduled Check / Background Job)
+ * =========================================================================
+ */
+export async function runStatusTransitions() {
+  // 1. Move 'approved' -> 'ongoing' when current time enters time_range
+  const toOngoingRes = await db.execute(sql`
+    UPDATE reservations
+    SET status = 'ongoing'
+    WHERE status = 'approved'
+      AND lower(time_range) <= NOW()
+      AND upper(time_range) > NOW()
+    RETURNING id;
+  `);
+
+  // 2. Move 'ongoing' or 'approved' -> 'completed' when current time passes end of time_range
+  const toCompletedRes = await db.execute(sql`
+    UPDATE reservations
+    SET status = 'completed'
+    WHERE status IN ('ongoing', 'approved')
+      AND upper(time_range) <= NOW()
+    RETURNING id;
+  `);
+
+  const ongoingCount = ((toOngoingRes as any).rows || []).length;
+  const completedCount = ((toCompletedRes as any).rows || []).length;
+
+  return { ongoingCount, completedCount };
+}
+
+/**
+ * =========================================================================
+ * 7. INSTRUMENT REMOVAL (Force-Remove with Conflict Cancellation)
+ * =========================================================================
+ */
+export async function removeInstrumentWithConfirmation(
+  instrumentId: string,
+  options: { confirmForce: boolean },
+  adminId: string
+) {
+  // Check future active reservations
+  const futureActive = await db
+    .select({
+      id: reservations.id,
+      userId: reservations.userId,
+      status: reservations.status,
+    })
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.instrumentId, instrumentId),
+        inArray(reservations.status, ['approved', 'pending']),
+        sql`upper(${reservations.timeRange}) > NOW()`
+      )
+    );
+
+  if (futureActive.length > 0 && !options.confirmForce) {
+    return {
+      requiresConfirmation: true,
+      futureReservationCount: futureActive.length,
+      message: `There are ${futureActive.length} active/pending future reservations for this instrument. Pass confirmForce: true to cancel them and remove the instrument.`,
+    };
+  }
+
+  // Cancel all future active reservations
+  if (futureActive.length > 0) {
+    await db
+      .update(reservations)
+      .set({
+        status: 'cancelled',
+        rejectionReason: 'Instrument removed by administration',
+        adminId,
+      })
+      .where(
+        and(
+          eq(reservations.instrumentId, instrumentId),
+          inArray(reservations.status, ['approved', 'pending']),
+          sql`upper(${reservations.timeRange}) > NOW()`
+        )
+      );
+
+    // Notify all affected users
+    for (const res of futureActive) {
+      if (res.userId) {
+        await db.insert(notifications).values({
+          userId: res.userId,
+          type: 'instrument_removed_cancellation',
+          message: 'Your reservation was cancelled because the instrument was removed from the inventory by administration.',
+        });
+      }
+    }
+  }
+
+  // Mark instrument as removed
+  const [removedInstrument] = await db
+    .update(instruments)
+    .set({ isRemoved: true })
+    .where(eq(instruments.id, instrumentId))
+    .returning();
+
+  return {
+    success: true,
+    cancelledReservationsCount: futureActive.length,
+    instrument: removedInstrument,
+  };
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Instrument Reservation System",
+  "description": "PostgreSQL database backend for church instrument reservations, recurring series, gist conflict prevention, and admin control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
