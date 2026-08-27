@@ -123,6 +123,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       return;
     }
 
+    if (!serviceName.trim()) {
+      setErrorMsg('Please specify what this reservation is for (e.g. Sunday Morning Worship, Youth Practice).');
+      return;
+    }
+
     if (reservationType === 'outside_church' && !feeAcknowledged) {
       setErrorMsg('Please acknowledge the outside-church fee agreement before proceeding.');
       return;
@@ -132,6 +137,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     if (isRecurring && onOpenSeriesBuilder) {
       onOpenSeriesBuilder({
         instrument: currentInstrument,
+        serviceName: serviceName.trim(),
         date,
         startTime,
         duration,
@@ -153,6 +159,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         body: JSON.stringify({
           userId: profile.id,
           instrumentId: currentInstrument.id,
+          serviceName: serviceName.trim(),
           date,
           startTime,
           duration,
@@ -323,6 +330,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 </div>
               </div>
 
+              {/* Service Name / Purpose in Receipt */}
+              <div className="pt-2 border-t border-stone-200">
+                <span className="text-stone-500 font-medium block">What this reservation is for:</span>
+                <span className="font-bold text-stone-900 text-sm">
+                  {submissionResult.reservation.serviceName || serviceName || 'Not specified'}
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200">
                 <div>
                   <span className="text-stone-500 font-medium block">Date & Time:</span>
@@ -419,7 +434,23 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
             </div>
 
-            {/* 2. Date & Time Selection */}
+            {/* 2. Purpose / Service Name (Required free-text input) */}
+            <div className="space-y-1.5">
+              <label htmlFor="input-service-name" className="block text-xs font-bold text-stone-700">
+                What is this reservation for? <span className="text-amber-800 font-bold">*</span>
+              </label>
+              <input
+                id="input-service-name"
+                type="text"
+                value={serviceName}
+                onChange={(e) => setServiceName(e.target.value)}
+                placeholder="e.g. Sunday Morning Worship, Youth Practice"
+                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                required
+              />
+            </div>
+
+            {/* 3. Date & Time Selection */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Date Input */}
               <div className="space-y-1.5">
@@ -644,10 +675,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 id="btn-submit-reservation"
                 disabled={
                   isSubmitting ||
+                  !serviceName.trim() ||
                   (reservationType === 'outside_church' && !feeAcknowledged)
                 }
                 className={`flex-1 py-3 px-6 rounded-2xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${
-                  isSubmitting || (reservationType === 'outside_church' && !feeAcknowledged)
+                  isSubmitting ||
+                  !serviceName.trim() ||
+                  (reservationType === 'outside_church' && !feeAcknowledged)
                     ? 'bg-stone-300 cursor-not-allowed text-stone-500 shadow-none'
                     : 'bg-amber-800 hover:bg-amber-900 active:scale-[0.99]'
                 }`}

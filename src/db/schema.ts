@@ -22,7 +22,7 @@ export const tstzrange = customType<{ data: string; driverData: string }>({
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  phoneNumber: text('phone_number').notNull().unique(),
+  phoneNumber: text('phone_number').notNull().unique('users_phone_number_key'),
   passwordHash: text('password_hash').notNull(),
   isTrusted: boolean('is_trusted').default(false).notNull(),
   isActive: boolean('is_active').default(true).notNull(),
@@ -33,7 +33,7 @@ export const users = pgTable('users', {
 export const admins = pgTable('admins', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  phoneNumber: text('phone_number').notNull().unique(),
+  phoneNumber: text('phone_number').notNull().unique('admins_phone_number_key'),
   passwordHash: text('password_hash').notNull(),
   isSuperAdmin: boolean('is_super_admin').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -125,6 +125,8 @@ export const notifications = pgTable('notifications', {
   userId: uuid('user_id')
     .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
+  reservationId: uuid('reservation_id')
+    .references(() => reservations.id, { onDelete: 'cascade' }),
   type: text('type').notNull(),
   message: text('message').notNull(),
   isRead: boolean('is_read').default(false).notNull(),

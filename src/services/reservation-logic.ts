@@ -359,8 +359,9 @@ export async function autoRejectOverlappingPending(
     if (row.user_id) {
       await db.insert(notifications).values({
         userId: row.user_id,
+        reservationId: row.id,
         type: 'reservation_auto_rejected',
-        message: 'Your pending reservation was auto-rejected because another reservation was approved for this time slot.',
+        message: 'Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.',
       });
     }
   }
@@ -402,6 +403,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     if (input.userId) {
       await db.insert(notifications).values({
         userId: input.userId,
+        reservationId: newReservation.id,
         type: 'reservation_approved',
         message: `Your reservation on ${input.date} (${input.startTime} - ${evalResult.endTimeUtc.toISOString().substring(11, 16)} UTC) has been approved.`,
       });
@@ -410,6 +412,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     // Notification for pending submission
     await db.insert(notifications).values({
       userId: input.userId,
+      reservationId: newReservation.id,
       type: 'reservation_submitted',
       message: `Your reservation request on ${input.date} (${input.startTime}) has been submitted and is pending administrator review.`,
     });
@@ -549,6 +552,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         userId,
         adminId,
         instrumentId,
+        serviceName: input.serviceName,
         date: occ.date,
         startTime: occ.startTime,
         duration: occ.duration,
@@ -800,15 +804,14 @@ export async function cancelReservation(
   }
 
   if (options.cancelMode === 'series' && target.seriesId) {
-    // Cancel all FUTURE occurrences in this series (pending or approved)
+    // Cancel all active/pending/approved occurrences in this series
     const cancelled = await db
       .update(reservations)
       .set({ status: 'cancelled' })
       .where(
         and(
           eq(reservations.seriesId, target.seriesId),
-          inArray(reservations.status, ['pending', 'approved']),
-          sql`lower(${reservations.timeRange}) > NOW()`
+          inArray(reservations.status, ['pending', 'approved', 'ongoing'])
         )
       )
       .returning();
@@ -880,6 +883,7 @@ export async function adminApproveReservation(reservationId: string, adminId: st
   if (res.userId) {
     await db.insert(notifications).values({
       userId: res.userId,
+      reservationId: res.id,
       type: 'reservation_approved',
       message: 'Your reservation has been approved by an administrator.',
     });
@@ -918,6 +922,7 @@ export async function adminRejectReservation(
   if (res.userId) {
     await db.insert(notifications).values({
       userId: res.userId,
+      reservationId: res.id,
       type: 'reservation_rejected',
       message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
     });
@@ -927,15 +932,14 @@ export async function adminRejectReservation(
 }
 
 export async function adminApproveSeries(seriesId: string, adminId: string) {
-  // Find all future pending occurrences in this series
+  // Find all pending occurrences in this series
   const pendingOccurrences = await db
     .select()
     .from(reservations)
     .where(
       and(
         eq(reservations.seriesId, seriesId),
-        eq(reservations.status, 'pending'),
-        sql`lower(${reservations.timeRange}) > NOW()`
+        eq(reservations.status, 'pending')
       )
     );
 
@@ -958,14 +962,14 @@ export async function adminRejectSeries(seriesId: string, reason: string, adminI
     throw new Error('A rejection reason is required.');
   }
 
-  const futureOccurrences = await db
+  // Find all pending, approved, or active uncompleted occurrences in this series
+  const seriesOccurrences = await db
     .select()
     .from(reservations)
     .where(
       and(
         eq(reservations.seriesId, seriesId),
-        inArray(reservations.status, ['pending', 'approved']),
-        sql`lower(${reservations.timeRange}) > NOW()`
+        inArray(reservations.status, ['pending', 'approved', 'ongoing'])
       )
     );
 
@@ -979,22 +983,89 @@ export async function adminRejectSeries(seriesId: string, reason: string, adminI
     .where(
       and(
         eq(reservations.seriesId, seriesId),
-        inArray(reservations.status, ['pending', 'approved']),
-        sql`lower(${reservations.timeRange}) > NOW()`
+        inArray(reservations.status, ['pending', 'approved', 'ongoing'])
       )
     )
     .returning();
 
   // Notify user
-  if (futureOccurrences.length > 0 && futureOccurrences[0].userId) {
+  const userId = seriesOccurrences[0]?.userId;
+  if (userId) {
     await db.insert(notifications).values({
-      userId: futureOccurrences[0].userId,
+      userId,
       type: 'series_rejected',
       message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
     });
   }
 
   return { seriesId, rejectedCount: rejectedList.length, rejected: rejectedList };
+}
+
+export async function adminBulkApprove(reservationIds: string[], adminId: string) {
+  if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
+    throw new Error('No reservation IDs provided for bulk approval.');
+  }
+
+  const approvedList: any[] = [];
+  const errors: { id: string; error: string }[] = [];
+
+  for (const id of reservationIds) {
+    try {
+      const approved = await adminApproveReservation(id, adminId);
+      approvedList.push(approved);
+    } catch (err: any) {
+      errors.push({ id, error: err.message });
+    }
+  }
+
+  return {
+    success: true,
+    totalRequested: reservationIds.length,
+    approvedCount: approvedList.length,
+    approved: approvedList,
+    errors,
+  };
+}
+
+export async function adminBulkReject(reservationIds: string[], reason: string, adminId: string) {
+  if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
+    throw new Error('No reservation IDs provided for bulk rejection.');
+  }
+  if (!reason || !reason.trim()) {
+    throw new Error('A rejection reason is required for bulk rejection.');
+  }
+
+  const rejectedList = await db
+    .update(reservations)
+    .set({
+      status: 'rejected',
+      rejectionReason: reason.trim(),
+      adminId,
+    })
+    .where(
+      and(
+        inArray(reservations.id, reservationIds),
+        inArray(reservations.status, ['pending', 'approved', 'ongoing'])
+      )
+    )
+    .returning();
+
+  // Group notifications by userId
+  const userIds = Array.from(new Set(rejectedList.map((r) => r.userId).filter(Boolean)));
+  for (const uid of userIds) {
+    await db.insert(notifications).values({
+      userId: uid as string,
+      type: 'reservation_rejected',
+      message: `Your reservation request(s) were rejected by an administrator. Reason: ${reason.trim()}`,
+    });
+  }
+
+  return {
+    success: true,
+    totalRequested: reservationIds.length,
+    rejectedCount: rejectedList.length,
+    rejected: rejectedList,
+  };
 }
 
 /**
@@ -1084,6 +1155,7 @@ export async function removeInstrumentWithConfirmation(
       if (res.userId) {
         await db.insert(notifications).values({
           userId: res.userId,
+          reservationId: res.id,
           type: 'instrument_removed_cancellation',
           message: 'Your reservation was cancelled because the instrument was removed from the inventory by administration.',
         });

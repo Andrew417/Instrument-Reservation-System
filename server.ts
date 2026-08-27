@@ -4,6 +4,8 @@ import { createServer as createViteServer } from 'vite';
 import authRouter from './src/server/auth.ts';
 import reservationsRouter from './src/server/reservations.ts';
 import instrumentsRouter from './src/server/instruments.ts';
+import notificationsRouter from './src/server/notifications.ts';
+import adminRouter from './src/server/admin.ts';
 import { runStatusTransitions } from './src/services/reservation-logic.ts';
 
 async function startServer() {
@@ -21,6 +23,8 @@ async function startServer() {
   app.use('/api/auth', authRouter);
   app.use('/api/reservations', reservationsRouter);
   app.use('/api/instruments', instrumentsRouter);
+  app.use('/api/notifications', notificationsRouter);
+  app.use('/api/admin', adminRouter);
 
   // Background status transitions: run every 60 seconds
   setInterval(async () => {

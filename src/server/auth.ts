@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { db } from '../db/index.ts';
 import { users, admins, failedLoginAttempts, passwordResetOtps, sessions } from '../db/schema.ts';
-import { eq, or, and, gt, desc } from 'drizzle-orm';
+import { eq, or, and, gt, desc, inArray } from 'drizzle-orm';
 import { normalizePhoneNumber } from '../lib/auth-helpers.ts';
 import { createSession, validateSession, destroySession, requireAuth } from './session-manager.ts';
 
@@ -18,6 +18,72 @@ const MAX_OTP_VERIFY_ATTEMPTS = 3;
 async function hashPassword(plainText: string): Promise<string> {
   return bcrypt.hash(plainText, 10);
 }
+
+// Generate normalized telephone variations (+2010..., 010..., 2010...)
+function getPhoneVariants(raw: string): string[] {
+  const norm = normalizePhoneNumber(raw);
+  const variants = new Set<string>();
+  variants.add(norm);
+  if (norm.startsWith('+')) {
+    variants.add(norm.slice(1));
+  } else {
+    variants.add(`+${norm}`);
+  }
+  if (norm.startsWith('01') && norm.length === 11) {
+    variants.add(`+20${norm.slice(1)}`);
+    variants.add(`20${norm.slice(1)}`);
+  }
+  if (norm.startsWith('+201') && norm.length === 13) {
+    variants.add(`0${norm.slice(3)}`);
+    variants.add(norm.slice(1));
+  }
+  if (norm.startsWith('201') && norm.length === 12) {
+    variants.add(`0${norm.slice(2)}`);
+    variants.add(`+${norm}`);
+  }
+  return Array.from(variants);
+}
+
+// Ensure the hardcoded Super Admin account exists with bcrypt password
+export async function ensureSuperAdminSeed(): Promise<void> {
+  try {
+    const superAdminPhone = '+201000000000';
+    const superAdminHash = '$2b$10$s8IYPXA3FueeQ41NOwV7yuhjPNnNosLkDcR/Bjd25RsKXffV2ypKS'; // SuperAdmin@2026
+
+    const variants = getPhoneVariants(superAdminPhone);
+    const existing = await db
+      .select()
+      .from(admins)
+      .where(inArray(admins.phoneNumber, variants))
+      .limit(1);
+
+    if (existing.length === 0) {
+      await db.insert(admins).values({
+        name: 'Super Admin (Fr. Joseph)',
+        phoneNumber: superAdminPhone,
+        passwordHash: superAdminHash,
+        isSuperAdmin: true,
+      });
+      console.log('✅ Hardcoded Super Admin account provisioned: +201000000000 / 01000000000');
+    } else {
+      // Ensure password hash and isSuperAdmin are up-to-date
+      await db
+        .update(admins)
+        .set({
+          name: 'Super Admin (Fr. Joseph)',
+          passwordHash: superAdminHash,
+          isSuperAdmin: true,
+        })
+        .where(eq(admins.id, existing[0].id));
+      console.log('✅ Hardcoded Super Admin account verified: +201000000000 / 01000000000');
+    }
+  } catch (err) {
+    console.error('Failed to ensure Super Admin seed:', err);
+  }
+}
+
+// Run initial check
+ensureSuperAdminSeed();
 
 /**
  * 1. Check if an account is currently locked due to failed attempts
@@ -203,11 +269,13 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const variants = getPhoneVariants(phoneNumber);
+
     // Lookup in users table
     const [matchedUser] = await db
       .select()
       .from(users)
-      .where(eq(users.phoneNumber, normalized))
+      .where(inArray(users.phoneNumber, variants))
       .limit(1);
 
     let matchedAccount: any = matchedUser;
@@ -218,7 +286,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       const [matchedAdmin] = await db
         .select()
         .from(admins)
-        .where(eq(admins.phoneNumber, normalized))
+        .where(inArray(admins.phoneNumber, variants))
         .limit(1);
 
       if (matchedAdmin) {

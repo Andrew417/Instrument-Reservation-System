@@ -126,6 +126,7 @@ async function runTests() {
     const test1Result = await createReservation({
       userId: trustedUser.id,
       instrumentId: manualPiano.id,
+      serviceName: 'Sunday Morning Service',
       date: '2026-09-01',
       startTime: '10:00',
       duration: 2,
@@ -154,6 +155,7 @@ async function runTests() {
       await createReservation({
         userId: regularUser.id,
         instrumentId: instantGuitar.id,
+        serviceName: `Rehearsal Session ${i}`,
         date: `2026-09-0${i + 1}`,
         startTime: '10:00',
         duration: 1,
@@ -166,6 +168,7 @@ async function runTests() {
     const test2Result = await createReservation({
       userId: regularUser.id,
       instrumentId: instantGuitar.id,
+      serviceName: 'Overflow Practice Session',
       date: '2026-09-10',
       startTime: '14:00',
       duration: 1,
@@ -192,6 +195,7 @@ async function runTests() {
     const firstSubmission = await createReservation({
       userId: secondUser.id,
       instrumentId: instantGuitar.id,
+      serviceName: 'Praise & Worship Team',
       date: '2026-09-15',
       startTime: '11:00',
       duration: 2,
@@ -207,6 +211,7 @@ async function runTests() {
       await createReservation({
         userId: trustedUser.id, // even trusted user must be blocked on approved conflict
         instrumentId: instantGuitar.id,
+        serviceName: 'Youth Band Rehearsal',
         date: '2026-09-15',
         startTime: '12:00',
         duration: 2,
@@ -246,6 +251,7 @@ async function runTests() {
       await createReservationSeries({
         userId: trustedUser.id,
         instrumentId: manualPiano.id,
+        serviceName: 'Weekly Choir Practice',
         patternType: 'custom',
         occurrences: occurrencesWithSelfOverlap,
         reservationType: 'in_church',

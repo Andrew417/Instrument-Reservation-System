@@ -64,6 +64,7 @@ async function runComprehensiveTests() {
     const single = await createReservation({
       userId: member.id,
       instrumentId: drum.id,
+      serviceName: 'Youth Choir Practice',
       date: '2026-11-01',
       startTime: '10:00',
       duration: 2,
@@ -92,6 +93,7 @@ async function runComprehensiveTests() {
     const pendingBooking = await createReservation({
       userId: member.id,
       instrumentId: drum.id,
+      serviceName: 'Sunday Morning Service',
       date: '2026-11-05',
       startTime: '14:00',
       duration: 2,
@@ -104,6 +106,7 @@ async function runComprehensiveTests() {
     const pendingBooking2 = await createReservation({
       userId: member.id,
       instrumentId: drum.id,
+      serviceName: 'Sunday Evening Service',
       date: '2026-11-06',
       startTime: '14:00',
       duration: 2,
