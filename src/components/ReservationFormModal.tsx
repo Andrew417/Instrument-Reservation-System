@@ -392,6 +392,31 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               <label className="block text-xs font-bold text-stone-700">
                 Selected Instrument
               </label>
+
+              {/* Instrument Photo & Summary Card */}
+              <div className="flex items-center gap-3 p-3 bg-stone-50 border border-stone-200 rounded-2xl">
+                <div className="w-12 h-12 rounded-xl bg-amber-100/70 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                  {currentInstrument.photoUrl ? (
+                    <img
+                      src={currentInstrument.photoUrl}
+                      alt={currentInstrument.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Music2 className="w-5 h-5 text-amber-800" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-stone-900 truncate">
+                    {currentInstrument.name}
+                  </div>
+                  <div className="text-[11px] text-stone-500">
+                    {currentInstrument.type} • {currentInstrument.bookingMode === 'instant' ? '⚡ Instant Booking' : '🛡️ Manual Review'}
+                  </div>
+                </div>
+              </div>
+
               <div className="relative">
                 <select
                   id="select-instrument"

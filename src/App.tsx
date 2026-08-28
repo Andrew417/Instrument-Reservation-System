@@ -366,6 +366,9 @@ const UserPortalMain: React.FC = () => {
           <AdminPortal
             onBackToMemberView={() => setCurrentView('calendar')}
             onOpenReservationDetail={(id) => setSelectedReservationDetailId(id)}
+            onInstrumentsChanged={() => {
+              setRefreshTrigger((prev) => prev + 1);
+            }}
           />
         )}
       </main>
@@ -416,6 +419,13 @@ const UserPortalMain: React.FC = () => {
               timeHhmm,
               duration: durationHours,
             });
+          }}
+          onInstrumentUpdated={(updatedInst) => {
+            setSelectedInstrument(updatedInst);
+            setAllInstruments((prev) =>
+              prev.map((i) => (i.id === updatedInst.id ? updatedInst : i))
+            );
+            setRefreshTrigger((prev) => prev + 1);
           }}
         />
       )}

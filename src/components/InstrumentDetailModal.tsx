@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Instrument } from './AvailabilityCalendar.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { getReservantColorTheme } from '../lib/reservant-colors.ts';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -15,6 +16,8 @@ import {
   CalendarDays,
   Info,
   CalendarRange,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 
 export interface InstrumentDetailModalProps {
@@ -23,6 +26,7 @@ export interface InstrumentDetailModalProps {
   initialDate?: string;
   onClose: () => void;
   onSelectSlot: (instrument: Instrument, date: string, timeHhmm: string, durationHours: number) => void;
+  onInstrumentUpdated?: (updated: Instrument) => void;
 }
 
 // 30-min intervals 09:00 to 22:00
@@ -54,8 +58,73 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   initialDate,
   onClose,
   onSelectSlot,
+  onInstrumentUpdated,
 }) => {
-  const { profile } = useAuth();
+  const { profile, sessionToken } = useAuth();
+  const isAdminOrSuperAdmin =
+    profile?.role === 'admin' ||
+    profile?.role === 'super_admin' ||
+    Boolean(profile?.isSuperAdmin);
+
+  const [currentInstrument, setCurrentInstrument] = useState<Instrument>(instrument);
+  const [isUpdatingMode, setIsUpdatingMode] = useState<boolean>(false);
+  const [modeNotice, setModeNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentInstrument(instrument);
+  }, [instrument]);
+
+  const handleToggleMode = async () => {
+    if (!isAdminOrSuperAdmin || isUpdatingMode) return;
+    const nextMode: 'manual' | 'instant' = currentInstrument.bookingMode === 'instant' ? 'manual' : 'instant';
+    const nextLabel = nextMode === 'instant' ? 'Instant Booking' : 'Manual Approval';
+
+    setIsUpdatingMode(true);
+    const updated: Instrument = { ...currentInstrument, bookingMode: nextMode };
+    setCurrentInstrument(updated);
+
+    try {
+      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      let res = await fetch(`/api/instruments/${currentInstrument.id}/mode`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ bookingMode: nextMode }),
+      });
+
+      if (!res.ok) {
+        res = await fetch(`/api/admin/instruments/${currentInstrument.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify({ bookingMode: nextMode }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update mode');
+      }
+
+      setModeNotice(`Switched to ${nextLabel}`);
+      setTimeout(() => setModeNotice(null), 3000);
+
+      if (onInstrumentUpdated) {
+        onInstrumentUpdated(updated);
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle mode:', err);
+      setCurrentInstrument(instrument);
+      setModeNotice(`Error: ${err.message || 'Failed to update'}`);
+      setTimeout(() => setModeNotice(null), 3500);
+    } finally {
+      setIsUpdatingMode(false);
+    }
+  };
 
   // View mode: 'daily' | 'weekly' | 'monthly'
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -79,7 +148,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   const fetchReservations = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/reservations?instrumentId=${instrument.id}&status=approved`);
+      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      const res = await fetch(
+        `/api/reservations?instrumentId=${instrument.id}&status=approved,ongoing`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
       const data = await res.json();
       if (data.success && Array.isArray(data.reservations)) {
         setApprovedReservations(data.reservations);
@@ -93,14 +168,116 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   useEffect(() => {
     fetchReservations();
-  }, [instrument.id]);
+  }, [instrument.id, sessionToken, profile?.role]);
 
   const feeNumber = Number(instrument.outsideFeePerDay || 0);
 
-  // Fallback instrument photo placeholder generator
+  // Hidden file input ref and upload state for admin photo management
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
+
+  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    if (!file.type.startsWith('image/')) {
+      setModeNotice('Please select an image file (PNG, JPG, WEBP).');
+      setTimeout(() => setModeNotice(null), 3000);
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const img = new window.Image();
+      img.onload = async () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        let dataUrl = String(ev.target?.result || '');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+        }
+
+        try {
+          const token = sessionToken || localStorage.getItem('church_session_token_v1');
+          const res = await fetch(`/api/admin/instruments/${currentInstrument.id}/photo`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: token ? `Bearer ${token}` : '',
+            },
+            body: JSON.stringify({ photoUrl: dataUrl }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            const updated = { ...currentInstrument, photoUrl: dataUrl };
+            setCurrentInstrument(updated);
+            onInstrumentUpdated?.(updated);
+            setModeNotice('Photo attached to instrument successfully.');
+            setTimeout(() => setModeNotice(null), 3000);
+          } else {
+            setModeNotice(data.error || 'Failed to update photo');
+            setTimeout(() => setModeNotice(null), 3000);
+          }
+        } catch (err: any) {
+          setModeNotice(err.message || 'Network error updating photo');
+          setTimeout(() => setModeNotice(null), 3000);
+        } finally {
+          setIsUploadingPhoto(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
+      img.src = String(ev.target?.result || '');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhotoOnScreen4 = async () => {
+    try {
+      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      const res = await fetch(`/api/admin/instruments/${currentInstrument.id}/photo`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ photoUrl: '' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const updated = { ...currentInstrument, photoUrl: '' };
+        setCurrentInstrument(updated);
+        onInstrumentUpdated?.(updated);
+        setModeNotice('Instrument photo removed. Placeholder restored.');
+        setTimeout(() => setModeNotice(null), 3000);
+      }
+    } catch (err: any) {
+      setModeNotice(err.message);
+      setTimeout(() => setModeNotice(null), 3000);
+    }
+  };
+
+  // Instrument photo: uses uploaded photo when set, null when no photo is set
   const photoUrl =
+    currentInstrument.photoUrl ||
+    (currentInstrument as any).photo_url ||
     instrument.photoUrl ||
-    `https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=600&q=80`;
+    (instrument as any).photo_url ||
+    null;
 
   // Helper to check if a specific date and time slot is booked
   const isSlotBooked = (dateStr: string, slotHhmm: string) => {
@@ -110,6 +287,20 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
 
     return approvedReservations.some((res) => {
+      const resStart = new Date(res.start_time || res.startTime);
+      const resEnd = new Date(res.end_time || res.endTime);
+      return slotStart < resEnd && resStart < slotEnd;
+    });
+  };
+
+  // Helper to retrieve reservation details for a booked slot
+  const getSlotReservation = (dateStr: string, slotHhmm: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const [h, min] = slotHhmm.split(':').map(Number);
+    const slotStart = new Date(Date.UTC(y, m - 1, d, h, min, 0, 0));
+    const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+
+    return approvedReservations.find((res) => {
       const resStart = new Date(res.start_time || res.startTime);
       const resEnd = new Date(res.end_time || res.endTime);
       return slotStart < resEnd && resStart < slotEnd;
@@ -284,47 +475,126 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           {/* HEADER: NAME, TYPE, DESCRIPTION, PHOTO & BADGES */}
           {/* ========================================================= */}
           <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-5 items-start">
-            {/* Instrument Photo */}
-            <div className="w-full sm:w-44 h-36 rounded-2xl overflow-hidden bg-stone-200 border border-stone-300 shrink-0 relative shadow-inner">
-              <img
-                src={photoUrl}
-                alt={instrument.name}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src =
-                    'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=600&q=80';
-                }}
-              />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-stone-900/80 backdrop-blur-xs text-white text-[10px] font-bold">
-                {instrument.type}
+            {/* Hidden photo file input for admins */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png, image/jpeg, image/webp, image/gif"
+              onChange={handlePhotoSelected}
+              className="hidden"
+              id={`screen4-photo-input-${currentInstrument.id}`}
+            />
+
+            {/* Instrument Photo or Placeholder */}
+            {photoUrl ? (
+              <div className="w-full sm:w-44 h-36 rounded-2xl overflow-hidden bg-stone-200 border border-stone-300 shrink-0 relative shadow-inner group">
+                <img
+                  src={photoUrl}
+                  alt={currentInstrument.name}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-stone-900/80 backdrop-blur-xs text-white text-[10px] font-bold">
+                  {currentInstrument.type}
+                </div>
+                {isAdminOrSuperAdmin && (
+                  <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-2xs">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingPhoto}
+                      className="px-2.5 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>{isUploadingPhoto ? 'Uploading...' : 'Change Photo'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhotoOnScreen4}
+                      disabled={isUploadingPhoto}
+                      className="px-2.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="w-full sm:w-44 h-36 rounded-2xl bg-amber-50/70 border-2 border-dashed border-amber-200/80 flex flex-col items-center justify-center text-center p-3 shrink-0 relative shadow-2xs group">
+                <div className="w-10 h-10 rounded-xl bg-amber-100/70 text-amber-800 flex items-center justify-center mb-1">
+                  <Music2 className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold text-stone-700">No Photo</span>
+                <span className="text-[10px] text-stone-400">Default placeholder</span>
+                {isAdminOrSuperAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>{isUploadingPhoto ? 'Uploading...' : 'Upload Photo'}</span>
+                  </button>
+                )}
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-stone-800/80 backdrop-blur-xs text-white text-[10px] font-bold">
+                  {currentInstrument.type}
+                </div>
+              </div>
+            )}
 
             {/* Instrument Info & Badges */}
             <div className="space-y-2.5 flex-1">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h1 className="text-lg font-bold text-stone-900">
-                    {instrument.name}
+                    {currentInstrument.name}
                   </h1>
 
-                  {/* Matching Screen 2 Badges */}
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                      instrument.bookingMode === 'instant'
-                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                        : 'bg-amber-100 text-amber-900 border border-amber-200'
-                    }`}
-                  >
-                    <Shield className="w-3 h-3" />
-                    {instrument.bookingMode === 'instant' ? 'Instant Booking' : 'Manual Approval'}
-                  </span>
+                  {/* Matching Screen 2 Badges: Interactive toggle for admins, static badge for users */}
+                  {isAdminOrSuperAdmin ? (
+                    <button
+                      type="button"
+                      id={`modal-toggle-mode-btn-${currentInstrument.id}`}
+                      onClick={handleToggleMode}
+                      disabled={isUpdatingMode}
+                      title={`Admin: Click to switch to ${
+                        currentInstrument.bookingMode === 'instant' ? 'Manual Approval' : 'Instant Booking'
+                      }`}
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
+                        currentInstrument.bookingMode === 'instant'
+                          ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
+                          : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                      } ${isUpdatingMode ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                      <Shield className="w-3 h-3" />
+                      <span>{currentInstrument.bookingMode === 'instant' ? 'Instant Booking' : 'Manual Approval'}</span>
+                      <span className="text-[9px] lowercase font-normal opacity-75">(click to toggle)</span>
+                    </button>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                        currentInstrument.bookingMode === 'instant'
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                          : 'bg-amber-100 text-amber-900 border border-amber-200'
+                      }`}
+                    >
+                      <Shield className="w-3 h-3" />
+                      {currentInstrument.bookingMode === 'instant' ? 'Instant Booking' : 'Manual Approval'}
+                    </span>
+                  )}
 
                   {feeNumber > 0 && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
                       <DollarSign className="w-3 h-3" />
                       Outside Fee: EGP {feeNumber} / day
+                    </span>
+                  )}
+
+                  {modeNotice && (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md animate-fade-in">
+                      {modeNotice}
                     </span>
                   )}
                 </div>
@@ -489,52 +759,121 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 <span className="flex items-center gap-2">
                   <span className="inline-block w-2.5 h-2.5 rounded-sm bg-stone-200 border border-stone-300" />
                   <span>Free</span>
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-800" />
-                  <span>Booked (Privacy Protected)</span>
+                  {isAdminOrSuperAdmin ? (
+                    <>
+                      <span className="inline-block w-2.5 h-2.5 rounded-sm bg-indigo-950 border border-indigo-600" />
+                      <span>Assigned Color per Reservant (Name &amp; Service)</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-block w-2.5 h-2.5 rounded-sm bg-black" />
+                      <span className="font-semibold text-stone-900">Booked</span>
+                    </>
+                  )}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
                 {TIME_SLOTS.slice(0, -1).map((slotHhmm) => {
                   const booked = isSlotBooked(selectedDate, slotHhmm);
+                  const slotRes = getSlotReservation(selectedDate, slotHhmm);
 
+                  if (booked) {
+                    if (isAdminOrSuperAdmin) {
+                      const reservantKey = slotRes?.user_id || slotRes?.userId || slotRes?.user_name || slotRes?.userName || 'admin-booking';
+                      const colorTheme = getReservantColorTheme(reservantKey);
+                      const reservantName = slotRes?.user_name || slotRes?.userName || 'Reservant';
+                      const serviceName = slotRes?.service_name || slotRes?.serviceName || 'Reserved Service';
+
+                      return (
+                        <button
+                          key={slotHhmm}
+                          type="button"
+                          disabled={true}
+                          title={`Reserved by: ${reservantName} | Service: ${serviceName}`}
+                          className="p-2.5 rounded-xl border text-left transition relative flex flex-col justify-between min-h-[72px] select-none cursor-not-allowed shadow-2xs"
+                          style={{
+                            backgroundColor: colorTheme.bgHex,
+                            borderColor: colorTheme.borderHex,
+                          }}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[11px] font-bold text-white">
+                              {formatHhmmTo12Hour(slotHhmm)}
+                            </span>
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: colorTheme.dotHex }}
+                            />
+                          </div>
+
+                          <div className="text-[10px] font-medium w-full overflow-hidden">
+                            <div className="flex flex-col text-left leading-tight w-full overflow-hidden">
+                              <span
+                                className="font-bold text-[10px] truncate max-w-full"
+                                style={{ color: colorTheme.nameHex }}
+                                title={reservantName}
+                              >
+                                {reservantName}
+                              </span>
+                              <span
+                                className="text-[9px] truncate max-w-full opacity-90"
+                                style={{ color: colorTheme.serviceHex }}
+                                title={serviceName}
+                              >
+                                {serviceName}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    }
+
+                    // Regular users: approved slots show ONLY a solid black box labeled "Booked"
+                    // No name, no service_name, no reservant-specific color
+                    return (
+                      <button
+                        key={slotHhmm}
+                        type="button"
+                        disabled={true}
+                        title="Booked"
+                        className="p-2.5 rounded-xl border border-black bg-black text-white cursor-not-allowed select-none flex flex-col justify-between min-h-[72px] shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-[11px] font-bold text-white">
+                            {formatHhmmTo12Hour(slotHhmm)}
+                          </span>
+                          <span className="w-2 h-2 rounded-full bg-stone-500 shrink-0" />
+                        </div>
+
+                        <div className="text-[10px] font-bold w-full overflow-hidden text-center py-1">
+                          <span className="text-white uppercase tracking-wider text-[10px]">
+                            Booked
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  // Free Slot
                   return (
                     <button
                       key={slotHhmm}
                       type="button"
-                      disabled={booked}
-                      onClick={() => {
-                        if (!booked) {
-                          onSelectSlot(instrument, selectedDate, slotHhmm, 2);
-                        }
-                      }}
-                      className={`p-3 rounded-xl border text-left transition relative flex flex-col justify-between h-18 select-none ${
-                        booked
-                          ? 'bg-amber-900/90 text-white border-amber-950 cursor-not-allowed shadow-inner opacity-90'
-                          : 'bg-white hover:bg-amber-50/60 hover:border-amber-700 border-stone-200 text-stone-800 cursor-pointer shadow-2xs hover:shadow-xs'
-                      }`}
+                      onClick={() => onSelectSlot(instrument, selectedDate, slotHhmm, 2)}
+                      className="p-2.5 rounded-xl border text-left transition relative flex flex-col justify-between min-h-[72px] select-none bg-white hover:bg-amber-50/60 hover:border-amber-700 border-stone-200 text-stone-800 cursor-pointer shadow-2xs hover:shadow-xs"
                     >
                       <div className="flex items-center justify-between w-full">
-                        <span className={`text-[11px] font-bold ${booked ? 'text-amber-100' : 'text-stone-900'}`}>
+                        <span className="text-[11px] font-bold text-stone-900">
                           {formatHhmmTo12Hour(slotHhmm)}
                         </span>
-                        {booked ? (
-                          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                        ) : (
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                        )}
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                       </div>
 
-                      <div className="text-[10px] font-medium">
-                        {booked ? (
-                          <span className="text-amber-200 uppercase tracking-wider font-bold text-[9px]">
-                            Reserved
-                          </span>
-                        ) : (
-                          <span className="text-stone-400 group-hover:text-amber-800">
-                            Available • Tap
-                          </span>
-                        )}
+                      <div className="text-[10px] font-medium w-full overflow-hidden">
+                        <span className="text-stone-400 group-hover:text-amber-800">
+                          Available • Tap
+                        </span>
                       </div>
                     </button>
                   );
@@ -589,27 +928,73 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                         {/* 7 Days for this time */}
                         {weekDays.map((d) => {
                           const booked = isSlotBooked(d.dateStr, slotHhmm);
+                          const slotRes = getSlotReservation(d.dateStr, slotHhmm);
+
+                          if (booked) {
+                            if (isAdminOrSuperAdmin) {
+                              const reservantKey = slotRes?.user_id || slotRes?.userId || slotRes?.user_name || slotRes?.userName || 'admin-booking';
+                              const colorTheme = getReservantColorTheme(reservantKey);
+                              const reservantName = slotRes?.user_name || slotRes?.userName || 'Reservant';
+                              const serviceName = slotRes?.service_name || slotRes?.serviceName || 'Reserved Service';
+
+                              return (
+                                <button
+                                  key={d.dateStr}
+                                  type="button"
+                                  disabled={true}
+                                  title={`Reserved by: ${reservantName} | Service: ${serviceName}`}
+                                  style={{
+                                    backgroundColor: colorTheme.bgHex,
+                                    borderColor: colorTheme.borderHex,
+                                  }}
+                                  className="p-1 border-r last:border-r-0 transition h-11 flex items-center justify-center select-none cursor-not-allowed text-white"
+                                >
+                                  <div className="flex flex-col items-center justify-center leading-tight w-full px-0.5 overflow-hidden text-center">
+                                    <span
+                                      className="font-bold text-[9px] truncate max-w-full"
+                                      style={{ color: colorTheme.nameHex }}
+                                      title={reservantName}
+                                    >
+                                      {reservantName}
+                                    </span>
+                                    <span
+                                      className="text-[8px] truncate max-w-full opacity-90"
+                                      style={{ color: colorTheme.serviceHex }}
+                                      title={serviceName}
+                                    >
+                                      {serviceName}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            // Regular users: approved slots show ONLY a solid black box labeled "Booked"
+                            // No name, no service_name, no reservant-specific color
+                            return (
+                              <button
+                                key={d.dateStr}
+                                type="button"
+                                disabled={true}
+                                title="Booked"
+                                className="p-1 border-r last:border-r-0 border-stone-900 bg-black text-white cursor-not-allowed flex items-center justify-center select-none h-11"
+                              >
+                                <span className="text-[9px] font-bold tracking-wider uppercase text-white">
+                                  Booked
+                                </span>
+                              </button>
+                            );
+                          }
+
                           return (
                             <button
                               key={d.dateStr}
                               type="button"
-                              disabled={booked}
-                              onClick={() => {
-                                if (!booked) {
-                                  onSelectSlot(instrument, d.dateStr, slotHhmm, 2);
-                                }
-                              }}
-                              className={`p-2 border-r last:border-r-0 border-stone-100 transition h-10 flex items-center justify-center select-none ${
-                                booked
-                                  ? 'bg-amber-900 text-white cursor-not-allowed font-bold text-[10px]'
-                                  : 'bg-white hover:bg-amber-100/50 text-stone-300 hover:text-amber-900 cursor-pointer'
-                              }`}
+                              onClick={() => onSelectSlot(instrument, d.dateStr, slotHhmm, 2)}
+                              title={`Available • Tap to reserve at ${formatHhmmTo12Hour(slotHhmm)}`}
+                              className="p-1 border-r last:border-r-0 border-stone-100 transition h-11 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 text-stone-300 hover:text-amber-900 cursor-pointer"
                             >
-                              {booked ? (
-                                <span className="w-2 h-2 rounded-full bg-amber-400" />
-                              ) : (
-                                <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">+</span>
-                              )}
+                              <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">+</span>
                             </button>
                           );
                         })}

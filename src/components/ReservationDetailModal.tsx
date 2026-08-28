@@ -413,22 +413,36 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <Music2 className="w-4 h-4 text-amber-800" />
                 <span>Instrument Specifications</span>
               </div>
-              <div className="space-y-1 text-xs">
-                <div className="font-bold text-stone-900 text-sm">
-                  {reservation.instrument_name || 'Instrument'}
+              <div className="flex items-start gap-3">
+                <div className="w-14 h-14 rounded-xl bg-amber-100/70 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                  {reservation.instrument_photo_url || reservation.photoUrl || (reservation as any).photo_url ? (
+                    <img
+                      src={reservation.instrument_photo_url || reservation.photoUrl || (reservation as any).photo_url}
+                      alt={reservation.instrument_name || 'Instrument'}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Music2 className="w-6 h-6 text-amber-800" />
+                  )}
                 </div>
-                <div className="text-stone-500">
-                  <span className="font-semibold text-stone-700">Type:</span> {reservation.instrument_type || 'General'}
-                </div>
-                <div className="text-stone-500">
-                  <span className="font-semibold text-stone-700">Booking Mode:</span>{' '}
-                  <span className="capitalize">{reservation.booking_mode || 'Manual'}</span>
-                </div>
-                {reservation.instrument_description && (
-                  <div className="text-stone-500 text-[11px] pt-1 italic">
-                    {reservation.instrument_description}
+                <div className="space-y-1 text-xs flex-1">
+                  <div className="font-bold text-stone-900 text-sm">
+                    {reservation.instrument_name || 'Instrument'}
                   </div>
-                )}
+                  <div className="text-stone-500">
+                    <span className="font-semibold text-stone-700">Type:</span> {reservation.instrument_type || 'General'}
+                  </div>
+                  <div className="text-stone-500">
+                    <span className="font-semibold text-stone-700">Booking Mode:</span>{' '}
+                    <span className="capitalize">{reservation.booking_mode || 'Manual'}</span>
+                  </div>
+                  {reservation.instrument_description && (
+                    <div className="text-stone-500 text-[11px] pt-1 italic">
+                      {reservation.instrument_description}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { getReservantColorTheme } from '../lib/reservant-colors.ts';
 
 export interface Instrument {
   id: string;
@@ -35,6 +36,8 @@ export interface ReservedSlot {
   status: string;
   reservationType: string;
   userId?: string;
+  userName?: string;
+  serviceName?: string;
   startTime: string;
   endTime: string;
   startHhmm: string;
@@ -72,7 +75,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   refreshTrigger,
   onLoadedInstruments,
 }) => {
-  const { profile } = useAuth();
+  const { profile, sessionToken } = useAuth();
+  const isAdminOrSuperAdmin =
+    profile?.role === 'admin' ||
+    profile?.role === 'super_admin' ||
+    Boolean(profile?.isSuperAdmin);
+
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
@@ -81,7 +89,71 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
+  const [modeNotice, setModeNotice] = useState<string | null>(null);
+  const [updatingModeId, setUpdatingModeId] = useState<string | null>(null);
   const dateStripRef = useRef<HTMLDivElement>(null);
+
+  // Admin: Toggle instrument booking mode directly from calendar view
+  const handleToggleBookingMode = async (inst: Instrument) => {
+    if (!isAdminOrSuperAdmin || updatingModeId) return;
+    const nextMode: 'manual' | 'instant' = inst.bookingMode === 'instant' ? 'manual' : 'instant';
+    const nextLabel = nextMode === 'instant' ? 'Instant Booking' : 'Manual Approval';
+
+    setUpdatingModeId(inst.id);
+
+    // Optimistic UI update in calendar
+    setInstruments((prev) =>
+      prev.map((i) => (i.id === inst.id ? { ...i, bookingMode: nextMode } : i))
+    );
+
+    try {
+      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      let res = await fetch(`/api/instruments/${inst.id}/mode`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ bookingMode: nextMode }),
+      });
+
+      if (!res.ok) {
+        // Fallback to admin route
+        res = await fetch(`/api/admin/instruments/${inst.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify({ bookingMode: nextMode }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update booking mode');
+      }
+
+      setModeNotice(`${inst.name} booking mode switched to ${nextLabel}`);
+      setTimeout(() => setModeNotice(null), 3500);
+
+      if (onLoadedInstruments) {
+        onLoadedInstruments(
+          instruments.map((i) => (i.id === inst.id ? { ...i, bookingMode: nextMode } : i))
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to toggle instrument booking mode:', err);
+      // Revert optimistic update
+      setInstruments((prev) =>
+        prev.map((i) => (i.id === inst.id ? { ...i, bookingMode: inst.bookingMode } : i))
+      );
+      setModeNotice(`Error updating mode: ${err.message}`);
+      setTimeout(() => setModeNotice(null), 4000);
+    } finally {
+      setUpdatingModeId(null);
+    }
+  };
 
   // Generate a 30-day window for the horizontal date strip
   const dateChips = useMemo(() => {
@@ -109,7 +181,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/instruments/availability/date?date=${date}`);
+      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      const res = await fetch(`/api/instruments/availability/date?date=${date}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch instrument availability');
       }
@@ -130,7 +205,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   useEffect(() => {
     fetchAvailability(selectedDate);
-  }, [selectedDate, refreshTrigger]);
+  }, [selectedDate, refreshTrigger, sessionToken, profile?.role]);
 
   // Group instruments by type
   const groupedInstruments: Record<string, Instrument[]> = useMemo(() => {
@@ -158,6 +233,17 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const isSlotBooked = (instrumentId: string, slotHhmm: string) => {
     const slotMins = hhmmToMinutes(slotHhmm);
     return reservations.some((res) => {
+      if (res.instrumentId !== instrumentId) return false;
+      const startMins = hhmmToMinutes(res.startHhmm);
+      const endMins = hhmmToMinutes(res.endHhmm);
+      return slotMins >= startMins && slotMins < endMins;
+    });
+  };
+
+  // Retrieve reservation details for a booked slot
+  const getSlotReservation = (instrumentId: string, slotHhmm: string): ReservedSlot | undefined => {
+    const slotMins = hhmmToMinutes(slotHhmm);
+    return reservations.find((res) => {
       if (res.instrumentId !== instrumentId) return false;
       const startMins = hhmmToMinutes(res.startHhmm);
       const endMins = hhmmToMinutes(res.endHhmm);
@@ -195,6 +281,26 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   return (
     <div id="availability-calendar-container" className="space-y-6">
+      {/* Admin Mode Switch Notification */}
+      {modeNotice && (
+        <div
+          id="calendar-mode-update-notice"
+          className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>{modeNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setModeNotice(null)}
+            className="text-emerald-700 hover:text-emerald-900 cursor-pointer font-bold px-1.5 py-0.5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 1. Header Controls & Date Navigator */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-stone-100">
@@ -329,14 +435,17 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <span className="w-3.5 h-3.5 rounded-md bg-white border border-stone-300 shadow-2xs inline-block" />
             <span>Available (Tap to Book)</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded-md bg-stone-700 inline-block shadow-2xs" />
-            <span>Booked (Reserved Slot)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded-md bg-amber-600 inline-block shadow-2xs" />
-            <span>Your Active Bookings</span>
-          </div>
+          {isAdminOrSuperAdmin ? (
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-md bg-indigo-950 border border-indigo-600 inline-block shadow-2xs" />
+              <span>Assigned Color per Reservant (Name &amp; Service)</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-md bg-black inline-block shadow-2xs" />
+              <span className="font-semibold text-stone-900">Booked</span>
+            </div>
+          )}
           <div className="ml-auto text-[11px] text-stone-500 font-medium">
             Operating Hours: 09:00 AM – 10:00 PM
           </div>
@@ -420,34 +529,82 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                           title="Tap to view instrument profile & full schedule"
                         >
                           <div className="flex flex-col gap-1.5">
-                            <div className="flex items-start justify-between gap-1">
-                              <span className="text-xs font-bold text-stone-900 group-hover:text-amber-900 transition line-clamp-1">
-                                {inst.name}
-                              </span>
-                              <Info className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-800 shrink-0 transition" />
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-stone-100 border border-stone-200 text-stone-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                                {inst.photoUrl ? (
+                                  <img
+                                    src={inst.photoUrl}
+                                    alt={inst.name}
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Music2 className="w-4 h-4 text-stone-400" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-1">
+                                  <span className="text-xs font-bold text-stone-900 group-hover:text-amber-900 transition truncate">
+                                    {inst.name}
+                                  </span>
+                                  <Info className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-800 shrink-0 transition" />
+                                </div>
+                              </div>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {/* Booking Mode Chip */}
-                              <span
-                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                                  inst.bookingMode === 'instant'
-                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                    : 'bg-amber-100 text-amber-900 border border-amber-200'
-                                }`}
-                              >
-                                {inst.bookingMode === 'instant' ? (
-                                  <>
-                                    <Zap className="w-2.5 h-2.5" />
-                                    <span>Instant</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Clock className="w-2.5 h-2.5" />
-                                    <span>Manual</span>
-                                  </>
-                                )}
-                              </span>
+                              {/* Booking Mode Chip: Interactive toggle for Admins, static badge for users */}
+                              {isAdminOrSuperAdmin ? (
+                                <button
+                                  type="button"
+                                  id={`calendar-toggle-mode-btn-${inst.id}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleBookingMode(inst);
+                                  }}
+                                  disabled={updatingModeId === inst.id}
+                                  title={`Admin Quick-Toggle: Click to switch to ${
+                                    inst.bookingMode === 'instant' ? 'Manual Approval' : 'Instant Booking'
+                                  }`}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
+                                    inst.bookingMode === 'instant'
+                                      ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300'
+                                      : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                                  } ${updatingModeId === inst.id ? 'opacity-50 cursor-wait' : ''}`}
+                                >
+                                  {inst.bookingMode === 'instant' ? (
+                                    <>
+                                      <Zap className="w-2.5 h-2.5" />
+                                      <span>Instant</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-2.5 h-2.5" />
+                                      <span>Manual</span>
+                                    </>
+                                  )}
+                                </button>
+                              ) : (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                                    inst.bookingMode === 'instant'
+                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                      : 'bg-amber-100 text-amber-900 border border-amber-200'
+                                  }`}
+                                >
+                                  {inst.bookingMode === 'instant' ? (
+                                    <>
+                                      <Zap className="w-2.5 h-2.5" />
+                                      <span>Instant</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-2.5 h-2.5" />
+                                      <span>Manual</span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
 
                               {/* Outside Fee Badge (if fee > 0) */}
                               {hasFee && (
@@ -493,6 +650,50 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                           const userOwn = isUserOwnBooking(inst.id, slotHhmm);
 
                           if (booked) {
+                            if (isAdminOrSuperAdmin) {
+                              const slotRes = getSlotReservation(inst.id, slotHhmm);
+                              const reservantKey = slotRes?.userId || slotRes?.userName || slotRes?.id || 'admin-booking';
+                              const colorTheme = getReservantColorTheme(reservantKey);
+                              const reservantName = slotRes?.userName || 'Reservant';
+                              const serviceName = slotRes?.serviceName || 'Reserved Service';
+
+                              return (
+                                <td
+                                  key={`${inst.id}-${slotHhmm}`}
+                                  id={`slot-booked-${inst.id}-${slotHhmm}`}
+                                  className="p-1 border-r border-stone-200 text-center select-none"
+                                >
+                                  <div
+                                    className="w-full min-h-8 py-1 px-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-medium shadow-2xs transition-all border overflow-hidden"
+                                    style={{
+                                      backgroundColor: colorTheme.bgHex,
+                                      borderColor: colorTheme.borderHex,
+                                    }}
+                                    title={`Reserved by: ${reservantName} | Service: ${serviceName} (${formatHhmmTo12Hour(slotHhmm)})`}
+                                  >
+                                    <div className="flex flex-col items-center justify-center leading-tight w-full overflow-hidden text-center">
+                                      <span
+                                        className="font-bold truncate max-w-full text-[10px]"
+                                        style={{ color: colorTheme.nameHex }}
+                                        title={reservantName}
+                                      >
+                                        {reservantName}
+                                      </span>
+                                      <span
+                                        className="text-[9px] truncate max-w-full opacity-90"
+                                        style={{ color: colorTheme.serviceHex }}
+                                        title={serviceName}
+                                      >
+                                        {serviceName}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                              );
+                            }
+
+                            // Regular users: approved slots show only a solid black box labeled "Booked"
+                            // No name, no service_name, no reservant-specific color
                             return (
                               <td
                                 key={`${inst.id}-${slotHhmm}`}
@@ -500,24 +701,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                 className="p-1 border-r border-stone-200 text-center select-none"
                               >
                                 <div
-                                  className={`w-full h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs ${
-                                    userOwn
-                                      ? 'bg-amber-700 text-white border border-amber-800'
-                                      : 'bg-stone-700 text-stone-200 border border-stone-800'
-                                  }`}
-                                  title={
-                                    userOwn
-                                      ? 'Your Reservation'
-                                      : 'Reserved / Unavailable (Details Private)'
-                                  }
+                                  className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-black text-white border border-black select-none"
+                                  title="Booked"
                                 >
-                                  {userOwn ? (
-                                    <span className="truncate px-1">Your Booking</span>
-                                  ) : (
-                                    <span className="tracking-wider uppercase text-[9px] opacity-75">
-                                      Booked
-                                    </span>
-                                  )}
+                                  <span className="tracking-wider uppercase text-[9px] font-bold text-white">
+                                    Booked
+                                  </span>
                                 </div>
                               </td>
                             );

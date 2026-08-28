@@ -368,14 +368,21 @@ router.get('/series/:seriesId/occurrences', async (req: Request, res: Response):
 router.get('/instruments', async (req: Request, res: Response): Promise<void> => {
   try {
     const { includeRemoved } = req.query;
-    let querySql = sql`SELECT * FROM instruments WHERE 1=1`;
-    if (includeRemoved !== 'true') {
-      querySql = sql`${querySql} AND is_removed = false`;
-    }
-    querySql = sql`${querySql} ORDER BY type ASC, name ASC`;
+    const baseQuery = db.select().from(instruments);
+    const list = includeRemoved === 'true'
+      ? await baseQuery.orderBy(asc(instruments.type), asc(instruments.name))
+      : await baseQuery.where(eq(instruments.isRemoved, false)).orderBy(asc(instruments.type), asc(instruments.name));
 
-    const result = await db.execute(querySql);
-    res.json({ success: true, instruments: (result as any).rows || [] });
+    const formatted = list.map((inst) => ({
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    }));
+
+    res.json({ success: true, instruments: formatted });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -413,7 +420,17 @@ router.post('/instruments', async (req: Request, res: Response): Promise<void> =
       isRemoved: false,
     }).returning();
 
-    res.status(201).json({ success: true, instrument: inserted[0], message: 'Instrument created successfully.' });
+    const inst = inserted[0];
+    const formatted = {
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    };
+
+    res.status(201).json({ success: true, instrument: formatted, message: 'Instrument created successfully.' });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }
@@ -450,7 +467,70 @@ router.put('/instruments/:id', async (req: Request, res: Response): Promise<void
       return;
     }
 
-    res.json({ success: true, instrument: updated[0], message: 'Instrument updated successfully.' });
+    const inst = updated[0];
+    const formatted = {
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    };
+
+    res.json({ success: true, instrument: formatted, message: 'Instrument updated successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Upload / attach an image directly for an instrument
+ */
+router.post('/instruments/upload-image', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { image, photoUrl } = req.body;
+    const finalPhoto = (image || photoUrl)?.trim();
+    if (!finalPhoto) {
+      res.status(400).json({ success: false, error: 'No image data or URL provided.' });
+      return;
+    }
+    res.json({ success: true, photoUrl: finalPhoto, message: 'Image uploaded successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Update instrument photo directly
+ */
+router.put('/instruments/:id/photo', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { photoUrl } = req.body;
+    const updated = await db
+      .update(instruments)
+      .set({ photoUrl: photoUrl?.trim() || null })
+      .where(eq(instruments.id, id))
+      .returning();
+
+    if (updated.length === 0) {
+      res.status(404).json({ success: false, error: 'Instrument not found.' });
+      return;
+    }
+
+    const inst = updated[0];
+    res.json({
+      success: true,
+      instrument: {
+        ...inst,
+        booking_mode: inst.bookingMode,
+        outside_fee_per_day: inst.outsideFeePerDay,
+        photo_url: inst.photoUrl,
+        is_removed: inst.isRemoved,
+        created_at: inst.createdAt,
+      },
+      message: 'Instrument photo updated successfully.',
+    });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

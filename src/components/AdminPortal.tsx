@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Instrument } from './AvailabilityCalendar.tsx';
 import {
@@ -39,11 +39,13 @@ import {
   SlidersHorizontal,
   ChevronDown,
   Repeat,
+  Upload,
 } from 'lucide-react';
 
 interface AdminPortalProps {
   onBackToMemberView?: () => void;
   onOpenReservationDetail?: (reservationId: string) => void;
+  onInstrumentsChanged?: () => void;
 }
 
 type AdminTab =
@@ -61,6 +63,7 @@ type AdminTab =
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   onBackToMemberView,
   onOpenReservationDetail,
+  onInstrumentsChanged,
 }) => {
   const { profile, sessionToken } = useAuth();
   const isSuperAdmin = profile?.role === 'super_admin' || profile?.isSuperAdmin;
@@ -106,6 +109,102 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   });
   const [removingInstrument, setRemovingInstrument] = useState<any | null>(null);
   const [removeConfirmForce, setRemoveConfirmForce] = useState<boolean>(false);
+
+  // Instrument Photo Upload States
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingPhoto, setIsDraggingPhoto] = useState<boolean>(false);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState<boolean>(false);
+  const [showUrlInput, setShowUrlInput] = useState<boolean>(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+
+  // Client-side image processor: compresses large images with Canvas to keep payloads optimal
+  const processImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setPhotoUploadError('Please select a valid image file (PNG, JPG, WEBP, GIF).');
+      return;
+    }
+    setPhotoUploadError(null);
+    setIsProcessingPhoto(true);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+          setInstrumentForm((prev) => ({ ...prev, photoUrl: dataUrl }));
+        } else {
+          setInstrumentForm((prev) => ({ ...prev, photoUrl: String(e.target?.result || '') }));
+        }
+        setIsProcessingPhoto(false);
+      };
+      img.onerror = () => {
+        setIsProcessingPhoto(false);
+        setPhotoUploadError('Failed to decode image file.');
+      };
+      img.src = String(e.target?.result || '');
+    };
+    reader.onerror = () => {
+      setIsProcessingPhoto(false);
+      setPhotoUploadError('Failed to read file from disk.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPhoto(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processImageFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handlePhotoDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPhoto(true);
+  };
+
+  const handlePhotoDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPhoto(false);
+  };
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processImageFile(e.target.files[0]);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setInstrumentForm((prev) => ({ ...prev, photoUrl: '' }));
+    setPhotoUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   // Users
   const [usersList, setUsersList] = useState<any[]>([]);
@@ -524,6 +623,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           setShowInstrumentModal(false);
           setEditingInstrument(null);
           fetchInstruments();
+          onInstrumentsChanged?.();
         } else {
           showNotice(data.error, 'error');
         }
@@ -537,6 +637,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           showNotice('Instrument added to inventory.');
           setShowInstrumentModal(false);
           fetchInstruments();
+          onInstrumentsChanged?.();
         } else {
           showNotice(data.error, 'error');
         }
@@ -1325,99 +1426,132 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     Add, edit specifications, change booking mode (Instant vs Manual Approval), or decommission.
                   </p>
                 </div>
-                <button
-                  id="btn-add-new-instrument"
-                  onClick={() => {
-                    setEditingInstrument(null);
-                    setInstrumentForm({
-                      name: '',
-                      type: 'Keyboards',
-                      photoUrl: '',
-                      description: '',
-                      outsideFeePerDay: '0.00',
-                      bookingMode: 'instant',
-                    });
-                    setShowInstrumentModal(true);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Instrument</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    id="btn-refresh-instruments"
+                    type="button"
+                    onClick={() => fetchInstruments()}
+                    disabled={loadingInstruments}
+                    className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-stone-200"
+                    title="Refresh instrument list from database"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingInstruments ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                  <button
+                    id="btn-add-new-instrument"
+                    onClick={() => {
+                      setEditingInstrument(null);
+                      setInstrumentForm({
+                        name: '',
+                        type: 'Keyboards',
+                        photoUrl: '',
+                        description: '',
+                        outsideFeePerDay: '0.00',
+                        bookingMode: 'instant',
+                      });
+                      setPhotoUploadError(null);
+                      setShowUrlInput(false);
+                      setShowInstrumentModal(true);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Instrument</span>
+                  </button>
+                </div>
               </div>
 
               {loadingInstruments ? (
                 <div className="py-12 text-center text-stone-500 text-xs">Loading instruments...</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {instrumentsList.map((inst) => (
-                    <div
-                      key={inst.id}
-                      className={`p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
-                        inst.isRemoved
-                          ? 'bg-stone-50/60 border-stone-200 opacity-60'
-                          : 'bg-white border-stone-200 hover:border-amber-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold">
-                            <Music2 className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                              <span>{inst.name}</span>
-                              {inst.isRemoved && (
-                                <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold">
-                                  Decommissioned
-                                </span>
+                  {instrumentsList.map((inst) => {
+                    const currentMode = inst.bookingMode || inst.booking_mode || 'instant';
+                    const isInstant = currentMode === 'instant';
+                    const isDecommissioned = Boolean(inst.isRemoved ?? inst.is_removed);
+                    const instPhoto = inst.photoUrl || inst.photo_url;
+
+                    return (
+                      <div
+                        key={inst.id}
+                        className={`p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
+                          isDecommissioned
+                            ? 'bg-stone-50/60 border-stone-200 opacity-60'
+                            : 'bg-white border-stone-200 hover:border-amber-300'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
+                              {instPhoto ? (
+                                <img
+                                  src={instPhoto}
+                                  alt={inst.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Music2 className="w-5 h-5 text-amber-800" />
                               )}
                             </div>
-                            <div className="text-xs text-stone-500 font-medium">{inst.type}</div>
+                            <div>
+                              <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                                <span>{inst.name}</span>
+                                {isDecommissioned && (
+                                  <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold">
+                                    Decommissioned
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-stone-500 font-medium">{inst.type}</div>
+                            </div>
                           </div>
+
+                          <span
+                            id={`admin-instrument-mode-badge-${inst.id}`}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isInstant
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-800 border border-amber-200'
+                            }`}
+                          >
+                            {isInstant ? '⚡ Instant Booking' : '🛡️ Manual Review'}
+                          </span>
                         </div>
 
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            inst.bookingMode === 'instant'
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : 'bg-amber-50 text-amber-800 border border-amber-200'
-                          }`}
-                        >
-                          {inst.bookingMode === 'instant' ? '⚡ Instant Booking' : '🛡️ Manual Review'}
-                        </span>
-                      </div>
+                        <p className="text-xs text-stone-600 my-3 line-clamp-2">
+                          {inst.description || 'No specific description provided.'}
+                        </p>
 
-                      <p className="text-xs text-stone-600 my-3 line-clamp-2">
-                        {inst.description || 'No specific description provided.'}
-                      </p>
+                        <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
+                          <div className="text-stone-500 font-medium">
+                            Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00'}</span> / day
+                          </div>
 
-                      <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
-                        <div className="text-stone-500 font-medium">
-                          Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay}</span> / day
-                        </div>
-
-                        {!inst.isRemoved && (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => {
-                                setEditingInstrument(inst);
-                                setInstrumentForm({
-                                  name: inst.name,
-                                  type: inst.type,
-                                  photoUrl: inst.photoUrl || '',
-                                  description: inst.description || '',
-                                  outsideFeePerDay: inst.outsideFeePerDay || '0.00',
-                                  bookingMode: inst.bookingMode || 'instant',
-                                });
-                                setShowInstrumentModal(true);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer"
-                            >
-                              <Edit className="w-3 h-3" />
-                              <span>Edit</span>
-                            </button>
-                            <button
+                          {!isDecommissioned && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setEditingInstrument(inst);
+                                  setInstrumentForm({
+                                    name: inst.name,
+                                    type: inst.type,
+                                    photoUrl: instPhoto || '',
+                                    description: inst.description || '',
+                                    outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
+                                    bookingMode: currentMode as 'instant' | 'manual',
+                                  });
+                                  setPhotoUploadError(null);
+                                  setShowUrlInput(false);
+                                  setShowInstrumentModal(true);
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit className="w-3 h-3" />
+                                <span>Edit</span>
+                              </button>
+                              <button
                               onClick={() => {
                                 setRemovingInstrument(inst);
                                 setRemoveConfirmForce(false);
@@ -1431,7 +1565,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2011,8 +2146,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 1: Add / Edit Instrument
          ============================================================= */}
       {showInstrumentModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-stone-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="font-bold text-stone-900 text-sm">
                 {editingInstrument ? 'Edit Instrument' : 'Add New Instrument'}
@@ -2097,6 +2232,143 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                 />
+              </div>
+
+              {/* Instrument Photo Upload (Drag & Drop + File Selection) */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-stone-700">
+                    Instrument Photo
+                  </label>
+                  {instrumentForm.photoUrl ? (
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="text-[11px] font-semibold text-red-600 hover:text-red-800 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Remove photo</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowUrlInput(!showUrlInput)}
+                      className="text-[11px] font-semibold text-amber-800 hover:text-amber-900 transition cursor-pointer"
+                    >
+                      {showUrlInput ? 'Switch to file upload' : 'Or paste web URL'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Hidden native file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp, image/gif"
+                  onChange={handlePhotoFileChange}
+                  className="hidden"
+                  id="instrument-photo-file-input"
+                />
+
+                {instrumentForm.photoUrl ? (
+                  /* Photo Attached Preview */
+                  <div className="relative rounded-2xl overflow-hidden border border-stone-300 bg-stone-900 group shadow-2xs">
+                    <div className="h-44 w-full flex items-center justify-center bg-stone-950/20">
+                      <img
+                        src={instrumentForm.photoUrl}
+                        alt="Instrument preview"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-stone-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-2xs">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Change Photo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                    <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-lg bg-stone-900/80 text-white text-[10px] font-semibold flex items-center gap-1.5 backdrop-blur-xs">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span>Photo Attached</span>
+                    </div>
+                  </div>
+                ) : showUrlInput ? (
+                  /* Web Image URL Alternative */
+                  <div className="space-y-1.5">
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... or image web address"
+                      value={instrumentForm.photoUrl}
+                      onChange={(e) =>
+                        setInstrumentForm({ ...instrumentForm, photoUrl: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                    />
+                    <p className="text-[10px] text-stone-400">
+                      Paste a direct image web link or switch to uploading a photo file from your device.
+                    </p>
+                  </div>
+                ) : (
+                  /* Drag & Drop Zone */
+                  <div
+                    id="instrument-photo-dropzone"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={handlePhotoDragOver}
+                    onDragEnter={handlePhotoDragOver}
+                    onDragLeave={handlePhotoDragLeave}
+                    onDrop={handlePhotoDrop}
+                    className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all duration-150 flex flex-col items-center justify-center gap-2 select-none ${
+                      isDraggingPhoto
+                        ? 'border-amber-600 bg-amber-50/90 scale-[1.01]'
+                        : 'border-stone-300 hover:border-amber-700 hover:bg-stone-50/80 bg-stone-50/50'
+                    }`}
+                  >
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                        isDraggingPhoto
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-amber-50 border border-amber-200 text-amber-800'
+                      }`}
+                    >
+                      {isProcessingPhoto ? (
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Upload className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold text-stone-800 text-xs">
+                        {isDraggingPhoto
+                          ? 'Drop photo to upload'
+                          : isProcessingPhoto
+                          ? 'Processing photo...'
+                          : 'Click to choose file or drag & drop here'}
+                      </p>
+                      <p className="text-[10px] text-stone-400 mt-0.5">
+                        Supports PNG, JPG, WEBP or GIF (automatically optimized)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {photoUploadError && (
+                  <div className="text-[11px] text-red-600 font-medium flex items-center gap-1 mt-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{photoUploadError}</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2">
@@ -2200,7 +2472,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                 >
                   {instrumentsList
-                    .filter((i) => !i.isRemoved)
+                    .filter((i) => !(i.isRemoved ?? i.is_removed))
                     .map((i) => (
                       <option key={i.id} value={i.id}>
                         {i.name} ({i.type})

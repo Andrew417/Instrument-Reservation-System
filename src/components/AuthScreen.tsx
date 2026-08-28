@@ -15,7 +15,6 @@ import {
   Church,
   Info,
   CheckCircle2,
-  Sparkles,
   RefreshCw,
 } from 'lucide-react';
 
@@ -168,7 +167,9 @@ export const AuthScreen: React.FC = () => {
 
       setResetStep('success');
       setPhoneNumber(resetPhone);
-      setPassword(newPassword);
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (err: any) {
       setResetError(err.message || 'Network error setting new password');
     } finally {
@@ -375,29 +376,6 @@ export const AuthScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Demo Credentials Helper */}
-          {mode === 'login' && (
-            <div className="pt-2">
-              <button
-                type="button"
-                id="btn-quick-fill-superadmin"
-                onClick={() => {
-                  setPhoneNumber('01000000000');
-                  setPassword('SuperAdmin@2026');
-                }}
-                className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100/80 border border-amber-200/80 rounded-xl text-amber-900 text-xs font-semibold flex items-center justify-between transition cursor-pointer"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Fill Super Admin Credentials</span>
-                </div>
-                <span className="font-mono text-[11px] text-amber-800 bg-white/80 px-2 py-0.5 rounded-md border border-amber-200">
-                  01000000000
-                </span>
-              </button>
-            </div>
-          )}
-
           {/* Submit Button */}
           <button
             id="auth-submit-btn"
@@ -521,17 +499,10 @@ export const AuthScreen: React.FC = () => {
                     <p className="text-[11px] text-amber-800 leading-normal">
                       In this sandboxed cloud environment without an external SMS gateway, the generated verification code is:
                     </p>
-                    <div className="flex items-center justify-between bg-white border border-amber-300 px-3 py-1.5 rounded-lg">
+                    <div className="flex items-center justify-center bg-white border border-amber-300 px-3 py-1.5 rounded-lg">
                       <span className="font-mono text-base font-bold tracking-widest text-amber-950">
                         {simulatedCode || '123456'}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setOtpCode(simulatedCode || '123456')}
-                        className="text-xs font-semibold text-amber-800 hover:text-amber-950 underline cursor-pointer"
-                      >
-                        Fill Code
-                      </button>
                     </div>
                   </div>
                 )}

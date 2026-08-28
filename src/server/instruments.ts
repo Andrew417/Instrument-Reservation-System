@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db/index.ts';
 import { instruments, reservations } from '../db/schema.ts';
 import { eq, and, sql, asc } from 'drizzle-orm';
+import { validateSession } from './session-manager.ts';
 
 const router = Router();
 
@@ -111,7 +112,16 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
       .where(eq(instruments.isRemoved, false))
       .orderBy(asc(instruments.type), asc(instruments.name));
 
-    res.json({ success: true, instruments: list });
+    const formatted = list.map((inst) => ({
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    }));
+
+    res.json({ success: true, instruments: formatted });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -125,6 +135,28 @@ router.get('/availability/date', async (req: Request, res: Response): Promise<vo
   try {
     const dateStr = (req.query.date as string) || new Date().toISOString().split('T')[0];
 
+    // Check if requester is admin or super admin
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : (req.headers['x-session-token'] as string);
+
+    let isAdmin = false;
+    let currentUserId: string | null = null;
+    if (token) {
+      try {
+        const { valid, session } = await validateSession(token);
+        if (valid && session) {
+          currentUserId = session.user?.id || session.userId || null;
+          if (session.role === 'admin' || session.role === 'super_admin' || session.user?.isSuperAdmin) {
+            isAdmin = true;
+          }
+        }
+      } catch {
+        // Continue with guest/standard permissions
+      }
+    }
+
     // 1. Get all active instruments
     const allInstruments = await db
       .select()
@@ -132,8 +164,16 @@ router.get('/availability/date', async (req: Request, res: Response): Promise<vo
       .where(eq(instruments.isRemoved, false))
       .orderBy(asc(instruments.type), asc(instruments.name));
 
+    const formattedInstruments = allInstruments.map((inst) => ({
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    }));
+
     // 2. Query approved / ongoing reservations on that date
-    // Note: To preserve user privacy as required, other users see only the time slot block (no personal info)
     const reservationsOnDate = await db.execute(sql`
       SELECT 
         r.id,
@@ -141,11 +181,16 @@ router.get('/availability/date', async (req: Request, res: Response): Promise<vo
         r.status,
         r.reservation_type,
         r.user_id,
+        r.admin_id,
+        r.service_name,
+        COALESCE(u.name, a.name, 'Administrator') as user_name,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
         to_char(lower(r.time_range), 'HH24:MI') as start_hhmm,
         to_char(upper(r.time_range), 'HH24:MI') as end_hhmm
       FROM reservations r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing')
         AND lower(r.time_range)::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
@@ -156,18 +201,23 @@ router.get('/availability/date', async (req: Request, res: Response): Promise<vo
     res.json({
       success: true,
       date: dateStr,
-      instruments: allInstruments,
-      reservations: reservedSlots.map((r: any) => ({
-        id: r.id,
-        instrumentId: r.instrument_id,
-        status: r.status,
-        reservationType: r.reservation_type,
-        userId: r.user_id,
-        startTime: r.start_time,
-        endTime: r.end_time,
-        startHhmm: r.start_hhmm,
-        endHhmm: r.end_hhmm,
-      })),
+      instruments: formattedInstruments,
+      reservations: reservedSlots.map((r: any) => {
+        return {
+          id: r.id,
+          instrumentId: r.instrument_id,
+          status: r.status,
+          reservationType: r.reservation_type,
+          // Only reveal reservant identity, userId & service name to admins/super admins
+          userId: isAdmin ? (r.user_id || r.admin_id) : undefined,
+          userName: isAdmin ? r.user_name : undefined,
+          serviceName: isAdmin ? r.service_name : undefined,
+          startTime: r.start_time,
+          endTime: r.end_time,
+          startHhmm: r.start_hhmm,
+          endHhmm: r.end_hhmm,
+        };
+      }),
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -179,11 +229,41 @@ router.get('/availability', async (req: Request, res: Response): Promise<void> =
   try {
     const dateStr = (req.query.date as string) || new Date().toISOString().split('T')[0];
 
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : (req.headers['x-session-token'] as string);
+
+    let isAdmin = false;
+    let currentUserId: string | null = null;
+    if (token) {
+      try {
+        const { valid, session } = await validateSession(token);
+        if (valid && session) {
+          currentUserId = session.user?.id || session.userId || null;
+          if (session.role === 'admin' || session.role === 'super_admin' || session.user?.isSuperAdmin) {
+            isAdmin = true;
+          }
+        }
+      } catch {
+        // Continue with guest permissions
+      }
+    }
+
     const allInstruments = await db
       .select()
       .from(instruments)
       .where(eq(instruments.isRemoved, false))
       .orderBy(asc(instruments.type), asc(instruments.name));
+
+    const formattedInstruments = allInstruments.map((inst) => ({
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    }));
 
     const reservationsOnDate = await db.execute(sql`
       SELECT 
@@ -192,11 +272,16 @@ router.get('/availability', async (req: Request, res: Response): Promise<void> =
         r.status,
         r.reservation_type,
         r.user_id,
+        r.admin_id,
+        r.service_name,
+        COALESCE(u.name, a.name, 'Administrator') as user_name,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
         to_char(lower(r.time_range), 'HH24:MI') as start_hhmm,
         to_char(upper(r.time_range), 'HH24:MI') as end_hhmm
       FROM reservations r
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing')
         AND lower(r.time_range)::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
@@ -207,18 +292,22 @@ router.get('/availability', async (req: Request, res: Response): Promise<void> =
     res.json({
       success: true,
       date: dateStr,
-      instruments: allInstruments,
-      reservations: reservedSlots.map((r: any) => ({
-        id: r.id,
-        instrumentId: r.instrument_id,
-        status: r.status,
-        reservationType: r.reservation_type,
-        userId: r.user_id,
-        startTime: r.start_time,
-        endTime: r.end_time,
-        startHhmm: r.start_hhmm,
-        endHhmm: r.end_hhmm,
-      })),
+      instruments: formattedInstruments,
+      reservations: reservedSlots.map((r: any) => {
+        return {
+          id: r.id,
+          instrumentId: r.instrument_id,
+          status: r.status,
+          reservationType: r.reservation_type,
+          userId: isAdmin ? (r.user_id || r.admin_id) : undefined,
+          userName: isAdmin ? r.user_name : undefined,
+          serviceName: isAdmin ? r.service_name : undefined,
+          startTime: r.start_time,
+          endTime: r.end_time,
+          startHhmm: r.start_hhmm,
+          endHhmm: r.end_hhmm,
+        };
+      }),
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -251,6 +340,65 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     res.json({ success: true, instrument: inst });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * 4. Update instrument booking mode (Admin / Super Admin)
+ */
+router.put('/:id/mode', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : (req.headers['x-session-token'] as string);
+
+    if (!token) {
+      res.status(401).json({ success: false, error: 'Authentication required. Please sign in.' });
+      return;
+    }
+
+    const { valid, session } = await validateSession(token);
+    if (!valid || !session || (session.role !== 'admin' && session.role !== 'super_admin')) {
+      res.status(403).json({ success: false, error: 'Administrator privileges required to change booking mode.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { bookingMode } = req.body;
+    if (bookingMode !== 'instant' && bookingMode !== 'manual') {
+      res.status(400).json({ success: false, error: 'bookingMode must be either instant or manual' });
+      return;
+    }
+
+    const updated = await db
+      .update(instruments)
+      .set({ bookingMode })
+      .where(eq(instruments.id, id))
+      .returning();
+
+    if (!updated.length) {
+      res.status(404).json({ success: false, error: 'Instrument not found' });
+      return;
+    }
+
+    const inst = updated[0];
+    const formatted = {
+      ...inst,
+      booking_mode: inst.bookingMode,
+      outside_fee_per_day: inst.outsideFeePerDay,
+      photo_url: inst.photoUrl,
+      is_removed: inst.isRemoved,
+      created_at: inst.createdAt,
+    };
+
+    res.json({
+      success: true,
+      instrument: formatted,
+      message: `Instrument mode updated to ${bookingMode}`,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

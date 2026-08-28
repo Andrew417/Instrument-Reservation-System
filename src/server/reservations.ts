@@ -16,6 +16,7 @@ import {
 import { db } from '../db/index.ts';
 import { instruments, reservations, reservationSeries, notifications, users, admins } from '../db/schema.ts';
 import { eq, and, sql, desc } from 'drizzle-orm';
+import { validateSession } from './session-manager.ts';
 
 const router = Router();
 
@@ -410,22 +411,67 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         i.photo_url as instrument_photo_url,
         i.description as instrument_description,
         s.pattern_type as series_pattern_type,
-        u.name as user_name,
+        COALESCE(u.name, a.name, 'Administrator') as user_name,
         u.phone_number as user_phone,
         u.is_trusted as user_is_trusted
       FROM reservations r
       JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN admins a ON r.admin_id = a.id
       WHERE 1=1
       ${userId ? sql`AND r.user_id = ${userId as string}` : sql``}
       ${instrumentId ? sql`AND r.instrument_id = ${instrumentId as string}` : sql``}
-      ${status ? sql`AND r.status = ${status as string}` : sql``}
+      ${status ? ((status as string).includes(',') ? sql`AND r.status = ANY(string_to_array(${status as string}, ','))` : sql`AND r.status = ${status as string}`) : sql``}
       ${seriesId ? sql`AND r.series_id = ${seriesId as string}` : sql``}
       ORDER BY lower(r.time_range) ASC
     `);
 
-    res.json({ success: true, reservations: (result as any).rows || [] });
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : (req.headers['x-session-token'] as string);
+
+    let isAdmin = false;
+    let currentUserId: string | null = null;
+    if (token) {
+      try {
+        const { valid, session } = await validateSession(token);
+        if (valid && session) {
+          currentUserId = session.user?.id || session.userId || null;
+          if (session.role === 'admin' || session.role === 'super_admin' || session.user?.isSuperAdmin) {
+            isAdmin = true;
+          }
+        }
+      } catch {
+        // Continue with guest/standard permissions
+      }
+    }
+
+    const rows = (result as any).rows || [];
+    const sanitizedRows = rows.map((r: any) => {
+      const isOwn = currentUserId && (r.user_id === currentUserId || r.admin_id === currentUserId);
+      if (isAdmin) {
+        return r;
+      }
+      if (isOwn && userId && String(userId) === currentUserId) {
+        // User querying their own reservations (MyReservations view)
+        return r;
+      }
+      // For regular users querying instruments / general calendars:
+      // Redact reservant identity, phone, payment, and service name completely
+      return {
+        ...r,
+        user_name: undefined,
+        user_phone: undefined,
+        service_name: undefined,
+        payment_screenshot_url: undefined,
+        user_id: undefined,
+        admin_id: undefined,
+      };
+    });
+
+    res.json({ success: true, reservations: sanitizedRows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
