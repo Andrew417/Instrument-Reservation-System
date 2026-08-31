@@ -17,6 +17,7 @@ export interface SessionUser {
   role: 'user' | 'admin' | 'super_admin';
   isTrusted?: boolean;
   isActive?: boolean;
+  approvalStatus?: string;
   isSuperAdmin?: boolean;
   createdAt: string;
 }
@@ -69,6 +70,9 @@ export async function createSession(
   let userDetails: SessionUser;
   if (isUser) {
     const [u] = await db.select().from(users).where(eq(users.id, accountId)).limit(1);
+    if (!u || !u.isActive || u.approvalStatus !== 'approved') {
+      throw new Error('Cannot create session for inactive or unapproved account');
+    }
     userDetails = {
       id: u.id,
       name: u.name,
@@ -76,6 +80,7 @@ export async function createSession(
       role: 'user',
       isTrusted: u.isTrusted,
       isActive: u.isActive,
+      approvalStatus: u.approvalStatus,
       createdAt: u.createdAt.toISOString(),
     };
   } else {
@@ -86,6 +91,7 @@ export async function createSession(
       phoneNumber: a.phoneNumber,
       role: a.isSuperAdmin ? 'super_admin' : 'admin',
       isSuperAdmin: a.isSuperAdmin,
+      approvalStatus: a.approvalStatus || 'approved',
       createdAt: a.createdAt.toISOString(),
     };
   }
@@ -149,6 +155,15 @@ export async function validateSession(token: string): Promise<{ valid: boolean; 
   if (s.role === 'user' && s.userId) {
     const [u] = await db.select().from(users).where(eq(users.id, s.userId)).limit(1);
     if (u) {
+      if (!u.isActive || u.approvalStatus !== 'approved') {
+        await db.delete(sessions).where(eq(sessions.id, s.id));
+        return {
+          valid: false,
+          error: u.approvalStatus === 'rejected'
+            ? 'Your account registration was not approved.'
+            : 'Your account is awaiting admin approval or has been deactivated.',
+        };
+      }
       userDetails = {
         id: u.id,
         name: u.name,
@@ -156,6 +171,7 @@ export async function validateSession(token: string): Promise<{ valid: boolean; 
         role: 'user',
         isTrusted: u.isTrusted,
         isActive: u.isActive,
+        approvalStatus: u.approvalStatus,
         createdAt: u.createdAt.toISOString(),
       };
     }
@@ -168,6 +184,7 @@ export async function validateSession(token: string): Promise<{ valid: boolean; 
         phoneNumber: a.phoneNumber,
         role: a.isSuperAdmin ? 'super_admin' : 'admin',
         isSuperAdmin: a.isSuperAdmin,
+        approvalStatus: a.approvalStatus || 'approved',
         createdAt: a.createdAt.toISOString(),
       };
     }

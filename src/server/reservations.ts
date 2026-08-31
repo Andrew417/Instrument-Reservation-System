@@ -14,8 +14,8 @@ import {
   getHardLimits,
 } from '../services/reservation-logic.ts';
 import { db } from '../db/index.ts';
-import { instruments, reservations, reservationSeries, notifications, users, admins } from '../db/schema.ts';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { instruments, reservations, reservationSeries, notifications, users, admins, messages } from '../db/schema.ts';
+import { eq, and, sql, desc, inArray } from 'drizzle-orm';
 import { validateSession } from './session-manager.ts';
 
 const router = Router();
@@ -25,6 +25,7 @@ const router = Router();
  */
 router.get('/limits', async (_req: Request, res: Response): Promise<void> => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const limits = await getHardLimits();
     res.json({ success: true, limits });
   } catch (err: any) {
@@ -169,6 +170,44 @@ router.post('/admin/instruments/:id/remove', async (req: Request, res: Response)
     const { confirmForce, adminId } = req.body;
     const result = await removeInstrumentWithConfirmation(id, { confirmForce: Boolean(confirmForce) }, adminId || '');
     res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Admin: Permanently delete instrument row (for correcting mistaken entries only)
+ */
+router.delete('/admin/instruments/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const [existing] = await db.select().from(instruments).where(eq(instruments.id, id));
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Instrument not found in database.' });
+      return;
+    }
+
+    const tiedReservations = await db
+      .select({ id: reservations.id })
+      .from(reservations)
+      .where(eq(reservations.instrumentId, id));
+
+    if (tiedReservations.length > 0) {
+      const resIds = tiedReservations.map((r) => r.id);
+      await db.delete(notifications).where(inArray(notifications.reservationId, resIds));
+      await db.delete(messages).where(inArray(messages.reservationId, resIds));
+      await db.delete(reservations).where(eq(reservations.instrumentId, id));
+    }
+
+    await db.delete(reservationSeries).where(eq(reservationSeries.instrumentId, id));
+
+    const [deleted] = await db.delete(instruments).where(eq(instruments.id, id)).returning();
+
+    res.json({
+      success: true,
+      instrument: deleted,
+      message: `Instrument "${existing.name}" was permanently removed from database.`,
+    });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

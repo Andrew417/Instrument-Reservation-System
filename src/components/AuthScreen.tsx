@@ -39,6 +39,7 @@ export const AuthScreen: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +49,12 @@ export const AuthScreen: React.FC = () => {
       if (mode === 'login') {
         await loginWithPhone(phoneNumber, password);
       } else {
-        await registerWithPhone(name, phoneNumber, password);
+        const res = await registerWithPhone(name, phoneNumber, password);
+        if (res && res.pendingApproval) {
+          setRegistrationNotice(res.message || 'Your account is awaiting admin approval before you can log in.');
+          setMode('login');
+          setPassword('');
+        }
       }
     } catch {
       // Error handled and captured in AuthContext
@@ -245,6 +251,7 @@ export const AuthScreen: React.FC = () => {
             type="button"
             onClick={() => {
               clearError();
+              setRegistrationNotice(null);
               setMode('register');
             }}
             className={`py-2 text-center rounded-lg transition-all cursor-pointer ${
@@ -256,6 +263,25 @@ export const AuthScreen: React.FC = () => {
             New Registration
           </button>
         </div>
+
+        {/* Registration Submitted & Awaiting Approval Notice */}
+        {registrationNotice && !error && !isLocked && (
+          <div
+            id="auth-pending-notice-banner"
+            className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start gap-3"
+          >
+            <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <div className="font-bold text-amber-900 text-sm">Registration Submitted</div>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                {registrationNotice}
+              </p>
+              <div className="text-[11px] text-amber-700 mt-1.5 font-medium">
+                Church leadership has been notified. Once approved, you can sign in directly with your phone number and password.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Lockout Warning Banner */}
         {isLocked && (

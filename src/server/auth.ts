@@ -47,8 +47,10 @@ function getPhoneVariants(raw: string): string[] {
 // Ensure the hardcoded Super Admin account exists with bcrypt password
 export async function ensureSuperAdminSeed(): Promise<void> {
   try {
-    const superAdminPhone = '+201000000000';
-    const superAdminHash = '$2b$10$s8IYPXA3FueeQ41NOwV7yuhjPNnNosLkDcR/Bjd25RsKXffV2ypKS'; // SuperAdmin@2026
+    const superAdminName = 'Andrew Ehab';
+    const superAdminPhone = '01284989703';
+    // Password: 4ikoNiko45! hashed with bcrypt (salt rounds: 10)
+    const superAdminHash = '$2b$10$osTz0lGptPj5PSIb6I5EqewsK1gP00W5xRyRY78obTyYy/E0OPr2K';
 
     const variants = getPhoneVariants(superAdminPhone);
     const existing = await db
@@ -59,23 +61,28 @@ export async function ensureSuperAdminSeed(): Promise<void> {
 
     if (existing.length === 0) {
       await db.insert(admins).values({
-        name: 'Super Admin (Fr. Joseph)',
+        name: superAdminName,
         phoneNumber: superAdminPhone,
         passwordHash: superAdminHash,
         isSuperAdmin: true,
+        role: 'super_admin',
+        approvalStatus: 'approved',
       });
-      console.log('✅ Hardcoded Super Admin account provisioned: +201000000000 / 01000000000');
+      console.log(`✅ Hardcoded Super Admin account provisioned: ${superAdminName} (${superAdminPhone})`);
     } else {
-      // Ensure password hash and isSuperAdmin are up-to-date
+      // Ensure password hash, role, approval status and isSuperAdmin are up-to-date
       await db
         .update(admins)
         .set({
-          name: 'Super Admin (Fr. Joseph)',
+          name: superAdminName,
+          phoneNumber: superAdminPhone,
           passwordHash: superAdminHash,
           isSuperAdmin: true,
+          role: 'super_admin',
+          approvalStatus: 'approved',
         })
         .where(eq(admins.id, existing[0].id));
-      console.log('✅ Hardcoded Super Admin account verified: +201000000000 / 01000000000');
+      console.log(`✅ Hardcoded Super Admin account verified: ${superAdminName} (${superAdminPhone})`);
     }
   } catch (err) {
     console.error('Failed to ensure Super Admin seed:', err);
@@ -177,12 +184,20 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
     // Check if phone number already registered in users or admins
     const [existingUser] = await db
-      .select({ id: users.id })
+      .select({ id: users.id, approvalStatus: users.approvalStatus })
       .from(users)
       .where(eq(users.phoneNumber, normalized))
       .limit(1);
 
     if (existingUser) {
+      if (existingUser.approvalStatus === 'pending') {
+        res.status(409).json({ error: 'An account with this phone number has already registered and is currently awaiting admin approval.' });
+        return;
+      }
+      if (existingUser.approvalStatus === 'rejected') {
+        res.status(409).json({ error: 'An account with this phone number was previously reviewed and not approved. Please contact church administration.' });
+        return;
+      }
       res.status(409).json({ error: 'An account with this phone number is already registered. Please log in.' });
       return;
     }
@@ -207,7 +222,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         phoneNumber: normalized,
         passwordHash,
         isTrusted: false,
-        isActive: true,
+        isActive: false, // New accounts are pending, not auto-active
+        approvalStatus: 'pending',
       })
       .returning();
 
@@ -216,13 +232,17 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       .delete(failedLoginAttempts)
       .where(eq(failedLoginAttempts.phoneNumber, normalized));
 
-    // Create session
-    const { token, session } = await createSession(newUser.id, 'user');
-
+    // New accounts are NOT auto-logged in. They must await admin approval.
     res.status(201).json({
       success: true,
-      token,
-      profile: session.user,
+      pendingApproval: true,
+      message: 'Your registration has been submitted successfully. Your account is awaiting admin approval before you can log in.',
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        phoneNumber: newUser.phoneNumber,
+        approvalStatus: newUser.approvalStatus,
+      },
     });
   } catch (error: any) {
     console.error('Error during registration:', error);
@@ -277,6 +297,26 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       .from(users)
       .where(inArray(users.phoneNumber, variants))
       .limit(1);
+
+    if (matchedUser) {
+      if (matchedUser.approvalStatus === 'pending') {
+        res.status(403).json({
+          success: false,
+          error: 'Your account is awaiting admin approval.',
+          approvalStatus: 'pending',
+        });
+        return;
+      }
+
+      if (matchedUser.approvalStatus === 'rejected') {
+        res.status(403).json({
+          success: false,
+          error: 'Your account registration was not approved. Please contact church administration.',
+          approvalStatus: 'rejected',
+        });
+        return;
+      }
+    }
 
     let matchedAccount: any = matchedUser;
     let accountRole: 'user' | 'admin' | 'super_admin' = 'user';

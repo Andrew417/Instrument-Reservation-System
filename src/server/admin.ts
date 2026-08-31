@@ -11,8 +11,10 @@ import {
   hardLimits,
   paymentSettings,
   trustedStatusAuditLog,
+  messages,
+  sessions,
 } from '../db/schema.ts';
-import { eq, and, sql, desc, asc } from 'drizzle-orm';
+import { eq, and, sql, desc, asc, inArray } from 'drizzle-orm';
 import { validateSession } from './session-manager.ts';
 import { normalizePhoneNumber } from '../lib/auth-helpers.ts';
 import {
@@ -131,9 +133,15 @@ router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void
 
     // 4. Total active members
     const membersCountRes = await db.execute(
-      sql`SELECT COUNT(*)::int as count FROM users WHERE is_active = true`
+      sql`SELECT COUNT(*)::int as count FROM users WHERE is_active = true AND approval_status = 'approved'`
     );
     const activeUsers = Number((membersCountRes as any).rows?.[0]?.count || 0);
+
+    // 5. Total pending user registration approvals
+    const pendingUsersRes = await db.execute(
+      sql`SELECT COUNT(*)::int as count FROM users WHERE approval_status = 'pending'`
+    );
+    const pendingUserApprovals = Number((pendingUsersRes as any).rows?.[0]?.count || 0);
 
     res.json({
       success: true,
@@ -142,6 +150,7 @@ router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void
         pendingRequests,
         todayReservations,
         activeUsers,
+        pendingUserApprovals,
         todayStr,
       },
     });
@@ -368,20 +377,49 @@ router.get('/series/:seriesId/occurrences', async (req: Request, res: Response):
 router.get('/instruments', async (req: Request, res: Response): Promise<void> => {
   try {
     const { includeRemoved } = req.query;
-    const baseQuery = db.select().from(instruments);
-    const list = includeRemoved === 'true'
-      ? await baseQuery.orderBy(asc(instruments.type), asc(instruments.name))
-      : await baseQuery.where(eq(instruments.isRemoved, false)).orderBy(asc(instruments.type), asc(instruments.name));
+    const query = sql`
+      SELECT 
+        i.id,
+        i.name,
+        i.type,
+        i.photo_url,
+        i.description,
+        i.outside_fee_per_day,
+        i.booking_mode,
+        i.is_removed,
+        i.created_at,
+        COUNT(r.id)::int as total_reservations,
+        COUNT(CASE WHEN r.status IN ('pending', 'approved', 'ongoing') THEN 1 END)::int as active_reservations
+      FROM instruments i
+      LEFT JOIN reservations r ON i.id = r.instrument_id
+      ${includeRemoved === 'true' ? sql`` : sql`WHERE i.is_removed = false`}
+      GROUP BY i.id
+      ORDER BY i.type ASC, i.name ASC
+    `;
 
-    const formatted = list.map((inst) => ({
-      ...inst,
-      booking_mode: inst.bookingMode,
-      outside_fee_per_day: inst.outsideFeePerDay,
-      photo_url: inst.photoUrl,
-      is_removed: inst.isRemoved,
-      created_at: inst.createdAt,
+    const resDb = await db.execute(query);
+    const formatted = (resDb.rows as any[]).map((inst) => ({
+      id: inst.id,
+      name: inst.name,
+      type: inst.type,
+      photoUrl: inst.photo_url,
+      photo_url: inst.photo_url,
+      description: inst.description,
+      outsideFeePerDay: inst.outside_fee_per_day,
+      outside_fee_per_day: inst.outside_fee_per_day,
+      bookingMode: inst.booking_mode,
+      booking_mode: inst.booking_mode,
+      isRemoved: inst.is_removed,
+      is_removed: inst.is_removed,
+      createdAt: inst.created_at,
+      created_at: inst.created_at,
+      totalReservations: Number(inst.total_reservations || 0),
+      total_reservations: Number(inst.total_reservations || 0),
+      activeReservations: Number(inst.active_reservations || 0),
+      active_reservations: Number(inst.active_reservations || 0),
     }));
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json({ success: true, instruments: formatted });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -558,6 +596,56 @@ router.post('/instruments/:id/remove', async (req: Request, res: Response): Prom
   }
 });
 
+/**
+ * Permanently delete an instrument row from the database
+ * (For correcting mistaken entries only; separate from Decommission)
+ */
+router.delete('/instruments/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if instrument exists
+    const [existing] = await db
+      .select()
+      .from(instruments)
+      .where(eq(instruments.id, id));
+
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Instrument not found in database.' });
+      return;
+    }
+
+    // Clean up any associated reservations / messages / notifications / series to prevent FK violations
+    const tiedReservations = await db
+      .select({ id: reservations.id })
+      .from(reservations)
+      .where(eq(reservations.instrumentId, id));
+
+    if (tiedReservations.length > 0) {
+      const resIds = tiedReservations.map((r) => r.id);
+      await db.delete(notifications).where(inArray(notifications.reservationId, resIds));
+      await db.delete(messages).where(inArray(messages.reservationId, resIds));
+      await db.delete(reservations).where(eq(reservations.instrumentId, id));
+    }
+
+    await db.delete(reservationSeries).where(eq(reservationSeries.instrumentId, id));
+
+    // Permanently remove the row from instruments table
+    const [deleted] = await db
+      .delete(instruments)
+      .where(eq(instruments.id, id))
+      .returning();
+
+    res.json({
+      success: true,
+      instrument: deleted,
+      message: `Instrument "${existing.name}" was permanently removed from the database.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 /* =========================================================================
    4. USER MANAGEMENT (Shared: Admin & Super Admin)
    ========================================================================= */
@@ -576,6 +664,7 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
         u.phone_number,
         u.is_trusted,
         u.is_active,
+        u.approval_status,
         u.created_at,
         COUNT(r.id)::int as total_reservations,
         COUNT(CASE WHEN r.status = 'approved' THEN 1 END)::int as approved_reservations,
@@ -586,11 +675,15 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
     `;
 
     if (status === 'active') {
-      querySql = sql`${querySql} AND u.is_active = true`;
+      querySql = sql`${querySql} AND u.is_active = true AND u.approval_status = 'approved'`;
     } else if (status === 'deactivated') {
-      querySql = sql`${querySql} AND u.is_active = false`;
+      querySql = sql`${querySql} AND u.is_active = false AND u.approval_status = 'approved'`;
     } else if (status === 'trusted') {
       querySql = sql`${querySql} AND u.is_trusted = true`;
+    } else if (status === 'pending') {
+      querySql = sql`${querySql} AND u.approval_status = 'pending'`;
+    } else if (status === 'rejected') {
+      querySql = sql`${querySql} AND u.approval_status = 'rejected'`;
     }
 
     if (search && typeof search === 'string' && search.trim()) {
@@ -630,6 +723,198 @@ router.post('/users/:id/toggle-status', async (req: Request, res: Response): Pro
       success: true,
       user: updated,
       message: `User account has been ${updated.isActive ? 'reactivated' : 'deactivated'}.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Account Approvals List
+ * Filter by status ('pending', 'approved', 'rejected', 'all')
+ */
+router.get('/approvals', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status = 'pending', search } = req.query;
+
+    let querySql = sql`
+      SELECT 
+        u.id,
+        u.name,
+        u.phone_number,
+        u.is_trusted,
+        u.is_active,
+        u.approval_status,
+        u.created_at,
+        COUNT(r.id)::int as total_reservations
+      FROM users u
+      LEFT JOIN reservations r ON u.id = r.user_id
+      WHERE 1=1
+    `;
+
+    if (status === 'pending') {
+      querySql = sql`${querySql} AND u.approval_status = 'pending'`;
+    } else if (status === 'rejected') {
+      querySql = sql`${querySql} AND u.approval_status = 'rejected'`;
+    } else if (status === 'approved') {
+      querySql = sql`${querySql} AND u.approval_status = 'approved'`;
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      const term = `%${search.trim()}%`;
+      querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.phone_number ILIKE ${term})`;
+    }
+
+    querySql = sql`${querySql} GROUP BY u.id ORDER BY u.created_at DESC`;
+
+    const result = await db.execute(querySql);
+
+    // Get breakdown counts
+    const countsRes = await db.execute(sql`
+      SELECT 
+        COUNT(CASE WHEN approval_status = 'pending' THEN 1 END)::int as pending,
+        COUNT(CASE WHEN approval_status = 'approved' THEN 1 END)::int as approved,
+        COUNT(CASE WHEN approval_status = 'rejected' THEN 1 END)::int as rejected,
+        COUNT(*)::int as total
+      FROM users
+    `);
+    const counts = (countsRes as any).rows?.[0] || { pending: 0, approved: 0, rejected: 0, total: 0 };
+
+    res.json({
+      success: true,
+      users: (result as any).rows || [],
+      counts: {
+        pending: Number(counts.pending || 0),
+        approved: Number(counts.approved || 0),
+        rejected: Number(counts.rejected || 0),
+        total: Number(counts.total || 0),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Approve a pending user account
+ */
+router.post('/approvals/:id/approve', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        approvalStatus: 'approved',
+        isActive: true,
+      })
+      .where(eq(users.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'User not found.' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      user: updated,
+      message: `Account for ${updated.name} has been approved. They can now log in normally.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Alias: /users/:id/approve
+router.post('/users/:id/approve', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        approvalStatus: 'approved',
+        isActive: true,
+      })
+      .where(eq(users.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'User not found.' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      user: updated,
+      message: `Account for ${updated.name} has been approved. They can now log in normally.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Reject a user account registration
+ * Preserves account with approvalStatus = 'rejected' (Option B)
+ */
+router.post('/approvals/:id/reject', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        approvalStatus: 'rejected',
+        isActive: false,
+      })
+      .where(eq(users.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'User not found.' });
+      return;
+    }
+
+    // Terminate any active sessions for this user
+    await db.delete(sessions).where(eq(sessions.userId, id));
+
+    res.json({
+      success: true,
+      user: updated,
+      message: `Registration for ${updated.name} has been rejected. Record preserved in audit log.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Alias: /users/:id/reject
+router.post('/users/:id/reject', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        approvalStatus: 'rejected',
+        isActive: false,
+      })
+      .where(eq(users.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'User not found.' });
+      return;
+    }
+
+    await db.delete(sessions).where(eq(sessions.userId, id));
+
+    res.json({
+      success: true,
+      user: updated,
+      message: `Registration for ${updated.name} has been rejected. Record preserved in audit log.`,
     });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -768,7 +1053,7 @@ router.post('/reservations/:id/message', async (req: Request, res: Response): Pr
 router.get('/admins', requireSuperAdminAuth, async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute(sql`
-      SELECT id, name, phone_number, is_super_admin, created_at 
+      SELECT id, name, phone_number, is_super_admin, role, approval_status, created_at 
       FROM admins 
       ORDER BY is_super_admin DESC, created_at ASC
     `);
@@ -817,6 +1102,8 @@ router.post('/admins', requireSuperAdminAuth, async (req: Request, res: Response
         phoneNumber: normalized,
         passwordHash,
         isSuperAdmin: Boolean(isSuperAdmin),
+        role: isSuperAdmin ? 'super_admin' : 'admin',
+        approvalStatus: 'approved',
       })
       .returning();
 
@@ -827,6 +1114,8 @@ router.post('/admins', requireSuperAdminAuth, async (req: Request, res: Response
         name: newAdmin.name,
         phoneNumber: newAdmin.phoneNumber,
         isSuperAdmin: newAdmin.isSuperAdmin,
+        role: newAdmin.role,
+        approvalStatus: newAdmin.approvalStatus,
         createdAt: newAdmin.createdAt,
       },
       message: 'Administrator account created successfully.',
@@ -949,6 +1238,7 @@ router.get('/trusted-audit-logs', requireSuperAdminAuth, async (_req: Request, r
  */
 router.get('/hard-limits', requireSuperAdminAuth, async (_req: Request, res: Response): Promise<void> => {
   try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const limits = await getHardLimits();
     res.json({ success: true, limits });
   } catch (err: any) {
@@ -958,49 +1248,84 @@ router.get('/hard-limits', requireSuperAdminAuth, async (_req: Request, res: Res
 
 router.put('/hard-limits', requireSuperAdminAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const {
-      maxActiveReservations,
-      maxReservationsPerDay,
-      maxDurationHours,
-      maxConcurrentPerType,
-      maxSeriesOccurrences,
-      maxSubmissionsPerHour,
-    } = req.body;
+    const body = req.body || {};
+    const rawActive = body.maxActiveReservations ?? body.max_active_reservations;
+    const rawPerDay = body.maxReservationsPerDay ?? body.max_reservations_per_day;
+    const rawDuration = body.maxDurationHours ?? body.max_duration_hours;
+    const rawConcurrent = body.maxConcurrentPerType ?? body.max_concurrent_per_type;
+    const rawSeries = body.maxSeriesOccurrences ?? body.max_series_occurrences;
+    const rawSubmissions = body.maxSubmissionsPerHour ?? body.max_submissions_per_hour;
 
-    const [existing] = await db.select().from(hardLimits).limit(1);
+    const existingRows = await db.select().from(hardLimits).orderBy(desc(hardLimits.updatedAt));
+    const existing = existingRows[0];
+
+    const parseNum = (val: any, fallback: number) => {
+      if (val === undefined || val === null || val === '') return fallback;
+      const num = parseInt(val, 10);
+      return isNaN(num) ? fallback : num;
+    };
+
+    const newActive = parseNum(rawActive, existing?.maxActiveReservations ?? 5);
+    const newPerDay = parseNum(rawPerDay, existing?.maxReservationsPerDay ?? 5);
+    const newDuration = parseNum(rawDuration, existing?.maxDurationHours ?? 5);
+    const newConcurrent = parseNum(rawConcurrent, existing?.maxConcurrentPerType ?? 2);
+    const newSeries = parseNum(rawSeries, existing?.maxSeriesOccurrences ?? 8);
+    const newSubmissions = parseNum(rawSubmissions, existing?.maxSubmissionsPerHour ?? 10);
 
     let updatedLimits;
     if (existing) {
       [updatedLimits] = await db
         .update(hardLimits)
         .set({
-          maxActiveReservations: Number(maxActiveReservations) || existing.maxActiveReservations,
-          maxReservationsPerDay: Number(maxReservationsPerDay) || existing.maxReservationsPerDay,
-          maxDurationHours: Number(maxDurationHours) || existing.maxDurationHours,
-          maxConcurrentPerType: Number(maxConcurrentPerType) || existing.maxConcurrentPerType,
-          maxSeriesOccurrences: Number(maxSeriesOccurrences) || existing.maxSeriesOccurrences,
-          maxSubmissionsPerHour: Number(maxSubmissionsPerHour) || existing.maxSubmissionsPerHour,
+          maxActiveReservations: newActive,
+          maxReservationsPerDay: newPerDay,
+          maxDurationHours: newDuration,
+          maxConcurrentPerType: newConcurrent,
+          maxSeriesOccurrences: newSeries,
+          maxSubmissionsPerHour: newSubmissions,
           updatedAt: new Date(),
         })
         .where(eq(hardLimits.id, existing.id))
         .returning();
+
+      // Ensure table remains a singleton: remove any duplicate rows if they exist
+      if (existingRows.length > 1) {
+        await db.delete(hardLimits).where(sql`id != ${existing.id}`);
+      }
     } else {
       [updatedLimits] = await db
         .insert(hardLimits)
         .values({
-          maxActiveReservations: Number(maxActiveReservations) || 5,
-          maxReservationsPerDay: Number(maxReservationsPerDay) || 5,
-          maxDurationHours: Number(maxDurationHours) || 5,
-          maxConcurrentPerType: Number(maxConcurrentPerType) || 2,
-          maxSeriesOccurrences: Number(maxSeriesOccurrences) || 8,
-          maxSubmissionsPerHour: Number(maxSubmissionsPerHour) || 10,
+          maxActiveReservations: newActive,
+          maxReservationsPerDay: newPerDay,
+          maxDurationHours: newDuration,
+          maxConcurrentPerType: newConcurrent,
+          maxSeriesOccurrences: newSeries,
+          maxSubmissionsPerHour: newSubmissions,
+          updatedAt: new Date(),
         })
         .returning();
     }
 
+    const formatted = {
+      ...updatedLimits,
+      maxActiveReservations: updatedLimits.maxActiveReservations,
+      maxReservationsPerDay: updatedLimits.maxReservationsPerDay,
+      maxDurationHours: updatedLimits.maxDurationHours,
+      maxConcurrentPerType: updatedLimits.maxConcurrentPerType,
+      maxSeriesOccurrences: updatedLimits.maxSeriesOccurrences,
+      maxSubmissionsPerHour: updatedLimits.maxSubmissionsPerHour,
+      max_active_reservations: updatedLimits.maxActiveReservations,
+      max_reservations_per_day: updatedLimits.maxReservationsPerDay,
+      max_duration_hours: updatedLimits.maxDurationHours,
+      max_concurrent_per_type: updatedLimits.maxConcurrentPerType,
+      max_series_occurrences: updatedLimits.maxSeriesOccurrences,
+      max_submissions_per_hour: updatedLimits.maxSubmissionsPerHour,
+    };
+
     res.json({
       success: true,
-      limits: updatedLimits,
+      limits: formatted,
       message: 'System reservation hard limits updated successfully.',
     });
   } catch (err: any) {

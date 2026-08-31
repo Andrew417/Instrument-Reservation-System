@@ -8,7 +8,7 @@ import {
   notifications,
   hardLimits,
 } from '../db/schema.ts';
-import { eq, and, sql, inArray, gte, lte } from 'drizzle-orm';
+import { eq, and, sql, inArray, gte, lte, desc } from 'drizzle-orm';
 
 export interface TimeSlot {
   date: string; // 'YYYY-MM-DD'
@@ -104,13 +104,34 @@ export function validateWorkingHours(start: Date, end: Date) {
 }
 
 /**
- * Fetches default or current hard limits from DB
+ * Fetches default or current hard limits from DB (ordered by latest update)
  */
 export async function getHardLimits() {
-  const limits = await db.select().from(hardLimits).limit(1);
+  const limits = await db
+    .select()
+    .from(hardLimits)
+    .orderBy(desc(hardLimits.updatedAt))
+    .limit(1);
+
   if (limits.length > 0) {
-    return limits[0];
+    const row = limits[0];
+    return {
+      ...row,
+      maxActiveReservations: row.maxActiveReservations,
+      maxReservationsPerDay: row.maxReservationsPerDay,
+      maxDurationHours: row.maxDurationHours,
+      maxConcurrentPerType: row.maxConcurrentPerType,
+      maxSeriesOccurrences: row.maxSeriesOccurrences,
+      maxSubmissionsPerHour: row.maxSubmissionsPerHour,
+      max_active_reservations: row.maxActiveReservations,
+      max_reservations_per_day: row.maxReservationsPerDay,
+      max_duration_hours: row.maxDurationHours,
+      max_concurrent_per_type: row.maxConcurrentPerType,
+      max_series_occurrences: row.maxSeriesOccurrences,
+      max_submissions_per_hour: row.maxSubmissionsPerHour,
+    };
   }
+
   return {
     maxActiveReservations: 5,
     maxReservationsPerDay: 5,
@@ -118,6 +139,12 @@ export async function getHardLimits() {
     maxConcurrentPerType: 2,
     maxSeriesOccurrences: 8,
     maxSubmissionsPerHour: 10,
+    max_active_reservations: 5,
+    max_reservations_per_day: 5,
+    max_duration_hours: 5,
+    max_concurrent_per_type: 2,
+    max_series_occurrences: 8,
+    max_submissions_per_hour: 10,
   };
 }
 

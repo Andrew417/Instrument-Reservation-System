@@ -19,15 +19,22 @@ export const tstzrange = customType<{ data: string; driverData: string }>({
 });
 
 // 1. Users Table
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  phoneNumber: text('phone_number').notNull().unique('users_phone_number_key'),
-  passwordHash: text('password_hash').notNull(),
-  isTrusted: boolean('is_trusted').default(false).notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    phoneNumber: text('phone_number').notNull().unique('users_phone_number_key'),
+    passwordHash: text('password_hash').notNull(),
+    isTrusted: boolean('is_trusted').default(false).notNull(),
+    isActive: boolean('is_active').default(false).notNull(),
+    approvalStatus: text('approval_status').default('pending').notNull(), // 'pending' | 'approved' | 'rejected'
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    check('user_approval_status_check', sql`${table.approvalStatus} IN ('pending', 'approved', 'rejected')`),
+  ]
+);
 
 // 2. Admins Table
 export const admins = pgTable('admins', {
@@ -36,6 +43,8 @@ export const admins = pgTable('admins', {
   phoneNumber: text('phone_number').notNull().unique('admins_phone_number_key'),
   passwordHash: text('password_hash').notNull(),
   isSuperAdmin: boolean('is_super_admin').default(false).notNull(),
+  role: text('role').default('admin').notNull(),
+  approvalStatus: text('approval_status').default('approved').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

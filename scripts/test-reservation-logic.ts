@@ -28,6 +28,7 @@ async function runTests() {
     await db.delete(instruments);
     await db.delete(users);
     await db.delete(admins);
+    await db.delete(hardLimits);
 
     // 1. Setup Hard Limits (default: maxActiveReservations = 5, maxSeriesOccurrences = 8, etc.)
     const [limits] = await db

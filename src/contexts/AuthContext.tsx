@@ -8,6 +8,7 @@ export interface UserProfile {
   role: 'user' | 'admin' | 'super_admin';
   isTrusted?: boolean;
   isActive?: boolean;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   isSuperAdmin?: boolean;
   createdAt: string;
 }
@@ -27,7 +28,7 @@ interface AuthContextType {
     name: string,
     phone: string,
     password: string
-  ) => Promise<void>;
+  ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   logout: () => Promise<void>;
   clearError: () => void;
   refreshProfile: () => Promise<void>;
@@ -218,12 +219,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error(errorMsg);
       }
 
+      if (data.pendingApproval) {
+        setError(null);
+        return {
+          pendingApproval: true,
+          message: data.message || 'Your account is awaiting admin approval.',
+        };
+      }
+
       if (data.token && data.profile) {
         setSessionToken(data.token);
         setProfile(data.profile);
         localStorage.setItem(SESSION_TOKEN_KEY, data.token);
         localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
         setError(null);
+        return {
+          pendingApproval: false,
+          message: 'Registration successful',
+        };
       }
     } catch (err: any) {
       console.error('Registration error:', err);

@@ -40,6 +40,7 @@ import {
   ChevronDown,
   Repeat,
   Upload,
+  Archive,
 } from 'lucide-react';
 
 interface AdminPortalProps {
@@ -51,6 +52,7 @@ interface AdminPortalProps {
 type AdminTab =
   | 'dashboard'
   | 'review'
+  | 'approvals'
   | 'instruments'
   | 'users'
   | 'messaging'
@@ -77,11 +79,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     pendingRequests: number;
     todayReservations: number;
     activeUsers: number;
+    pendingUserApprovals?: number;
   }>({
     totalInstruments: 0,
     pendingRequests: 0,
     todayReservations: 0,
     activeUsers: 0,
+    pendingUserApprovals: 0,
   });
 
   // Reservations state & filters
@@ -109,6 +113,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   });
   const [removingInstrument, setRemovingInstrument] = useState<any | null>(null);
   const [removeConfirmForce, setRemoveConfirmForce] = useState<boolean>(false);
+  const [deletingInstrument, setDeletingInstrument] = useState<any | null>(null);
+  const [deleteConfirmChecked, setDeleteConfirmChecked] = useState<boolean>(false);
+  const [isDeletingInstrument, setIsDeletingInstrument] = useState<boolean>(false);
 
   // Instrument Photo Upload States
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -212,6 +219,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [userSearch, setUserSearch] = useState<string>('');
   const [userFilterStatus, setUserFilterStatus] = useState<string>('all');
 
+  // Account Approvals
+  const [approvalsList, setApprovalsList] = useState<any[]>([]);
+  const [loadingApprovals, setLoadingApprovals] = useState<boolean>(false);
+  const [approvalFilterStatus, setApprovalFilterStatus] = useState<'pending' | 'rejected' | 'approved' | 'all'>('pending');
+  const [approvalSearch, setApprovalSearch] = useState<string>('');
+  const [approvalCounts, setApprovalCounts] = useState<{
+    pending: number;
+    approved: number;
+    rejected: number;
+    total: number;
+  }>({ pending: 0, approved: 0, rejected: 0, total: 0 });
+  const [approvalActionId, setApprovalActionId] = useState<string | null>(null);
+
   // Impersonation / Book on behalf
   const [bookOnBehalfUser, setBookOnBehalfUser] = useState<any | null>(null);
   const [behalfForm, setBehalfForm] = useState({
@@ -295,9 +315,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   } | null>(null);
 
   // Feedback banner
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  const showNotice = (message: string, type: 'success' | 'error' = 'success') => {
+  const showNotice = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 5000);
   };
@@ -306,6 +326,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const adminFetch = async (endpoint: string, options: RequestInit = {}) => {
     const res = await fetch(`/api/admin${endpoint}`, {
       ...options,
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${sessionToken || ''}`,
@@ -391,6 +412,127 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Fetch Account Approvals
+  const fetchApprovals = async () => {
+    setLoadingApprovals(true);
+    try {
+      const params = new URLSearchParams();
+      if (approvalFilterStatus !== 'all') params.append('status', approvalFilterStatus);
+      if (approvalSearch) params.append('search', approvalSearch);
+
+      const res = await adminFetch(`/approvals?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setApprovalsList(data.users || []);
+        if (data.counts) {
+          setApprovalCounts(data.counts);
+          setStats((prev) => ({ ...prev, pendingUserApprovals: data.counts.pending }));
+        }
+      }
+    } catch {
+      showNotice('Failed to load registration approvals', 'error');
+    } finally {
+      setLoadingApprovals(false);
+    }
+  };
+
+  // Approve User Registration
+  const handleApproveRegistration = async (userId: string, userName: string) => {
+    setApprovalActionId(userId);
+    try {
+      const res = await adminFetch(`/approvals/${userId}/approve`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice(`Account for ${userName} approved! They can now log in normally.`, 'success');
+        await fetchApprovals();
+        await fetchStats();
+        if (activeTab === 'users') await fetchUsers();
+      } else {
+        showNotice(data.error || 'Failed to approve registration', 'error');
+      }
+    } catch {
+      showNotice('Network error while approving registration', 'error');
+    } finally {
+      setApprovalActionId(null);
+    }
+  };
+
+  // Reject User Registration (Preserves with approvalStatus = 'rejected' per Option B)
+  const handleRejectRegistration = async (userId: string, userName: string) => {
+    setApprovalActionId(userId);
+    try {
+      const res = await adminFetch(`/approvals/${userId}/reject`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice(`Registration for ${userName} marked as rejected. Record preserved in audit log.`, 'info');
+        await fetchApprovals();
+        await fetchStats();
+        if (activeTab === 'users') await fetchUsers();
+      } else {
+        showNotice(data.error || 'Failed to reject registration', 'error');
+      }
+    } catch {
+      showNotice('Network error while rejecting registration', 'error');
+    } finally {
+      setApprovalActionId(null);
+    }
+  };
+
+  const triggerRejectUser = (user: any) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `Reject Registration: ${user.name}?`,
+      description: `This application will be marked as Rejected. Per church audit policy, this record remains in the database to prevent unauthorized access and maintain an audit log. ${user.name} will not be able to log in.`,
+      confirmLabel: 'Reject Application',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        await handleRejectRegistration(user.id, user.name);
+      },
+    });
+  };
+
+  // Delete User permanently (for correcting mistaken entries)
+  const handleDeleteUserPermanently = async (userId: string, userName: string) => {
+    setApprovalActionId(userId);
+    try {
+      const res = await adminFetch(`/users/${userId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice(`Account entry for ${userName} permanently removed from database.`, 'info');
+        await fetchApprovals();
+        await fetchUsers();
+        await fetchStats();
+      } else {
+        showNotice(data.error || 'Failed to delete user entry', 'error');
+      }
+    } catch {
+      showNotice('Network error deleting user', 'error');
+    } finally {
+      setApprovalActionId(null);
+    }
+  };
+
+  const triggerDeleteUserPermanently = (user: any) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `Permanently Delete ${user.name}?`,
+      description: `This will permanently remove ${user.name} (${user.phoneNumber || user.phone_number}) from the database. Use this ONLY for correcting mistaken entries or typos. This action cannot be undone.`,
+      confirmLabel: 'Delete Permanently',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        await handleDeleteUserPermanently(user.id, user.name);
+      },
+    });
+  };
+
   // Fetch Admin Accounts (Super Admin)
   const fetchAdmins = async () => {
     if (!isSuperAdmin) return;
@@ -425,6 +567,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  const normalizeLimits = (limits: any) => {
+    if (!limits) {
+      return {
+        maxActiveReservations: 5,
+        maxReservationsPerDay: 5,
+        maxDurationHours: 5,
+        maxConcurrentPerType: 2,
+        maxSeriesOccurrences: 8,
+        maxSubmissionsPerHour: 10,
+      };
+    }
+    return {
+      id: limits.id,
+      maxActiveReservations: Number(limits.maxActiveReservations ?? limits.max_active_reservations ?? 5),
+      maxReservationsPerDay: Number(limits.maxReservationsPerDay ?? limits.max_reservations_per_day ?? 5),
+      maxDurationHours: Number(limits.maxDurationHours ?? limits.max_duration_hours ?? 5),
+      maxConcurrentPerType: Number(limits.maxConcurrentPerType ?? limits.max_concurrent_per_type ?? 2),
+      maxSeriesOccurrences: Number(limits.maxSeriesOccurrences ?? limits.max_series_occurrences ?? 8),
+      maxSubmissionsPerHour: Number(limits.maxSubmissionsPerHour ?? limits.max_submissions_per_hour ?? 10),
+    };
+  };
+
   // Fetch Hard Limits (Super Admin)
   const fetchHardLimits = async () => {
     if (!isSuperAdmin) return;
@@ -432,7 +596,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const res = await adminFetch('/hard-limits');
       const data = await res.json();
       if (data.success && data.limits) {
-        setHardLimitsState(data.limits);
+        setHardLimitsState(normalizeLimits(data.limits));
       }
     } catch {
       // silent
@@ -462,6 +626,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     if (activeTab === 'dashboard' || activeTab === 'review') {
       fetchReservations();
       fetchInstruments();
+    } else if (activeTab === 'approvals') {
+      fetchApprovals();
     } else if (activeTab === 'instruments') {
       fetchInstruments();
     } else if (activeTab === 'users') {
@@ -480,6 +646,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       fetchReservations();
     }
   }, [activeTab, filterQuickTab, filterStatus, filterInstrument]);
+
+  // Refetch approvals when filters or search query change
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      fetchApprovals();
+    }
+  }, [approvalFilterStatus, approvalSearch]);
 
   // Actions: Approve / Reject Reservation
   const handleApprove = async (reservationId: string) => {
@@ -669,6 +842,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       }
     } catch (err: any) {
       showNotice(err.message, 'error');
+    }
+  };
+
+  // Permanently Delete Mistaken Instrument Entry (Direct DB Row Removal)
+  const handleExecuteDeleteInstrument = async () => {
+    if (!deletingInstrument) return;
+    setIsDeletingInstrument(true);
+    try {
+      const res = await adminFetch(`/instruments/${deletingInstrument.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice(
+          data.message || `Instrument "${deletingInstrument.name}" permanently deleted from database.`
+        );
+        setDeletingInstrument(null);
+        setDeleteConfirmChecked(false);
+        fetchInstruments();
+        fetchStats();
+        onInstrumentsChanged?.();
+      } else {
+        showNotice(data.error || 'Cannot delete instrument from database.', 'error');
+      }
+    } catch (err: any) {
+      showNotice(err.message, 'error');
+    } finally {
+      setIsDeletingInstrument(false);
     }
   };
 
@@ -867,15 +1068,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     e.preventDefault();
     setSavingLimits(true);
     try {
+      const payload = {
+        maxActiveReservations: Number(hardLimitsState.maxActiveReservations) || 1,
+        maxReservationsPerDay: Number(hardLimitsState.maxReservationsPerDay) || 1,
+        maxDurationHours: Number(hardLimitsState.maxDurationHours) || 1,
+        maxConcurrentPerType: Number(hardLimitsState.maxConcurrentPerType) || 1,
+        maxSeriesOccurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
+        maxSubmissionsPerHour: Number(hardLimitsState.maxSubmissionsPerHour) || 5,
+        max_active_reservations: Number(hardLimitsState.maxActiveReservations) || 1,
+        max_reservations_per_day: Number(hardLimitsState.maxReservationsPerDay) || 1,
+        max_duration_hours: Number(hardLimitsState.maxDurationHours) || 1,
+        max_concurrent_per_type: Number(hardLimitsState.maxConcurrentPerType) || 1,
+        max_series_occurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
+        max_submissions_per_hour: Number(hardLimitsState.maxSubmissionsPerHour) || 5,
+      };
       const res = await adminFetch('/hard-limits', {
         method: 'PUT',
-        body: JSON.stringify(hardLimitsState),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
-        showNotice('System hard limits successfully updated.');
+        if (data.limits) {
+          setHardLimitsState(normalizeLimits(data.limits));
+        } else {
+          await fetchHardLimits();
+        }
+        showNotice('System reservation hard limits updated successfully.');
       } else {
-        showNotice(data.error, 'error');
+        showNotice(data.error || 'Failed to update hard limits', 'error');
       }
     } catch (err: any) {
       showNotice(err.message, 'error');
@@ -914,12 +1134,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center justify-between shadow-2xs border transition ${
             feedback.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : feedback.type === 'info'
+              ? 'bg-amber-50 border-amber-200 text-amber-950'
               : 'bg-red-50 border-red-200 text-red-900'
           }`}
         >
           <div className="flex items-center gap-2">
             {feedback.type === 'success' ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+            ) : feedback.type === 'info' ? (
+              <Info className="w-4 h-4 text-amber-800" />
             ) : (
               <AlertTriangle className="w-4 h-4 text-red-700" />
             )}
@@ -970,15 +1194,36 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
           <div className="text-stone-500 text-xs font-semibold mb-1">Pending Requests</div>
           <div className="text-2xl font-extrabold text-amber-900 flex items-center justify-between">
             <span>{stats.pendingRequests}</span>
             <Clock className="w-5 h-5 text-amber-600/40" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">Requires manual review</div>
+          <div className="text-[11px] text-stone-400 mt-2">Requires booking review</div>
         </div>
+
+        <button
+          id="stat-card-approvals"
+          type="button"
+          onClick={() => setActiveTab('approvals')}
+          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
+        >
+          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-amber-900 flex items-center justify-between">
+            <span>Account Approvals</span>
+            {Number(stats.pendingUserApprovals || 0) > 0 && (
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            )}
+          </div>
+          <div className="text-2xl font-extrabold text-amber-900 flex items-center justify-between">
+            <span>{stats.pendingUserApprovals || 0}</span>
+            <UserCheck className="w-5 h-5 text-amber-600/40 group-hover:text-amber-700 transition" />
+          </div>
+          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
+            {Number(stats.pendingUserApprovals || 0) > 0 ? 'Pending admin approval' : 'All accounts approved'}
+          </div>
+        </button>
 
         <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
           <div className="text-stone-500 text-xs font-semibold mb-1">Today's Bookings</div>
@@ -995,16 +1240,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <span>{stats.totalInstruments}</span>
             <Music2 className="w-5 h-5 text-stone-400" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">In active church inventory</div>
+          <div className="text-[11px] text-stone-400 mt-2">In church inventory</div>
         </div>
 
-        <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
+        <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs col-span-2 sm:col-span-1">
           <div className="text-stone-500 text-xs font-semibold mb-1">Active Church Users</div>
           <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
             <span>{stats.activeUsers}</span>
             <Users className="w-5 h-5 text-stone-400" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">Registered accounts</div>
+          <div className="text-[11px] text-stone-400 mt-2">Approved accounts</div>
         </div>
       </div>
 
@@ -1050,6 +1295,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <CalendarCheck className="w-4 h-4 text-amber-800" />
                   <span>Review Requests</span>
                 </div>
+              </button>
+
+              <button
+                id="admin-tab-approvals"
+                onClick={() => setActiveTab('approvals')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeTab === 'approvals'
+                    ? 'bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <UserCheck className="w-4 h-4 text-amber-800" />
+                  <span>Account Approvals</span>
+                </div>
+                {Number(stats.pendingUserApprovals || 0) > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-300">
+                    {stats.pendingUserApprovals}
+                  </span>
+                )}
               </button>
 
               <button
@@ -1415,6 +1680,306 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           )}
 
           {/* =============================================================
+              TAB: ACCOUNT APPROVALS (New Member Registrations)
+             ============================================================= */}
+          {activeTab === 'approvals' && (
+            <div id="admin-section-approvals" className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-bold text-stone-900 text-sm">Account Approvals</h2>
+                    {approvalCounts.pending > 0 && (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                        {approvalCounts.pending} Pending Review
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Review and authorize new church member registrations. Approved accounts can log in normally. Rejected accounts are preserved in the audit database.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
+                    <input
+                      id="approvals-search-input"
+                      type="text"
+                      placeholder="Search name or phone..."
+                      value={approvalSearch}
+                      onChange={(e) => setApprovalSearch(e.target.value)}
+                      className="pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                    />
+                  </div>
+                  <button
+                    id="btn-refresh-approvals"
+                    type="button"
+                    onClick={fetchApprovals}
+                    className="p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                    title="Refresh registrations"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter status pills */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  id="filter-approvals-pending"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('pending')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'pending'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Pending Review</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      approvalFilterStatus === 'pending'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                    }`}
+                  >
+                    {approvalCounts.pending}
+                  </span>
+                </button>
+
+                <button
+                  id="filter-approvals-approved"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('approved')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'approved'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Approved Accounts</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      approvalFilterStatus === 'approved'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                    }`}
+                  >
+                    {approvalCounts.approved}
+                  </span>
+                </button>
+
+                <button
+                  id="filter-approvals-rejected"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('rejected')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'rejected'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Rejected Registrations</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      approvalFilterStatus === 'rejected'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                    }`}
+                  >
+                    {approvalCounts.rejected}
+                  </span>
+                </button>
+
+                <button
+                  id="filter-approvals-all"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'all'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <span>All Registrations</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      approvalFilterStatus === 'all'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                    }`}
+                  >
+                    {approvalCounts.total}
+                  </span>
+                </button>
+              </div>
+
+              {/* Table / List */}
+              {loadingApprovals ? (
+                <div className="py-12 text-center text-stone-500 text-xs">Loading registration approvals...</div>
+              ) : approvalsList.length === 0 ? (
+                <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
+                  <UserCheck className="w-8 h-8 text-stone-300 mx-auto mb-2" />
+                  <div className="font-bold text-stone-700 text-xs">
+                    {approvalFilterStatus === 'pending'
+                      ? 'No registrations awaiting approval'
+                      : 'No registrations match the selected filter'}
+                  </div>
+                  <p className="text-[11px] text-stone-400 mt-1 max-w-sm mx-auto">
+                    {approvalFilterStatus === 'pending'
+                      ? 'All member registration requests have been reviewed.'
+                      : 'Try switching filters or adjusting your search keyword.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                        <th className="py-2.5 px-3">Applicant Name</th>
+                        <th className="py-2.5 px-3">Phone Number</th>
+                        <th className="py-2.5 px-3">Registration Date</th>
+                        <th className="py-2.5 px-3">Approval Status</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {approvalsList.map((u) => {
+                        const status = u.approvalStatus || u.approval_status || (u.isActive ? 'approved' : 'pending');
+                        const isActioning = approvalActionId === u.id;
+
+                        return (
+                          <tr key={u.id} className="hover:bg-stone-50/60 transition">
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-stone-900 flex items-center gap-1.5">
+                                <span>{u.name}</span>
+                                {u.isTrusted && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                    <Sparkles className="w-2.5 h-2.5 text-amber-700" />
+                                    Trusted
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-3 font-mono text-stone-700">
+                              {u.phoneNumber || u.phone_number}
+                            </td>
+
+                            <td className="py-3 px-3 text-stone-500 text-[11px]">
+                              {new Date(u.createdAt || u.created_at).toLocaleString()}
+                            </td>
+
+                            <td className="py-3 px-3">
+                              {status === 'pending' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                  <Clock className="w-3 h-3 text-amber-700" />
+                                  Awaiting Admin Approval
+                                </span>
+                              )}
+                              {status === 'approved' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  <Check className="w-3 h-3 text-emerald-700" />
+                                  Approved & Active
+                                </span>
+                              )}
+                              {status === 'rejected' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                  <X className="w-3 h-3 text-rose-700" />
+                                  Rejected (Preserved in Audit)
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3 px-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {status === 'pending' && (
+                                  <>
+                                    <button
+                                      id={`btn-approve-user-${u.id}`}
+                                      type="button"
+                                      disabled={isActioning}
+                                      onClick={() => handleApproveRegistration(u.id, u.name)}
+                                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer disabled:opacity-50"
+                                      title="Approve registration and allow member to log in"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Approve</span>
+                                    </button>
+
+                                    <button
+                                      id={`btn-reject-user-${u.id}`}
+                                      type="button"
+                                      disabled={isActioning}
+                                      onClick={() => triggerRejectUser(u)}
+                                      className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                      title="Reject registration (account preserved in audit database)"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>Reject</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {status === 'rejected' && (
+                                  <>
+                                    <button
+                                      id={`btn-reapprove-user-${u.id}`}
+                                      type="button"
+                                      disabled={isActioning}
+                                      onClick={() => handleApproveRegistration(u.id, u.name)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-stone-50 hover:bg-emerald-50 text-emerald-800 border border-stone-200 hover:border-emerald-200 font-semibold text-xs flex items-center gap-1 transition cursor-pointer"
+                                      title="Re-approve this rejected registration"
+                                    >
+                                      <Check className="w-3 h-3 text-emerald-700" />
+                                      <span>Re-Approve</span>
+                                    </button>
+
+                                    <button
+                                      id={`btn-delete-mistaken-user-${u.id}`}
+                                      type="button"
+                                      disabled={isActioning}
+                                      onClick={() => triggerDeleteUserPermanently(u)}
+                                      className="p-1.5 rounded-xl bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 transition cursor-pointer"
+                                      title="Delete mistaken entry permanently from database"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+
+                                {status === 'approved' && (
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setUserSearch(u.name);
+                                        setActiveTab('users');
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                                      title="View member in church directory"
+                                    >
+                                      <Users className="w-3 h-3 text-amber-800" />
+                                      <span>View in Directory</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =============================================================
               TAB 3: INSTRUMENTS INVENTORY
              ============================================================= */}
           {activeTab === 'instruments' && (
@@ -1423,7 +1988,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div>
                   <h2 className="font-bold text-stone-900 text-sm">Church Instruments Inventory</h2>
                   <p className="text-xs text-stone-500">
-                    Add, edit specifications, change booking mode (Instant vs Manual Approval), or decommission.
+                    Add, edit specifications, change booking mode, decommission retired instruments, or delete accidental mistaken entries.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1504,7 +2069,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-stone-500 font-medium">{inst.type}</div>
+                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5">
+                                <span>{inst.type}</span>
+                                <span className="text-stone-300">•</span>
+                                <span>{inst.totalReservations ?? inst.total_reservations ?? 0} bookings</span>
+                              </div>
                             </div>
                           </div>
 
@@ -1529,41 +2098,72 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00'}</span> / day
                           </div>
 
-                          {!isDecommissioned && (
-                            <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            {!isDecommissioned ? (
+                              <>
+                                <button
+                                  id={`btn-edit-instrument-${inst.id}`}
+                                  onClick={() => {
+                                    setEditingInstrument(inst);
+                                    setInstrumentForm({
+                                      name: inst.name,
+                                      type: inst.type,
+                                      photoUrl: instPhoto || '',
+                                      description: inst.description || '',
+                                      outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
+                                      bookingMode: currentMode as 'instant' | 'manual',
+                                    });
+                                    setPhotoUploadError(null);
+                                    setShowUrlInput(false);
+                                    setShowInstrumentModal(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Edit instrument details"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  id={`btn-decommission-instrument-${inst.id}`}
+                                  onClick={() => {
+                                    setRemovingInstrument(inst);
+                                    setRemoveConfirmForce(false);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Retire instrument from service (preserves past history)"
+                                >
+                                  <Archive className="w-3 h-3" />
+                                  <span>Decommission</span>
+                                </button>
+                                <button
+                                  id={`btn-delete-instrument-${inst.id}`}
+                                  onClick={() => {
+                                    setDeletingInstrument(inst);
+                                    setDeleteConfirmChecked(false);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Delete mistaken entry permanently from database"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete</span>
+                                </button>
+                              </>
+                            ) : (
                               <button
+                                id={`btn-delete-instrument-${inst.id}`}
                                 onClick={() => {
-                                  setEditingInstrument(inst);
-                                  setInstrumentForm({
-                                    name: inst.name,
-                                    type: inst.type,
-                                    photoUrl: instPhoto || '',
-                                    description: inst.description || '',
-                                    outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
-                                    bookingMode: currentMode as 'instant' | 'manual',
-                                  });
-                                  setPhotoUploadError(null);
-                                  setShowUrlInput(false);
-                                  setShowInstrumentModal(true);
+                                  setDeletingInstrument(inst);
+                                  setDeleteConfirmChecked(false);
                                 }}
-                                className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                title="Delete mistaken entry permanently from database"
                               >
-                                <Edit className="w-3 h-3" />
-                                <span>Edit</span>
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete Row</span>
                               </button>
-                              <button
-                              onClick={() => {
-                                setRemovingInstrument(inst);
-                                setRemoveConfirmForce(false);
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              <span>Decommission</span>
-                            </button>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </div>
                     </div>
                     );
                   })}
@@ -1632,15 +2232,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <td className="py-3 px-3 font-mono text-stone-700">{u.phoneNumber}</td>
 
                           <td className="py-3 px-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                u.isActive
-                                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                  : 'bg-stone-100 text-stone-600 border border-stone-200'
-                              }`}
-                            >
-                              {u.isActive ? 'Active' : 'Deactivated'}
-                            </span>
+                            {(u.approval_status === 'pending' || u.approvalStatus === 'pending') ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                Pending Approval
+                              </span>
+                            ) : (u.approval_status === 'rejected' || u.approvalStatus === 'rejected') ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                <X className="w-2.5 h-2.5 text-rose-700" />
+                                Rejected
+                              </span>
+                            ) : (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  u.isActive
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : 'bg-stone-100 text-stone-600 border border-stone-200'
+                                }`}
+                              >
+                                {u.isActive ? 'Active' : 'Deactivated'}
+                              </span>
+                            )}
                           </td>
 
                           <td className="py-3 px-3">
@@ -1656,6 +2268,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* Quick Approve if pending */}
+                              {(u.approval_status === 'pending' || u.approvalStatus === 'pending') && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveRegistration(u.id, u.name)}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                  title="Approve registration"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>Approve</span>
+                                </button>
+                              )}
+
                               {/* Book on Behalf */}
                               <button
                                 onClick={() => setBookOnBehalfUser(u)}
@@ -1950,18 +2575,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <form onSubmit={handleSaveHardLimits} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <label className="block font-bold text-stone-700 mb-1">
+                    <label htmlFor="input-max-active-reservations" className="block font-bold text-stone-700 mb-1">
                       Max Active Reservations Per User
                     </label>
                     <input
+                      id="input-max-active-reservations"
                       type="number"
                       min="1"
                       max="20"
-                      value={hardLimitsState.maxActiveReservations}
+                      value={hardLimitsState.maxActiveReservations ?? ''}
                       onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          maxActiveReservations: parseInt(e.target.value) || 1,
+                          maxActiveReservations: e.target.value === '' ? '' : parseInt(e.target.value, 10),
                         })
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
@@ -1969,18 +2595,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-stone-700 mb-1">
+                    <label htmlFor="input-max-reservations-per-day" className="block font-bold text-stone-700 mb-1">
                       Max Reservations Per Day
                     </label>
                     <input
+                      id="input-max-reservations-per-day"
                       type="number"
                       min="1"
                       max="10"
-                      value={hardLimitsState.maxReservationsPerDay}
+                      value={hardLimitsState.maxReservationsPerDay ?? ''}
                       onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          maxReservationsPerDay: parseInt(e.target.value) || 1,
+                          maxReservationsPerDay: e.target.value === '' ? '' : parseInt(e.target.value, 10),
                         })
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
@@ -1988,18 +2615,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-stone-700 mb-1">
+                    <label htmlFor="input-max-duration-hours" className="block font-bold text-stone-700 mb-1">
                       Max Single Booking Duration (Hours)
                     </label>
                     <input
+                      id="input-max-duration-hours"
                       type="number"
                       min="1"
                       max="12"
-                      value={hardLimitsState.maxDurationHours}
+                      value={hardLimitsState.maxDurationHours ?? ''}
                       onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          maxDurationHours: parseInt(e.target.value) || 1,
+                          maxDurationHours: e.target.value === '' ? '' : parseInt(e.target.value, 10),
                         })
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
@@ -2007,18 +2635,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-stone-700 mb-1">
+                    <label htmlFor="input-max-concurrent-per-type" className="block font-bold text-stone-700 mb-1">
                       Max Concurrent Slots in Same Category
                     </label>
                     <input
+                      id="input-max-concurrent-per-type"
                       type="number"
                       min="1"
                       max="5"
-                      value={hardLimitsState.maxConcurrentPerType}
+                      value={hardLimitsState.maxConcurrentPerType ?? ''}
                       onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          maxConcurrentPerType: parseInt(e.target.value) || 1,
+                          maxConcurrentPerType: e.target.value === '' ? '' : parseInt(e.target.value, 10),
                         })
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
@@ -2026,18 +2655,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-stone-700 mb-1">
+                    <label htmlFor="input-max-series-occurrences" className="block font-bold text-stone-700 mb-1">
                       Max Recurring Occurrences Per Series
                     </label>
                     <input
+                      id="input-max-series-occurrences"
                       type="number"
                       min="2"
                       max="20"
-                      value={hardLimitsState.maxSeriesOccurrences}
+                      value={hardLimitsState.maxSeriesOccurrences ?? ''}
                       onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          maxSeriesOccurrences: parseInt(e.target.value) || 2,
+                          maxSeriesOccurrences: e.target.value === '' ? '' : parseInt(e.target.value, 10),
                         })
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
@@ -2045,18 +2675,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-stone-700 mb-1">
+                    <label htmlFor="input-max-submissions-per-hour" className="block font-bold text-stone-700 mb-1">
                       Rate Limit (Requests / Hour)
                     </label>
                     <input
+                      id="input-max-submissions-per-hour"
                       type="number"
                       min="5"
                       max="50"
-                      value={hardLimitsState.maxSubmissionsPerHour}
+                      value={hardLimitsState.maxSubmissionsPerHour ?? ''}
                       onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          maxSubmissionsPerHour: parseInt(e.target.value) || 5,
+                          maxSubmissionsPerHour: e.target.value === '' ? '' : parseInt(e.target.value, 10),
                         })
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
@@ -2392,48 +3023,202 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       )}
 
       {/* =============================================================
-          MODAL 2: Decommission Confirmation
+          MODAL 2: Decommission Confirmation (Retire from Service)
          ============================================================= */}
       {removingInstrument && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-center gap-3 text-red-700">
-              <AlertTriangle className="w-6 h-6" />
-              <h3 className="font-bold text-stone-900 text-sm">
-                Decommission "{removingInstrument.name}"?
-              </h3>
+            <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2.5 text-amber-800">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                  <Archive className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-sm">
+                    Decommission "{removingInstrument.name}"?
+                  </h3>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    Retire from Active Service
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRemovingInstrument(null)}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              Decommissioning will mark this instrument as retired and automatically cancel all future bookings for it.
+              Decommissioning marks this instrument as retired and automatically cancels upcoming active reservations. Past reservation history and audit records remain <strong>preserved</strong> in the database.
             </p>
 
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs flex items-center gap-2 text-red-900">
+            <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-600 text-[11px] leading-normal flex items-start gap-2">
+              <Info className="w-4 h-4 text-stone-500 shrink-0 mt-0.5" />
+              <div>
+                <strong>Need to remove a mistaken or typo entry instead?</strong> Close this modal and click <strong>Delete</strong> instead to completely erase the row from the database.
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs flex items-center gap-2 text-amber-900">
               <input
                 type="checkbox"
                 id="check-force-remove"
                 checked={removeConfirmForce}
                 onChange={(e) => setRemoveConfirmForce(e.target.checked)}
-                className="w-4 h-4 accent-red-700 rounded cursor-pointer"
+                className="w-4 h-4 accent-amber-700 rounded cursor-pointer shrink-0"
               />
-              <label htmlFor="check-force-remove" className="cursor-pointer font-semibold">
-                I understand and confirm decommissioning.
+              <label htmlFor="check-force-remove" className="cursor-pointer font-semibold select-none">
+                I understand and confirm decommissioning this instrument.
               </label>
             </div>
 
             <div className="pt-2 flex items-center justify-end gap-2 text-xs">
               <button
+                type="button"
                 onClick={() => setRemovingInstrument(null)}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200"
               >
                 Cancel
               </button>
               <button
+                type="button"
+                id="btn-confirm-decommission"
                 disabled={!removeConfirmForce}
                 onClick={handleExecuteRemoveInstrument}
-                className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-800 disabled:opacity-50 text-white font-bold cursor-pointer shadow-xs"
+                className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold cursor-pointer shadow-xs"
               >
                 Execute Decommission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================
+          MODAL 2B: Permanent Delete Confirmation (Mistaken Entries Only)
+         ============================================================= */}
+      {deletingInstrument && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2.5 text-red-700">
+                <div className="w-9 h-9 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-sm">
+                    Delete Instrument from Database
+                  </h3>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                    For Correcting Mistaken Entries Only
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingInstrument(null);
+                  setDeleteConfirmChecked(false);
+                }}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-stone-500 font-medium">Instrument Name:</span>
+                <span className="font-bold text-stone-900">{deletingInstrument.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500 font-medium">Category:</span>
+                <span className="font-semibold text-stone-800">{deletingInstrument.type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500 font-medium">Current Status:</span>
+                <span className="font-semibold text-stone-800">
+                  {deletingInstrument.isRemoved || deletingInstrument.is_removed
+                    ? 'Decommissioned'
+                    : 'Active'}
+                </span>
+              </div>
+              {(deletingInstrument.totalReservations !== undefined || deletingInstrument.total_reservations !== undefined) && (
+                <div className="flex justify-between">
+                  <span className="text-stone-500 font-medium">Associated Bookings:</span>
+                  <span className="font-bold text-stone-900">
+                    {deletingInstrument.totalReservations ?? deletingInstrument.total_reservations ?? 0}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 text-xs text-stone-600 leading-relaxed">
+              <p>
+                This action will <strong className="text-red-700">permanently remove this row from the database</strong>. Use this strictly to correct accidental additions, typos, or duplicate records.
+              </p>
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-normal flex items-start gap-2">
+                <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Need to retire a legitimate instrument?</strong> Do not delete it. Use <strong>Decommission</strong> instead to preserve member reservation histories and financial records.
+                </div>
+              </div>
+              {Number(deletingInstrument.totalReservations ?? deletingInstrument.total_reservations ?? 0) > 0 && (
+                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-900 text-[11px] leading-normal flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Warning:</strong> This row has {deletingInstrument.totalReservations ?? deletingInstrument.total_reservations} associated booking(s). Removing the row will also remove all associated reservations.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-xs flex items-start gap-2 text-red-950">
+              <input
+                type="checkbox"
+                id="check-permanent-delete-instrument"
+                checked={deleteConfirmChecked}
+                onChange={(e) => setDeleteConfirmChecked(e.target.checked)}
+                className="w-4 h-4 accent-red-700 rounded cursor-pointer mt-0.5 shrink-0"
+              />
+              <label htmlFor="check-permanent-delete-instrument" className="cursor-pointer font-medium select-none">
+                I confirm this is an accidental or mistaken entry and want to permanently remove this row from the database.
+              </label>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeletingInstrument(null);
+                  setDeleteConfirmChecked(false);
+                }}
+                disabled={isDeletingInstrument}
+                className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="btn-confirm-delete-instrument"
+                disabled={!deleteConfirmChecked || isDeletingInstrument}
+                onClick={handleExecuteDeleteInstrument}
+                className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-800 disabled:opacity-50 text-white font-bold cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                {isDeletingInstrument ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting Row...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Permanently Remove from Database</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
