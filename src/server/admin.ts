@@ -597,6 +597,34 @@ router.post('/instruments/:id/remove', async (req: Request, res: Response): Prom
 });
 
 /**
+ * Restore an instrument to Available status (reverses Not Available).
+ * Does NOT restore reservations cancelled while it was Not Available.
+ */
+router.post('/instruments/:id/restore', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const [updated] = await db
+      .update(instruments)
+      .set({ isRemoved: false })
+      .where(eq(instruments.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'Instrument not found.' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      instrument: updated,
+      message: `"${updated.name}" is now Available and visible to members again.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+/**
  * Permanently delete an instrument row from the database
  * (For correcting mistaken entries only; separate from Decommission)
  */

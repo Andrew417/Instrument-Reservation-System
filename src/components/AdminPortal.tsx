@@ -1063,6 +1063,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     });
   };
 
+  const triggerRestoreInstrument = (inst: any) => {
+  setConfirmModal({
+    isOpen: true,
+    title: `Mark "${inst.name}" as Available?`,
+    description: 'This instrument reappears in the booking calendar and becomes bookable again. Reservations cancelled while it was Not Available will not be restored.',
+    confirmLabel: 'Mark Available',
+    isDestructive: false,
+    onConfirm: async () => {
+      try {
+        const res = await adminFetch(`/instruments/${inst.id}/restore`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showNotice(data.message);
+          fetchInstruments();
+          fetchStats();
+          onInstrumentsChanged?.();
+        } else {
+          showNotice(data.error, 'error');
+        }
+      } catch (err: any) {
+        showNotice(err.message, 'error');
+      } finally {
+        setConfirmModal(null);
+      }
+    },
+  });
+};
+
   // Super Admin: Save Hard Limits
   const handleSaveHardLimits = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1988,8 +2016,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div>
                   <h2 className="font-bold text-stone-900 text-sm">Church Instruments Inventory</h2>
                   <p className="text-xs text-stone-500">
-                    Add, edit specifications, change booking mode, decommission retired instruments, or delete accidental mistaken entries.
-                  </p>
+                    Add, edit specifications, change booking mode, mark retired instruments unavailable, or delete accidental mistaken entries.                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -2065,7 +2092,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <span>{inst.name}</span>
                                 {isDecommissioned && (
                                   <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold">
-                                    Decommissioned
+                                    Not Available
                                   </span>
                                 )}
                               </div>
@@ -2124,7 +2151,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   <span>Edit</span>
                                 </button>
                                 <button
-                                  id={`btn-decommission-instrument-${inst.id}`}
+                                  id={`btn-mark-unavailable-instrument-${inst.id}`}
                                   onClick={() => {
                                     setRemovingInstrument(inst);
                                     setRemoveConfirmForce(false);
@@ -2133,7 +2160,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   title="Retire instrument from service (preserves past history)"
                                 >
                                   <Archive className="w-3 h-3" />
-                                  <span>Decommission</span>
+                                  <span>Mark Unavailable</span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -2149,18 +2176,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 </button>
                               </>
                             ) : (
-                              <button
-                                id={`btn-delete-instrument-${inst.id}`}
-                                onClick={() => {
-                                  setDeletingInstrument(inst);
-                                  setDeleteConfirmChecked(false);
-                                }}
-                                className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
-                                title="Delete mistaken entry permanently from database"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                <span>Delete Row</span>
-                              </button>
+                              <>
+                                <button
+                                  id={`btn-restore-instrument-${inst.id}`}
+                                  onClick={() => triggerRestoreInstrument(inst)}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Restore instrument to available status"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  <span>Mark Available</span>
+                                </button>
+                                <button
+                                  id={`btn-delete-instrument-${inst.id}`}
+                                  onClick={() => { setDeletingInstrument(inst); setDeleteConfirmChecked(false); }}
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Delete mistaken entry permanently from database"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete</span>
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -3023,7 +3058,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       )}
 
       {/* =============================================================
-          MODAL 2: Decommission Confirmation (Retire from Service)
+          MODAL 2: Mark Unavailable Confirmation (Retire from Service)
          ============================================================= */}
       {removingInstrument && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -3035,7 +3070,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-stone-900 text-sm">
-                    Decommission "{removingInstrument.name}"?
+                    Mark "{removingInstrument.name}" as Not Available?
                   </h3>
                   <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                     Retire from Active Service
@@ -3052,7 +3087,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              Decommissioning marks this instrument as retired and automatically cancels upcoming active reservations. Past reservation history and audit records remain <strong>preserved</strong> in the database.
+                Marking this instrument as Not Available cancels upcoming active reservations automatically. Past reservation history and audit records remain <strong>preserved</strong> in the database.
             </p>
 
             <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-600 text-[11px] leading-normal flex items-start gap-2">
@@ -3071,7 +3106,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 className="w-4 h-4 accent-amber-700 rounded cursor-pointer shrink-0"
               />
               <label htmlFor="check-force-remove" className="cursor-pointer font-semibold select-none">
-                I understand and confirm decommissioning this instrument.
+                I understand and confirm marking this instrument Not Available.
               </label>
             </div>
 
@@ -3085,12 +3120,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
               <button
                 type="button"
-                id="btn-confirm-decommission"
+                id="btn-confirm-mark-unavailable"
                 disabled={!removeConfirmForce}
                 onClick={handleExecuteRemoveInstrument}
                 className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold cursor-pointer shadow-xs"
               >
-                Execute Decommission
+                Confirm Mark Unavailable
               </button>
             </div>
           </div>
@@ -3142,8 +3177,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <span className="text-stone-500 font-medium">Current Status:</span>
                 <span className="font-semibold text-stone-800">
                   {deletingInstrument.isRemoved || deletingInstrument.is_removed
-                    ? 'Decommissioned'
-                    : 'Active'}
+                  ? 'Not Available'
+                  : 'Available'}
                 </span>
               </div>
               {(deletingInstrument.totalReservations !== undefined || deletingInstrument.total_reservations !== undefined) && (
@@ -3163,8 +3198,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-normal flex items-start gap-2">
                 <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                 <div>
-                  <strong>Need to retire a legitimate instrument?</strong> Do not delete it. Use <strong>Decommission</strong> instead to preserve member reservation histories and financial records.
-                </div>
+                  <strong>Need to retire a legitimate instrument?</strong> Do not delete it. Use <strong>Mark Unavailable</strong> instead to preserve member reservation histories and financial records.                </div>
               </div>
               {Number(deletingInstrument.totalReservations ?? deletingInstrument.total_reservations ?? 0) > 0 && (
                 <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-900 text-[11px] leading-normal flex items-start gap-2">
