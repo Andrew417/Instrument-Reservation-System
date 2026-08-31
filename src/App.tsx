@@ -270,7 +270,7 @@ const UserPortalMain: React.FC = () => {
         </div>
 
         {/* Mobile View Switcher Tabs */}
-        <div className={`sm:hidden grid ${isAdminOrSuperAdmin ? 'grid-cols-4' : 'grid-cols-3'} border-t border-stone-200 bg-stone-50`}>
+        <div className={`sm:hidden grid ${isAdminOrSuperAdmin ? 'grid-cols-3' : 'grid-cols-2'} border-t border-stone-200 bg-stone-50`}>
           <button
             type="button"
             onClick={() => setCurrentView('calendar')}
@@ -309,23 +309,6 @@ const UserPortalMain: React.FC = () => {
               <span>Admin</span>
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setIsNotificationsOpen(true)}
-            className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-              isNotificationsOpen
-                ? 'border-amber-800 text-amber-900 bg-white'
-                : 'border-transparent text-stone-600'
-            }`}
-          >
-            <div className="relative flex items-center">
-              <Bell className="w-3.5 h-3.5" />
-              {unreadCount > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-600 -top-1 -right-1 absolute animate-pulse" />
-              )}
-            </div>
-            <span>Alerts {unreadCount > 0 ? `(${unreadCount})` : ''}</span>
-          </button>
         </div>
       </header>
 

@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   MessageSquare,
   Wrench,
-  Sparkles,
   CheckCheck,
   Check,
   ChevronRight,
@@ -51,8 +50,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'approvals' | 'rejections' | 'messages'>('all');
-  const [isSeeding, setIsSeeding] = useState<boolean>(false);
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -141,32 +138,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       if (onUnreadCountChange) {
         onUnreadCountChange(0);
       }
-      setActionNotice('All notifications marked as read');
-      setTimeout(() => setActionNotice(null), 3000);
     } catch (e: any) {
       console.warn('Could not mark all as read:', e.message);
-    }
-  };
-
-  const handleSeedSamples = async () => {
-    setIsSeeding(true);
-    try {
-      const res = await fetch('/api/notifications/seed-samples', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${sessionToken || ''}`,
-        },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setActionNotice('Added sample test notifications across all 5 categories!');
-        await fetchNotifications();
-        setTimeout(() => setActionNotice(null), 4000);
-      }
-    } catch (e: any) {
-      console.warn('Could not seed sample notifications:', e.message);
-    } finally {
-      setIsSeeding(false);
     }
   };
 
@@ -283,12 +256,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               )}
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">Notifications</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-800 text-stone-300 border border-stone-700">
-                  Screen 7
-                </span>
-              </div>
+              <h2 className="text-base font-bold text-white">Notifications</h2>
               <p className="text-xs text-stone-400">
                 {unreadCount > 0
                   ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
@@ -320,15 +288,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           </div>
         </div>
 
-        {/* Action Notice Bar */}
-        {actionNotice && (
-          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 text-xs text-amber-900 font-semibold flex items-center justify-between shrink-0 animate-in fade-in">
-            <span>{actionNotice}</span>
-            <Check className="w-4 h-4 text-amber-700" />
-          </div>
-        )}
-
-        {/* Filter Bar & Test Simulation Action */}
+        {/* Filter Bar */}
         <div className="px-6 py-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
             <button
@@ -388,28 +348,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Simulate Notification Samples Button */}
-            <button
-              type="button"
-              disabled={isSeeding}
-              onClick={handleSeedSamples}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition cursor-pointer disabled:opacity-50"
-              title="Add sample notifications to test all 5 event types"
-            >
-              <Sparkles className="w-3 h-3 text-amber-700" />
-              <span>{isSeeding ? 'Adding...' : 'Test 5 Event Types'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={fetchNotifications}
-              className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={fetchNotifications}
+            className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {/* Notifications List Body */}
@@ -434,14 +380,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                     : 'System alerts for approved requests, rejections, admin notes, and changes will appear here.'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleSeedSamples}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition shadow-xs cursor-pointer mt-2"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Simulate Sample Notifications</span>
-              </button>
             </div>
           ) : (
             filteredNotifications.map((notif) => {
@@ -509,7 +447,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1 text-amber-900 font-bold text-[11px] shrink-0">
-                            <span>Open Detail (Screen 6)</span>
+                            <span>Open Detail</span>
                             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>
