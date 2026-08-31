@@ -281,6 +281,18 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     This reservation has been queued for admin approval. You will receive an update once a church administrator reviews it.
                   </p>
 
+                  {/* Outside church WhatsApp notification message */}
+                  {submissionResult.reservation.reservationType === 'outside_church' && (
+                    <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2.5">
+                      <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                        WA
+                      </div>
+                      <p className="leading-relaxed">
+                        If your reservation is approved, the admin will contact you on WhatsApp for confirmation and payment.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Specific Downgrade Reasons List */}
                   {submissionResult.evaluation.reasons.length > 0 && (
                     <div className="pt-2.5 border-t border-amber-200/80 mt-2">

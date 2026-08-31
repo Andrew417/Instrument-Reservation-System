@@ -348,14 +348,14 @@ export async function evaluateReservationSubmission(
   let calculatedStatus: 'approved' | 'pending' = 'pending';
   const reasons: string[] = [];
 
-  if (isTrustedOrAdmin) {
-    // Auto-approve immediately for Trusted Users and Admins (both in-church and outside-church)
+  if (reservationType === 'outside_church') {
+    // Outside-church ALWAYS sets status to Pending on submission (manual review), never Instant — regardless of instrument mode
+    calculatedStatus = 'pending';
+    reasons.push('Outside-church reservation requires administrator review and payment arrangement.');
+  } else if (isTrustedOrAdmin) {
+    // Auto-approve immediately for Trusted Users and Admins (in-church reservations)
     calculatedStatus = 'approved';
     reasons.push('Auto-approved via Trusted User / Admin privilege');
-  } else if (reservationType === 'outside_church') {
-    // Outside-church for regular users: ALWAYS pending, regardless of instant/manual mode
-    calculatedStatus = 'pending';
-    reasons.push('Outside-church reservations require administrator review and payment arrangement.');
   } else {
     // Regular user, in_church reservation:
     let limitExceeded = false;

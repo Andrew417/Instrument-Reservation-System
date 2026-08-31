@@ -444,6 +444,18 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   Series ID: {seriesResult.series.id.substring(0, 13)}...
                 </div>
               </div>
+
+              {/* Outside church WhatsApp notification message */}
+              {reservationType === 'outside_church' && (
+                <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                    WA
+                  </div>
+                  <p className="leading-relaxed">
+                    If your reservation is approved, the admin will contact you on WhatsApp for confirmation and payment.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Per-Occurrence Status Table */}
