@@ -69,18 +69,6 @@ function formatHhmmTo12Hour(hhmm: string): string {
   return `${h}:${mStr} ${ampm}`;
 }
 
-const TYPE_DISPLAY_ORDER = ['piano', 'drums', 'percussion', 'violin'];
-
-function sortByTypePriority(types: string[]): string[] {
-  return [...types].sort((a, b) => {
-    const aIndex = TYPE_DISPLAY_ORDER.indexOf(a.toLowerCase());
-    const bIndex = TYPE_DISPLAY_ORDER.indexOf(b.toLowerCase());
-    const aRank = aIndex === -1 ? TYPE_DISPLAY_ORDER.length : aIndex;
-    const bRank = bIndex === -1 ? TYPE_DISPLAY_ORDER.length : bIndex;
-    if (aRank !== bRank) return aRank - bRank;
-    return a.localeCompare(b);
-  });
-}
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectSlot,
   onSelectInstrument,
@@ -107,6 +95,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const [modeNotice, setModeNotice] = useState<string | null>(null);
   const [updatingModeId, setUpdatingModeId] = useState<string | null>(null);
   const dateStripRef = useRef<HTMLDivElement>(null);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
   if (filtersInitialized.current || instruments.length === 0) return;
@@ -127,6 +116,19 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   setCheckedInstrumentIds(defaultIds);
   filtersInitialized.current = true;
   }, [instruments]);
+  
+  useEffect(() => {
+    if (!isFilterPanelOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
+        setIsFilterPanelOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isFilterPanelOpen]);
   
   const handleToggleType = (type: string) => {
     const isChecked = checkedTypes.includes(type);
@@ -285,7 +287,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 const allInstrumentTypes = useMemo(() => {
   const types = new Set<string>();
   instruments.forEach((inst) => types.add(inst.type));
-  return sortByTypePriority(Array.from(types));
+  return Array.from(types);
 }, [instruments]);
 
   // Check if a specific instrument slot is booked
@@ -380,8 +382,8 @@ const allInstrumentTypes = useMemo(() => {
           {/* Quick Filter & Jump Controls */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Category Filter */}
-            {allInstrumentTypes.length > 0 && (
-  <div className="relative">
+           {allInstrumentTypes.length > 0 && (
+  <div className="relative" ref={filterPanelRef}>
     <button
       id="btn-open-instrument-filter"
       onClick={() => setIsFilterPanelOpen((o) => !o)}
@@ -394,8 +396,8 @@ const allInstrumentTypes = useMemo(() => {
     {isFilterPanelOpen && (
       <div
         id="instrument-filter-panel"
-        className="absolute right-0 top-full mt-2 w-72 max-h-96 overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
-      >
+                    className="absolute right-0 top-full mt-2 w-[min(18rem,calc(100vw-2rem))] max-h-96 overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
+                  >
                     {allInstrumentTypes.map((type) => {
                       const isTypeChecked = checkedTypes.includes(type);
                       const typeInstruments = instruments.filter((inst) => inst.type === type);
