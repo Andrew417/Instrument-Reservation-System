@@ -39,10 +39,10 @@ const SESSION_TOKEN_KEY = 'church_session_token_v1';
 const USER_PROFILE_KEY = 'church_user_profile_v1';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem(SESSION_TOKEN_KEY));
+  const [sessionToken, setSessionToken] = useState<string | null>(() => sessionStorage.getItem(SESSION_TOKEN_KEY));
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     try {
-      const stored = localStorage.getItem(USER_PROFILE_KEY);
+      const stored = sessionStorage.getItem(USER_PROFILE_KEY);
       return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Load and validate session on startup
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem(SESSION_TOKEN_KEY);
+      const token = sessionStorage.getItem(SESSION_TOKEN_KEY);
       if (!token) {
         setProfile(null);
         setLoading(false);
@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (data.profile) {
             setProfile(data.profile);
             setSessionToken(token);
-            localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+            sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
           } else {
             handleLogoutLocally();
           }
@@ -116,8 +116,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const handleLogoutLocally = () => {
-    localStorage.removeItem(SESSION_TOKEN_KEY);
-    localStorage.removeItem(USER_PROFILE_KEY);
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    sessionStorage.removeItem(USER_PROFILE_KEY);
     setSessionToken(null);
     setProfile(null);
   };
@@ -167,8 +167,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.token && data.profile) {
         setSessionToken(data.token);
         setProfile(data.profile);
-        localStorage.setItem(SESSION_TOKEN_KEY, data.token);
-        localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+        sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
+        sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
         setError(null);
       }
     } catch (err: any) {
@@ -230,8 +230,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.token && data.profile) {
         setSessionToken(data.token);
         setProfile(data.profile);
-        localStorage.setItem(SESSION_TOKEN_KEY, data.token);
-        localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+        sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
+        sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
         setError(null);
         return {
           pendingApproval: false,
@@ -249,7 +249,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      const token = sessionToken || localStorage.getItem(SESSION_TOKEN_KEY);
+      const token = sessionToken || sessionStorage.getItem(SESSION_TOKEN_KEY);
       if (token) {
         await fetch('/api/auth/logout', {
           method: 'POST',
@@ -266,7 +266,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const clearError = () => setError(null);
 
   const refreshProfile = async () => {
-    const token = sessionToken || localStorage.getItem(SESSION_TOKEN_KEY);
+    const token = sessionToken || sessionStorage.getItem(SESSION_TOKEN_KEY);
     if (!token) return;
 
     try {
@@ -277,7 +277,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const data = await res.json();
         if (data.profile) {
           setProfile(data.profile);
-          localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+          sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
         }
       }
     } catch (err) {
