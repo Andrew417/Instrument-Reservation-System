@@ -151,6 +151,7 @@ export const hardLimits = pgTable('hard_limits', {
   maxConcurrentPerType: integer('max_concurrent_per_type').default(2).notNull(),
   maxSeriesOccurrences: integer('max_series_occurrences').default(8).notNull(),
   maxSubmissionsPerHour: integer('max_submissions_per_hour').default(10).notNull(),
+  bypassHardLimits: boolean('bypass_hard_limits').default(false).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

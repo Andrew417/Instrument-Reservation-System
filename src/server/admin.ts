@@ -1283,6 +1283,7 @@ router.put('/hard-limits', requireSuperAdminAuth, async (req: Request, res: Resp
     const rawConcurrent = body.maxConcurrentPerType ?? body.max_concurrent_per_type;
     const rawSeries = body.maxSeriesOccurrences ?? body.max_series_occurrences;
     const rawSubmissions = body.maxSubmissionsPerHour ?? body.max_submissions_per_hour;
+    const rawBypass = body.bypassHardLimits ?? body.bypass_hard_limits;
 
     const existingRows = await db.select().from(hardLimits).orderBy(desc(hardLimits.updatedAt));
     const existing = existingRows[0];
@@ -1299,6 +1300,7 @@ router.put('/hard-limits', requireSuperAdminAuth, async (req: Request, res: Resp
     const newConcurrent = parseNum(rawConcurrent, existing?.maxConcurrentPerType ?? 2);
     const newSeries = parseNum(rawSeries, existing?.maxSeriesOccurrences ?? 8);
     const newSubmissions = parseNum(rawSubmissions, existing?.maxSubmissionsPerHour ?? 10);
+    const newBypass = rawBypass !== undefined ? Boolean(rawBypass) : (existing?.bypassHardLimits ?? false);
 
     let updatedLimits;
     if (existing) {
@@ -1311,6 +1313,7 @@ router.put('/hard-limits', requireSuperAdminAuth, async (req: Request, res: Resp
           maxConcurrentPerType: newConcurrent,
           maxSeriesOccurrences: newSeries,
           maxSubmissionsPerHour: newSubmissions,
+          bypassHardLimits: newBypass,
           updatedAt: new Date(),
         })
         .where(eq(hardLimits.id, existing.id))
@@ -1330,6 +1333,7 @@ router.put('/hard-limits', requireSuperAdminAuth, async (req: Request, res: Resp
           maxConcurrentPerType: newConcurrent,
           maxSeriesOccurrences: newSeries,
           maxSubmissionsPerHour: newSubmissions,
+          bypassHardLimits: newBypass,
           updatedAt: new Date(),
         })
         .returning();
@@ -1343,12 +1347,14 @@ router.put('/hard-limits', requireSuperAdminAuth, async (req: Request, res: Resp
       maxConcurrentPerType: updatedLimits.maxConcurrentPerType,
       maxSeriesOccurrences: updatedLimits.maxSeriesOccurrences,
       maxSubmissionsPerHour: updatedLimits.maxSubmissionsPerHour,
+      bypassHardLimits: updatedLimits.bypassHardLimits,
       max_active_reservations: updatedLimits.maxActiveReservations,
       max_reservations_per_day: updatedLimits.maxReservationsPerDay,
       max_duration_hours: updatedLimits.maxDurationHours,
       max_concurrent_per_type: updatedLimits.maxConcurrentPerType,
       max_series_occurrences: updatedLimits.maxSeriesOccurrences,
       max_submissions_per_hour: updatedLimits.maxSubmissionsPerHour,
+      bypass_hard_limits: updatedLimits.bypassHardLimits,
     };
 
     res.json({

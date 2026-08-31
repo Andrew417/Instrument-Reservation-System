@@ -83,7 +83,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/reservations?userId=${profile.id}`);
+      const res = await fetch(`/api/reservations?userId=${profile.id}`, {
+        headers: {
+          Authorization: `Bearer ${sessionToken || ''}`,
+        },
+      });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setFetchError(data.error || 'Failed to fetch reservations.');
