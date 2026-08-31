@@ -272,6 +272,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     maxConcurrentPerType: 2,
     maxSeriesOccurrences: 8,
     maxSubmissionsPerHour: 10,
+    bypassHardLimits: false,
   });
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
 
@@ -577,6 +578,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         maxConcurrentPerType: 2,
         maxSeriesOccurrences: 8,
         maxSubmissionsPerHour: 10,
+        bypassHardLimits: false,
       };
     }
     return {
@@ -587,6 +589,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       maxConcurrentPerType: Number(limits.maxConcurrentPerType ?? limits.max_concurrent_per_type ?? 2),
       maxSeriesOccurrences: Number(limits.maxSeriesOccurrences ?? limits.max_series_occurrences ?? 8),
       maxSubmissionsPerHour: Number(limits.maxSubmissionsPerHour ?? limits.max_submissions_per_hour ?? 10),
+      bypassHardLimits: Boolean(limits.bypassHardLimits ?? limits.bypass_hard_limits ?? false),
     };
   };
 
@@ -1104,12 +1107,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         maxConcurrentPerType: Number(hardLimitsState.maxConcurrentPerType) || 1,
         maxSeriesOccurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
         maxSubmissionsPerHour: Number(hardLimitsState.maxSubmissionsPerHour) || 5,
+        bypassHardLimits: Boolean(hardLimitsState.bypassHardLimits),
         max_active_reservations: Number(hardLimitsState.maxActiveReservations) || 1,
         max_reservations_per_day: Number(hardLimitsState.maxReservationsPerDay) || 1,
         max_duration_hours: Number(hardLimitsState.maxDurationHours) || 1,
         max_concurrent_per_type: Number(hardLimitsState.maxConcurrentPerType) || 1,
         max_series_occurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
         max_submissions_per_hour: Number(hardLimitsState.maxSubmissionsPerHour) || 5,
+        bypass_hard_limits: Boolean(hardLimitsState.bypassHardLimits),
       };
       const res = await adminFetch('/hard-limits', {
         method: 'PUT',
@@ -2609,6 +2614,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <form onSubmit={handleSaveHardLimits} className="space-y-4">
+                <div className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-2.5">
+                  <div>
+                    <div className="font-bold text-stone-900 text-xs">Global Hard-Limit Bypass</div>
+                    <div className="text-[11px] text-stone-600">
+                      {hardLimitsState.bypassHardLimits
+                        ? 'Hard limits are currently disabled system-wide.'
+                        : 'Hard limits are active and enforced for all reservations.'}
+                    </div>
+                  </div>
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(hardLimitsState.bypassHardLimits)}
+                      onChange={(e) =>
+                        setHardLimitsState((prev: any) => ({
+                          ...prev,
+                          bypassHardLimits: e.target.checked,
+                        }))
+                      }
+                      className="peer sr-only"
+                    />
+                    <span className="h-6 w-11 rounded-full bg-stone-300 transition peer-checked:bg-amber-700" />
+                    <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5" />
+                  </label>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
                     <label htmlFor="input-max-active-reservations" className="block font-bold text-stone-700 mb-1">
