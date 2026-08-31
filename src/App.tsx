@@ -118,9 +118,11 @@ const UserPortalMain: React.FC = () => {
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold text-lg shadow-sm border border-amber-900/30">
-              <Church className="w-5 h-5" />
-            </div>
+                        <img
+              src="/logo.png"
+              alt="Church logo"
+              className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-amber-900/30"
+            />
             <div>
               <div className="font-bold text-stone-900 text-sm sm:text-base leading-tight">
                 Church Instrument Schedule

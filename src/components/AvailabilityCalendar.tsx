@@ -69,6 +69,18 @@ function formatHhmmTo12Hour(hhmm: string): string {
   return `${h}:${mStr} ${ampm}`;
 }
 
+const TYPE_DISPLAY_ORDER = ['piano', 'drums', 'percussion', 'violin'];
+
+function sortByTypePriority(types: string[]): string[] {
+  return [...types].sort((a, b) => {
+    const aIndex = TYPE_DISPLAY_ORDER.indexOf(a.toLowerCase());
+    const bIndex = TYPE_DISPLAY_ORDER.indexOf(b.toLowerCase());
+    const aRank = aIndex === -1 ? TYPE_DISPLAY_ORDER.length : aIndex;
+    const bRank = bIndex === -1 ? TYPE_DISPLAY_ORDER.length : bIndex;
+    if (aRank !== bRank) return aRank - bRank;
+    return a.localeCompare(b);
+  });
+}
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectSlot,
   onSelectInstrument,
@@ -273,7 +285,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 const allInstrumentTypes = useMemo(() => {
   const types = new Set<string>();
   instruments.forEach((inst) => types.add(inst.type));
-  return Array.from(types);
+  return sortByTypePriority(Array.from(types));
 }, [instruments]);
 
   // Check if a specific instrument slot is booked
