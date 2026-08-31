@@ -88,11 +88,62 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const [reservations, setReservations] = useState<ReservedSlot[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
+  const [checkedTypes, setCheckedTypes] = useState<string[]>([]);
+  const [checkedInstrumentIds, setCheckedInstrumentIds] = useState<Set<string>>(new Set());
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const filtersInitialized = useRef(false);
   const [modeNotice, setModeNotice] = useState<string | null>(null);
   const [updatingModeId, setUpdatingModeId] = useState<string | null>(null);
   const dateStripRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+  if (filtersInitialized.current || instruments.length === 0) return;
+
+  const defaultTypePriority = ['piano', 'drums'];
+  const defaultTypes = Array.from(new Set(instruments.map((i) => i.type)))
+    .filter((t) => defaultTypePriority.includes(t.toLowerCase()))
+    .sort(
+      (a, b) =>
+        defaultTypePriority.indexOf(a.toLowerCase()) - defaultTypePriority.indexOf(b.toLowerCase())
+    );
+
+  const defaultIds = new Set(
+    instruments.filter((i) => defaultTypes.includes(i.type)).map((i) => i.id)
+  );
+
+  setCheckedTypes(defaultTypes);
+  setCheckedInstrumentIds(defaultIds);
+  filtersInitialized.current = true;
+  }, [instruments]);
+  
+  const handleToggleType = (type: string) => {
+    const isChecked = checkedTypes.includes(type);
+    if (isChecked) {
+      setCheckedTypes((prev) => prev.filter((t) => t !== type));
+      setCheckedInstrumentIds((prev) => {
+        const next = new Set(prev);
+        instruments.filter((i) => i.type === type).forEach((i) => next.delete(i.id));
+        return next;
+      });
+    } else {
+      setCheckedTypes((prev) => [...prev, type]);
+      setCheckedInstrumentIds((prev) => {
+        const next = new Set(prev);
+        instruments.filter((i) => i.type === type).forEach((i) => next.add(i.id));
+        return next;
+      });
+    }
+  };
+
+  const handleToggleInstrument = (instrumentId: string) => {
+    setCheckedInstrumentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(instrumentId)) next.delete(instrumentId);
+      else next.add(instrumentId);
+      return next;
+    });
+  };
+  
   // Admin: Toggle instrument booking mode directly from calendar view
   const handleToggleBookingMode = async (inst: Instrument) => {
     if (!isAdminOrSuperAdmin || updatingModeId) return;
@@ -209,25 +260,21 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   // Group instruments by type
   const groupedInstruments: Record<string, Instrument[]> = useMemo(() => {
-    const filtered = selectedTypeFilter === 'all'
-      ? instruments
-      : instruments.filter((inst) => inst.type === selectedTypeFilter);
+  const groups: Record<string, Instrument[]> = {};
+  checkedTypes.forEach((type) => {
+    const typeInstruments = instruments.filter(
+      (inst) => inst.type === type && checkedInstrumentIds.has(inst.id)
+    );
+    if (typeInstruments.length > 0) groups[type] = typeInstruments;
+  });
+  return groups;
+}, [instruments, checkedTypes, checkedInstrumentIds]);
 
-    const groups: Record<string, Instrument[]> = {};
-    for (const inst of filtered) {
-      if (!groups[inst.type]) {
-        groups[inst.type] = [];
-      }
-      groups[inst.type].push(inst);
-    }
-    return groups;
-  }, [instruments, selectedTypeFilter]);
-
-  const instrumentTypes = useMemo(() => {
-    const types = new Set<string>();
-    instruments.forEach((inst) => types.add(inst.type));
-    return Array.from(types);
-  }, [instruments]);
+const allInstrumentTypes = useMemo(() => {
+  const types = new Set<string>();
+  instruments.forEach((inst) => types.add(inst.type));
+  return Array.from(types);
+}, [instruments]);
 
   // Check if a specific instrument slot is booked
   const isSlotBooked = (instrumentId: string, slotHhmm: string) => {
@@ -321,22 +368,63 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           {/* Quick Filter & Jump Controls */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Category Filter */}
-            {instrumentTypes.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500" />
-                <select
-                  id="category-filter-select"
-                  value={selectedTypeFilter}
-                  onChange={(e) => setSelectedTypeFilter(e.target.value)}
-                  className="bg-transparent font-medium text-stone-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="all">All Categories ({instruments.length})</option>
-                  {instrumentTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
+            {allInstrumentTypes.length > 0 && (
+  <div className="relative">
+    <button
+      id="btn-open-instrument-filter"
+      onClick={() => setIsFilterPanelOpen((o) => !o)}
+      className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 transition cursor-pointer"
+    >
+      <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500" />
+      <span>Filter Instruments ({checkedInstrumentIds.size})</span>
+    </button>
+
+    {isFilterPanelOpen && (
+      <div
+        id="instrument-filter-panel"
+        className="absolute right-0 top-full mt-2 w-72 max-h-96 overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
+      >
+                    {allInstrumentTypes.map((type) => {
+                      const isTypeChecked = checkedTypes.includes(type);
+                      const typeInstruments = instruments.filter((inst) => inst.type === type);
+                      return (
+                        <div key={type} className="space-y-1.5">
+                          <label className="flex items-center gap-2 text-xs font-bold text-stone-800 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isTypeChecked}
+                              onChange={() => handleToggleType(type)}
+                              className="w-3.5 h-3.5 accent-amber-800 cursor-pointer"
+                            />
+                            <span>{type}</span>
+                            <span className="text-[10px] font-medium text-stone-400">
+                              ({typeInstruments.length})
+                            </span>
+                          </label>
+
+                          {isTypeChecked && (
+                            <div className="pl-5 space-y-1">
+                              {typeInstruments.map((inst) => (
+                                <label
+                                  key={inst.id}
+                                  className="flex items-center gap-2 text-xs text-stone-700 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checkedInstrumentIds.has(inst.id)}
+                                    onChange={() => handleToggleInstrument(inst.id)}
+                                    className="w-3.5 h-3.5 accent-amber-700 cursor-pointer"
+                                  />
+                                  <span>{inst.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
