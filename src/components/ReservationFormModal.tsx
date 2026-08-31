@@ -150,6 +150,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     setErrorMsg(null);
 
     try {
+      const isAdminRole = profile.role === 'admin' || profile.role === 'super_admin';
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: {
@@ -157,7 +158,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
-          userId: profile.id,
+          userId: isAdminRole ? null : profile.id,
+          adminId: isAdminRole ? profile.id : null,
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
           date,

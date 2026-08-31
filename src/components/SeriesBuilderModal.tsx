@@ -331,8 +331,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     setSubmitError(null);
 
     try {
+      const isAdminRole = profile.role === 'admin' || profile.role === 'super_admin';
       const payload = {
-        userId: profile.id,
+        userId: isAdminRole ? null : profile.id,
+        adminId: isAdminRole ? profile.id : null,
         instrumentId: currentInstrument.id,
         serviceName: serviceName.trim(),
         patternType,

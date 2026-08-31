@@ -162,6 +162,94 @@ export function toNullableString(val: any): string | null {
 }
 
 /**
+ * Robust identity resolver that correctly separates user IDs (users table) and admin IDs (admins table).
+ * If a frontend or API passes an admin's account ID in the userId field, this safely routes it to adminId.
+ */
+export async function resolveUserAndAdminIds(
+  rawUserId?: string | null,
+  rawAdminId?: string | null
+): Promise<{
+  resolvedUserId: string | null;
+  resolvedAdminId: string | null;
+  isTrusted: boolean;
+  isAdmin: boolean;
+}> {
+  let userId = toNullableString(rawUserId);
+  let adminId = toNullableString(rawAdminId);
+  let isTrusted = false;
+  let isAdmin = false;
+
+  // 1. If adminId provided, verify it against admins or fallback to users
+  if (adminId) {
+    try {
+      const adminRows = await db
+        .select({ id: admins.id })
+        .from(admins)
+        .where(eq(admins.id, adminId))
+        .limit(1);
+
+      if (adminRows.length > 0) {
+        isAdmin = true;
+      } else {
+        const userRows = await db
+          .select({ id: users.id, isTrusted: users.isTrusted })
+          .from(users)
+          .where(eq(users.id, adminId))
+          .limit(1);
+
+        if (userRows.length > 0) {
+          userId = adminId;
+          adminId = null;
+          isTrusted = Boolean(userRows[0].isTrusted);
+        } else {
+          adminId = null;
+        }
+      }
+    } catch {
+      adminId = null;
+    }
+  }
+
+  // 2. If userId provided, check if it's actually in users table or in admins table
+  if (userId) {
+    try {
+      const userRows = await db
+        .select({ id: users.id, isTrusted: users.isTrusted })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (userRows.length > 0) {
+        isTrusted = Boolean(userRows[0].isTrusted);
+      } else {
+        const adminRows = await db
+          .select({ id: admins.id })
+          .from(admins)
+          .where(eq(admins.id, userId))
+          .limit(1);
+
+        if (adminRows.length > 0) {
+          adminId = userId;
+          userId = null;
+          isAdmin = true;
+        } else {
+          userId = null;
+        }
+      }
+    } catch {
+      userId = null;
+    }
+  }
+
+  return {
+    resolvedUserId: userId,
+    resolvedAdminId: adminId,
+    isTrusted,
+    isAdmin,
+  };
+}
+
+/**
  * =========================================================================
  * 1. SINGLE RESERVATION SUBMISSION EVALUATION LOGIC (Exact Sequence)
  * =========================================================================
@@ -181,8 +269,12 @@ export async function evaluateReservationSubmission(
     feeAcknowledged,
   } = input;
 
-  const cleanUserId = toNullableString(userId);
-  const cleanAdminId = toNullableString(adminId);
+  const { resolvedUserId, resolvedAdminId, isTrusted, isAdmin } = await resolveUserAndAdminIds(
+    userId,
+    adminId
+  );
+  const cleanUserId = resolvedUserId;
+  const cleanAdminId = resolvedAdminId;
 
   // 1. Working hours check
   const { start, end, timeRangeSqlString } = buildTimeRange(date, startTime, duration);
@@ -240,19 +332,7 @@ export async function evaluateReservationSubmission(
   }
 
   // 4. Trusted or Admin check
-  let isTrustedOrAdmin = false;
-  if (cleanAdminId) {
-    isTrustedOrAdmin = true;
-  } else if (cleanUserId) {
-    const userRes = await db
-      .select({ isTrusted: users.isTrusted })
-      .from(users)
-      .where(eq(users.id, cleanUserId))
-      .limit(1);
-    if (userRes.length > 0 && userRes[0].isTrusted) {
-      isTrustedOrAdmin = true;
-    }
-  }
+  const isTrustedOrAdmin = isTrusted || isAdmin;
 
   // 5. Outside church fee requirement check
   let outsideFeeSnapshot: string | null = null;
@@ -422,11 +502,19 @@ export async function autoRejectOverlappingPending(
  * Creates a single reservation end-to-end
  */
 export async function createReservation(input: ReservationSubmissionInput) {
-  const evalResult = await evaluateReservationSubmission(input);
+  const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
+    input.userId,
+    input.adminId
+  );
 
-  // Explicitly coerce optional/nullable fields to null (never empty string "")
-  const cleanUserId = toNullableString(input.userId);
-  const cleanAdminId = toNullableString(input.adminId);
+  const evalResult = await evaluateReservationSubmission({
+    ...input,
+    userId: resolvedUserId || undefined,
+    adminId: resolvedAdminId || undefined,
+  });
+
+  const cleanUserId = resolvedUserId;
+  const cleanAdminId = resolvedAdminId;
   const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
   const cleanServiceName = (input.serviceName || '').trim() || 'Not specified';
 
@@ -512,8 +600,12 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     throw new Error('Series must have at least one occurrence.');
   }
 
-  const cleanUserId = toNullableString(userId);
-  const cleanAdminId = toNullableString(adminId);
+  const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
+    userId,
+    adminId
+  );
+  const cleanUserId = resolvedUserId;
+  const cleanAdminId = resolvedAdminId;
 
   const limits = await getHardLimits();
 

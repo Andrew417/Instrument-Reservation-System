@@ -34,11 +34,42 @@ router.get('/limits', async (_req: Request, res: Response): Promise<void> => {
 });
 
 /**
+ * Helper to safely extract user or admin ID from valid session token
+ */
+async function extractSessionIdentity(req: Request) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  const token = authHeader.substring(7).trim();
+  try {
+    const sessionRes = await validateSession(token);
+    if (sessionRes.valid && sessionRes.session) {
+      const isAdm = sessionRes.session.role === 'admin' || sessionRes.session.role === 'super_admin';
+      return {
+        userId: isAdm ? null : sessionRes.session.userId,
+        adminId: isAdm ? sessionRes.session.adminId : null,
+      };
+    }
+  } catch {
+    // Ignore and fallback to body parameters
+  }
+  return null;
+}
+
+/**
  * 1. Evaluate/Dry-run submission without creating a row
  */
 router.post('/evaluate', async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await evaluateReservationSubmission(req.body);
+    const sessionIdentity = await extractSessionIdentity(req);
+    const payload = {
+      ...req.body,
+      ...(sessionIdentity
+        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
+        : {}),
+    };
+    const result = await evaluateReservationSubmission(payload);
     res.json({ success: true, evaluation: result });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message, conflicts: err.conflicts });
@@ -54,7 +85,14 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, error: 'What this reservation is for (service_name) is required.' });
       return;
     }
-    const result = await createReservation(req.body);
+    const sessionIdentity = await extractSessionIdentity(req);
+    const payload = {
+      ...req.body,
+      ...(sessionIdentity
+        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
+        : {}),
+    };
+    const result = await createReservation(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message, conflicts: err.conflicts });
@@ -70,7 +108,14 @@ router.post('/series', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ success: false, error: 'What this reservation is for (service_name) is required for the series.' });
       return;
     }
-    const result = await createReservationSeries(req.body);
+    const sessionIdentity = await extractSessionIdentity(req);
+    const payload = {
+      ...req.body,
+      ...(sessionIdentity
+        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
+        : {}),
+    };
+    const result = await createReservationSeries(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message, conflicts: err.conflicts });
