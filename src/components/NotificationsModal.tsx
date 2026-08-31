@@ -227,7 +227,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       if (diffSec < 60) return 'Just now';
       if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
       if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-      return `${d.toISOString().substring(0, 10)} ${d.toISOString().substring(11, 16)} UTC`;
+      return `${d.toISOString().substring(0, 10)} ${d.toISOString().substring(11, 16)}`;
     } catch {
       return dateString;
     }

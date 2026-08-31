@@ -6,6 +6,39 @@ import { validateSession } from './session-manager.ts';
 
 const router = Router();
 
+const MANUAL_TYPE_ORDER: string[] = ['Piano', 'Drums', 'Percussion', 'Violin'];
+const MANUAL_INSTRUMENT_ORDER_BY_TYPE: Record<string, string[]> = {
+  Piano: ['Yamaha E-443', 'Roland E-09', 'Korg Pa-50', 'Roland E-A7', 'Roland GW-8'],
+  Drums: ['Tama Swing Star', 'Tama Silver Star', 'Tama Star Classic'],
+  Percussion: ['Conga', 'Bongos'],
+  Violin: ['Violin 3/4'],
+};
+
+const getTypeOrderIndex = (type: string): number => {
+  const normalizedType = type?.trim() || '';
+  const index = MANUAL_TYPE_ORDER.findIndex((item) => item.toLowerCase() === normalizedType.toLowerCase());
+  return index >= 0 ? index : MANUAL_TYPE_ORDER.length + 1;
+};
+
+const getInstrumentOrderIndex = (type: string, instrumentName: string): number => {
+  const normalizedType = type?.trim() || '';
+  const matchingOrder = MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType] ?? MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType.toLowerCase()] ?? [];
+  const nameIndex = matchingOrder.findIndex((item) => item.toLowerCase() === instrumentName.trim().toLowerCase());
+  return nameIndex >= 0 ? nameIndex : matchingOrder.length;
+};
+
+const sortInstrumentsByManualOrder = <T extends { type: string; name: string }>(items: T[]): T[] => {
+  return [...items].sort((a, b) => {
+    const typeCompare = getTypeOrderIndex(a.type) - getTypeOrderIndex(b.type);
+    if (typeCompare !== 0) return typeCompare;
+
+    const instrumentCompare = getInstrumentOrderIndex(a.type, a.name) - getInstrumentOrderIndex(b.type, b.name);
+    if (instrumentCompare !== 0) return instrumentCompare;
+
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+};
+
 /**
  * Seed initial sample church instruments if table is empty
  */
@@ -43,7 +76,7 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
       .where(eq(instruments.isRemoved, false))
       .orderBy(asc(instruments.type), asc(instruments.name));
 
-    const formatted = list.map((inst) => ({
+    const formatted = sortInstrumentsByManualOrder(list).map((inst) => ({
       ...inst,
       booking_mode: inst.bookingMode,
       outside_fee_per_day: inst.outsideFeePerDay,
@@ -95,7 +128,7 @@ router.get('/availability/date', async (req: Request, res: Response): Promise<vo
       .where(eq(instruments.isRemoved, false))
       .orderBy(asc(instruments.type), asc(instruments.name));
 
-    const formattedInstruments = allInstruments.map((inst) => ({
+    const formattedInstruments = sortInstrumentsByManualOrder(allInstruments).map((inst) => ({
       ...inst,
       booking_mode: inst.bookingMode,
       outside_fee_per_day: inst.outsideFeePerDay,
@@ -187,7 +220,7 @@ router.get('/availability', async (req: Request, res: Response): Promise<void> =
       .where(eq(instruments.isRemoved, false))
       .orderBy(asc(instruments.type), asc(instruments.name));
 
-    const formattedInstruments = allInstruments.map((inst) => ({
+    const formattedInstruments = sortInstrumentsByManualOrder(allInstruments).map((inst) => ({
       ...inst,
       booking_mode: inst.bookingMode,
       outside_fee_per_day: inst.outsideFeePerDay,

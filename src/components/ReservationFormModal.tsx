@@ -359,7 +359,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     {date}
                   </span>
                   <span className="text-[11px] text-stone-600 block">
-                    {startTime} – {endTimeStr} UTC ({duration}h)
+                    {startTime} – {endTimeStr} ({duration}h)
                   </span>
                 </div>
                 <div>
@@ -658,7 +658,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               )}
             </div>
 
-            {/* 5. Recurring Series Toggle (Screen 3b bridge) */}
+            {/* 5. Recurring Series Toggle */}
             <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -670,7 +670,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       Make this a recurring reservation
                     </span>
                     <span className="text-[11px] text-stone-500 block">
-                      Repeat weekly or customize multi-date series (Screen 3b)
+                      Set up a recurring reservation with multi-date scheduling
                     </span>
                   </div>
                 </div>
@@ -693,7 +693,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     Ready to build recurring schedule with live conflict checking.
                   </span>
                   <span className="font-bold text-amber-800 flex items-center gap-1">
-                    Screen 3b Builder <ArrowRight className="w-3 h-3" />
+                    Series Builder <ArrowRight className="w-3 h-3" />
                   </span>
                 </div>
               )}

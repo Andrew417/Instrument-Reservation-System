@@ -330,9 +330,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <h2 className="text-base font-bold text-white leading-tight">
                   Reservation Detail
                 </h2>
-                <span className="text-[11px] text-stone-400 font-mono">
-                  (Screen 6)
-                </span>
               </div>
               <p className="text-xs text-stone-400 font-mono">
                 #{reservation.id.substring(0, 8)}
@@ -680,7 +677,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="space-y-2.5 max-h-48 overflow-y-auto">
                 {adminMessages.map((msg) => {
                   const msgDate = new Date(msg.created_at || msg.createdAt);
-                  const msgDateFormatted = `${msgDate.toISOString().split('T')[0]} at ${msgDate.toISOString().substring(11, 16)} UTC`;
+                  const msgDateFormatted = `${formatDisplayDate(msgDate)} • ${formatHhmmTo12Hour(msgDate)}`;
 
                   return (
                     <div
@@ -744,7 +741,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         </span>
                         <div>
                           <span className="text-stone-900 font-semibold">{occDateStr}</span>
-                          <span className="text-stone-500 ml-2 text-[11px]">at {occTimeStr} UTC</span>
+                          <span className="text-stone-500 ml-2 text-[11px]">at {occTimeStr}</span>
                         </div>
                       </div>
 

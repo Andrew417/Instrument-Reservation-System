@@ -1,5 +1,5 @@
 /**
- * Date and Time utilities for consistent local and UTC date handling across the app.
+ * Date and Time utilities for consistent date/time handling across the app.
  */
 
 /**

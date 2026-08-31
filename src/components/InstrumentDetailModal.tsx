@@ -261,7 +261,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         const updated = { ...currentInstrument, photoUrl: '' };
         setCurrentInstrument(updated);
         onInstrumentUpdated?.(updated);
-        setModeNotice('Instrument photo removed. Placeholder restored.');
+        setModeNotice('Instrument photo removed. The default image is now shown.');
         setTimeout(() => setModeNotice(null), 3000);
       }
     } catch (err: any) {
@@ -440,7 +440,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 {instrument.name}
               </h2>
               <p className="text-[11px] text-stone-400">
-                Instrument Details & Dedicated Availability (Screen 4)
+                Instrument details and dedicated availability
               </p>
             </div>
           </div>
@@ -512,7 +512,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   <Music2 className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-bold text-stone-700">No Photo</span>
-                <span className="text-[10px] text-stone-400">Default placeholder</span>
+                <span className="text-[10px] text-stone-400">No photo uploaded yet</span>
                 {isAdminOrSuperAdmin && (
                   <button
                     type="button"

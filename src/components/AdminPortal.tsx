@@ -973,7 +973,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       if (data.success) {
         showNotice('Message sent to member and recorded on reservation.');
         setMessageText('');
-        setSelectedMsgReservation(null);
       } else {
         showNotice(data.error, 'error');
       }
@@ -1757,98 +1756,100 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
-              {/* Filter status pills */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <button
-                  id="filter-approvals-pending"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus('pending')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === 'pending'
-                      ? 'bg-amber-800 text-white shadow-xs'
-                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Pending Review</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              {/* Filter status pills: compact segmented control for narrow mobile widths */}
+              <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1.5 pt-2">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  <button
+                    id="filter-approvals-pending"
+                    type="button"
+                    onClick={() => setApprovalFilterStatus('pending')}
+                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       approvalFilterStatus === 'pending'
-                        ? 'bg-amber-900 text-amber-100'
-                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`}
                   >
-                    {approvalCounts.pending}
-                  </span>
-                </button>
+                    <Clock className={`w-3.5 h-3.5 ${approvalFilterStatus === 'pending' ? 'text-white' : 'text-amber-600'}`} />
+                    <span className="text-[11px] font-bold">Pending</span>
+                    <span
+                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                        approvalFilterStatus === 'pending'
+                          ? 'bg-amber-900/30 text-white'
+                          : 'bg-stone-100 text-stone-600'
+                      }`}
+                    >
+                      {approvalCounts.pending}
+                    </span>
+                  </button>
 
-                <button
-                  id="filter-approvals-approved"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus('approved')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === 'approved'
-                      ? 'bg-amber-800 text-white shadow-xs'
-                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
-                  }`}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Approved Accounts</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  <button
+                    id="filter-approvals-approved"
+                    type="button"
+                    onClick={() => setApprovalFilterStatus('approved')}
+                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       approvalFilterStatus === 'approved'
-                        ? 'bg-amber-900 text-amber-100'
-                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`}
                   >
-                    {approvalCounts.approved}
-                  </span>
-                </button>
+                    <Check className={`w-3.5 h-3.5 ${approvalFilterStatus === 'approved' ? 'text-white' : 'text-emerald-600'}`} />
+                    <span className="text-[11px] font-bold">Approved</span>
+                    <span
+                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                        approvalFilterStatus === 'approved'
+                          ? 'bg-amber-900/30 text-white'
+                          : 'bg-stone-100 text-stone-600'
+                      }`}
+                    >
+                      {approvalCounts.approved}
+                    </span>
+                  </button>
 
-                <button
-                  id="filter-approvals-rejected"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus('rejected')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === 'rejected'
-                      ? 'bg-amber-800 text-white shadow-xs'
-                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
-                  }`}
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Rejected Registrations</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  <button
+                    id="filter-approvals-rejected"
+                    type="button"
+                    onClick={() => setApprovalFilterStatus('rejected')}
+                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       approvalFilterStatus === 'rejected'
-                        ? 'bg-amber-900 text-amber-100'
-                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`}
                   >
-                    {approvalCounts.rejected}
-                  </span>
-                </button>
+                    <X className={`w-3.5 h-3.5 ${approvalFilterStatus === 'rejected' ? 'text-white' : 'text-red-600'}`} />
+                    <span className="text-[11px] font-bold">Rejected</span>
+                    <span
+                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                        approvalFilterStatus === 'rejected'
+                          ? 'bg-amber-900/30 text-white'
+                          : 'bg-stone-100 text-stone-600'
+                      }`}
+                    >
+                      {approvalCounts.rejected}
+                    </span>
+                  </button>
 
-                <button
-                  id="filter-approvals-all"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === 'all'
-                      ? 'bg-amber-800 text-white shadow-xs'
-                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
-                  }`}
-                >
-                  <span>All Registrations</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  <button
+                    id="filter-approvals-all"
+                    type="button"
+                    onClick={() => setApprovalFilterStatus('all')}
+                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       approvalFilterStatus === 'all'
-                        ? 'bg-amber-900 text-amber-100'
-                        : 'bg-stone-200 text-stone-700 font-extrabold'
+                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`}
                   >
-                    {approvalCounts.total}
-                  </span>
-                </button>
+                    <span className="text-[11px] font-bold">All</span>
+                    <span
+                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                        approvalFilterStatus === 'all'
+                          ? 'bg-amber-900/30 text-white'
+                          : 'bg-stone-100 text-stone-600'
+                      }`}
+                    >
+                      {approvalCounts.total}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Table / List */}
@@ -2017,24 +2018,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               TAB 3: INSTRUMENTS INVENTORY
              ============================================================= */}
           {activeTab === 'instruments' && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                <div>
-                  <h2 className="font-bold text-stone-900 text-sm">Church Instruments Inventory</h2>
-                  <p className="text-xs text-stone-500">
-                    Add, edit specifications, change booking mode, mark retired instruments unavailable, or delete accidental mistaken entries.                  </p>
+            <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-stone-100 pb-4">
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-bold text-stone-900 text-sm">Instrument Inventory</h2>
+                  <p className="text-xs text-stone-500 mt-0.5 hidden sm:block">
+                    Manage specifications, booking modes, and availability.
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                   <button
                     id="btn-refresh-instruments"
                     type="button"
                     onClick={() => fetchInstruments()}
                     disabled={loadingInstruments}
-                    className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-stone-200"
+                    className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-stone-200 whitespace-nowrap"
                     title="Refresh instrument list from database"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loadingInstruments ? 'animate-spin' : ''}`} />
-                    <span>Refresh</span>
+                    <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${loadingInstruments ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Refresh</span>
                   </button>
                   <button
                     id="btn-add-new-instrument"
@@ -2052,10 +2054,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       setShowUrlInput(false);
                       setShowInstrumentModal(true);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap flex-1 sm:flex-none justify-center sm:justify-start"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Instrument</span>
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline">Add Instrument</span>
+                    <span className="sm:hidden">Add</span>
                   </button>
                 </div>
               </div>
@@ -2069,19 +2072,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     const isInstant = currentMode === 'instant';
                     const isDecommissioned = Boolean(inst.isRemoved ?? inst.is_removed);
                     const instPhoto = inst.photoUrl || inst.photo_url;
+                    const hasDescription = inst.description && inst.description.trim().length > 0;
 
                     return (
                       <div
                         key={inst.id}
-                        className={`p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
+                        className={`p-3 sm:p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
                           isDecommissioned
                             ? 'bg-stone-50/60 border-stone-200 opacity-60'
                             : 'bg-white border-stone-200 hover:border-amber-300'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
+                        {/* Instrument Info Section */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
                               {instPhoto ? (
                                 <img
                                   src={instPhoto}
@@ -2090,83 +2095,105 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <Music2 className="w-5 h-5 text-amber-800" />
+                                <Music2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-800" />
                               )}
                             </div>
-                            <div>
-                              <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                                <span>{inst.name}</span>
-                                {isDecommissioned && (
-                                  <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold">
-                                    Not Available
-                                  </span>
-                                )}
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-stone-900 text-xs sm:text-sm truncate">
+                                {inst.name}
                               </div>
-                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5">
-                                <span>{inst.type}</span>
-                                <span className="text-stone-300">•</span>
-                                <span>{inst.totalReservations ?? inst.total_reservations ?? 0} bookings</span>
+                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1 whitespace-nowrap">
+                                <span className="truncate">{inst.type}</span>
+                                <span className="text-stone-300 shrink-0">•</span>
+                                <span className="shrink-0">{inst.totalReservations ?? inst.total_reservations ?? 0}</span>
                               </div>
                             </div>
                           </div>
 
+                          {isDecommissioned && (
+                            <span className="text-[9px] sm:text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap shrink-0">
+                              Not Available
+                            </span>
+                          )}
+
                           <span
                             id={`admin-instrument-mode-badge-${inst.id}`}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold whitespace-nowrap shrink-0 ${
                               isInstant
                                 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                 : 'bg-amber-50 text-amber-800 border border-amber-200'
                             }`}
                           >
-                            {isInstant ? '⚡ Instant Booking' : '🛡️ Manual Review'}
+                            {isInstant ? '⚡ Instant' : '🛡️ Manual'}
                           </span>
                         </div>
 
-                        <p className="text-xs text-stone-600 my-3 line-clamp-2">
-                          {inst.description || 'No specific description provided.'}
-                        </p>
+                        {/* Description - only show if present */}
+                        {hasDescription && (
+                          <p className="text-xs text-stone-600 mb-3 line-clamp-2">
+                            {inst.description}
+                          </p>
+                        )}
 
-                        <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
-                          <div className="text-stone-500 font-medium">
-                            Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00'}</span> / day
+                        {/* Outside Fee & Actions Section */}
+                        <div className="pt-3 border-t border-stone-100 space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-stone-500 font-medium">
+                              Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00'}</span>/day
+                            </div>
+
+                            {!isDecommissioned ? (
+                              <button
+                                id={`btn-edit-instrument-${inst.id}`}
+                                onClick={() => {
+                                  setEditingInstrument(inst);
+                                  setInstrumentForm({
+                                    name: inst.name,
+                                    type: inst.type,
+                                    photoUrl: instPhoto || '',
+                                    description: inst.description || '',
+                                    outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
+                                    bookingMode: currentMode as 'instant' | 'manual',
+                                  });
+                                  setPhotoUploadError(null);
+                                  setShowUrlInput(false);
+                                  setShowInstrumentModal(true);
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap self-end"
+                                title="Edit instrument details"
+                              >
+                                <Edit className="w-3 h-3 shrink-0" />
+                                <span>Edit</span>
+                              </button>
+                            ) : (
+                              <button
+                                id={`btn-restore-instrument-${inst.id}`}
+                                onClick={() => triggerRestoreInstrument(inst)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs border border-emerald-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap self-end"
+                                title="Restore instrument to available status"
+                              >
+                                <RefreshCw className="w-3 h-3 shrink-0" />
+                                <span className="hidden md:inline">Mark Available</span>
+                                <span className="md:hidden">Available</span>
+                              </button>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center justify-end gap-2">
                             {!isDecommissioned ? (
                               <>
-                                <button
-                                  id={`btn-edit-instrument-${inst.id}`}
-                                  onClick={() => {
-                                    setEditingInstrument(inst);
-                                    setInstrumentForm({
-                                      name: inst.name,
-                                      type: inst.type,
-                                      photoUrl: instPhoto || '',
-                                      description: inst.description || '',
-                                      outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
-                                      bookingMode: currentMode as 'instant' | 'manual',
-                                    });
-                                    setPhotoUploadError(null);
-                                    setShowUrlInput(false);
-                                    setShowInstrumentModal(true);
-                                  }}
-                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer transition"
-                                  title="Edit instrument details"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                  <span>Edit</span>
-                                </button>
                                 <button
                                   id={`btn-mark-unavailable-instrument-${inst.id}`}
                                   onClick={() => {
                                     setRemovingInstrument(inst);
                                     setRemoveConfirmForce(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs border border-amber-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
                                   title="Retire instrument from service (preserves past history)"
                                 >
-                                  <Archive className="w-3 h-3" />
-                                  <span>Mark Unavailable</span>
+                                  <Archive className="w-3 h-3 shrink-0" />
+                                  <span className="hidden md:inline">Mark Unavailable</span>
+                                  <span className="md:hidden">Unavailable</span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -2174,34 +2201,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setDeletingInstrument(inst);
                                     setDeleteConfirmChecked(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
                                   title="Delete mistaken entry permanently from database"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-3 h-3 shrink-0" />
                                   <span>Delete</span>
                                 </button>
                               </>
                             ) : (
-                              <>
-                                <button
-                                  id={`btn-restore-instrument-${inst.id}`}
-                                  onClick={() => triggerRestoreInstrument(inst)}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1 cursor-pointer transition"
-                                  title="Restore instrument to available status"
-                                >
-                                  <RefreshCw className="w-3 h-3" />
-                                  <span>Mark Available</span>
-                                </button>
-                                <button
-                                  id={`btn-delete-instrument-${inst.id}`}
-                                  onClick={() => { setDeletingInstrument(inst); setDeleteConfirmChecked(false); }}
-                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
-                                  title="Delete mistaken entry permanently from database"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                  <span>Delete</span>
-                                </button>
-                              </>
+                              <button
+                                id={`btn-delete-instrument-${inst.id}`}
+                                onClick={() => { setDeletingInstrument(inst); setDeleteConfirmChecked(false); }}
+                                className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
+                                title="Delete mistaken entry permanently from database"
+                              >
+                                <Trash2 className="w-3 h-3 shrink-0" />
+                                <span>Delete</span>
+                              </button>
                             )}
                           </div>
                         </div>

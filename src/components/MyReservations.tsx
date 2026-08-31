@@ -269,7 +269,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <div>
               <h1 className="text-lg font-bold text-stone-900 leading-tight">My Reservations</h1>
               <p className="text-xs text-stone-500">
-                Track your active, pending, and recurring church bookings (Screen 5)
+                Track your active, pending, and recurring church bookings
               </p>
             </div>
           </div>
@@ -305,25 +305,25 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         </div>
       </div>
 
-      {/* Tabs Bar: Upcoming / Pending / Past */}
-      <div className="flex items-center justify-between border-b border-stone-200">
-        <div className="flex items-center gap-2">
+      {/* Tabs Bar: segmented control for mobile-friendly visibility */}
+      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1.5 shadow-2xs">
+        <div className="grid grid-cols-3 gap-1.5">
           <button
             type="button"
             id="tab-upcoming-reservations"
             onClick={() => setActiveTab('upcoming')}
-            className={`px-4 py-3 text-xs font-bold border-b-2 transition flex items-center gap-2 cursor-pointer ${
+            className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'upcoming'
-                ? 'border-amber-800 text-amber-900'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
+                ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Upcoming</span>
+            <CheckCircle2 className={`w-3.5 h-3.5 ${activeTab === 'upcoming' ? 'text-white' : 'text-emerald-600'}`} />
+            <span className="text-[11px] font-bold">Upcoming</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === 'upcoming'
-                  ? 'bg-amber-100 text-amber-900'
+                  ? 'bg-amber-900/30 text-white'
                   : 'bg-stone-100 text-stone-600'
               }`}
             >
@@ -335,18 +335,18 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-pending-reservations"
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-3 text-xs font-bold border-b-2 transition flex items-center gap-2 cursor-pointer ${
+            className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'pending'
-                ? 'border-amber-800 text-amber-900'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
+                ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
             }`}
           >
-            <Clock className="w-4 h-4 text-amber-600" />
-            <span>Pending Review</span>
+            <Clock className={`w-3.5 h-3.5 ${activeTab === 'pending' ? 'text-white' : 'text-amber-600'}`} />
+            <span className="text-[11px] font-bold">Pending</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === 'pending'
-                  ? 'bg-amber-100 text-amber-900'
+                  ? 'bg-amber-900/30 text-white'
                   : 'bg-stone-100 text-stone-600'
               }`}
             >
@@ -358,18 +358,18 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-past-reservations"
             onClick={() => setActiveTab('past')}
-            className={`px-4 py-3 text-xs font-bold border-b-2 transition flex items-center gap-2 cursor-pointer ${
+            className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'past'
-                ? 'border-amber-800 text-amber-900'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
+                ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
+                : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
             }`}
           >
-            <CalendarRange className="w-4 h-4 text-stone-400" />
-            <span>Past / Inactive</span>
+            <CalendarRange className={`w-3.5 h-3.5 ${activeTab === 'past' ? 'text-white' : 'text-stone-400'}`} />
+            <span className="text-[11px] font-bold">Past</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === 'past'
-                  ? 'bg-amber-100 text-amber-900'
+                  ? 'bg-amber-900/30 text-white'
                   : 'bg-stone-100 text-stone-600'
               }`}
             >
@@ -500,7 +500,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   key={res.id}
                   className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-xs transition p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
-                  {/* Left: Instrument & Purpose (Tappable to Screen 6) */}
+                  {/* Left: Instrument & Purpose */}
                   <div
                     onClick={() => onSelectReservationDetail(res.id)}
                     className="flex items-start gap-3.5 cursor-pointer flex-1 group"
@@ -691,7 +691,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       <div className="text-[11px] font-bold text-stone-600 px-1 flex items-center justify-between">
                         <span>Individual Sessions in this Series:</span>
                         <span className="text-stone-400">
-                          Tap any occurrence to open Screen 6 Detail
+                          Select a session to view details
                         </span>
                       </div>
 

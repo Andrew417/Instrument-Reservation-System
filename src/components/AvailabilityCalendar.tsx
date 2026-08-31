@@ -68,6 +68,42 @@ for (let hour = 9; hour <= 21; hour++) {
 }
 TIME_SLOTS.push('22:00');
 
+const MANUAL_TYPE_ORDER: string[] = ['Piano', 'Drums', 'Percussion', 'Violin'];
+const MANUAL_INSTRUMENT_ORDER_BY_TYPE: Record<string, string[]> = {
+  Piano: ['Yamaha E-443', 'Roland E-09', 'Korg Pa-50', 'Roland E-A7', 'Roland GW-8'],
+  Drums: ['Tama Swing Star', 'Tama Silver Star', 'Tama Star Classic'],
+  Percussion: ['Conga', 'Bongos'],
+  Violin: ['Violin 3/4'],
+};
+
+const normalizeCategoryName = (value: string): string => value.trim();
+
+const getTypeOrderIndex = (type: string): number => {
+  const normalizedType = normalizeCategoryName(type);
+  const index = MANUAL_TYPE_ORDER.findIndex((item) => item.toLowerCase() === normalizedType.toLowerCase());
+  return index >= 0 ? index : MANUAL_TYPE_ORDER.length + 1;
+};
+
+const getInstrumentOrderIndex = (type: string, instrumentName: string): number => {
+  const normalizedType = normalizeCategoryName(type);
+  const perTypeOrder = MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType] || MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType.toLowerCase()];
+  const matchingOrder = perTypeOrder ?? [];
+  const nameIndex = matchingOrder.findIndex((item) => item.toLowerCase() === instrumentName.trim().toLowerCase());
+  return nameIndex >= 0 ? nameIndex : matchingOrder.length;
+};
+
+const sortInstrumentsByManualOrder = (items: Instrument[]): Instrument[] => {
+  return [...items].sort((a, b) => {
+    const typeCompare = getTypeOrderIndex(a.type) - getTypeOrderIndex(b.type);
+    if (typeCompare !== 0) return typeCompare;
+
+    const instrumentCompare = getInstrumentOrderIndex(a.type, a.name) - getInstrumentOrderIndex(b.type, b.name);
+    if (instrumentCompare !== 0) return instrumentCompare;
+
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+};
+
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectSlot,
   onSelectInstrument,
@@ -93,27 +129,28 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const filtersInitialized = useRef(false);
   const [modeNotice, setModeNotice] = useState<string | null>(null);
   const [updatingModeId, setUpdatingModeId] = useState<string | null>(null);
+  const [showHelperText, setShowHelperText] = useState(false);
   const dateStripRef = useRef<HTMLDivElement>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-  if (filtersInitialized.current || instruments.length === 0) return;
+    if (filtersInitialized.current || instruments.length === 0) return;
 
-  const defaultTypePriority = ['piano', 'drums'];
-  const defaultTypes = Array.from(new Set(instruments.map((i) => i.type)))
-    .filter((t) => defaultTypePriority.includes(t.toLowerCase()))
-    .sort(
-      (a, b) =>
-        defaultTypePriority.indexOf(a.toLowerCase()) - defaultTypePriority.indexOf(b.toLowerCase())
+    const defaultCheckedTypes = ['Piano', 'Drums'];
+    const defaultTypes = Array.from(new Set(instruments.map((i) => i.type)))
+      .sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b))
+      .filter((type) => MANUAL_TYPE_ORDER.some((manualType) => manualType.toLowerCase() === type.toLowerCase()))
+      .filter((type) => defaultCheckedTypes.some((dt) => dt.toLowerCase() === type.toLowerCase()));
+
+    const defaultIds = new Set(
+      instruments
+        .filter((i) => defaultTypes.some((type) => type.toLowerCase() === i.type.toLowerCase()))
+        .map((i) => i.id)
     );
 
-  const defaultIds = new Set(
-    instruments.filter((i) => defaultTypes.includes(i.type)).map((i) => i.id)
-  );
-
-  setCheckedTypes(defaultTypes);
-  setCheckedInstrumentIds(defaultIds);
-  filtersInitialized.current = true;
+    setCheckedTypes(defaultTypes);
+    setCheckedInstrumentIds(defaultIds);
+    filtersInitialized.current = true;
   }, [instruments]);
   
   useEffect(() => {
@@ -272,21 +309,25 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   // Group instruments by type
   const groupedInstruments: Record<string, Instrument[]> = useMemo(() => {
-  const groups: Record<string, Instrument[]> = {};
-  checkedTypes.forEach((type) => {
-    const typeInstruments = instruments.filter(
-      (inst) => inst.type === type && checkedInstrumentIds.has(inst.id)
-    );
-    if (typeInstruments.length > 0) groups[type] = typeInstruments;
-  });
-  return groups;
-}, [instruments, checkedTypes, checkedInstrumentIds]);
+    const groups: Record<string, Instrument[]> = {};
 
-const allInstrumentTypes = useMemo(() => {
-  const types = new Set<string>();
-  instruments.forEach((inst) => types.add(inst.type));
-  return Array.from(types);
-}, [instruments]);
+    Array.from(new Set(checkedTypes))
+      .sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b))
+      .forEach((type) => {
+        const typeInstruments = sortInstrumentsByManualOrder(
+          instruments.filter((inst) => inst.type === type && checkedInstrumentIds.has(inst.id))
+        );
+        if (typeInstruments.length > 0) groups[type] = typeInstruments;
+      });
+
+    return groups;
+  }, [instruments, checkedTypes, checkedInstrumentIds]);
+
+  const allInstrumentTypes = useMemo(() => {
+    const types = new Set<string>();
+    instruments.forEach((inst) => types.add(inst.type));
+    return Array.from(types).sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b));
+  }, [instruments]);
 
   // Check if a specific instrument slot is booked
   const isSlotBooked = (instrumentId: string, slotHhmm: string) => {
@@ -359,44 +400,49 @@ const allInstrumentTypes = useMemo(() => {
       )}
 
       {/* 1. Header Controls & Date Navigator */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-stone-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">
-                Instrument Availability
-              </h1>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200">
-                Live Timeline
-              </span>
-            </div>
-            <p className="text-xs text-stone-500 mt-1">
-              Select any open 30-minute slot to book. Approved bookings are shown as solid blocks to protect member privacy.
-            </p>
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs">
+        <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+            <h1 className="text-base sm:text-xl font-bold text-stone-900 tracking-tight leading-none">
+              Instrument Availability
+            </h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mr-1 inline-block" />
+              Live
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowHelperText(!showHelperText)}
+              className="shrink-0 p-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition"
+              title="Toggle timeline help and reference info"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Quick Filter & Jump Controls */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Category Filter */}
-           {allInstrumentTypes.length > 0 && (
-  <div className="relative" ref={filterPanelRef}>
-    <button
-      id="btn-open-instrument-filter"
-      onClick={() => setIsFilterPanelOpen((o) => !o)}
-      className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 transition cursor-pointer"
-    >
-      <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500" />
-      <span>Filter Instruments ({checkedInstrumentIds.size})</span>
-    </button>
+          <div className="flex items-center justify-end gap-2 min-w-0 overflow-x-auto scrollbar-none flex-nowrap sm:shrink-0">
+            {allInstrumentTypes.length > 0 && (
+              <div className="relative shrink-0" ref={filterPanelRef}>
+                <button
+                  id="btn-open-instrument-filter"
+                  onClick={() => setIsFilterPanelOpen((o) => !o)}
+                  className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 transition cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                  <span className="hidden sm:inline">Filter</span>
+                  <span className="sm:hidden">({checkedInstrumentIds.size})</span>
+                </button>
 
-    {isFilterPanelOpen && (
-      <div
-        id="instrument-filter-panel"
+                {isFilterPanelOpen && (
+                  <div
+                    id="instrument-filter-panel"
                     className="fixed sm:absolute left-1/2 sm:left-auto right-auto sm:right-0 top-1/2 sm:top-full -translate-x-1/2 sm:translate-x-0 -translate-y-1/2 sm:translate-y-0 mt-0 sm:mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[80vh] sm:max-h-96 overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
                   >
                     {allInstrumentTypes.map((type) => {
                       const isTypeChecked = checkedTypes.includes(type);
-                      const typeInstruments = instruments.filter((inst) => inst.type === type);
+                      const typeInstruments = sortInstrumentsByManualOrder(
+                        instruments.filter((inst) => inst.type === type)
+                      );
                       return (
                         <div key={type} className="space-y-1.5">
                           <label className="flex items-center gap-2 text-xs font-bold text-stone-800 cursor-pointer">
@@ -438,17 +484,15 @@ const allInstrumentTypes = useMemo(() => {
               </div>
             )}
 
-            {/* Jump to Today Button */}
             <button
               id="btn-jump-today"
               onClick={jumpToToday}
-              className="px-3 py-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-xs font-semibold text-stone-800 transition cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-[11px] font-semibold text-stone-800 transition cursor-pointer shrink-0"
             >
               Today
             </button>
 
-            {/* Jump To Date Input */}
-            <div className="relative flex items-center">
+            <div className="relative flex items-center shrink-0">
               <input
                 id="jump-to-date-input"
                 type="date"
@@ -456,17 +500,16 @@ const allInstrumentTypes = useMemo(() => {
                 onChange={(e) => {
                   if (e.target.value) setSelectedDate(e.target.value);
                 }}
-                className="pl-8 pr-2.5 py-1.5 text-xs font-semibold bg-stone-50 border border-stone-200 rounded-xl text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer"
+                className="pl-7 pr-2.5 py-1.5 text-[11px] font-semibold bg-stone-50 border border-stone-200 rounded-xl text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer"
               />
               <CalendarIcon className="w-3.5 h-3.5 text-stone-500 absolute left-2.5 pointer-events-none" />
             </div>
 
-            {/* Refresh Button */}
             <button
               id="btn-refresh-calendar"
               onClick={() => fetchAvailability(selectedDate)}
               disabled={loading}
-              className="p-2 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs transition cursor-pointer"
+              className="p-2 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs transition cursor-pointer shrink-0"
               title="Refresh Availability"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-amber-700' : ''}`} />
@@ -474,8 +517,31 @@ const allInstrumentTypes = useMemo(() => {
           </div>
         </div>
 
-        {/* 2. Horizontally Scrollable Date Chip Strip */}
-        <div className="pt-4 flex items-center gap-2">
+        {showHelperText && (
+          <div className="mb-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-[11px] text-stone-600">
+            <p className="text-stone-700 font-medium">Select any open 30-minute slot to book.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 rounded-md bg-white border border-stone-300 inline-block" />
+                <span>Available</span>
+              </div>
+              {isAdminOrSuperAdmin ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3.5 h-3.5 rounded-md bg-indigo-950 border border-indigo-600 inline-block" />
+                  <span>Assigned color per reservant</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3.5 h-3.5 rounded-md bg-black inline-block" />
+                  <span>Booked</span>
+                </div>
+              )}
+              <div className="text-stone-500">Hours: 09:00 AM – 10:00 PM</div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 pb-2">
           <button
             id="btn-date-prev"
             onClick={() => navigateDate('prev')}
@@ -485,36 +551,8 @@ const allInstrumentTypes = useMemo(() => {
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          <div
-            id="date-chip-strip"
-            ref={dateStripRef}
-            className="flex-1 flex items-center gap-2 overflow-x-auto py-1 scrollbar-none scroll-smooth"
-          >
-            {dateChips.map((chip) => {
-              const isSelected = chip.dateStr === selectedDate;
-              return (
-                <button
-                  key={chip.dateStr}
-                  id={`date-chip-${chip.dateStr}`}
-                  onClick={() => setSelectedDate(chip.dateStr)}
-                  className={`flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px] py-2 px-3 rounded-xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-amber-800 text-white border-amber-900 shadow-md font-bold'
-                      : chip.isToday
-                      ? 'bg-amber-50/80 text-amber-900 border-amber-200 hover:bg-amber-100/70 font-semibold'
-                      : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
-                  }`}
-                >
-                  <span className="text-[10px] uppercase tracking-wider font-semibold opacity-90">
-                    {chip.dayName}
-                  </span>
-                  <span className="text-sm sm:text-base font-bold my-0.5 leading-none">
-                    {chip.dayNum}
-                  </span>
-                  <span className="text-[10px] opacity-80">{chip.monthName}</span>
-                </button>
-              );
-            })}
+          <div className="flex-1 min-w-0 text-center text-[11px] font-semibold text-stone-600 uppercase tracking-[0.12em]">
+            {parseLocalDate(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </div>
 
           <button
@@ -527,26 +565,36 @@ const allInstrumentTypes = useMemo(() => {
           </button>
         </div>
 
-        {/* Legend Indicators */}
-        <div className="flex flex-wrap items-center gap-4 pt-4 mt-2 border-t border-stone-100 text-xs text-stone-600">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3.5 h-3.5 rounded-md bg-white border border-stone-300 shadow-2xs inline-block" />
-            <span>Available (Tap to Book)</span>
-          </div>
-          {isAdminOrSuperAdmin ? (
-            <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-3.5 rounded-md bg-indigo-950 border border-indigo-600 inline-block shadow-2xs" />
-              <span>Assigned Color per Reservant (Name &amp; Service)</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-3.5 rounded-md bg-black inline-block shadow-2xs" />
-              <span className="font-semibold text-stone-900">Booked</span>
-            </div>
-          )}
-          <div className="ml-auto text-[11px] text-stone-500 font-medium">
-            Operating Hours: 09:00 AM – 10:00 PM
-          </div>
+        <div
+          id="date-chip-strip"
+          ref={dateStripRef}
+          className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none scroll-smooth"
+        >
+          {dateChips.map((chip) => {
+            const isSelected = chip.dateStr === selectedDate;
+            return (
+              <button
+                key={chip.dateStr}
+                id={`date-chip-${chip.dateStr}`}
+                onClick={() => setSelectedDate(chip.dateStr)}
+                className={`flex-shrink-0 flex flex-col items-center justify-center w-[52px] sm:w-[58px] h-[52px] rounded-xl border transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-amber-800 text-white border-amber-900 shadow-md font-bold'
+                    : chip.isToday
+                    ? 'bg-amber-50/80 text-amber-900 border-amber-200 hover:bg-amber-100/70 font-semibold'
+                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  {chip.isToday && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />}
+                  <span className="text-[9px] uppercase tracking-[0.12em] font-semibold leading-none">
+                    {chip.dayName}
+                  </span>
+                </div>
+                <span className="text-base font-bold leading-none mt-1">{chip.dayNum}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

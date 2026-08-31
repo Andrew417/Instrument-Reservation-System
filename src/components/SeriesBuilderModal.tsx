@@ -221,8 +221,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           type: 'working_hours',
           occurrenceIndex: occ.index,
           occurrenceDate: occ.date,
-          occurrenceTime: `${occ.startTime} - ${calculateEndTime(occ.startTime, occ.duration)} UTC`,
-          message: `Occurrence #${occ.index} (${occ.date} ${occ.startTime}) falls outside church hours (09:00 - 22:00 UTC).`,
+          occurrenceTime: `${occ.startTime} - ${calculateEndTime(occ.startTime, occ.duration)}`,
+          message: `Occurrence #${occ.index} (${occ.date} ${occ.startTime}) falls outside church hours (09:00 - 22:00).`,
         });
       }
     });
@@ -238,7 +238,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             type: 'self_overlap',
             occurrenceIndex: a.index,
             occurrenceDate: a.date,
-            occurrenceTime: `${a.startTime} - ${calculateEndTime(a.startTime, a.duration)} UTC`,
+            occurrenceTime: `${a.startTime} - ${calculateEndTime(a.startTime, a.duration)}`,
             message: `Occurrence #${a.index} (${a.date} ${a.startTime}) self-overlaps with Occurrence #${b.index} (${b.date} ${b.startTime}).`,
           });
         }
@@ -401,7 +401,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               <p className="text-xs text-stone-400">
                 {seriesResult
                   ? 'Multi-date recurring schedule submitted'
-                  : 'Screen 3b — Build and validate multi-session series'}
+                  : 'Build and validate multi-session series'}
               </p>
             </div>
           </div>

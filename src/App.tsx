@@ -124,17 +124,12 @@ const UserPortalMain: React.FC = () => {
               alt="Church logo"
               className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-amber-900/30"
             />
-            <div>
-              <div className="font-bold text-stone-900 text-sm sm:text-base leading-tight">
+            <div className="min-w-0">
+              <div className="font-bold text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">
                 Church Instrument Schedule
               </div>
-              <div className="text-[11px] text-stone-500 font-medium flex items-center gap-1.5">
-                <span>St. Mark Coptic Community</span>
-                <span>•</span>
-                <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  Live Sync
-                </span>
+              <div className="text-[11px] text-stone-500 font-medium whitespace-nowrap">
+                St. Mark Instrument Reservations
               </div>
             </div>
           </div>
@@ -198,7 +193,7 @@ const UserPortalMain: React.FC = () => {
                   ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100'
                   : 'border-stone-200 text-stone-700 hover:bg-stone-50'
               }`}
-              title="Notifications (Screen 7)"
+              title="Notifications"
             >
               <div className="relative">
                 <Bell className={`w-4 h-4 ${unreadCount > 0 ? 'text-amber-800' : 'text-stone-600'}`} />
