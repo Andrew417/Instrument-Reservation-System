@@ -153,6 +153,15 @@ export async function getHardLimits() {
 }
 
 /**
+ * Safe helper to coerce nullable inputs (such as UUIDs, snapshots, reasons) to null instead of empty strings
+ */
+export function toNullableString(val: any): string | null {
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim();
+  return str === '' ? null : str;
+}
+
+/**
  * =========================================================================
  * 1. SINGLE RESERVATION SUBMISSION EVALUATION LOGIC (Exact Sequence)
  * =========================================================================
@@ -172,8 +181,8 @@ export async function evaluateReservationSubmission(
     feeAcknowledged,
   } = input;
 
-  const cleanUserId = userId && String(userId).trim() !== '' ? String(userId).trim() : null;
-  const cleanAdminId = adminId && String(adminId).trim() !== '' ? String(adminId).trim() : null;
+  const cleanUserId = toNullableString(userId);
+  const cleanAdminId = toNullableString(adminId);
 
   // 1. Working hours check
   const { start, end, timeRangeSqlString } = buildTimeRange(date, startTime, duration);
@@ -415,12 +424,10 @@ export async function autoRejectOverlappingPending(
 export async function createReservation(input: ReservationSubmissionInput) {
   const evalResult = await evaluateReservationSubmission(input);
 
-  // Point 1: Explicitly coerce optional fields to null (never empty string "")
-  const cleanUserId = input.userId && String(input.userId).trim() !== '' ? String(input.userId).trim() : null;
-  const cleanAdminId = input.adminId && String(input.adminId).trim() !== '' ? String(input.adminId).trim() : null;
-  const cleanFeeSnapshot = evalResult.outsideFeeSnapshot && String(evalResult.outsideFeeSnapshot).trim() !== ''
-    ? String(evalResult.outsideFeeSnapshot).trim()
-    : null;
+  // Explicitly coerce optional/nullable fields to null (never empty string "")
+  const cleanUserId = toNullableString(input.userId);
+  const cleanAdminId = toNullableString(input.adminId);
+  const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
   const cleanServiceName = (input.serviceName || '').trim() || 'Not specified';
 
   // Runtime validation assertion
@@ -428,19 +435,23 @@ export async function createReservation(input: ReservationSubmissionInput) {
     throw new Error('Instrument ID is required.');
   }
 
+  const reservationParams = {
+    seriesId: null,
+    userId: cleanUserId,
+    adminId: cleanAdminId,
+    instrumentId: input.instrumentId,
+    serviceName: cleanServiceName,
+    timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+    reservationType: input.reservationType,
+    feeSnapshot: cleanFeeSnapshot,
+    status: evalResult.status,
+    rejectionReason: null,
+    paymentScreenshotUrl: null,
+  };
+
   const [newReservation] = await db
     .insert(reservations)
-    .values({
-      userId: cleanUserId,
-      adminId: cleanAdminId,
-      instrumentId: input.instrumentId,
-      serviceName: cleanServiceName,
-      timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
-      reservationType: input.reservationType,
-      feeSnapshot: cleanFeeSnapshot,
-      status: evalResult.status,
-      rejectionReason: null,
-    })
+    .values(reservationParams)
     .returning();
 
   // If approved: auto-reject other overlapping pending reservations
@@ -501,8 +512,8 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     throw new Error('Series must have at least one occurrence.');
   }
 
-  const cleanUserId = userId && String(userId).trim() !== '' ? String(userId).trim() : null;
-  const cleanAdminId = adminId && String(adminId).trim() !== '' ? String(adminId).trim() : null;
+  const cleanUserId = toNullableString(userId);
+  const cleanAdminId = toNullableString(adminId);
 
   const limits = await getHardLimits();
 
@@ -624,24 +635,25 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       { skipRateLimitCheck: true, preloadedLimits: limits }
     );
 
-    const cleanFeeSnapshot = evalResult.outsideFeeSnapshot && String(evalResult.outsideFeeSnapshot).trim() !== ''
-      ? String(evalResult.outsideFeeSnapshot).trim()
-      : null;
+    const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
+
+    const occurrenceParams = {
+      seriesId: newSeries.id,
+      userId: cleanUserId,
+      adminId: cleanAdminId,
+      instrumentId,
+      serviceName: (input.serviceName || '').trim() || 'Not specified',
+      timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+      reservationType,
+      feeSnapshot: cleanFeeSnapshot,
+      status: evalResult.status,
+      rejectionReason: null,
+      paymentScreenshotUrl: null,
+    };
 
     const [resRow] = await db
       .insert(reservations)
-      .values({
-        seriesId: newSeries.id,
-        userId: cleanUserId,
-        adminId: cleanAdminId,
-        instrumentId,
-        serviceName: (input.serviceName || '').trim() || 'Not specified',
-        timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
-        reservationType,
-        feeSnapshot: cleanFeeSnapshot,
-        status: evalResult.status,
-        rejectionReason: null,
-      })
+      .values(occurrenceParams)
       .returning();
 
     if (evalResult.status === 'approved') {
@@ -823,14 +835,17 @@ export async function editReservation(
     outsideFee = null;
   }
 
+  const cleanFee = toNullableString(outsideFee);
+  const cleanServiceName = updates.serviceName !== undefined ? updates.serviceName.trim() : existing.serviceName;
+
   const [updated] = await db
     .update(reservations)
     .set({
       instrumentId,
-      serviceName: updates.serviceName !== undefined ? updates.serviceName.trim() : existing.serviceName,
+      serviceName: cleanServiceName,
       timeRange: sql`tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')` as any,
       reservationType: resType,
-      feeSnapshot: outsideFee,
+      feeSnapshot: cleanFee,
       status: newStatus,
       rejectionReason: null,
     })
@@ -865,7 +880,9 @@ export async function cancelReservation(
   }
 
   // Authorization check
-  if (!caller.adminId && (!caller.userId || target.userId !== caller.userId)) {
+  const cleanCallerAdminId = toNullableString(caller.adminId);
+  const cleanCallerUserId = toNullableString(caller.userId);
+  if (!cleanCallerAdminId && (!cleanCallerUserId || target.userId !== cleanCallerUserId)) {
     throw new Error('You are not authorized to cancel this reservation.');
   }
 
@@ -900,7 +917,7 @@ export async function cancelReservation(
  * 5. ADMIN ACTIONS
  * =========================================================================
  */
-export async function adminApproveReservation(reservationId: string, adminId: string) {
+export async function adminApproveReservation(reservationId: string, adminId?: string | null) {
   const [res] = await db
     .select()
     .from(reservations)
@@ -932,12 +949,14 @@ export async function adminApproveReservation(reservationId: string, adminId: st
     throw new Error('Cannot approve: this time slot conflicts with another already approved reservation.');
   }
 
+  const cleanAdminId = toNullableString(adminId);
+
   const [approved] = await db
     .update(reservations)
     .set({
       status: 'approved',
       rejectionReason: null,
-      adminId,
+      adminId: cleanAdminId,
     })
     .where(eq(reservations.id, reservationId))
     .returning();
@@ -961,7 +980,7 @@ export async function adminApproveReservation(reservationId: string, adminId: st
 export async function adminRejectReservation(
   reservationId: string,
   reason: string,
-  adminId: string
+  adminId?: string | null
 ) {
   if (!reason || !reason.trim()) {
     throw new Error('A rejection reason is required.');
@@ -975,12 +994,14 @@ export async function adminRejectReservation(
 
   if (!res) throw new Error('Reservation not found.');
 
+  const cleanAdminId = toNullableString(adminId);
+
   const [rejected] = await db
     .update(reservations)
     .set({
       status: 'rejected',
       rejectionReason: reason.trim(),
-      adminId,
+      adminId: cleanAdminId,
     })
     .where(eq(reservations.id, reservationId))
     .returning();
@@ -997,7 +1018,7 @@ export async function adminRejectReservation(
   return rejected;
 }
 
-export async function adminApproveSeries(seriesId: string, adminId: string) {
+export async function adminApproveSeries(seriesId: string, adminId?: string | null) {
   // Find all pending occurrences in this series
   const pendingOccurrences = await db
     .select()
@@ -1009,11 +1030,12 @@ export async function adminApproveSeries(seriesId: string, adminId: string) {
       )
     );
 
+  const cleanAdminId = toNullableString(adminId);
   const approvedList: any[] = [];
 
   for (const occ of pendingOccurrences) {
     try {
-      const app = await adminApproveReservation(occ.id, adminId);
+      const app = await adminApproveReservation(occ.id, cleanAdminId);
       approvedList.push(app);
     } catch (e: any) {
       console.warn(`Could not approve occurrence ${occ.id} in series:`, e.message);
@@ -1023,10 +1045,12 @@ export async function adminApproveSeries(seriesId: string, adminId: string) {
   return { seriesId, approvedCount: approvedList.length, approved: approvedList };
 }
 
-export async function adminRejectSeries(seriesId: string, reason: string, adminId: string) {
+export async function adminRejectSeries(seriesId: string, reason: string, adminId?: string | null) {
   if (!reason || !reason.trim()) {
     throw new Error('A rejection reason is required.');
   }
+
+  const cleanAdminId = toNullableString(adminId);
 
   // Find all pending, approved, or active uncompleted occurrences in this series
   const seriesOccurrences = await db
@@ -1044,7 +1068,7 @@ export async function adminRejectSeries(seriesId: string, reason: string, adminI
     .set({
       status: 'rejected',
       rejectionReason: reason.trim(),
-      adminId,
+      adminId: cleanAdminId,
     })
     .where(
       and(
@@ -1067,17 +1091,18 @@ export async function adminRejectSeries(seriesId: string, reason: string, adminI
   return { seriesId, rejectedCount: rejectedList.length, rejected: rejectedList };
 }
 
-export async function adminBulkApprove(reservationIds: string[], adminId: string) {
+export async function adminBulkApprove(reservationIds: string[], adminId?: string | null) {
   if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
     throw new Error('No reservation IDs provided for bulk approval.');
   }
 
+  const cleanAdminId = toNullableString(adminId);
   const approvedList: any[] = [];
   const errors: { id: string; error: string }[] = [];
 
   for (const id of reservationIds) {
     try {
-      const approved = await adminApproveReservation(id, adminId);
+      const approved = await adminApproveReservation(id, cleanAdminId);
       approvedList.push(approved);
     } catch (err: any) {
       errors.push({ id, error: err.message });
@@ -1093,7 +1118,7 @@ export async function adminBulkApprove(reservationIds: string[], adminId: string
   };
 }
 
-export async function adminBulkReject(reservationIds: string[], reason: string, adminId: string) {
+export async function adminBulkReject(reservationIds: string[], reason: string, adminId?: string | null) {
   if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
     throw new Error('No reservation IDs provided for bulk rejection.');
   }
@@ -1101,12 +1126,14 @@ export async function adminBulkReject(reservationIds: string[], reason: string, 
     throw new Error('A rejection reason is required for bulk rejection.');
   }
 
+  const cleanAdminId = toNullableString(adminId);
+
   const rejectedList = await db
     .update(reservations)
     .set({
       status: 'rejected',
       rejectionReason: reason.trim(),
-      adminId,
+      adminId: cleanAdminId,
     })
     .where(
       and(
@@ -1173,8 +1200,10 @@ export async function runStatusTransitions() {
 export async function removeInstrumentWithConfirmation(
   instrumentId: string,
   options: { confirmForce: boolean },
-  adminId: string
+  adminId?: string | null
 ) {
+  const cleanAdminId = toNullableString(adminId);
+
   // Check future active reservations
   const futureActive = await db
     .select({
@@ -1206,7 +1235,7 @@ export async function removeInstrumentWithConfirmation(
       .set({
         status: 'cancelled',
         rejectionReason: 'Instrument removed by administration',
-        adminId,
+        adminId: cleanAdminId,
       })
       .where(
         and(
