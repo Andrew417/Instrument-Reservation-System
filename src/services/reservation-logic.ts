@@ -393,7 +393,7 @@ export async function evaluateReservationSubmission(
           .where(
             sql`${reservations.userId} = ${cleanUserId}
               AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
-              AND lower(${reservations.timeRange})::date = ${dateStr}::date`
+              AND (lower(${reservations.timeRange}) AT TIME ZONE 'UTC')::date = ${dateStr}::date`
           );
 
         const dayCount = Number(dayRes[0]?.count || 0);

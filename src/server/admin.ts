@@ -127,7 +127,7 @@ router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void
       SELECT COUNT(*)::int as count 
       FROM reservations 
       WHERE status IN ('approved', 'ongoing')
-        AND lower(time_range)::date = ${todayStr}::date
+        AND (lower(time_range) AT TIME ZONE 'UTC')::date = ${todayStr}::date
     `);
     const todayReservations = Number((todayCountRes as any).rows?.[0]?.count || 0);
 
@@ -186,9 +186,9 @@ router.get('/reservations', async (req: Request, res: Response): Promise<void> =
         r.created_at,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
-        to_char(lower(r.time_range), 'YYYY-MM-DD') as reservation_date,
-        to_char(lower(r.time_range), 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range), 'HH24:MI') as end_hhmm,
+        to_char(lower(r.time_range) AT TIME ZONE 'UTC', 'YYYY-MM-DD') as reservation_date,
+        to_char(lower(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
         i.name as instrument_name,
         i.type as instrument_type,
@@ -211,7 +211,7 @@ router.get('/reservations', async (req: Request, res: Response): Promise<void> =
     // Filter by quick tab
     const today = new Date().toISOString().substring(0, 10);
     if (quickTab === 'today') {
-      querySql = sql`${querySql} AND lower(r.time_range)::date = ${today}::date`;
+      querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'UTC')::date = ${today}::date`;
     } else if (quickTab === 'pending') {
       querySql = sql`${querySql} AND r.status = 'pending'`;
     }
@@ -225,11 +225,11 @@ router.get('/reservations', async (req: Request, res: Response): Promise<void> =
     }
 
     if (startDate && typeof startDate === 'string') {
-      querySql = sql`${querySql} AND lower(r.time_range)::date >= ${startDate}::date`;
+      querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'UTC')::date >= ${startDate}::date`;
     }
 
     if (endDate && typeof endDate === 'string') {
-      querySql = sql`${querySql} AND lower(r.time_range)::date <= ${endDate}::date`;
+      querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'UTC')::date <= ${endDate}::date`;
     }
 
     if (userName && typeof userName === 'string' && userName.trim()) {

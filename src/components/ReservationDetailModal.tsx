@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Instrument } from './AvailabilityCalendar.tsx';
 import {
+  formatDisplayDate,
+  formatHhmmTo12Hour,
+  getLocalDateString,
+} from '../lib/date-utils.ts';
+import {
   Calendar,
   Clock,
   Music2,
@@ -291,8 +296,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
   const startUtc = new Date(reservation.start_time || reservation.startTime);
   const endUtc = new Date(reservation.end_time || reservation.endTime);
-  const dateStr = startUtc.toISOString().split('T')[0];
-  const timeStr = `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)} UTC`;
+  const rawDate = reservation.reservation_date || (reservation.start_time ? String(reservation.start_time).substring(0, 10) : getLocalDateString(startUtc));
+  const dateStr = formatDisplayDate(rawDate);
+  const timeStr = reservation.start_hhmm && reservation.end_hhmm
+    ? `${formatHhmmTo12Hour(reservation.start_hhmm)} – ${formatHhmmTo12Hour(reservation.end_hhmm)}`
+    : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
   const durationHours = ((endUtc.getTime() - startUtc.getTime()) / (3600 * 1000)).toFixed(1).replace('.0', '');
 
   const isPast = endUtc < new Date();

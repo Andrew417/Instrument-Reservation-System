@@ -117,13 +117,13 @@ router.get('/availability/date', async (req: Request, res: Response): Promise<vo
         COALESCE(u.name, a.name, 'Administrator') as user_name,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
-        to_char(lower(r.time_range), 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range), 'HH24:MI') as end_hhmm
+        to_char(lower(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as end_hhmm
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing')
-        AND lower(r.time_range)::date = ${dateStr}::date
+        AND (lower(r.time_range) AT TIME ZONE 'UTC')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
 
@@ -208,13 +208,13 @@ router.get('/availability', async (req: Request, res: Response): Promise<void> =
         COALESCE(u.name, a.name, 'Administrator') as user_name,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
-        to_char(lower(r.time_range), 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range), 'HH24:MI') as end_hhmm
+        to_char(lower(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as end_hhmm
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing')
-        AND lower(r.time_range)::date = ${dateStr}::date
+        AND (lower(r.time_range) AT TIME ZONE 'UTC')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
 

@@ -17,6 +17,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { getReservantColorTheme } from '../lib/reservant-colors.ts';
+import {
+  formatHhmmTo12Hour,
+  getLocalDateString,
+  getTodayDateString,
+  addDaysToDateString,
+  parseLocalDate,
+  formatDisplayDate,
+} from '../lib/date-utils.ts';
 
 export interface Instrument {
   id: string;
@@ -60,15 +68,6 @@ for (let hour = 9; hour <= 21; hour++) {
 }
 TIME_SLOTS.push('22:00');
 
-function formatHhmmTo12Hour(hhmm: string): string {
-  const [hStr, mStr] = hhmm.split(':');
-  let h = parseInt(hStr, 10);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return `${h}:${mStr} ${ampm}`;
-}
-
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectSlot,
   onSelectInstrument,
@@ -82,7 +81,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     Boolean(profile?.isSuperAdmin);
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
+    return getTodayDateString();
   });
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [reservations, setReservations] = useState<ReservedSlot[]>([]);
@@ -223,19 +222,18 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   // Generate a 30-day window for the horizontal date strip
   const dateChips = useMemo(() => {
     const chips: { dateStr: string; dayName: string; dayNum: number; monthName: string; isToday: boolean }[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = getTodayDateString();
+    const today = parseLocalDate(todayStr);
 
     for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      const dateStr = getLocalDateString(d);
       chips.push({
         dateStr,
         dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
         dayNum: d.getDate(),
         monthName: d.toLocaleDateString('en-US', { month: 'short' }),
-        isToday: i === 0,
+        isToday: dateStr === todayStr,
       });
     }
     return chips;
@@ -331,13 +329,11 @@ const allInstrumentTypes = useMemo(() => {
   }
 
   const navigateDate = (direction: 'prev' | 'next') => {
-    const current = new Date(selectedDate);
-    current.setDate(current.getDate() + (direction === 'next' ? 1 : -1));
-    setSelectedDate(current.toISOString().split('T')[0]);
+    setSelectedDate((prev) => addDaysToDateString(prev, direction === 'next' ? 1 : -1));
   };
 
   const jumpToToday = () => {
-    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setSelectedDate(getTodayDateString());
   };
 
   return (
