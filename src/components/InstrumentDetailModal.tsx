@@ -3,6 +3,14 @@ import { Instrument } from './AvailabilityCalendar.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { getReservantColorTheme } from '../lib/reservant-colors.ts';
 import {
+  getLocalDateString,
+  getTodayDateString,
+  parseLocalDate,
+  addDaysToDateString,
+  formatDisplayDate,
+  formatHhmmTo12Hour,
+} from '../lib/date-utils.ts';
+import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
@@ -37,15 +45,6 @@ for (let hour = 9; hour <= 21; hour++) {
   TIME_SLOTS.push(`${hStr}:30`);
 }
 TIME_SLOTS.push('22:00');
-
-function formatHhmmTo12Hour(hhmm: string): string {
-  const [hStr, mStr] = hhmm.split(':');
-  let h = parseInt(hStr, 10);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return `${h}:${mStr} ${ampm}`;
-}
 
 function hhmmToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -131,12 +130,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   // Navigation anchors
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return initialDate || new Date().toISOString().split('T')[0];
+    return initialDate || getTodayDateString();
   });
 
   // Current month anchor for monthly view
   const [currentMonthDate, setCurrentMonthDate] = useState<Date>(() => {
-    const d = initialDate ? new Date(initialDate) : new Date();
+    const d = initialDate ? parseLocalDate(initialDate) : new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
@@ -311,21 +310,20 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   // WEEKLY VIEW CALCULATIONS (7 days around or starting from selectedDate)
   // -------------------------------------------------------------
   const weekDays = useMemo(() => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const base = new Date(Date.UTC(y, m - 1, d));
-    // Find Monday of the current week
-    const dayOfWeek = base.getUTCDay(); // 0 is Sunday, 1 is Monday...
+    const base = parseLocalDate(selectedDate);
+    // Find Monday of the current week (0 is Sunday, 1 is Monday...)
+    const dayOfWeek = base.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(base.getTime() + diffToMonday * 86400000);
+    const monday = new Date(base.getFullYear(), base.getMonth(), base.getDate() + diffToMonday);
 
     const days: { dateStr: string; dayName: string; dayNum: number; isSelected: boolean }[] = [];
     for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(monday.getTime() + i * 86400000);
-      const dateStr = dayDate.toISOString().split('T')[0];
+      const dayDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const dateStr = getLocalDateString(dayDate);
       days.push({
         dateStr,
-        dayName: dayDate.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
-        dayNum: dayDate.getUTCDate(),
+        dayName: dayDate.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayNum: dayDate.getDate(),
         isSelected: dateStr === selectedDate,
       });
     }
@@ -353,12 +351,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
       isToday: boolean;
     }[] = [];
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayDateString();
 
     // Padding previous month days
     for (let i = 0; i < startingDayOfWeek; i++) {
       const prevDate = new Date(year, month, -startingDayOfWeek + i + 1);
-      const dateStr = prevDate.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(prevDate);
       cells.push({
         dateStr,
         dayNumber: prevDate.getDate(),
@@ -370,17 +368,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
     // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
-      const thisDate = new Date(Date.UTC(year, month, day));
-      const dateStr = thisDate.toISOString().split('T')[0];
+      const thisDate = new Date(year, month, day);
+      const dateStr = getLocalDateString(thisDate);
 
       // Count approved reservations on this date
-      const dayStart = new Date(Date.UTC(year, month, day, 0, 0, 0));
-      const dayEnd = new Date(Date.UTC(year, month, day, 23, 59, 59));
-
       const count = approvedReservations.filter((res) => {
-        const rStart = new Date(res.start_time || res.startTime);
-        const rEnd = new Date(res.end_time || res.endTime);
-        return dayStart < rEnd && rStart < dayEnd;
+        const rDate = res.reservation_date || (res.startTime ? getLocalDateString(new Date(res.startTime)) : '');
+        return rDate === dateStr;
       }).length;
 
       cells.push({
@@ -397,27 +391,19 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   // Date Navigation Handlers
   const handlePrevDay = () => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const prev = new Date(Date.UTC(y, m - 1, d - 1));
-    setSelectedDate(prev.toISOString().split('T')[0]);
+    setSelectedDate((prev) => addDaysToDateString(prev, -1));
   };
 
   const handleNextDay = () => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const next = new Date(Date.UTC(y, m - 1, d + 1));
-    setSelectedDate(next.toISOString().split('T')[0]);
+    setSelectedDate((prev) => addDaysToDateString(prev, 1));
   };
 
   const handlePrevWeek = () => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const prev = new Date(Date.UTC(y, m - 1, d - 7));
-    setSelectedDate(prev.toISOString().split('T')[0]);
+    setSelectedDate((prev) => addDaysToDateString(prev, -7));
   };
 
   const handleNextWeek = () => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const next = new Date(Date.UTC(y, m - 1, d + 7));
-    setSelectedDate(next.toISOString().split('T')[0]);
+    setSelectedDate((prev) => addDaysToDateString(prev, 7));
   };
 
   const handlePrevMonth = () => {
@@ -907,10 +893,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       <div
                         key={d.dateStr}
                         className={`p-2.5 border-r last:border-r-0 border-stone-200 ${
-                          d.isSelected ? 'bg-amber-100/60 text-amber-950 font-extrabold' : ''
+                          d.isSelected ? 'bg-amber-800 text-white font-bold' : ''
                         }`}
                       >
-                        <div className="text-[10px] text-stone-500 uppercase">{d.dayName}</div>
+                        <div className={`text-[10px] uppercase ${d.isSelected ? 'text-amber-100' : 'text-stone-500'}`}>{d.dayName}</div>
                         <div>{d.dateStr.slice(5)}</div>
                       </div>
                     ))}
@@ -1034,57 +1020,87 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                 {/* Month Grid Cells */}
                 <div className="grid grid-cols-7 divide-x divide-y divide-stone-100">
-                  {monthCalendarData.map((cell, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate(cell.dateStr);
-                        setViewMode('daily');
-                      }}
-                      className={`p-3 min-h-[70px] text-left transition flex flex-col justify-between cursor-pointer hover:bg-amber-50/50 ${
-                        !cell.isCurrentMonth
-                          ? 'bg-stone-50/40 text-stone-300 opacity-60'
-                          : cell.isToday
-                          ? 'bg-amber-50/40 text-stone-900 font-bold'
-                          : 'bg-white text-stone-800'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span
-                          className={`text-xs font-bold ${
-                            cell.isToday
-                              ? 'w-5 h-5 rounded-full bg-amber-800 text-white flex items-center justify-center text-[10px]'
-                              : ''
-                          }`}
-                        >
-                          {cell.dayNumber}
-                        </span>
-
-                        {cell.approvedCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-800 text-amber-100">
-                            {cell.approvedCount} booked
+                  {monthCalendarData.map((cell, idx) => {
+                    const isSelected = cell.dateStr === selectedDate;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(cell.dateStr);
+                          setViewMode('daily');
+                        }}
+                        className={`p-3 min-h-[70px] text-left transition flex flex-col justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-amber-800 text-white font-bold shadow-xs'
+                            : !cell.isCurrentMonth
+                            ? 'bg-stone-50/40 text-stone-300 opacity-60 hover:bg-stone-100/50'
+                            : cell.isToday
+                            ? 'bg-amber-50/80 text-amber-900 font-bold hover:bg-amber-100/60'
+                            : 'bg-white text-stone-800 hover:bg-amber-50/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span
+                            className={`text-xs font-bold ${
+                              isSelected
+                                ? 'text-white'
+                                : cell.isToday
+                                ? 'w-5 h-5 rounded-full bg-amber-800 text-white flex items-center justify-center text-[10px]'
+                                : ''
+                            }`}
+                          >
+                            {cell.dayNumber}
                           </span>
-                        )}
-                      </div>
 
-                      {/* Density Dots */}
-                      <div className="flex items-center gap-1 pt-1">
-                        {cell.approvedCount > 0 ? (
-                          <div className="flex items-center gap-0.5">
-                            {Array.from({ length: Math.min(cell.approvedCount, 4) }).map((_, dotIdx) => (
-                              <span key={dotIdx} className="w-1.5 h-1.5 rounded-full bg-amber-800" />
-                            ))}
-                            {cell.approvedCount > 4 && (
-                              <span className="text-[9px] text-amber-800 font-bold">+</span>
-                            )}
-                          </div>
-                        ) : cell.isCurrentMonth ? (
-                          <span className="text-[9px] text-emerald-600 font-medium">Available</span>
-                        ) : null}
-                      </div>
-                    </button>
-                  ))}
+                          {cell.approvedCount > 0 && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                isSelected
+                                  ? 'bg-amber-900 text-amber-100'
+                                  : 'bg-amber-800 text-amber-100'
+                              }`}
+                            >
+                              {cell.approvedCount} booked
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Density Dots */}
+                        <div className="flex items-center gap-1 pt-1">
+                          {cell.approvedCount > 0 ? (
+                            <div className="flex items-center gap-0.5">
+                              {Array.from({ length: Math.min(cell.approvedCount, 4) }).map((_, dotIdx) => (
+                                <span
+                                  key={dotIdx}
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    isSelected ? 'bg-amber-200' : 'bg-amber-800'
+                                  }`}
+                                />
+                              ))}
+                              {cell.approvedCount > 4 && (
+                                <span
+                                  className={`text-[9px] font-bold ${
+                                    isSelected ? 'text-amber-100' : 'text-amber-800'
+                                  }`}
+                                >
+                                  +
+                                </span>
+                              )}
+                            </div>
+                          ) : cell.isCurrentMonth ? (
+                            <span
+                              className={`text-[9px] font-medium ${
+                                isSelected ? 'text-amber-200' : 'text-emerald-600'
+                              }`}
+                            >
+                              Available
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

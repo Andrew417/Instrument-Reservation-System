@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Instrument } from './AvailabilityCalendar.tsx';
+import { getTodayDateString } from '../lib/date-utils.ts';
 import {
   Shield,
   LayoutDashboard,
@@ -237,7 +238,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [behalfForm, setBehalfForm] = useState({
     instrumentId: '',
     serviceName: '',
-    date: new Date().toISOString().substring(0, 10),
+    date: getTodayDateString(),
     startTime: '10:00',
     duration: 2,
     reservationType: 'in_church',

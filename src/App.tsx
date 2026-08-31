@@ -10,6 +10,7 @@ import { ReservationDetailModal } from './components/ReservationDetailModal.tsx'
 import { EditReservationModal } from './components/EditReservationModal.tsx';
 import { NotificationsModal } from './components/NotificationsModal.tsx';
 import { AdminPortal } from './components/AdminPortal.tsx';
+import { getTodayDateString } from './lib/date-utils.ts';
 import {
   LogOut,
   Sparkles,
@@ -219,7 +220,7 @@ const UserPortalMain: React.FC = () => {
                 onClick={() => {
                   setSelectedSlot({
                     instrument: allInstruments[0],
-                    date: new Date().toISOString().split('T')[0],
+                    date: getTodayDateString(),
                     timeHhmm: '10:00',
                     duration: 2,
                   });

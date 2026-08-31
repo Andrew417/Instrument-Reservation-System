@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Instrument } from './AvailabilityCalendar.tsx';
+import { getLocalDateString } from '../lib/date-utils.ts';
 import {
   Calendar,
   Clock,
@@ -56,8 +57,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   // Derive initial values from reservation
   const startUtc = new Date(reservation.start_time || reservation.startTime);
   const endUtc = new Date(reservation.end_time || reservation.endTime);
-  const initialDateStr = startUtc.toISOString().split('T')[0];
-  const initialTimeStr = `${String(startUtc.getUTCHours()).padStart(2, '0')}:${String(startUtc.getUTCMinutes()).padStart(2, '0')}`;
+  const initialDateStr = reservation.reservation_date || (reservation.start_time ? String(reservation.start_time).substring(0, 10) : getLocalDateString(startUtc));
+  const initialTimeStr = reservation.start_hhmm || `${String(startUtc.getUTCHours()).padStart(2, '0')}:${String(startUtc.getUTCMinutes()).padStart(2, '0')}`;
   const initialDurationHours = Math.max(0.5, (endUtc.getTime() - startUtc.getTime()) / (3600 * 1000));
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(

@@ -2,6 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Instrument } from './AvailabilityCalendar.tsx';
 import {
+  formatDisplayDate,
+  formatHhmmTo12Hour,
+  getLocalDateString,
+} from '../lib/date-utils.ts';
+import {
   Calendar,
   Clock,
   Music2,
@@ -480,8 +485,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               const res = item.data;
               const startUtc = new Date(res.start_time || res.startTime);
               const endUtc = new Date(res.end_time || res.endTime);
-              const dateStr = startUtc.toISOString().split('T')[0];
-              const timeStr = `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)} UTC`;
+              const dateRaw = res.reservation_date || (res.start_time ? String(res.start_time).substring(0, 10) : getLocalDateString(startUtc));
+              const dateStr = formatDisplayDate(dateRaw);
+              const timeStr = res.start_hhmm && res.end_hhmm
+                ? `${formatHhmmTo12Hour(res.start_hhmm)} – ${formatHhmmTo12Hour(res.end_hhmm)}`
+                : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
               const isApproved = res.status === 'approved' || res.status === 'ongoing';
               const isPending = res.status === 'pending';
               const isPast = endUtc < new Date();
@@ -691,8 +699,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         {sg.occurrences.map((occ, occIdx) => {
                           const occStart = new Date(occ.start_time || occ.startTime);
                           const occEnd = new Date(occ.end_time || occ.endTime);
-                          const occDateStr = occStart.toISOString().split('T')[0];
-                          const occTimeStr = `${occStart.toISOString().substring(11, 16)} – ${occEnd.toISOString().substring(11, 16)} UTC`;
+                          const occRawDate = occ.reservation_date || (occ.start_time ? String(occ.start_time).substring(0, 10) : getLocalDateString(occStart));
+                          const occDateStr = formatDisplayDate(occRawDate);
+                          const occTimeStr = occ.start_hhmm && occ.end_hhmm
+                            ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
+                            : `${occStart.toISOString().substring(11, 16)} – ${occEnd.toISOString().substring(11, 16)}`;
                           const isOccApproved = occ.status === 'approved' || occ.status === 'ongoing';
                           const isOccPast = occEnd < new Date();
                           const isOccCancelled = occ.status === 'cancelled' || occ.status === 'rejected';
