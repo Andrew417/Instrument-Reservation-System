@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -14,9 +14,9 @@ import {
   Plus,
   RefreshCw,
   SlidersHorizontal,
-} from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext.tsx';
-import { getReservantColorTheme } from '../lib/reservant-colors.ts';
+} from "lucide-react";
+import { useAuth } from "../contexts/AuthContext.tsx";
+import { getReservantColorTheme } from "../lib/reservant-colors.ts";
 import {
   formatHhmmTo12Hour,
   getLocalDateString,
@@ -24,7 +24,7 @@ import {
   addDaysToDateString,
   parseLocalDate,
   formatDisplayDate,
-} from '../lib/date-utils.ts';
+} from "../lib/date-utils.ts";
 
 export interface Instrument {
   id: string;
@@ -33,7 +33,7 @@ export interface Instrument {
   photoUrl: string | null;
   description: string | null;
   outsideFeePerDay: string;
-  bookingMode: 'manual' | 'instant';
+  bookingMode: "manual" | "instant";
   isRemoved: boolean;
   createdAt: string;
 }
@@ -53,7 +53,12 @@ export interface ReservedSlot {
 }
 
 interface AvailabilityCalendarProps {
-  onSelectSlot: (instrument: Instrument, date: string, timeHhmm: string, durationHours: number) => void;
+  onSelectSlot: (
+    instrument: Instrument,
+    date: string,
+    timeHhmm: string,
+    durationHours: number,
+  ) => void;
   onSelectInstrument: (instrument: Instrument) => void;
   refreshTrigger?: number;
   onLoadedInstruments?: (instruments: Instrument[]) => void;
@@ -66,29 +71,44 @@ for (let hour = 9; hour <= 21; hour++) {
   TIME_SLOTS.push(`${hStr}:00`);
   TIME_SLOTS.push(`${hStr}:30`);
 }
-TIME_SLOTS.push('22:00');
+TIME_SLOTS.push("22:00");
 
-const MANUAL_TYPE_ORDER: string[] = ['Piano', 'Drums', 'Percussion', 'Violin'];
+const MANUAL_TYPE_ORDER: string[] = ["Piano", "Drums", "Percussion", "Violin"];
 const MANUAL_INSTRUMENT_ORDER_BY_TYPE: Record<string, string[]> = {
-  Piano: ['Yamaha E-443', 'Roland E-09', 'Korg Pa-50', 'Roland E-A7', 'Roland GW-8'],
-  Drums: ['Tama Swing Star', 'Tama Silver Star', 'Tama Star Classic'],
-  Percussion: ['Conga', 'Bongos'],
-  Violin: ['Violin 3/4'],
+  Piano: [
+    "Yamaha E-443",
+    "Roland E-09",
+    "Korg Pa-50",
+    "Roland E-A7",
+    "Roland GW-8",
+  ],
+  Drums: ["Tama Swing Star", "Tama Silver Star", "Tama Star Classic"],
+  Percussion: ["Conga", "Bongos"],
+  Violin: ["Violin 3/4"],
 };
 
 const normalizeCategoryName = (value: string): string => value.trim();
 
 const getTypeOrderIndex = (type: string): number => {
   const normalizedType = normalizeCategoryName(type);
-  const index = MANUAL_TYPE_ORDER.findIndex((item) => item.toLowerCase() === normalizedType.toLowerCase());
+  const index = MANUAL_TYPE_ORDER.findIndex(
+    (item) => item.toLowerCase() === normalizedType.toLowerCase(),
+  );
   return index >= 0 ? index : MANUAL_TYPE_ORDER.length + 1;
 };
 
-const getInstrumentOrderIndex = (type: string, instrumentName: string): number => {
+const getInstrumentOrderIndex = (
+  type: string,
+  instrumentName: string,
+): number => {
   const normalizedType = normalizeCategoryName(type);
-  const perTypeOrder = MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType] || MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType.toLowerCase()];
+  const perTypeOrder =
+    MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType] ||
+    MANUAL_INSTRUMENT_ORDER_BY_TYPE[normalizedType.toLowerCase()];
   const matchingOrder = perTypeOrder ?? [];
-  const nameIndex = matchingOrder.findIndex((item) => item.toLowerCase() === instrumentName.trim().toLowerCase());
+  const nameIndex = matchingOrder.findIndex(
+    (item) => item.toLowerCase() === instrumentName.trim().toLowerCase(),
+  );
   return nameIndex >= 0 ? nameIndex : matchingOrder.length;
 };
 
@@ -97,10 +117,12 @@ const sortInstrumentsByManualOrder = (items: Instrument[]): Instrument[] => {
     const typeCompare = getTypeOrderIndex(a.type) - getTypeOrderIndex(b.type);
     if (typeCompare !== 0) return typeCompare;
 
-    const instrumentCompare = getInstrumentOrderIndex(a.type, a.name) - getInstrumentOrderIndex(b.type, b.name);
+    const instrumentCompare =
+      getInstrumentOrderIndex(a.type, a.name) -
+      getInstrumentOrderIndex(b.type, b.name);
     if (instrumentCompare !== 0) return instrumentCompare;
 
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 };
 
@@ -112,8 +134,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 }) => {
   const { profile, sessionToken } = useAuth();
   const isAdminOrSuperAdmin =
-    profile?.role === 'admin' ||
-    profile?.role === 'super_admin' ||
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
     Boolean(profile?.isSuperAdmin);
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -124,7 +146,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [checkedTypes, setCheckedTypes] = useState<string[]>([]);
-  const [checkedInstrumentIds, setCheckedInstrumentIds] = useState<Set<string>>(new Set());
+  const [checkedInstrumentIds, setCheckedInstrumentIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const filtersInitialized = useRef(false);
   const [modeNotice, setModeNotice] = useState<string | null>(null);
@@ -136,50 +160,69 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   useEffect(() => {
     if (filtersInitialized.current || instruments.length === 0) return;
 
-    const defaultCheckedTypes = ['Piano', 'Drums'];
+    const defaultCheckedTypes = ["Piano", "Drums"];
     const defaultTypes = Array.from(new Set(instruments.map((i) => i.type)))
       .sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b))
-      .filter((type) => MANUAL_TYPE_ORDER.some((manualType) => manualType.toLowerCase() === type.toLowerCase()))
-      .filter((type) => defaultCheckedTypes.some((dt) => dt.toLowerCase() === type.toLowerCase()));
+      .filter((type) =>
+        MANUAL_TYPE_ORDER.some(
+          (manualType) => manualType.toLowerCase() === type.toLowerCase(),
+        ),
+      )
+      .filter((type) =>
+        defaultCheckedTypes.some(
+          (dt) => dt.toLowerCase() === type.toLowerCase(),
+        ),
+      );
 
     const defaultIds = new Set(
       instruments
-        .filter((i) => defaultTypes.some((type) => type.toLowerCase() === i.type.toLowerCase()))
-        .map((i) => i.id)
+        .filter((i) =>
+          defaultTypes.some(
+            (type) => type.toLowerCase() === i.type.toLowerCase(),
+          ),
+        )
+        .map((i) => i.id),
     );
 
     setCheckedTypes(defaultTypes);
     setCheckedInstrumentIds(defaultIds);
     filtersInitialized.current = true;
   }, [instruments]);
-  
+
   useEffect(() => {
     if (!isFilterPanelOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
+      if (
+        filterPanelRef.current &&
+        !filterPanelRef.current.contains(e.target as Node)
+      ) {
         setIsFilterPanelOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isFilterPanelOpen]);
-  
+
   const handleToggleType = (type: string) => {
     const isChecked = checkedTypes.includes(type);
     if (isChecked) {
       setCheckedTypes((prev) => prev.filter((t) => t !== type));
       setCheckedInstrumentIds((prev) => {
         const next = new Set(prev);
-        instruments.filter((i) => i.type === type).forEach((i) => next.delete(i.id));
+        instruments
+          .filter((i) => i.type === type)
+          .forEach((i) => next.delete(i.id));
         return next;
       });
     } else {
       setCheckedTypes((prev) => [...prev, type]);
       setCheckedInstrumentIds((prev) => {
         const next = new Set(prev);
-        instruments.filter((i) => i.type === type).forEach((i) => next.add(i.id));
+        instruments
+          .filter((i) => i.type === type)
+          .forEach((i) => next.add(i.id));
         return next;
       });
     }
@@ -193,27 +236,30 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       return next;
     });
   };
-  
+
   // Admin: Toggle instrument booking mode directly from calendar view
   const handleToggleBookingMode = async (inst: Instrument) => {
     if (!isAdminOrSuperAdmin || updatingModeId) return;
-    const nextMode: 'manual' | 'instant' = inst.bookingMode === 'instant' ? 'manual' : 'instant';
-    const nextLabel = nextMode === 'instant' ? 'Instant Booking' : 'Manual Approval';
+    const nextMode: "manual" | "instant" =
+      inst.bookingMode === "instant" ? "manual" : "instant";
+    const nextLabel =
+      nextMode === "instant" ? "Instant Booking" : "Manual Approval";
 
     setUpdatingModeId(inst.id);
 
     // Optimistic UI update in calendar
     setInstruments((prev) =>
-      prev.map((i) => (i.id === inst.id ? { ...i, bookingMode: nextMode } : i))
+      prev.map((i) => (i.id === inst.id ? { ...i, bookingMode: nextMode } : i)),
     );
 
     try {
-      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      const token =
+        sessionToken || localStorage.getItem("church_session_token_v1");
       let res = await fetch(`/api/instruments/${inst.id}/mode`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({ bookingMode: nextMode }),
       });
@@ -221,10 +267,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       if (!res.ok) {
         // Fallback to admin route
         res = await fetch(`/api/admin/instruments/${inst.id}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: token ? `Bearer ${token}` : '',
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
           },
           body: JSON.stringify({ bookingMode: nextMode }),
         });
@@ -232,7 +278,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to update booking mode');
+        throw new Error(data.error || "Failed to update booking mode");
       }
 
       setModeNotice(`${inst.name} booking mode switched to ${nextLabel}`);
@@ -240,14 +286,18 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
       if (onLoadedInstruments) {
         onLoadedInstruments(
-          instruments.map((i) => (i.id === inst.id ? { ...i, bookingMode: nextMode } : i))
+          instruments.map((i) =>
+            i.id === inst.id ? { ...i, bookingMode: nextMode } : i,
+          ),
         );
       }
     } catch (err: any) {
-      console.error('Failed to toggle instrument booking mode:', err);
+      console.error("Failed to toggle instrument booking mode:", err);
       // Revert optimistic update
       setInstruments((prev) =>
-        prev.map((i) => (i.id === inst.id ? { ...i, bookingMode: inst.bookingMode } : i))
+        prev.map((i) =>
+          i.id === inst.id ? { ...i, bookingMode: inst.bookingMode } : i,
+        ),
       );
       setModeNotice(`Error updating mode: ${err.message}`);
       setTimeout(() => setModeNotice(null), 4000);
@@ -258,18 +308,28 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   // Generate a 30-day window for the horizontal date strip
   const dateChips = useMemo(() => {
-    const chips: { dateStr: string; dayName: string; dayNum: number; monthName: string; isToday: boolean }[] = [];
+    const chips: {
+      dateStr: string;
+      dayName: string;
+      dayNum: number;
+      monthName: string;
+      isToday: boolean;
+    }[] = [];
     const todayStr = getTodayDateString();
     const today = parseLocalDate(todayStr);
 
     for (let i = 0; i < 30; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      const d = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + i,
+      );
       const dateStr = getLocalDateString(d);
       chips.push({
         dateStr,
-        dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayName: d.toLocaleDateString("en-US", { weekday: "short" }),
         dayNum: d.getDate(),
-        monthName: d.toLocaleDateString('en-US', { month: 'short' }),
+        monthName: d.toLocaleDateString("en-US", { month: "short" }),
         isToday: dateStr === todayStr,
       });
     }
@@ -281,12 +341,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const token = sessionToken || localStorage.getItem('church_session_token_v1');
-      const res = await fetch(`/api/instruments/availability/date?date=${date}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const token =
+        sessionToken || localStorage.getItem("church_session_token_v1");
+      const res = await fetch(
+        `/api/instruments/availability/date?date=${date}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
       if (!res.ok) {
-        throw new Error('Failed to fetch instrument availability');
+        throw new Error("Failed to fetch instrument availability");
       }
       const data = await res.json();
       const insts = data.instruments || [];
@@ -296,8 +360,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         onLoadedInstruments(insts);
       }
     } catch (err: any) {
-      console.error('Error fetching calendar data:', err);
-      setError(err.message || 'Unable to load schedule.');
+      console.error("Error fetching calendar data:", err);
+      setError(err.message || "Unable to load schedule.");
     } finally {
       setLoading(false);
     }
@@ -315,7 +379,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       .sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b))
       .forEach((type) => {
         const typeInstruments = sortInstrumentsByManualOrder(
-          instruments.filter((inst) => inst.type === type && checkedInstrumentIds.has(inst.id))
+          instruments.filter(
+            (inst) => inst.type === type && checkedInstrumentIds.has(inst.id),
+          ),
         );
         if (typeInstruments.length > 0) groups[type] = typeInstruments;
       });
@@ -326,7 +392,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const allInstrumentTypes = useMemo(() => {
     const types = new Set<string>();
     instruments.forEach((inst) => types.add(inst.type));
-    return Array.from(types).sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b));
+    return Array.from(types).sort(
+      (a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b),
+    );
   }, [instruments]);
 
   // Check if a specific instrument slot is booked
@@ -341,7 +409,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   };
 
   // Retrieve reservation details for a booked slot
-  const getSlotReservation = (instrumentId: string, slotHhmm: string): ReservedSlot | undefined => {
+  const getSlotReservation = (
+    instrumentId: string,
+    slotHhmm: string,
+  ): ReservedSlot | undefined => {
     const slotMins = hhmmToMinutes(slotHhmm);
     return reservations.find((res) => {
       if (res.instrumentId !== instrumentId) return false;
@@ -365,12 +436,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
   function hhmmToMinutes(hhmm: string): number {
     if (!hhmm) return 0;
-    const [h, m] = hhmm.split(':').map((x) => parseInt(x, 10));
+    const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
     return h * 60 + (m || 0);
   }
 
-  const navigateDate = (direction: 'prev' | 'next') => {
-    setSelectedDate((prev) => addDaysToDateString(prev, direction === 'next' ? 1 : -1));
+  const navigateDate = (direction: "prev" | "next") => {
+    setSelectedDate((prev) =>
+      addDaysToDateString(prev, direction === "next" ? 1 : -1),
+    );
   };
 
   const jumpToToday = () => {
@@ -430,7 +503,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
                   <span className="hidden sm:inline">Filter</span>
-                  <span className="sm:hidden">({checkedInstrumentIds.size})</span>
+                  <span className="sm:hidden">
+                    ({checkedInstrumentIds.size})
+                  </span>
                 </button>
 
                 {isFilterPanelOpen && (
@@ -441,7 +516,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                     {allInstrumentTypes.map((type) => {
                       const isTypeChecked = checkedTypes.includes(type);
                       const typeInstruments = sortInstrumentsByManualOrder(
-                        instruments.filter((inst) => inst.type === type)
+                        instruments.filter((inst) => inst.type === type),
                       );
                       return (
                         <div key={type} className="space-y-1.5">
@@ -468,7 +543,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   <input
                                     type="checkbox"
                                     checked={checkedInstrumentIds.has(inst.id)}
-                                    onChange={() => handleToggleInstrument(inst.id)}
+                                    onChange={() =>
+                                      handleToggleInstrument(inst.id)
+                                    }
                                     className="w-3.5 h-3.5 accent-amber-700 cursor-pointer"
                                   />
                                   <span>{inst.name}</span>
@@ -512,14 +589,18 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               className="p-2 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs transition cursor-pointer shrink-0"
               title="Refresh Availability"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-amber-700' : ''}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? "animate-spin text-amber-700" : ""}`}
+              />
             </button>
           </div>
         </div>
 
         {showHelperText && (
           <div className="mb-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-[11px] text-stone-600">
-            <p className="text-stone-700 font-medium">Select any open 30-minute slot to book.</p>
+            <p className="text-stone-700 font-medium">
+              Select any open 30-minute slot to book.
+            </p>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <span className="w-3.5 h-3.5 rounded-md bg-white border border-stone-300 inline-block" />
@@ -544,7 +625,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         <div className="flex items-center gap-2 pb-2">
           <button
             id="btn-date-prev"
-            onClick={() => navigateDate('prev')}
+            onClick={() => navigateDate("prev")}
             className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 shrink-0 transition cursor-pointer"
             title="Previous Day"
           >
@@ -552,12 +633,15 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           </button>
 
           <div className="flex-1 min-w-0 text-center text-[11px] font-semibold text-stone-600 uppercase tracking-[0.12em]">
-            {parseLocalDate(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {parseLocalDate(selectedDate).toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
           </div>
 
           <button
             id="btn-date-next"
-            onClick={() => navigateDate('next')}
+            onClick={() => navigateDate("next")}
             className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 shrink-0 transition cursor-pointer"
             title="Next Day"
           >
@@ -579,19 +663,23 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 onClick={() => setSelectedDate(chip.dateStr)}
                 className={`flex-shrink-0 flex flex-col items-center justify-center w-[52px] sm:w-[58px] h-[52px] rounded-xl border transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-amber-800 text-white border-amber-900 shadow-md font-bold'
+                    ? "bg-amber-800 text-white border-amber-900 shadow-md font-bold"
                     : chip.isToday
-                    ? 'bg-amber-50/80 text-amber-900 border-amber-200 hover:bg-amber-100/70 font-semibold'
-                    : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                      ? "bg-amber-50/80 text-amber-900 border-amber-200 hover:bg-amber-100/70 font-semibold"
+                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  {chip.isToday && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />}
+                  {chip.isToday && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+                  )}
                   <span className="text-[9px] uppercase tracking-[0.12em] font-semibold leading-none">
                     {chip.dayName}
                   </span>
                 </div>
-                <span className="text-base font-bold leading-none mt-1">{chip.dayNum}</span>
+                <span className="text-base font-bold leading-none mt-1">
+                  {chip.dayNum}
+                </span>
               </button>
             );
           })}
@@ -606,7 +694,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         {loading && instruments.length === 0 ? (
           <div className="p-16 flex flex-col items-center justify-center gap-3">
             <div className="w-8 h-8 border-3 border-amber-800/20 border-t-amber-800 rounded-full animate-spin" />
-            <span className="text-xs text-stone-500 font-medium">Loading timeline schedule...</span>
+            <span className="text-xs text-stone-500 font-medium">
+              Loading timeline schedule...
+            </span>
           </div>
         ) : error ? (
           <div className="p-12 text-center text-red-700 bg-red-50 text-xs">
@@ -622,8 +712,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         ) : Object.keys(groupedInstruments).length === 0 ? (
           <div className="p-16 text-center text-stone-500 text-xs">
             <Music2 className="w-8 h-8 mx-auto mb-2 text-stone-400" />
-            <p className="font-semibold text-stone-700 text-sm">No instruments found</p>
-            <p className="mt-1">No active instruments match the selected category filter.</p>
+            <p className="font-semibold text-stone-700 text-sm">
+              No instruments found
+            </p>
+            <p className="mt-1">
+              No active instruments match the selected category filter.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto scrollbar-thin">
@@ -634,25 +728,27 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                   {/* Sticky Time column top-left corner */}
                   <th
                     scope="col"
-                    className="sticky left-0 z-20 bg-stone-100 w-24 min-w-[96px] p-3 text-xs font-bold text-stone-600 border-r border-stone-200 uppercase tracking-wider"
+                    className="sticky left-0 z-20 bg-stone-100 w-20 min-w-[80px] p-3 text-xs font-bold text-stone-600 border-r border-stone-200 uppercase tracking-wider"
                   >
                     Time
                   </th>
-                  {Object.entries(groupedInstruments).map(([typeName, typeInsts]) => (
-                    <th
-                      key={typeName}
-                      colSpan={typeInsts.length}
-                      className="p-2.5 text-center text-xs font-bold text-stone-800 border-r border-stone-200 bg-stone-200/50 uppercase tracking-wider"
-                    >
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Music2 className="w-3.5 h-3.5 text-amber-800" />
-                        <span>{typeName}</span>
-                        <span className="text-[10px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded-full border border-stone-200">
-                          {typeInsts.length}
-                        </span>
-                      </div>
-                    </th>
-                  ))}
+                  {Object.entries(groupedInstruments).map(
+                    ([typeName, typeInsts]) => (
+                      <th
+                        key={typeName}
+                        colSpan={typeInsts.length}
+                        className="p-2.5 text-center text-xs font-bold text-stone-800 border-r border-stone-200 bg-stone-200/50 uppercase tracking-wider"
+                      >
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Music2 className="w-3.5 h-3.5 text-amber-800" />
+                          <span>{typeName}</span>
+                          <span className="text-[10px] font-semibold text-stone-500 bg-white px-1.5 py-0.5 rounded-full border border-stone-200">
+                            {typeInsts.length}
+                          </span>
+                        </div>
+                      </th>
+                    ),
+                  )}
                 </tr>
 
                 {/* INDIVIDUAL COLUMN HEADERS: Instrument Details */}
@@ -665,7 +761,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                   </th>
                   {Object.values(groupedInstruments).flatMap((typeInsts) =>
                     typeInsts.map((inst) => {
-                      const hasFee = parseFloat(inst.outsideFeePerDay || '0') > 0;
+                      const hasFee =
+                        parseFloat(inst.outsideFeePerDay || "0") > 0;
                       return (
                         <th
                           key={inst.id}
@@ -710,15 +807,17 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   }}
                                   disabled={updatingModeId === inst.id}
                                   title={`Admin Quick-Toggle: Click to switch to ${
-                                    inst.bookingMode === 'instant' ? 'Manual Approval' : 'Instant Booking'
+                                    inst.bookingMode === "instant"
+                                      ? "Manual Approval"
+                                      : "Instant Booking"
                                   }`}
                                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
-                                    inst.bookingMode === 'instant'
-                                      ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300'
-                                      : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
-                                  } ${updatingModeId === inst.id ? 'opacity-50 cursor-wait' : ''}`}
+                                    inst.bookingMode === "instant"
+                                      ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300"
+                                      : "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300"
+                                  } ${updatingModeId === inst.id ? "opacity-50 cursor-wait" : ""}`}
                                 >
-                                  {inst.bookingMode === 'instant' ? (
+                                  {inst.bookingMode === "instant" ? (
                                     <>
                                       <Zap className="w-2.5 h-2.5" />
                                       <span>Instant</span>
@@ -733,12 +832,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               ) : (
                                 <span
                                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                                    inst.bookingMode === 'instant'
-                                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                      : 'bg-amber-100 text-amber-900 border border-amber-200'
+                                    inst.bookingMode === "instant"
+                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                      : "bg-amber-100 text-amber-900 border border-amber-200"
                                   }`}
                                 >
-                                  {inst.bookingMode === 'instant' ? (
+                                  {inst.bookingMode === "instant" ? (
                                     <>
                                       <Zap className="w-2.5 h-2.5" />
                                       <span>Instant</span>
@@ -762,7 +861,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                           </div>
                         </th>
                       );
-                    })
+                    }),
                   )}
                 </tr>
               </thead>
@@ -770,20 +869,20 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               {/* TIMELINE BODY (30-minute rows) */}
               <tbody className="divide-y divide-stone-100">
                 {TIME_SLOTS.slice(0, -1).map((slotHhmm) => {
-                  const isHourStart = slotHhmm.endsWith(':00');
+                  const isHourStart = slotHhmm.endsWith(":00");
                   return (
                     <tr
                       key={slotHhmm}
                       className={`hover:bg-amber-50/20 transition-colors ${
-                        isHourStart ? 'bg-stone-50/30' : 'bg-white'
+                        isHourStart ? "bg-stone-50/30" : "bg-white"
                       }`}
                     >
                       {/* Sticky Time Label Column */}
                       <td
                         className={`sticky left-0 z-10 p-2 text-center text-xs font-mono border-r border-stone-200 select-none ${
                           isHourStart
-                            ? 'font-bold text-stone-800 bg-stone-100/90'
-                            : 'text-stone-500 bg-white/90 font-normal'
+                            ? "font-bold text-stone-800 bg-stone-100/90"
+                            : "text-stone-500 bg-white/90 font-normal"
                         }`}
                       >
                         {formatHhmmTo12Hour(slotHhmm)}
@@ -797,11 +896,21 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
                           if (booked) {
                             if (isAdminOrSuperAdmin) {
-                              const slotRes = getSlotReservation(inst.id, slotHhmm);
-                              const reservantKey = slotRes?.userId || slotRes?.userName || slotRes?.id || 'admin-booking';
-                              const colorTheme = getReservantColorTheme(reservantKey);
-                              const reservantName = slotRes?.userName || 'Reservant';
-                              const serviceName = slotRes?.serviceName || 'Reserved Service';
+                              const slotRes = getSlotReservation(
+                                inst.id,
+                                slotHhmm,
+                              );
+                              const reservantKey =
+                                slotRes?.userId ||
+                                slotRes?.userName ||
+                                slotRes?.id ||
+                                "admin-booking";
+                              const colorTheme =
+                                getReservantColorTheme(reservantKey);
+                              const reservantName =
+                                slotRes?.userName || "Reservant";
+                              const serviceName =
+                                slotRes?.serviceName || "Reserved Service";
 
                               return (
                                 <td
@@ -863,7 +972,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                             <td
                               key={`${inst.id}-${slotHhmm}`}
                               id={`slot-free-${inst.id}-${slotHhmm}`}
-                              onClick={() => onSelectSlot(inst, selectedDate, slotHhmm, 1)}
+                              onClick={() =>
+                                onSelectSlot(inst, selectedDate, slotHhmm, 1)
+                              }
                               className="p-1 border-r border-stone-200 cursor-pointer group/cell"
                               title={`Tap to reserve ${inst.name} at ${formatHhmmTo12Hour(slotHhmm)}`}
                             >
@@ -873,7 +984,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               </div>
                             </td>
                           );
-                        })
+                        }),
                       )}
                     </tr>
                   );
