@@ -2668,16 +2668,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
           {activeTab === 'admin_accounts' && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-stone-900 text-sm">Administrator Team & Accounts</h2>
-                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200">
-                      Super Admin Only
+              <div className="w-full border-b border-stone-100 pb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-bold text-stone-900 text-sm sm:text-base">Team & Accounts</h2>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200 whitespace-nowrap">
+                      Admin Only
                     </span>
                   </div>
-                  <p className="text-xs text-stone-500">
-                    Provision new administrative staff accounts or remove administrative credentials.
+                  <p className="mt-1 text-xs text-stone-500 leading-relaxed">
+                    Manage admin accounts and access.
                   </p>
                 </div>
 
@@ -2687,7 +2687,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     setNewAdminForm({ name: '', phoneNumber: '', password: '', isSuperAdmin: false });
                     setShowNewAdminModal(true);
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Add Administrator</span>
