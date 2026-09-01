@@ -93,7 +93,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [reservations, setReservations] = useState<any[]>([]);
   const [loadingReservations, setLoadingReservations] =
     useState<boolean>(false);
-
+  // Dashboard Overview (read-only, today's schedule)
+  const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
+  const [loadingTodaysReservations, setLoadingTodaysReservations] =
+    useState<boolean>(false);
   const [filterQuickTab, setFilterQuickTab] = useState<
     "all" | "today" | "pending"
   >("pending");
@@ -409,6 +412,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Fetch Today's Reservations (Dashboard Overview — read-only)
+  const fetchTodaysReservations = async () => {
+    setLoadingTodaysReservations(true);
+    try {
+      const res = await adminFetch("/reservations?quickTab=today");
+      const data = await res.json();
+      if (data.success) {
+        setTodaysReservations(data.reservations);
+      }
+    } catch {
+      showNotice("Failed to load today's schedule", "error");
+    } finally {
+      setLoadingTodaysReservations(false);
+    }
+  };
+
   // Fetch Instruments
   const fetchInstruments = async () => {
     setLoadingInstruments(true);
@@ -700,7 +719,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Trigger loads on tab switch
   useEffect(() => {
     fetchStats();
-    if (activeTab === "dashboard" || activeTab === "review") {
+    if (activeTab === "dashboard") {
+      fetchTodaysReservations();
+    } else if (activeTab === "review") {
       fetchReservations();
       fetchInstruments();
     } else if (activeTab === "approvals") {
@@ -1681,12 +1702,86 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         {/* Content Area for active tab */}
         <main className="flex-1 min-w-0 space-y-6">
           {/* =============================================================
-              TAB 1 & 2: DASHBOARD & REVIEW REQUESTS
+              TAB 1: DASHBOARD OVERVIEW (read-only)
              ============================================================= */}
-          {(activeTab === "dashboard" || activeTab === "review") && (
+          {activeTab === "dashboard" && (
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                <div>
+                  <h2 className="font-bold text-stone-900 text-sm">
+                    Today's Schedule
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Read-only glance at today's bookings. Use Review Requests to
+                    take action.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchTodaysReservations}
+                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                  title="Refresh today's schedule"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {loadingTodaysReservations ? (
+                <div className="py-12 text-center text-stone-500 text-xs">
+                  Loading today's schedule...
+                </div>
+              ) : todaysReservations.length === 0 ? (
+                <div className="py-12 text-center text-stone-400 text-xs">
+                  No reservations scheduled for today.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {todaysReservations.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold text-stone-900 text-xs truncate">
+                          {r.instrument_name} — {r.service_name}
+                        </div>
+                        <div className="text-[11px] text-stone-500">
+                          {r.user_name || "Member"} ·{" "}
+                          {new Date(r.start_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          -{" "}
+                          {new Date(r.end_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </div>
+                      <span
+                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          r.status === "approved"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : r.status === "pending"
+                              ? "bg-amber-50 text-amber-800 border border-amber-200"
+                              : "bg-stone-100 text-stone-700"
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =============================================================
+              TAB 2: REVIEW REQUESTS (actionable queue)
+             ============================================================= */}
+          {activeTab === "review" && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
-                <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 no-scrollbar">
+                <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1">
                   <button
                     onClick={() => setFilterQuickTab("pending")}
                     className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
@@ -1696,16 +1791,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     Pending ({stats.pendingRequests})
-                  </button>
-                  <button
-                    onClick={() => setFilterQuickTab("today")}
-                    className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      filterQuickTab === "today"
-                        ? "bg-amber-800 text-white shadow-xs"
-                        : "bg-stone-100 text-stone-600 hover:text-stone-900"
-                    }`}
-                  >
-                    Today
                   </button>
                   <button
                     onClick={() => setFilterQuickTab("all")}
@@ -1809,7 +1894,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <tbody className="divide-y divide-stone-100">
                       {reservations.map((r) => {
                         const isPending = r.status === "pending";
-                        const isApproved = r.status === "approved";
                         return (
                           <tr
                             key={r.id}
