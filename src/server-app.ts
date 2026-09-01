@@ -1,9 +1,9 @@
 import express from "express";
-import authRouter from "./server/auth";
-import reservationsRouter from "./server/reservations";
-import instrumentsRouter from "./server/instruments";
-import notificationsRouter from "./server/notifications";
-import adminRouter from "./server/admin";
+import authRouter from "./server/auth.js";
+import reservationsRouter from "./server/reservations.js";
+import instrumentsRouter from "./server/instruments.js";
+import notificationsRouter from "./server/notifications.js";
+import adminRouter from "./server/admin.js";
 
 export function createExpressApp() {
   const app = express();
