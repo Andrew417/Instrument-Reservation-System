@@ -1,6 +1,9 @@
 import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
+import path from 'path';
 
+// Load .env.local first, fallback to .env
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
 const sqlHost = process.env.SQL_HOST;
@@ -13,12 +16,25 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   schemaFilter: ['public'],
-  dbCredentials: {
-    host: sqlHost || '127.0.0.1',
-    user: user || 'postgres',
-    password: password || '',
-    database: sqlDbName || 'postgres',
-    ssl: false,
-  },
+  dbCredentials: sqlHost
+    ? {
+        host: sqlHost,
+        user: user || 'postgres',
+        password: password || '',
+        database: sqlDbName || 'postgres',
+        ssl: false,
+      }
+    : process.env.DATABASE_URL
+    ? {
+        url: process.env.DATABASE_URL,
+      }
+    : {
+        host: '127.0.0.1',
+        user: 'postgres',
+        password: '',
+        database: 'postgres',
+        ssl: false,
+      },
   verbose: true,
 });
+

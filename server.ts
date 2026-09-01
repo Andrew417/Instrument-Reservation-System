@@ -7,16 +7,12 @@ dotenv.config();
 
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
-import authRouter from './src/server/auth.ts';
-import reservationsRouter from './src/server/reservations.ts';
-import instrumentsRouter from './src/server/instruments.ts';
-import notificationsRouter from './src/server/notifications.ts';
-import adminRouter from './src/server/admin.ts';
+import { createExpressApp } from './src/app.ts';
 import { seedSuperAdmin } from './src/db/seed-super-admin.ts';
 import { runStatusTransitions } from './src/services/reservation-logic.ts';
 
-async function startServer() {
-  const app = express();
+export async function createServer() {
+  const app = createExpressApp();
   const PORT = 3000;
 
   // Run Super Admin DB-level idempotent seed on startup
@@ -25,30 +21,6 @@ async function startServer() {
   } catch (err: any) {
     console.error('[Startup Seed Warning]:', err.message || err);
   }
-
-  // Middleware
-  app.use(express.json({ limit: '25mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-
-  // API Routes
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', time: new Date().toISOString() });
-  });
-
-  app.use('/api/auth', authRouter);
-  app.use('/api/reservations', reservationsRouter);
-  app.use('/api/instruments', instrumentsRouter);
-  app.use('/api/notifications', notificationsRouter);
-  app.use('/api/admin', adminRouter);
-
-  // Background status transitions: run every 60 seconds
-  setInterval(async () => {
-    try {
-      await runStatusTransitions();
-    } catch (e) {
-      console.error('Error in status transitions job:', e);
-    }
-  }, 60 * 1000);
 
   // Vite middleware for development vs static build in production
   if (process.env.NODE_ENV !== 'production') {
@@ -65,11 +37,23 @@ async function startServer() {
     });
   }
 
+  return { app, PORT };
+}
+
+// Start listener for local development / Cloud Run environments
+async function startServer() {
+  const { app, PORT } = await createServer();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-});
+// In Node/TS execution, start server
+if (process.env.VERCEL !== '1') {
+  startServer().catch((err) => {
+    console.error('Failed to start server:', err);
+  });
+}
+
+export default createExpressApp;
+

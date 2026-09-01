@@ -9,6 +9,7 @@ import {
   adminApproveSeries,
   adminRejectSeries,
   runStatusTransitions,
+  ensureCurrentReservationStatuses,
   removeInstrumentWithConfirmation,
   evaluateReservationSubmission,
   getHardLimits,
@@ -419,6 +420,9 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
+    // Ensure status transitions are up-to-date in serverless environment
+    await ensureCurrentReservationStatuses().catch(() => {});
+
     const result = await db.execute(sql`
       SELECT 
         r.id,
@@ -471,6 +475,9 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, instrumentId, status, seriesId } = req.query;
+
+    // Ensure status transitions are up-to-date in serverless environment
+    await ensureCurrentReservationStatuses().catch(() => {});
 
     const result = await db.execute(sql`
       SELECT 

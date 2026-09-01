@@ -29,6 +29,7 @@ import {
   createReservation,
   getHardLimits,
   cancelReservation,
+  ensureCurrentReservationStatuses,
 } from '../services/reservation-logic.ts';
 
 const router = Router();
@@ -110,6 +111,9 @@ router.use(requireAdminAuth);
 
 router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void> => {
   try {
+    // Ensure reservation statuses are up-to-date
+    await ensureCurrentReservationStatuses().catch(() => {});
+
     const todayStr = (req.query.date as string) || new Date().toISOString().substring(0, 10);
 
     // 1. Total active instruments
@@ -170,6 +174,9 @@ router.get('/dashboard-stats', async (req: Request, res: Response): Promise<void
  */
 router.get('/reservations', async (req: Request, res: Response): Promise<void> => {
   try {
+    // Ensure reservation statuses are up-to-date
+    await ensureCurrentReservationStatuses().catch(() => {});
+
     const { instrumentId, status, startDate, endDate, userName, search, quickTab } = req.query;
 
     let querySql = sql`
