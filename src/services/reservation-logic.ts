@@ -532,6 +532,7 @@ export async function autoRejectOverlappingPending(
 /**
  * Creates a single reservation end-to-end
  */
+
 export async function createReservation(input: ReservationSubmissionInput) {
   const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
     input.userId,
@@ -618,6 +619,9 @@ export async function createReservation(input: ReservationSubmissionInput) {
       .where(eq(instruments.id, input.instrumentId))
       .limit(1);
 
+    const formattedStartTime = input.startTime;
+    const formattedEndTime = getCairoTimeString(evalResult.endTimeUtc);
+
     await sendSuperAdminNotificationEmail(
       "New Reservation Pending Approval - St. Mark Musicians",
       "New Reservation Request",
@@ -628,7 +632,8 @@ export async function createReservation(input: ReservationSubmissionInput) {
         { label: "Instrument:", value: instrumentRow?.name || "Unknown" },
         { label: "Service:", value: input.serviceName },
         { label: "Date:", value: input.date },
-        { label: "Time:", value: input.startTime },
+        { label: "Start Time", value: formattedStartTime },
+        { label: "End Time", value: formattedEndTime },
         {
           label: "Duration:",
           value: `${input.duration} hour${input.duration === 1 ? "" : "s"}`,
@@ -655,6 +660,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
  * 2. RECURRING SERIES SUBMISSION LOGIC
  * =========================================================================
  */
+
 export async function createReservationSeries(input: SeriesSubmissionInput) {
   const {
     userId,

@@ -159,6 +159,9 @@ function buildAdminNotificationHtml(
             ${rows}
           </table>
           <p class="footer-text">Please log in to the admin portal to review and approve this account.</p>
+          <p style="font-size: 13px; margin-top: 12px;">
+  <a href="${process.env.APP_BASE_URL || "#"}" style="color: #7a5c2e; font-weight: 600;">Open St. Mark Musicians →</a>
+</p>
         </div>
       </body>
     </html>
