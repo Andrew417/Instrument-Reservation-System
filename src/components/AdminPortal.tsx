@@ -2358,55 +2358,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
           {activeTab === "instruments" && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-100 pb-4">
+                <div className="min-w-0">
                   <h2 className="font-bold text-stone-900 text-sm">
                     Church Instruments Inventory
                   </h2>
-                  <p className="text-xs text-stone-500">
+                  <p className="text-xs text-stone-500 mt-0.5">
                     Add, edit specifications, change booking mode, mark retired
                     instruments unavailable, or delete accidental mistaken
-                    entries.{" "}
+                    entries.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    id="btn-refresh-instruments"
-                    type="button"
-                    onClick={() => fetchInstruments()}
-                    disabled={loadingInstruments}
-                    className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-stone-200"
-                    title="Refresh instrument list from database"
-                  >
-                    <RefreshCw
-                      className={`w-3.5 h-3.5 ${loadingInstruments ? "animate-spin" : ""}`}
-                    />
-                    <span>Refresh</span>
-                  </button>
-                  <button
-                    id="btn-add-new-instrument"
-                    onClick={() => {
-                      setEditingInstrument(null);
-                      setInstrumentForm({
-                        name: "",
-                        type: "Keyboards",
-                        photoUrl: "",
-                        description: "",
-                        outsideFeePerDay: "0.00",
-                        bookingMode: "instant",
-                      });
-                      setPhotoUploadError(null);
-                      setShowUrlInput(false);
-                      setShowInstrumentModal(true);
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Instrument</span>
-                  </button>
-                </div>
+                <button
+                  id="btn-add-new-instrument"
+                  onClick={() => {
+                    setEditingInstrument(null);
+                    setInstrumentForm({
+                      name: "",
+                      type: "Keyboards",
+                      photoUrl: "",
+                      description: "",
+                      outsideFeePerDay: "0.00",
+                      bookingMode: "instant",
+                    });
+                    setPhotoUploadError(null);
+                    setShowUrlInput(false);
+                    setShowInstrumentModal(true);
+                  }}
+                  className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
+                  <span>Add Instrument</span>
+                </button>
               </div>
-
               {loadingInstruments ? (
                 <div className="py-12 text-center text-stone-500 text-xs">
                   Loading instruments...
@@ -2431,8 +2415,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             : "bg-white border-stone-200 hover:border-amber-300"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div className="flex items-center gap-3 min-w-0">
                             <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
                               {instPhoto ? (
                                 <img
@@ -2445,16 +2429,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <Music2 className="w-5 h-5 text-amber-800" />
                               )}
                             </div>
-                            <div>
-                              <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                                <span>{inst.name}</span>
+                            <div className="min-w-0">
+                              <div className="font-bold text-stone-900 text-sm flex items-center gap-2 flex-wrap">
+                                <span className="truncate">{inst.name}</span>
                                 {isDecommissioned && (
-                                  <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold">
+                                  <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold shrink-0">
                                     Not Available
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5">
+                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 flex-wrap">
                                 <span>{inst.type}</span>
                                 <span className="text-stone-300">•</span>
                                 <span>
@@ -2466,10 +2450,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </div>
                             </div>
                           </div>
-
+                        </div>
+                        <div className="flex items-center justify-between mt-2 gap-2">
                           <span
                             id={`admin-instrument-mode-badge-${inst.id}`}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
                               isInstant
                                 ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                                 : "bg-amber-50 text-amber-800 border border-amber-200"
@@ -2479,26 +2464,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               ? "⚡ Instant Booking"
                               : "🛡️ Manual Review"}
                           </span>
-                        </div>
-
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-purple-50 text-purple-800 border border-purple-200">
+                            $
+                            {inst.outsideFeePerDay ??
+                              inst.outside_fee_per_day ??
+                              "0.00"}
+                            /day
+                          </span>
+                        </div>{" "}
                         <p className="text-xs text-stone-600 my-3 line-clamp-2">
                           {inst.description ||
                             "No specific description provided."}
                         </p>
-
-                        <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
-                          <div className="text-stone-500 font-medium">
-                            Outside Fee:{" "}
-                            <span className="font-bold text-stone-900">
-                              $
-                              {inst.outsideFeePerDay ??
-                                inst.outside_fee_per_day ??
-                                "0.00"}
-                            </span>{" "}
-                            / day
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
+                        <div className="pt-3 border-t border-stone-100 text-xs">
+                          <div
+                            className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
+                          >
+                            {" "}
                             {!isDecommissioned ? (
                               <>
                                 <button
@@ -2522,11 +2504,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setShowUrlInput(false);
                                     setShowInstrumentModal(true);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2 py-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
                                   title="Edit instrument details"
                                 >
-                                  <Edit className="w-3 h-3" />
-                                  <span>Edit</span>
+                                  <Edit className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Edit</span>
                                 </button>
                                 <button
                                   id={`btn-mark-unavailable-instrument-${inst.id}`}
@@ -2534,11 +2516,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setRemovingInstrument(inst);
                                     setRemoveConfirmForce(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
                                   title="Retire instrument from service (preserves past history)"
                                 >
-                                  <Archive className="w-3 h-3" />
-                                  <span>Mark Unavailable</span>
+                                  <Archive className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Retire</span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -2546,11 +2528,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setDeletingInstrument(inst);
                                     setDeleteConfirmChecked(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
                                   title="Delete mistaken entry permanently from database"
                                 >
-                                  <Trash2 className="w-3 h-3" />
-                                  <span>Delete</span>
+                                  <Trash2 className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Delete</span>
                                 </button>
                               </>
                             ) : (
@@ -2558,11 +2540,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <button
                                   id={`btn-restore-instrument-${inst.id}`}
                                   onClick={() => triggerRestoreInstrument(inst)}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
                                   title="Restore instrument to available status"
                                 >
-                                  <RefreshCw className="w-3 h-3" />
-                                  <span>Mark Available</span>
+                                  <RefreshCw className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Restore</span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -2570,11 +2552,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setDeletingInstrument(inst);
                                     setDeleteConfirmChecked(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
                                   title="Delete mistaken entry permanently from database"
                                 >
-                                  <Trash2 className="w-3 h-3" />
-                                  <span>Delete</span>
+                                  <Trash2 className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">Delete</span>
                                 </button>
                               </>
                             )}
