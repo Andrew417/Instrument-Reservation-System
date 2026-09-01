@@ -83,12 +83,14 @@ The application will start on **`http://localhost:3000`** with full Vite HMR, Ex
 
 ## Available Scripts
 
-| Command | Description |
-| :--- | :--- |
-| `npm run dev` | Starts the unified Express + Vite development server on `http://localhost:3000` |
-| `npm run db:push` | Pushes the Drizzle ORM schema changes directly to PostgreSQL |
-| `npm run db:studio` | Opens Drizzle Studio to inspect and edit database records visually |
-| `npm run seed:admin` | Seeds or updates the Super Admin user in PostgreSQL from environment variables |
-| `npm run lint` | Runs TypeScript type-checking without emitting files (`tsc --noEmit`) |
-| `npm run build` | Compiles the client SPA into `/dist` and bundles the server |
-| `npm start` | Starts the production server bundle |
+| Command              | Description                                                                     |
+| :------------------- | :------------------------------------------------------------------------------ |
+| `npm run dev`        | Starts the unified Express + Vite development server on `http://localhost:3000` |
+| `npm run db:push`    | Pushes the Drizzle ORM schema changes directly to PostgreSQL                    |
+| `npm run db:studio`  | Opens Drizzle Studio to inspect and edit database records visually              |
+| `npm run seed:admin` | Seeds or updates the Super Admin user in PostgreSQL from environment variables  |
+| `npm run lint`       | Runs TypeScript type-checking without emitting files (`tsc --noEmit`)           |
+| `npm run build`      | Compiles the client SPA into `/dist` and bundles the server                     |
+| `npm start`          | Starts the production server bundle                                             |
+
+ready for production
