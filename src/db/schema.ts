@@ -212,6 +212,19 @@ export const paymentSettings = pgTable("payment_settings", {
     .notNull(),
 });
 
+export const notificationSettings = pgTable("notification_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  muteAccountApprovalEmails: boolean("mute_account_approval_emails")
+    .default(false)
+    .notNull(),
+  muteReservationRequestEmails: boolean("mute_reservation_request_emails")
+    .default(false)
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // 10. Trusted Status Audit Log Table
 export const trustedStatusAuditLog = pgTable(
   "trusted_status_audit_log",

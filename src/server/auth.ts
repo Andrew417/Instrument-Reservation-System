@@ -22,6 +22,7 @@ import {
   validateSession,
   destroySession,
 } from "./session-manager.js";
+import { getNotificationSettings } from "../services/reservation-logic.js";
 
 const router = Router();
 
@@ -200,23 +201,26 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       })
       .returning();
 
-    await sendSuperAdminNotificationEmail(
-      "New Member Registration Pending Approval - St. Mark Musicians",
-      "New Member Registration",
-      "A new member has registered and is awaiting your approval.",
-      [
-        { label: "Name:", value: newUser.name },
-        { label: "Email:", value: newUser.email },
-        { label: "Phone:", value: newUser.phoneNumber },
-        {
-          label: "Registered:",
-          value: new Date(newUser.createdAt).toLocaleString("en-US", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }),
-        },
-      ],
-    ).catch(() => {});
+    const notifSettings = await getNotificationSettings();
+    if (!notifSettings.muteAccountApprovalEmails) {
+      await sendSuperAdminNotificationEmail(
+        "New Member Registration Pending Approval - St. Mark Musicians",
+        "New Member Registration",
+        "A new member has registered and is awaiting your approval.",
+        [
+          { label: "Name:", value: newUser.name },
+          { label: "Email:", value: newUser.email },
+          { label: "Phone:", value: newUser.phoneNumber },
+          {
+            label: "Registered:",
+            value: new Date(newUser.createdAt).toLocaleString("en-US", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }),
+          },
+        ],
+      ).catch(() => {});
+    }
 
     // Clear any stale failed attempts for this email
     await db

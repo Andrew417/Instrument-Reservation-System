@@ -13,6 +13,7 @@ import {
   trustedStatusAuditLog,
   messages,
   sessions,
+  notificationSettings,
 } from "../db/schema.js";
 import { eq, and, sql, desc, asc, inArray } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
@@ -35,6 +36,7 @@ import {
   getHardLimits,
   cancelReservation,
   ensureCurrentReservationStatuses,
+  getNotificationSettings,
 } from "../services/reservation-logic.js";
 
 const router = Router();
@@ -1021,6 +1023,35 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+router.get(
+  "/notification-settings",
+  requireSuperAdminAuth,
+  async (_req, res) => {
+    const settings = await getNotificationSettings();
+    res.json({ success: true, settings });
+  },
+);
+
+router.put(
+  "/notification-settings",
+  requireSuperAdminAuth,
+  async (req, res) => {
+    const { muteAccountApprovalEmails, muteReservationRequestEmails } =
+      req.body;
+    const existing = await getNotificationSettings();
+    const [updated] = await db
+      .update(notificationSettings)
+      .set({
+        muteAccountApprovalEmails: Boolean(muteAccountApprovalEmails),
+        muteReservationRequestEmails: Boolean(muteReservationRequestEmails),
+        updatedAt: new Date(),
+      })
+      .where(eq(notificationSettings.id, existing.id))
+      .returning();
+    res.json({ success: true, settings: updated });
+  },
+);
 
 /**
  * Deactivate / Reactivate User Account

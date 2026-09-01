@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   Music2,
+  Bell,
   Users,
   MessageSquare,
   ShieldCheck,
@@ -65,7 +66,8 @@ type AdminTab =
   | "admin_accounts"
   | "trusted_status"
   | "hard_limits"
-  | "payment_settings";
+  | "payment_settings"
+  | "notification_settings";
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   onBackToMemberView,
@@ -303,6 +305,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     bypassHardLimits: false,
   });
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
+
+  // Super Admin: Notification Settings
+  const [notificationSettingsState, setNotificationSettingsState] = useState<{
+    muteAccountApprovalEmails: boolean;
+    muteReservationRequestEmails: boolean;
+  }>({
+    muteAccountApprovalEmails: false,
+    muteReservationRequestEmails: false,
+  });
+  const [savingNotificationSettings, setSavingNotificationSettings] =
+    useState<boolean>(false);
 
   // Super Admin: Payment Settings
   const [paymentSettingsState, setPaymentSettingsState] = useState<{
@@ -674,6 +687,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Fetch Notification Settings (Super Admin)
+  const fetchNotificationSettings = async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const res = await adminFetch("/notification-settings");
+      const data = await res.json();
+      if (data.success && data.settings) {
+        setNotificationSettingsState({
+          muteAccountApprovalEmails: Boolean(
+            data.settings.muteAccountApprovalEmails ??
+            data.settings.mute_account_approval_emails,
+          ),
+          muteReservationRequestEmails: Boolean(
+            data.settings.muteReservationRequestEmails ??
+            data.settings.mute_reservation_request_emails,
+          ),
+        });
+      }
+    } catch {
+      // silent
+    }
+  };
+
   // Fetch Payment Settings (Super Admin)
   const fetchPaymentSettings = async () => {
     if (!isSuperAdmin) return;
@@ -711,10 +747,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } else if (activeTab === "trusted_status") {
       fetchUsers();
       fetchAuditLogs();
-    } else if (activeTab === "hard_limits") {
-      fetchHardLimits();
     } else if (activeTab === "payment_settings") {
       fetchPaymentSettings();
+    } else if (activeTab === "notification_settings") {
+      fetchNotificationSettings();
     } else if (activeTab === "messaging") {
       fetchReservations();
     }
@@ -1299,6 +1335,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Super Admin: Save Notification Settings
+  const handleSaveNotificationSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingNotificationSettings(true);
+    try {
+      const res = await adminFetch("/notification-settings", {
+        method: "PUT",
+        body: JSON.stringify(notificationSettingsState),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice("Notification email settings updated.");
+      } else {
+        showNotice(data.error, "error");
+      }
+    } catch (err: any) {
+      showNotice(err.message, "error");
+    } finally {
+      setSavingNotificationSettings(false);
+    }
+  };
+
   // Super Admin: Save Payment Settings
   const handleSavePaymentSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1646,6 +1704,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <CreditCard className="w-4 h-4 text-amber-800" />
                     <span>Payment Settings</span>
+                  </button>
+                  <button
+                    id="admin-tab-notification-settings"
+                    onClick={() => setActiveTab("notification_settings")}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      activeTab === "notification_settings"
+                        ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
+                        : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
+                    }`}
+                  >
+                    <Bell className="w-4 h-4 text-amber-800" />
+                    <span>Notification Settings</span>
                   </button>
                 </nav>
               </div>
@@ -3350,6 +3420,111 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
                   >
                     {savingPayment ? "Saving..." : "Save Payment Settings"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+          {/* =============================================================
+    SUPER ADMIN TAB 10: NOTIFICATION SETTINGS
+   ============================================================= */}
+          {activeTab === "notification_settings" && isSuperAdmin && (
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="border-b border-stone-100 pb-3">
+                <h2 className="font-bold text-stone-900 text-sm">
+                  Admin Email Notification Settings
+                </h2>
+                <p className="text-xs text-stone-500">
+                  Control which automated emails are sent to the Super Admin
+                  inbox. Muting an email does not affect on-site bell
+                  notifications.
+                </p>
+              </div>
+
+              <form
+                onSubmit={handleSaveNotificationSettings}
+                className="space-y-3"
+              >
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                  <div className="pr-4">
+                    <div className="font-bold text-stone-800 text-xs">
+                      Account Approval Emails
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      Email sent when a new member registers and needs approval.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle account approval emails"
+                    onClick={() =>
+                      setNotificationSettingsState({
+                        ...notificationSettingsState,
+                        muteAccountApprovalEmails:
+                          !notificationSettingsState.muteAccountApprovalEmails,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                      notificationSettingsState.muteAccountApprovalEmails
+                        ? "bg-stone-300"
+                        : "bg-amber-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        notificationSettingsState.muteAccountApprovalEmails
+                          ? "translate-x-1"
+                          : "translate-x-6"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                  <div className="pr-4">
+                    <div className="font-bold text-stone-800 text-xs">
+                      Reservation Request Emails
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      Email sent when a reservation is submitted and requires
+                      manual review.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle reservation request emails"
+                    onClick={() =>
+                      setNotificationSettingsState({
+                        ...notificationSettingsState,
+                        muteReservationRequestEmails:
+                          !notificationSettingsState.muteReservationRequestEmails,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                      notificationSettingsState.muteReservationRequestEmails
+                        ? "bg-stone-300"
+                        : "bg-amber-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        notificationSettingsState.muteReservationRequestEmails
+                          ? "translate-x-1"
+                          : "translate-x-6"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="pt-3 border-t border-stone-100 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingNotificationSettings}
+                    className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                  >
+                    {savingNotificationSettings
+                      ? "Saving..."
+                      : "Save Notification Settings"}
                   </button>
                 </div>
               </form>
