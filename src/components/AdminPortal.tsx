@@ -93,6 +93,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [reservations, setReservations] = useState<any[]>([]);
   const [loadingReservations, setLoadingReservations] =
     useState<boolean>(false);
+
   const [filterQuickTab, setFilterQuickTab] = useState<
     "all" | "today" | "pending"
   >("pending");
@@ -1684,43 +1685,43 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
           {(activeTab === "dashboard" || activeTab === "review") && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-100 pb-3">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
+                <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 no-scrollbar">
                   <button
                     onClick={() => setFilterQuickTab("pending")}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       filterQuickTab === "pending"
                         ? "bg-amber-800 text-white shadow-xs"
                         : "bg-stone-100 text-stone-600 hover:text-stone-900"
                     }`}
                   >
-                    Pending Queue ({stats.pendingRequests})
+                    Pending ({stats.pendingRequests})
                   </button>
                   <button
                     onClick={() => setFilterQuickTab("today")}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       filterQuickTab === "today"
                         ? "bg-amber-800 text-white shadow-xs"
                         : "bg-stone-100 text-stone-600 hover:text-stone-900"
                     }`}
                   >
-                    Today's Schedule
+                    Today
                   </button>
                   <button
                     onClick={() => setFilterQuickTab("all")}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                       filterQuickTab === "all"
                         ? "bg-amber-800 text-white shadow-xs"
                         : "bg-stone-100 text-stone-600 hover:text-stone-900"
                     }`}
                   >
-                    All Reservations
+                    All
                   </button>
                 </div>
 
                 <button
                   onClick={fetchReservations}
-                  className="self-end sm:self-auto p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
                   title="Refresh reservations"
                 >
                   <RefreshCw className="w-4 h-4" />
