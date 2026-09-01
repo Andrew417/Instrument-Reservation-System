@@ -9,6 +9,7 @@ import {
   addDaysToDateString,
   formatDisplayDate,
   formatHhmmTo12Hour,
+  cairoDateTimeToDate,
 } from "../lib/date-utils";
 import {
   Calendar as CalendarIcon,
@@ -304,9 +305,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   // Helper to check if a specific date and time slot is booked
   const isSlotBooked = (dateStr: string, slotHhmm: string) => {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const [h, min] = slotHhmm.split(":").map(Number);
-    const slotStart = new Date(Date.UTC(y, m - 1, d, h, min, 0, 0));
+    const slotStart = cairoDateTimeToDate(dateStr, slotHhmm);
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
 
     return approvedReservations.some((res) => {
@@ -318,9 +317,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   // Helper to retrieve reservation details for a booked slot
   const getSlotReservation = (dateStr: string, slotHhmm: string) => {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const [h, min] = slotHhmm.split(":").map(Number);
-    const slotStart = new Date(Date.UTC(y, m - 1, d, h, min, 0, 0));
+    const slotStart = cairoDateTimeToDate(dateStr, slotHhmm);
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
 
     return approvedReservations.find((res) => {
@@ -970,7 +967,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   {/* Day Headers */}
                   <div className="grid grid-cols-8 border-b border-stone-200 bg-stone-50 text-center text-xs font-bold text-stone-800">
                     <div className="p-2.5 text-stone-400 border-r border-stone-200 text-[11px]">
-                      Time (UTC)
+                      Time
                     </div>
                     {weekDays.map((d) => (
                       <div

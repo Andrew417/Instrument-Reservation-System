@@ -354,7 +354,7 @@ const UserPortalMain: React.FC = () => {
             onOpenNewReservation={() => {
               setSelectedSlot({
                 instrument: allInstruments[0],
-                date: new Date().toISOString().split("T")[0],
+                date: getTodayDateString(),
                 timeHhmm: "10:00",
                 duration: 2,
               });
@@ -363,7 +363,7 @@ const UserPortalMain: React.FC = () => {
               setSeriesPrefill({
                 instrument: allInstruments[0],
                 serviceName: "",
-                date: new Date().toISOString().split("T")[0],
+                date: getTodayDateString(),
                 startTime: "10:00",
                 duration: 2,
                 reservationType: "in_church",

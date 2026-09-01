@@ -5,6 +5,8 @@ import {
   formatDisplayDate,
   formatHhmmTo12Hour,
   getLocalDateString,
+  getCairoDateString,
+  getCairoTimeString,
 } from "../lib/date-utils";
 import {
   Calendar,
@@ -522,12 +524,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 res.reservation_date ||
                 (res.start_time
                   ? String(res.start_time).substring(0, 10)
-                  : getLocalDateString(startUtc));
+                  : getCairoDateString(startUtc));
               const dateStr = formatDisplayDate(dateRaw);
               const timeStr =
                 res.start_hhmm && res.end_hhmm
                   ? `${formatHhmmTo12Hour(res.start_hhmm)} – ${formatHhmmTo12Hour(res.end_hhmm)}`
-                  : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
+                  : `${getCairoTimeString(startUtc)} – ${getCairoTimeString(endUtc)}`;
               const isApproved =
                 res.status === "approved" || res.status === "ongoing";
               const isPending = res.status === "pending";
@@ -758,12 +760,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             occ.reservation_date ||
                             (occ.start_time
                               ? String(occ.start_time).substring(0, 10)
-                              : getLocalDateString(occStart));
+                              : getCairoDateString(occStart));
                           const occDateStr = formatDisplayDate(occRawDate);
                           const occTimeStr =
                             occ.start_hhmm && occ.end_hhmm
                               ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
-                              : `${occStart.toISOString().substring(11, 16)} – ${occEnd.toISOString().substring(11, 16)}`;
+                              : `${getCairoTimeString(occStart)} – ${getCairoTimeString(occEnd)}`;
                           const isOccApproved =
                             occ.status === "approved" ||
                             occ.status === "ongoing";

@@ -24,6 +24,8 @@ import {
   addDaysToDateString,
   parseLocalDate,
   formatDisplayDate,
+  getCairoDateString,
+  getCairoTimeString,
 } from "../lib/date-utils";
 
 export interface Instrument {
@@ -154,8 +156,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const [modeNotice, setModeNotice] = useState<string | null>(null);
   const [updatingModeId, setUpdatingModeId] = useState<string | null>(null);
   const [showHelperText, setShowHelperText] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const dateStripRef = useRef<HTMLDivElement>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (filtersInitialized.current || instruments.length === 0) return;
@@ -439,6 +447,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
     return h * 60 + (m || 0);
   }
+
+  const currentDateCairo = getCairoDateString(currentTime);
+  const currentTimeHhmm = getCairoTimeString(currentTime);
+  const [currentHour, currentMinute] = currentTimeHhmm.split(":").map(Number);
+  const currentMinutesCairo = currentHour * 60 + currentMinute;
+  const currentSlotStartMinutes = Math.floor(currentMinutesCairo / 30) * 30;
+  const currentSlotHhmm =
+    currentMinutesCairo >= 9 * 60 && currentMinutesCairo < 22 * 60
+      ? `${String(Math.floor(currentSlotStartMinutes / 60)).padStart(2, "0")}:${String(currentSlotStartMinutes % 60).padStart(2, "0")}`
+      : null;
 
   const navigateDate = (direction: "prev" | "next") => {
     setSelectedDate((prev) =>
@@ -870,12 +888,15 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               <tbody className="divide-y divide-stone-100">
                 {TIME_SLOTS.slice(0, -1).map((slotHhmm) => {
                   const isHourStart = slotHhmm.endsWith(":00");
+                  const isCurrentSlot =
+                    selectedDate === currentDateCairo &&
+                    slotHhmm === currentSlotHhmm;
                   return (
                     <tr
                       key={slotHhmm}
                       className={`hover:bg-amber-50/20 transition-colors ${
                         isHourStart ? "bg-stone-50/30" : "bg-white"
-                      }`}
+                      } ${isCurrentSlot ? "border-t-2 border-black" : ""}`}
                     >
                       {/* Sticky Time Label Column */}
                       <td
@@ -885,7 +906,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                             : "text-stone-500 bg-white/90 font-normal"
                         }`}
                       >
-                        {formatHhmmTo12Hour(slotHhmm)}
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span>{formatHhmmTo12Hour(slotHhmm)}</span>
+                          {isCurrentSlot && (
+                            <span className="rounded bg-black px-1 py-0.5 text-[9px] font-bold leading-none text-white">
+                              Now {formatHhmmTo12Hour(currentTimeHhmm)}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Instrument Slot Cells */}

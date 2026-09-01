@@ -5,6 +5,8 @@ import {
   formatDisplayDate,
   formatHhmmTo12Hour,
   getLocalDateString,
+  getCairoDateString,
+  getCairoTimeString,
 } from "../lib/date-utils";
 import {
   Calendar,
@@ -314,12 +316,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     reservation.reservation_date ||
     (reservation.start_time
       ? String(reservation.start_time).substring(0, 10)
-      : getLocalDateString(startUtc));
+      : getCairoDateString(startUtc));
   const dateStr = formatDisplayDate(rawDate);
   const timeStr =
     reservation.start_hhmm && reservation.end_hhmm
       ? `${formatHhmmTo12Hour(reservation.start_hhmm)} – ${formatHhmmTo12Hour(reservation.end_hhmm)}`
-      : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
+      : `${getCairoTimeString(startUtc)} – ${getCairoTimeString(endUtc)}`;
   const durationHours = (
     (endUtc.getTime() - startUtc.getTime()) /
     (3600 * 1000)
@@ -510,7 +512,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <div className="text-stone-500 text-[11px]">
                   Duration: {durationHours} hr
                   {Number(durationHours) > 1 ? "s" : ""} (Working Hours: 09:00 -
-                  22:00 UTC)
+                  22:00)
                 </div>
               </div>
             </div>
@@ -782,8 +784,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 max-h-48 overflow-y-auto bg-stone-50/50">
                 {seriesOccurrences.map((occ, idx) => {
                   const occStart = new Date(occ.start_time || occ.startTime);
-                  const occDateStr = occStart.toISOString().split("T")[0];
-                  const occTimeStr = occStart.toISOString().substring(11, 16);
+                  const occDateStr = getCairoDateString(occStart);
+                  const occTimeStr = getCairoTimeString(occStart);
                   const isCurrent = occ.id === reservation.id;
 
                   return (

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Instrument } from './AvailabilityCalendar.tsx';
-import { useAuth } from '../contexts/AuthContext.tsx';
+import React, { useState, useEffect } from "react";
+import { Instrument } from "./AvailabilityCalendar.tsx";
+import { useAuth } from "../contexts/AuthContext.tsx";
 import {
   Calendar,
   Clock,
@@ -17,7 +17,7 @@ import {
   ChevronRight,
   ArrowRight,
   ExternalLink,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface ReservationFormProps {
   initialInstrument: Instrument;
@@ -33,27 +33,48 @@ export interface ReservationFormProps {
     date: string;
     startTime: string;
     duration: number;
-    reservationType: 'in_church' | 'outside_church';
+    reservationType: "in_church" | "outside_church";
   }) => void;
 }
 
 const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
-  '21:00', '21:30'
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
 ];
 
 const DURATION_OPTIONS = [
-  { label: '30 min', value: 0.5 },
-  { label: '1 hour', value: 1 },
-  { label: '1.5 hrs', value: 1.5 },
-  { label: '2 hours', value: 2 },
-  { label: '2.5 hrs', value: 2.5 },
-  { label: '3 hours', value: 3 },
-  { label: '4 hours', value: 4 },
-  { label: '5 hours', value: 5 },
+  { label: "30 min", value: 0.5 },
+  { label: "1 hour", value: 1 },
+  { label: "1.5 hrs", value: 1.5 },
+  { label: "2 hours", value: 2 },
+  { label: "2.5 hrs", value: 2.5 },
+  { label: "3 hours", value: 3 },
+  { label: "4 hours", value: 4 },
+  { label: "5 hours", value: 5 },
 ];
 
 export const ReservationFormModal: React.FC<ReservationFormProps> = ({
@@ -69,12 +90,18 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const { profile, sessionToken } = useAuth();
 
   // Form State
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(initialInstrument.id);
-  const [serviceName, setServiceName] = useState<string>('');
+  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
+    initialInstrument.id,
+  );
+  const [serviceName, setServiceName] = useState<string>("");
   const [date, setDate] = useState<string>(initialDate);
-  const [startTime, setStartTime] = useState<string>(initialTimeHhmm || '10:00');
+  const [startTime, setStartTime] = useState<string>(
+    initialTimeHhmm || "10:00",
+  );
   const [duration, setDuration] = useState<number>(initialDuration);
-  const [reservationType, setReservationType] = useState<'in_church' | 'outside_church'>('in_church');
+  const [reservationType, setReservationType] = useState<
+    "in_church" | "outside_church"
+  >("in_church");
   const [feeAcknowledged, setFeeAcknowledged] = useState<boolean>(false);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
 
@@ -84,7 +111,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const [submissionResult, setSubmissionResult] = useState<{
     reservation: any;
     evaluation: {
-      status: 'approved' | 'pending';
+      status: "approved" | "pending";
       reasons: string[];
       isTrustedOrAdmin: boolean;
       outsideFeeSnapshot: string | null;
@@ -95,20 +122,21 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
   // Find active instrument object
   const currentInstrument =
-    allInstruments.find((i) => i.id === selectedInstrumentId) || initialInstrument;
+    allInstruments.find((i) => i.id === selectedInstrumentId) ||
+    initialInstrument;
 
   // Calculate formatted end time
   const calculateEndTime = () => {
     try {
-      const [h, m] = startTime.split(':').map(Number);
+      const [h, m] = startTime.split(":").map(Number);
       const totalMinutes = h * 60 + m + Math.round(duration * 60);
       const endH = Math.floor(totalMinutes / 60);
       const endM = totalMinutes % 60;
-      const formattedH = String(endH).padStart(2, '0');
-      const formattedM = String(endM).padStart(2, '0');
+      const formattedH = String(endH).padStart(2, "0");
+      const formattedM = String(endM).padStart(2, "0");
       return `${formattedH}:${formattedM}`;
     } catch {
-      return '--:--';
+      return "--:--";
     }
   };
 
@@ -119,17 +147,21 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) {
-      setErrorMsg('You must be signed in to submit a reservation.');
+      setErrorMsg("You must be signed in to submit a reservation.");
       return;
     }
 
     if (!serviceName.trim()) {
-      setErrorMsg('Please specify what this reservation is for (e.g. Sunday Morning Worship, Youth Practice).');
+      setErrorMsg(
+        "Please specify what this reservation is for (e.g. Sunday Morning Worship, Youth Practice).",
+      );
       return;
     }
 
-    if (reservationType === 'outside_church' && !feeAcknowledged) {
-      setErrorMsg('Please acknowledge the outside-church fee agreement before proceeding.');
+    if (reservationType === "outside_church" && !feeAcknowledged) {
+      setErrorMsg(
+        "Please acknowledge the outside-church fee agreement before proceeding.",
+      );
       return;
     }
 
@@ -150,11 +182,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     setErrorMsg(null);
 
     try {
-      const isAdminRole = profile.role === 'admin' || profile.role === 'super_admin';
-      const res = await fetch('/api/reservations', {
-        method: 'POST',
+      const isAdminRole =
+        profile.role === "admin" || profile.role === "super_admin";
+      const res = await fetch("/api/reservations", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
@@ -166,7 +199,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           startTime,
           duration,
           reservationType,
-          feeAcknowledged: reservationType === 'outside_church' ? feeAcknowledged : false,
+          feeAcknowledged:
+            reservationType === "outside_church" ? feeAcknowledged : false,
         }),
       });
 
@@ -174,7 +208,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
       if (!res.ok || !data.success) {
         // Show raw backend error message exactly as returned
-        setErrorMsg(data.error || 'Failed to submit reservation. Please try again.');
+        setErrorMsg(
+          data.error || "Failed to submit reservation. Please try again.",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -186,7 +222,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       setIsSubmitting(false);
       onSuccess(data);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Network error occurred while submitting reservation.');
+      setErrorMsg(
+        err.message || "Network error occurred while submitting reservation.",
+      );
       setIsSubmitting(false);
     }
   };
@@ -208,12 +246,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white leading-tight">
-                {submissionResult ? 'Reservation Confirmation' : 'Reserve Instrument'}
+                {submissionResult
+                  ? "Reservation Confirmation"
+                  : "Reserve Instrument"}
               </h2>
               <p className="text-xs text-stone-400">
                 {submissionResult
-                  ? 'Your reservation request has been processed'
-                  : 'St. Mark Church Sanctuary & Music Ministry'}
+                  ? "Your reservation request has been processed"
+                  : "St. Mark Church Sanctuary & Music Ministry"}
               </p>
             </div>
           </div>
@@ -234,7 +274,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         {submissionResult ? (
           <div className="p-6 sm:p-8 space-y-6">
             {/* Status Hero Card */}
-            {submissionResult.evaluation.status === 'approved' ? (
+            {submissionResult.evaluation.status === "approved" ? (
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-emerald-900 flex items-start gap-4">
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
                   <CheckCircle2 className="w-6 h-6" />
@@ -249,7 +289,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-emerald-800 leading-relaxed">
-                    Your time slot is officially confirmed and locked in the master church calendar.
+                    Your time slot is officially confirmed and locked in the
+                    master church calendar.
                   </p>
                   {submissionResult.evaluation.reasons.length > 0 && (
                     <div className="pt-2 text-[11px] text-emerald-900 font-medium">
@@ -278,17 +319,24 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    This reservation has been queued for admin approval. You will receive an update once a church administrator reviews it.
+                    This reservation has been queued for admin approval. You
+                    will receive an update once a church administrator reviews
+                    it.
                   </p>
 
                   {/* Outside church WhatsApp notification message */}
-                  {((submissionResult.reservation?.reservation_type === 'outside_church') || (submissionResult.reservation?.reservationType === 'outside_church') || reservationType === 'outside_church') && (
+                  {(submissionResult.reservation?.reservation_type ===
+                    "outside_church" ||
+                    submissionResult.reservation?.reservationType ===
+                      "outside_church" ||
+                    reservationType === "outside_church") && (
                     <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2.5">
                       <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
                         WA
                       </div>
                       <p className="leading-relaxed">
-                        If your reservation is approved, the admin will contact you on WhatsApp for confirmation and payment.
+                        If your reservation is approved, the admin will contact
+                        you on WhatsApp for confirmation and payment.
                       </p>
                     </div>
                   )}
@@ -300,12 +348,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         Reason(s) for Manual Review:
                       </div>
                       <div className="space-y-1">
-                        {submissionResult.evaluation.reasons.map((reason, idx) => (
-                          <div key={idx} className="flex items-start gap-1.5 text-xs text-amber-900">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 shrink-0" />
-                            <span>{reason}</span>
-                          </div>
-                        ))}
+                        {submissionResult.evaluation.reasons.map(
+                          (reason, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-start gap-1.5 text-xs text-amber-900"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 shrink-0" />
+                              <span>{reason}</span>
+                            </div>
+                          ),
+                        )}
                       </div>
                     </div>
                   )}
@@ -321,7 +374,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="text-stone-500 font-medium block">Instrument:</span>
+                  <span className="text-stone-500 font-medium block">
+                    Instrument:
+                  </span>
                   <span className="font-bold text-stone-900 text-sm">
                     {currentInstrument.name}
                   </span>
@@ -330,11 +385,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </span>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium block">Reservation Type:</span>
+                  <span className="text-stone-500 font-medium block">
+                    Reservation Type:
+                  </span>
                   <span className="font-bold text-stone-900 capitalize">
-                    {submissionResult.reservation.reservationType === 'in_church'
-                      ? 'In-Church (Free)'
-                      : 'Outside-Church (Paid)'}
+                    {submissionResult.reservation.reservationType ===
+                    "in_church"
+                      ? "In-Church (Free)"
+                      : "Outside-Church (Paid)"}
                   </span>
                   {submissionResult.reservation.feeSnapshot && (
                     <span className="text-[11px] text-purple-700 font-semibold block">
@@ -346,24 +404,30 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
               {/* Service Name / Purpose in Receipt */}
               <div className="pt-2 border-t border-stone-200">
-                <span className="text-stone-500 font-medium block">What this reservation is for:</span>
+                <span className="text-stone-500 font-medium block">
+                  What this reservation is for:
+                </span>
                 <span className="font-bold text-stone-900 text-sm">
-                  {submissionResult.reservation.serviceName || serviceName || 'Not specified'}
+                  {submissionResult.reservation.serviceName ||
+                    serviceName ||
+                    "Not specified"}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200">
                 <div>
-                  <span className="text-stone-500 font-medium block">Date & Time:</span>
-                  <span className="font-semibold text-stone-900">
-                    {date}
+                  <span className="text-stone-500 font-medium block">
+                    Date & Time:
                   </span>
+                  <span className="font-semibold text-stone-900">{date}</span>
                   <span className="text-[11px] text-stone-600 block">
                     {startTime} – {endTimeStr} ({duration}h)
                   </span>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium block">Reservation ID:</span>
+                  <span className="text-stone-500 font-medium block">
+                    Reservation ID:
+                  </span>
                   <span className="font-mono text-[11px] text-stone-600 break-all select-all">
                     {submissionResult.reservation.id}
                   </span>
@@ -395,7 +459,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               >
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                 <div className="space-y-1 text-xs">
-                  <div className="font-bold text-red-950">Submission Blocked</div>
+                  <div className="font-bold text-red-950">
+                    Submission Blocked
+                  </div>
                   <div className="text-red-800 leading-relaxed">{errorMsg}</div>
                 </div>
               </div>
@@ -426,7 +492,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     {currentInstrument.name}
                   </div>
                   <div className="text-[11px] text-stone-500">
-                    {currentInstrument.type} • {currentInstrument.bookingMode === 'instant' ? '⚡ Instant Booking' : '🛡️ Manual Review'}
+                    {currentInstrument.type} •{" "}
+                    {currentInstrument.bookingMode === "instant"
+                      ? "⚡ Instant Booking"
+                      : "🛡️ Manual Review"}
                   </div>
                 </div>
               </div>
@@ -440,7 +509,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 >
                   {allInstruments.map((inst) => (
                     <option key={inst.id} value={inst.id}>
-                      {inst.name} ({inst.type}) — {inst.bookingMode === 'instant' ? 'Instant' : 'Manual'} mode
+                      {inst.name} ({inst.type}) —{" "}
+                      {inst.bookingMode === "instant" ? "Instant" : "Manual"}{" "}
+                      mode
                     </option>
                   ))}
                 </select>
@@ -456,9 +527,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 </span>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold uppercase tracking-wider ${
-                    currentInstrument.bookingMode === 'instant'
-                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                      : 'bg-amber-100 text-amber-900 border border-amber-200'
+                    currentInstrument.bookingMode === "instant"
+                      ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                      : "bg-amber-100 text-amber-900 border border-amber-200"
                   }`}
                 >
                   <Shield className="w-3 h-3" />
@@ -475,8 +546,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
             {/* 2. Purpose / Service Name (Required free-text input) */}
             <div className="space-y-1.5">
-              <label htmlFor="input-service-name" className="block text-xs font-bold text-stone-700">
-                What is this reservation for? <span className="text-amber-800 font-bold">*</span>
+              <label
+                htmlFor="input-service-name"
+                className="block text-xs font-bold text-stone-700"
+              >
+                What is this reservation for?{" "}
+                <span className="text-amber-800 font-bold">*</span>
               </label>
               <input
                 id="input-service-name"
@@ -511,7 +586,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               {/* Start Time Select */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-stone-700">
-                  Start Time (UTC)
+                  Start Time
                 </label>
                 <div className="relative">
                   <select
@@ -522,7 +597,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   >
                     {TIME_SLOTS.map((slot) => (
                       <option key={slot} value={slot}>
-                        {slot} UTC
+                        {slot}
                       </option>
                     ))}
                   </select>
@@ -540,7 +615,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   Duration
                 </label>
                 <span className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg">
-                  {startTime} → {endTimeStr} UTC ({duration}h)
+                  {startTime} → {endTimeStr} ({duration}h)
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2">
@@ -551,8 +626,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     onClick={() => setDuration(opt.value)}
                     className={`py-2 px-2 rounded-xl text-xs font-bold text-center transition cursor-pointer border ${
                       duration === opt.value
-                        ? 'bg-amber-800 text-white border-amber-900 shadow-xs'
-                        : 'bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200'
+                        ? "bg-amber-800 text-white border-amber-900 shadow-xs"
+                        : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
                     }`}
                   >
                     {opt.label}
@@ -573,13 +648,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="button"
                   id="btn-type-in-church"
                   onClick={() => {
-                    setReservationType('in_church');
+                    setReservationType("in_church");
                     setFeeAcknowledged(false);
                   }}
                   className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                    reservationType === 'in_church'
-                      ? 'bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30'
-                      : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-700'
+                    reservationType === "in_church"
+                      ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
+                      : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -591,7 +666,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-500 leading-tight">
-                    For liturgical services, choir practice & rehearsals on premises.
+                    For liturgical services, choir practice & rehearsals on
+                    premises.
                   </p>
                 </button>
 
@@ -599,11 +675,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 <button
                   type="button"
                   id="btn-type-outside-church"
-                  onClick={() => setReservationType('outside_church')}
+                  onClick={() => setReservationType("outside_church")}
                   className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                    reservationType === 'outside_church'
-                      ? 'bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30'
-                      : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-700'
+                    reservationType === "outside_church"
+                      ? "bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30"
+                      : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -621,7 +697,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
 
               {/* Outside Church Fee Notice & Mandatory Acknowledgment Checkbox */}
-              {reservationType === 'outside_church' && (
+              {reservationType === "outside_church" && (
                 <div
                   id="outside-fee-acknowledgment-box"
                   className="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-3 animate-in fade-in"
@@ -633,11 +709,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         Outside-Church Borrowing Policy & Fee
                       </div>
                       <div className="text-purple-900 text-[11px] leading-relaxed">
-                        This instrument has an outside usage fee of{' '}
+                        This instrument has an outside usage fee of{" "}
                         <strong className="font-bold text-purple-950">
                           EGP {feeNumber} per calendar day
                         </strong>
-                        . Outside reservations require return in original condition and admin authorization.
+                        . Outside reservations require return in original
+                        condition and admin authorization.
                       </div>
                     </div>
                   </div>
@@ -651,7 +728,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer"
                     />
                     <span className="text-xs font-semibold text-purple-950">
-                      I acknowledge and accept the outside-church fee of EGP {feeNumber}/day and agree to church equipment care rules.
+                      I acknowledge and accept the outside-church fee of EGP{" "}
+                      {feeNumber}/day and agree to church equipment care rules.
                     </span>
                   </label>
                 </div>
@@ -690,7 +768,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               {isRecurring && (
                 <div className="mt-3 pt-3 border-t border-stone-200 text-xs text-amber-900 bg-amber-50/50 p-2.5 rounded-xl flex items-center justify-between">
                   <span>
-                    Ready to build recurring schedule with live conflict checking.
+                    Ready to build recurring schedule with live conflict
+                    checking.
                   </span>
                   <span className="font-bold text-amber-800 flex items-center gap-1">
                     Series Builder <ArrowRight className="w-3 h-3" />
@@ -715,14 +794,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 disabled={
                   isSubmitting ||
                   !serviceName.trim() ||
-                  (reservationType === 'outside_church' && !feeAcknowledged)
+                  (reservationType === "outside_church" && !feeAcknowledged)
                 }
                 className={`flex-1 py-3 px-6 rounded-2xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${
                   isSubmitting ||
                   !serviceName.trim() ||
-                  (reservationType === 'outside_church' && !feeAcknowledged)
-                    ? 'bg-stone-300 cursor-not-allowed text-stone-500 shadow-none'
-                    : 'bg-amber-800 hover:bg-amber-900 active:scale-[0.99]'
+                  (reservationType === "outside_church" && !feeAcknowledged)
+                    ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
+                    : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
                 }`}
               >
                 {isSubmitting ? (

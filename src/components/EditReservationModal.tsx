@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
-import { getLocalDateString } from "../lib/date-utils";
+import { getCairoDateString, getCairoTimeString } from "../lib/date-utils";
 import {
   Calendar,
   Clock,
@@ -82,10 +82,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     reservation.reservation_date ||
     (reservation.start_time
       ? String(reservation.start_time).substring(0, 10)
-      : getLocalDateString(startUtc));
-  const initialTimeStr =
-    reservation.start_hhmm ||
-    `${String(startUtc.getUTCHours()).padStart(2, "0")}:${String(startUtc.getUTCMinutes()).padStart(2, "0")}`;
+      : getCairoDateString(startUtc));
+  const initialTimeStr = reservation.start_hhmm || getCairoTimeString(startUtc);
   const initialDurationHours = Math.max(
     0.5,
     (endUtc.getTime() - startUtc.getTime()) / (3600 * 1000),
@@ -285,7 +283,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                  Start Time (UTC)
+                  Start Time
                 </label>
                 <select
                   value={startTime}
@@ -294,7 +292,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 >
                   {TIME_SLOTS.map((t) => (
                     <option key={t} value={t}>
-                      {t} UTC
+                      {t}
                     </option>
                   ))}
                 </select>
@@ -302,7 +300,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                  Duration (until {calculateEndTime()} UTC)
+                  Duration (until {calculateEndTime()})
                 </label>
                 <select
                   value={duration}

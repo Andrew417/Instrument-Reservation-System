@@ -4,6 +4,7 @@ import { instruments, reservations } from "../db/schema.js";
 import { eq, and, sql, asc } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
 import { ensureCurrentReservationStatuses } from "../services/reservation-logic.js";
+import { getCairoDateString } from "../lib/date-utils.js";
 
 const router = Router();
 
@@ -222,8 +223,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     try {
       await ensureCurrentReservationStatuses().catch(() => {});
-      const dateStr =
-        (req.query.date as string) || new Date().toISOString().split("T")[0];
+      const dateStr = (req.query.date as string) || getCairoDateString();
 
       // Check if requester is admin or super admin
       const authHeader = req.headers.authorization;
@@ -282,13 +282,13 @@ router.get(
         COALESCE(u.name, a.name, 'Administrator') as user_name,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
-        to_char(lower(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as end_hhmm
+        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing')
-        AND (lower(r.time_range) AT TIME ZONE 'UTC')::date = ${dateStr}::date
+        AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
 
@@ -327,8 +327,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     try {
       await ensureCurrentReservationStatuses().catch(() => {});
-      const dateStr =
-        (req.query.date as string) || new Date().toISOString().split("T")[0];
+      const dateStr = (req.query.date as string) || getCairoDateString();
 
       const authHeader = req.headers.authorization;
       const token = authHeader?.startsWith("Bearer ")
@@ -384,13 +383,13 @@ router.get(
         COALESCE(u.name, a.name, 'Administrator') as user_name,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
-        to_char(lower(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'UTC', 'HH24:MI') as end_hhmm
+        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing')
-        AND (lower(r.time_range) AT TIME ZONE 'UTC')::date = ${dateStr}::date
+        AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
 

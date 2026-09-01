@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext.tsx';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext.tsx";
 import {
   Bell,
   CheckCircle2,
@@ -15,7 +15,7 @@ import {
   Music2,
   RefreshCw,
   Info,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface AppNotification {
   id: string;
@@ -47,15 +47,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [filter, setFilter] = useState<'all' | 'unread' | 'approvals' | 'rejections' | 'messages'>('all');
+  const [filter, setFilter] = useState<
+    "all" | "unread" | "approvals" | "rejections" | "messages"
+  >("all");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/notifications', {
+      const res = await fetch("/api/notifications", {
         headers: {
-          Authorization: `Bearer ${sessionToken || ''}`,
+          Authorization: `Bearer ${sessionToken || ""}`,
         },
       });
       const data = await res.json();
@@ -66,7 +68,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         }
       }
     } catch (e: any) {
-      console.warn('Error fetching notifications:', e.message);
+      console.warn("Error fetching notifications:", e.message);
     } finally {
       setLoading(false);
     }
@@ -82,9 +84,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/notifications', {
+        const res = await fetch("/api/notifications", {
           headers: {
-            Authorization: `Bearer ${sessionToken || ''}`,
+            Authorization: `Bearer ${sessionToken || ""}`,
           },
         });
         const data = await res.json();
@@ -103,33 +105,33 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     if (e) e.stopPropagation();
     try {
       await fetch(`/api/notifications/${id}/read`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${sessionToken || ''}`,
+          Authorization: `Bearer ${sessionToken || ""}`,
         },
       });
 
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
       );
 
       const remainingUnread = notifications.filter(
-        (n) => n.id !== id && !n.is_read
+        (n) => n.id !== id && !n.is_read,
       ).length;
       if (onUnreadCountChange) {
         onUnreadCountChange(remainingUnread);
       }
     } catch (e: any) {
-      console.warn('Could not mark notification as read:', e.message);
+      console.warn("Could not mark notification as read:", e.message);
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
-      await fetch('/api/notifications/mark-all-read', {
-        method: 'POST',
+      await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${sessionToken || ''}`,
+          Authorization: `Bearer ${sessionToken || ""}`,
         },
       });
 
@@ -137,10 +139,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       if (onUnreadCountChange) {
         onUnreadCountChange(0);
       }
-      setActionNotice('All notifications marked as read');
+      setActionNotice("All notifications marked as read");
       setTimeout(() => setActionNotice(null), 3000);
     } catch (e: any) {
-      console.warn('Could not mark all as read:', e.message);
+      console.warn("Could not mark all as read:", e.message);
     }
   };
 
@@ -159,62 +161,62 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const filteredNotifications = notifications.filter((n) => {
-    if (filter === 'unread') return !n.is_read;
-    if (filter === 'approvals') return n.type === 'reservation_approved';
-    if (filter === 'rejections')
+    if (filter === "unread") return !n.is_read;
+    if (filter === "approvals") return n.type === "reservation_approved";
+    if (filter === "rejections")
       return (
-        n.type === 'reservation_rejected' ||
-        n.type === 'reservation_auto_rejected' ||
-        n.type === 'series_rejected' ||
-        n.type === 'instrument_removed_cancellation'
+        n.type === "reservation_rejected" ||
+        n.type === "reservation_auto_rejected" ||
+        n.type === "series_rejected" ||
+        n.type === "instrument_removed_cancellation"
       );
-    if (filter === 'messages') return n.type === 'admin_message';
+    if (filter === "messages") return n.type === "admin_message";
     return true;
   });
 
   const getNotificationVisuals = (notif: AppNotification) => {
     switch (notif.type) {
-      case 'reservation_approved':
+      case "reservation_approved":
         return {
           icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
-          badgeBg: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-          typeLabel: 'Reservation Approved',
-          accentBorder: 'border-emerald-500',
+          badgeBg: "bg-emerald-50 border-emerald-200 text-emerald-900",
+          typeLabel: "Reservation Approved",
+          accentBorder: "border-emerald-500",
         };
-      case 'reservation_rejected':
+      case "reservation_rejected":
         return {
           icon: <XCircle className="w-5 h-5 text-red-600 shrink-0" />,
-          badgeBg: 'bg-red-50 border-red-200 text-red-900',
-          typeLabel: 'Reservation Rejected',
-          accentBorder: 'border-red-500',
+          badgeBg: "bg-red-50 border-red-200 text-red-900",
+          typeLabel: "Reservation Rejected",
+          accentBorder: "border-red-500",
         };
-      case 'reservation_auto_rejected':
+      case "reservation_auto_rejected":
         return {
           icon: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
-          badgeBg: 'bg-amber-50 border-amber-200 text-amber-900',
-          typeLabel: 'Auto-Rejected (Conflict)',
-          accentBorder: 'border-amber-500',
+          badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
+          typeLabel: "Auto-Rejected (Conflict)",
+          accentBorder: "border-amber-500",
         };
-      case 'instrument_removed_cancellation':
+      case "instrument_removed_cancellation":
         return {
           icon: <Wrench className="w-5 h-5 text-stone-600 shrink-0" />,
-          badgeBg: 'bg-stone-100 border-stone-300 text-stone-900',
-          typeLabel: 'Instrument Removed',
-          accentBorder: 'border-stone-500',
+          badgeBg: "bg-stone-100 border-stone-300 text-stone-900",
+          typeLabel: "Instrument Removed",
+          accentBorder: "border-stone-500",
         };
-      case 'admin_message':
+      case "admin_message":
         return {
           icon: <MessageSquare className="w-5 h-5 text-indigo-600 shrink-0" />,
-          badgeBg: 'bg-indigo-50 border-indigo-200 text-indigo-900',
-          typeLabel: 'Admin Message',
-          accentBorder: 'border-indigo-500',
+          badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
+          typeLabel: "Admin Message",
+          accentBorder: "border-indigo-500",
         };
       default:
         return {
           icon: <Info className="w-5 h-5 text-stone-600 shrink-0" />,
-          badgeBg: 'bg-stone-50 border-stone-200 text-stone-900',
-          typeLabel: 'Notification',
-          accentBorder: 'border-stone-300',
+          badgeBg: "bg-stone-50 border-stone-200 text-stone-900",
+          typeLabel: "Notification",
+          accentBorder: "border-stone-300",
         };
     }
   };
@@ -225,10 +227,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       const now = new Date();
       const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
 
-      if (diffSec < 60) return 'Just now';
+      if (diffSec < 60) return "Just now";
       if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
       if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-      return `${d.toISOString().substring(0, 10)} ${d.toISOString().substring(11, 16)} UTC`;
+      return d.toLocaleString("en-GB", {
+        timeZone: "Africa/Cairo",
+        dateStyle: "short",
+        timeStyle: "short",
+      });
     } catch {
       return dateString;
     }
@@ -258,12 +264,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">Notifications</h2>
+                <h2 className="text-base font-bold text-white">
+                  Notifications
+                </h2>
               </div>
               <p className="text-xs text-stone-400">
                 {unreadCount > 0
-                  ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
-                  : 'All caught up'}
+                  ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
+                  : "All caught up"}
               </p>
             </div>
           </div>
@@ -304,55 +312,55 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
             <button
               type="button"
-              onClick={() => setFilter('all')}
+              onClick={() => setFilter("all")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                filter === 'all'
-                  ? 'bg-stone-900 text-white shadow-2xs'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                filter === "all"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
               All ({notifications.length})
             </button>
             <button
               type="button"
-              onClick={() => setFilter('unread')}
+              onClick={() => setFilter("unread")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                filter === 'unread'
-                  ? 'bg-stone-900 text-white shadow-2xs'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                filter === "unread"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
               Unread ({unreadCount})
             </button>
             <button
               type="button"
-              onClick={() => setFilter('approvals')}
+              onClick={() => setFilter("approvals")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                filter === 'approvals'
-                  ? 'bg-stone-900 text-white shadow-2xs'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                filter === "approvals"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
               Approvals
             </button>
             <button
               type="button"
-              onClick={() => setFilter('rejections')}
+              onClick={() => setFilter("rejections")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                filter === 'rejections'
-                  ? 'bg-stone-900 text-white shadow-2xs'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                filter === "rejections"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
               Rejections & Conflicts
             </button>
             <button
               type="button"
-              onClick={() => setFilter('messages')}
+              onClick={() => setFilter("messages")}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-                filter === 'messages'
-                  ? 'bg-stone-900 text-white shadow-2xs'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-100'
+                filter === "messages"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
               Admin Messages
@@ -366,7 +374,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
               title="Refresh"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+              />
             </button>
           </div>
         </div>
@@ -385,12 +395,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-bold text-stone-900">
-                  {filter === 'unread' ? 'No unread notifications' : 'No notifications found'}
+                  {filter === "unread"
+                    ? "No unread notifications"
+                    : "No notifications found"}
                 </h3>
                 <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                  {filter === 'unread'
+                  {filter === "unread"
                     ? "You've read all your notifications. Switch filter to 'All' to review past updates."
-                    : 'System alerts for approved requests, rejections, admin notes, and changes will appear here.'}
+                    : "System alerts for approved requests, rejections, admin notes, and changes will appear here."}
                 </p>
               </div>
             </div>
@@ -406,8 +418,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   onClick={() => handleNotificationClick(notif)}
                   className={`group relative rounded-2xl p-4 transition border shadow-2xs cursor-pointer ${
                     notif.is_read
-                      ? 'bg-white hover:bg-stone-50 border-stone-200'
-                      : 'bg-white hover:bg-amber-50/40 border-amber-300 ring-1 ring-amber-200/50'
+                      ? "bg-white hover:bg-stone-50 border-stone-200"
+                      : "bg-white hover:bg-amber-50/40 border-amber-300 ring-1 ring-amber-200/50"
                   }`}
                 >
                   <div className="flex items-start gap-3.5">
@@ -438,7 +450,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                       {/* Primary Message */}
                       <p
                         className={`text-xs leading-relaxed ${
-                          notif.is_read ? 'text-stone-700' : 'text-stone-900 font-medium'
+                          notif.is_read
+                            ? "text-stone-700"
+                            : "text-stone-900 font-medium"
                         }`}
                       >
                         {notif.message}
@@ -450,7 +464,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           <div className="flex items-center gap-2 min-w-0">
                             <Music2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                             <span className="font-semibold text-stone-900 truncate">
-                              {notif.service_name || 'Reservation'}
+                              {notif.service_name || "Reservation"}
                             </span>
                             {notif.instrument_name && (
                               <span className="text-stone-500 text-[11px] truncate hidden sm:inline">

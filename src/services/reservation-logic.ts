@@ -9,6 +9,12 @@ import {
   hardLimits,
 } from "../db/schema.js";
 import { eq, and, sql, inArray, gte, lte, desc } from "drizzle-orm";
+import {
+  cairoDateTimeToDate,
+  getCairoDateString,
+  getCairoParts,
+  getCairoTimeString,
+} from "../lib/date-utils.js";
 
 export interface TimeSlot {
   date: string; // 'YYYY-MM-DD'
@@ -50,7 +56,7 @@ export interface EvaluationResult {
 }
 
 /**
- * Parses date ('YYYY-MM-DD') and time ('HH:mm') into UTC Date objects,
+ * Parses date ('YYYY-MM-DD') and time ('HH:mm') into Cairo-time Date objects,
  * and formats the PostgreSQL tstzrange string.
  */
 export function buildTimeRange(
@@ -75,7 +81,7 @@ export function buildTimeRange(
     throw new Error("Duration must be greater than 0.");
   }
 
-  const start = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+  const start = cairoDateTimeToDate(date, startTime);
   const end = new Date(start.getTime() + Math.round(duration * 3600 * 1000));
 
   const startIso = start.toISOString();
@@ -87,14 +93,16 @@ export function buildTimeRange(
 
 /**
  * 1. Working Hours Check:
- * Must be strictly within 09:00:00 - 22:00:00 UTC on the same calendar day.
+ * Must be strictly within 09:00:00 - 22:00:00 Cairo time on the same calendar day.
  */
 export function validateWorkingHours(start: Date, end: Date) {
-  const startHour = start.getUTCHours() + start.getUTCMinutes() / 60;
-  const endHour = end.getUTCHours() + end.getUTCMinutes() / 60;
+  const startCairo = getCairoParts(start);
+  const endCairo = getCairoParts(end);
+  const startHour = startCairo.hour + startCairo.minute / 60;
+  const endHour = endCairo.hour + endCairo.minute / 60;
 
-  const startDay = `${start.getUTCFullYear()}-${start.getUTCMonth()}-${start.getUTCDate()}`;
-  const endDay = `${end.getUTCFullYear()}-${end.getUTCMonth()}-${end.getUTCDate()}`;
+  const startDay = `${startCairo.year}-${startCairo.month}-${startCairo.day}`;
+  const endDay = `${endCairo.year}-${endCairo.month}-${endCairo.day}`;
 
   if (startDay !== endDay) {
     throw new Error("Reservation cannot span multiple calendar days.");
@@ -106,7 +114,7 @@ export function validateWorkingHours(start: Date, end: Date) {
 
   if (startHour < 9 || endHour > 22 || startHour >= endHour) {
     throw new Error(
-      `Reservation time (${start.toISOString().substring(11, 16)} - ${end.toISOString().substring(11, 16)}) falls outside working hours (09:00 - 22:00 UTC).`,
+      `Reservation time (${String(startCairo.hour).padStart(2, "0")}:${String(startCairo.minute).padStart(2, "0")} - ${String(endCairo.hour).padStart(2, "0")}:${String(endCairo.minute).padStart(2, "0")}) falls outside working hours (09:00 - 22:00 Cairo time).`,
     );
   }
 
@@ -406,14 +414,14 @@ export async function evaluateReservationSubmission(
 
       // Check 5b: max_reservations_per_day
       if (cleanUserId) {
-        const dateStr = start.toISOString().substring(0, 10);
+        const dateStr = getCairoDateString(start);
         const dayRes = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(reservations)
           .where(
             sql`${reservations.userId} = ${cleanUserId}
               AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
-              AND (lower(${reservations.timeRange}) AT TIME ZONE 'UTC')::date = ${dateStr}::date`,
+              AND (lower(${reservations.timeRange}) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date`,
           );
 
         const dayCount = Number(dayRes[0]?.count || 0);
@@ -579,7 +587,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
         userId: cleanUserId,
         reservationId: newReservation.id,
         type: "reservation_approved",
-        message: `Your reservation on ${input.date} (${input.startTime} - ${evalResult.endTimeUtc.toISOString().substring(11, 16)} UTC) has been approved.`,
+        message: `Your reservation on ${input.date} (${input.startTime} - ${getCairoTimeString(evalResult.endTimeUtc)}) has been approved.`,
       });
     }
   } else if (cleanUserId) {
