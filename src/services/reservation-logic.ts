@@ -1,4 +1,4 @@
-import { db, pool } from "../db/index";
+import { db, pool } from "../db/index.js";
 import {
   users,
   admins,
@@ -7,7 +7,7 @@ import {
   reservationSeries,
   notifications,
   hardLimits,
-} from "../db/schema";
+} from "../db/schema.js";
 import { eq, and, sql, inArray, gte, lte, desc } from "drizzle-orm";
 
 export interface TimeSlot {

@@ -2,25 +2,25 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
-import { db } from "../db/index";
+import { db } from "../db/index.js";
 import {
   users,
   admins,
   failedLoginAttempts,
   passwordResetOtps,
   sessions,
-} from "../db/schema";
+} from "../db/schema.js";
 import { eq, and, gt, desc } from "drizzle-orm";
 import {
   normalizeEmail,
   normalizePhoneNumber,
   isValidEmail,
-} from "../lib/auth-helpers";
+} from "../lib/auth-helpers.js";
 import {
   createSession,
   validateSession,
   destroySession,
-} from "./session-manager";
+} from "./session-manager.js";
 
 const router = Router();
 
@@ -159,29 +159,23 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
     if (existingUser) {
       if (existingUser.approvalStatus === "pending") {
-        res
-          .status(409)
-          .json({
-            error:
-              "An account with this email has already registered and is currently awaiting admin approval.",
-          });
+        res.status(409).json({
+          error:
+            "An account with this email has already registered and is currently awaiting admin approval.",
+        });
         return;
       }
       if (existingUser.approvalStatus === "rejected") {
-        res
-          .status(409)
-          .json({
-            error:
-              "An account with this email was previously reviewed and not approved. Please contact church administration.",
-          });
+        res.status(409).json({
+          error:
+            "An account with this email was previously reviewed and not approved. Please contact church administration.",
+        });
         return;
       }
-      res
-        .status(409)
-        .json({
-          error:
-            "An account with this email is already registered. Please log in.",
-        });
+      res.status(409).json({
+        error:
+          "An account with this email is already registered. Please log in.",
+      });
       return;
     }
 
@@ -193,12 +187,10 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       .limit(1);
 
     if (existingAdmin) {
-      res
-        .status(409)
-        .json({
-          error:
-            "An account with this email is already registered. Please log in.",
-        });
+      res.status(409).json({
+        error:
+          "An account with this email is already registered. Please log in.",
+      });
       return;
     }
 
@@ -238,12 +230,10 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     console.error("Error during registration:", error);
     if (error.code === "23505") {
-      res
-        .status(409)
-        .json({
-          error:
-            "An account with this email is already registered. Please log in.",
-        });
+      res.status(409).json({
+        error:
+          "An account with this email is already registered. Please log in.",
+      });
       return;
     }
     res.status(500).json({ error: "Failed to create user account" });
@@ -606,12 +596,10 @@ router.post(
         .limit(1);
 
       if (!u && !a) {
-        res
-          .status(404)
-          .json({
-            error:
-              "No church member or administrator account found with this email address.",
-          });
+        res.status(404).json({
+          error:
+            "No church member or administrator account found with this email address.",
+        });
         return;
       }
 
@@ -836,12 +824,10 @@ router.post(
         .limit(1);
 
       if (!record) {
-        res
-          .status(400)
-          .json({
-            error:
-              "Verification code has expired or is invalid. Please request a new code.",
-          });
+        res.status(400).json({
+          error:
+            "Verification code has expired or is invalid. Please request a new code.",
+        });
         return;
       }
 
@@ -849,12 +835,10 @@ router.post(
         await db
           .delete(passwordResetOtps)
           .where(eq(passwordResetOtps.id, record.id));
-        res
-          .status(429)
-          .json({
-            error:
-              "Too many incorrect attempts. Please request a new verification code.",
-          });
+        res.status(429).json({
+          error:
+            "Too many incorrect attempts. Please request a new verification code.",
+        });
         return;
       }
 
@@ -906,12 +890,10 @@ router.post(
       const newPassword = req.body.newPassword;
 
       if (!rawEmail || !resetToken || !newPassword) {
-        res
-          .status(400)
-          .json({
-            error:
-              "Email address, verification token, and new password are required",
-          });
+        res.status(400).json({
+          error:
+            "Email address, verification token, and new password are required",
+        });
         return;
       }
 
@@ -939,12 +921,10 @@ router.post(
         .limit(1);
 
       if (!record) {
-        res
-          .status(400)
-          .json({
-            error:
-              "Reset session has expired or is invalid. Please request a new code.",
-          });
+        res.status(400).json({
+          error:
+            "Reset session has expired or is invalid. Please request a new code.",
+        });
         return;
       }
 

@@ -1,9 +1,9 @@
 import crypto from "crypto";
-import { db } from "../db/index";
-import { sessions, users, admins } from "../db/schema";
+import { db } from "../db/index.js";
+import { sessions, users, admins } from "../db/schema.js";
 import { eq, and, gt, sql } from "drizzle-orm";
 import { Request, Response, NextFunction } from "express";
-import { pool } from "../db/index";
+import { pool } from "../db/index.js";
 
 // Inactivity timeout: 30 minutes of no user activity
 export const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;

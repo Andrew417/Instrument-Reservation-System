@@ -7,8 +7,8 @@ dotenv.config();
 
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db } from "./index";
-import { admins } from "./schema";
+import { db } from "./index.js";
+import { admins } from "./schema.js";
 
 /**
  * Seed Super Admin account directly at the database level.

@@ -13,8 +13,8 @@ import {
   removeInstrumentWithConfirmation,
   evaluateReservationSubmission,
   getHardLimits,
-} from "../services/reservation-logic";
-import { db } from "../db/index";
+} from "../services/reservation-logic.js";
+import { db } from "../db/index.js";
 import {
   instruments,
   reservations,
@@ -23,9 +23,9 @@ import {
   users,
   admins,
   messages,
-} from "../db/schema";
+} from "../db/schema.js";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
-import { validateSession } from "./session-manager";
+import { validateSession } from "./session-manager.js";
 
 const router = Router();
 
@@ -98,12 +98,10 @@ router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
 router.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.body.serviceName || !req.body.serviceName.trim()) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          error: "What this reservation is for (service_name) is required.",
-        });
+      res.status(400).json({
+        success: false,
+        error: "What this reservation is for (service_name) is required.",
+      });
       return;
     }
     const sessionIdentity = await extractSessionIdentity(req);
@@ -128,13 +126,11 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 router.post("/series", async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.body.serviceName || !req.body.serviceName.trim()) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          error:
-            "What this reservation is for (service_name) is required for the series.",
-        });
+      res.status(400).json({
+        success: false,
+        error:
+          "What this reservation is for (service_name) is required for the series.",
+      });
       return;
     }
     const sessionIdentity = await extractSessionIdentity(req);
