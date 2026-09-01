@@ -1,4 +1,5 @@
 import { db, pool } from "../db/index.js";
+import { sendSuperAdminNotificationEmail } from "../lib/mailer.js";
 import {
   users,
   admins,
@@ -604,6 +605,43 @@ export async function createReservation(input: ReservationSubmissionInput) {
       type: "reservation_submitted",
       message: pendingMsg,
     });
+
+    const [requester] = await db
+      .select({ name: users.name, phoneNumber: users.phoneNumber })
+      .from(users)
+      .where(eq(users.id, cleanUserId))
+      .limit(1);
+
+    const [instrumentRow] = await db
+      .select({ name: instruments.name })
+      .from(instruments)
+      .where(eq(instruments.id, input.instrumentId))
+      .limit(1);
+
+    await sendSuperAdminNotificationEmail(
+      "New Reservation Pending Approval - St. Mark Musicians",
+      "New Reservation Request",
+      "A reservation request is awaiting your approval.",
+      [
+        { label: "Requested by:", value: requester?.name || "Unknown" },
+        { label: "Phone:", value: requester?.phoneNumber || "N/A" },
+        { label: "Instrument:", value: instrumentRow?.name || "Unknown" },
+        { label: "Service:", value: input.serviceName },
+        { label: "Date:", value: input.date },
+        { label: "Time:", value: input.startTime },
+        {
+          label: "Duration:",
+          value: `${input.duration} hour${input.duration === 1 ? "" : "s"}`,
+        },
+        {
+          label: "Type:",
+          value:
+            input.reservationType === "outside_church"
+              ? "Outside Church"
+              : "In-Church",
+        },
+      ],
+    ).catch(() => {});
   }
 
   return {

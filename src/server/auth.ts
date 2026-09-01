@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db } from "../db/index.js";
+import { sendSuperAdminNotificationEmail } from "../lib/mailer.js";
 import { sendOtpEmail } from "../lib/mailer.js";
 import {
   users,
@@ -198,6 +199,24 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
         approvalStatus: "pending",
       })
       .returning();
+
+    await sendSuperAdminNotificationEmail(
+      "New Member Registration Pending Approval - St. Mark Musicians",
+      "New Member Registration",
+      "A new member has registered and is awaiting your approval.",
+      [
+        { label: "Name:", value: newUser.name },
+        { label: "Email:", value: newUser.email },
+        { label: "Phone:", value: newUser.phoneNumber },
+        {
+          label: "Registered:",
+          value: new Date(newUser.createdAt).toLocaleString("en-US", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        },
+      ],
+    ).catch(() => {});
 
     // Clear any stale failed attempts for this email
     await db
