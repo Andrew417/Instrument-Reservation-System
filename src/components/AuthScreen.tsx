@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext.tsx';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext.tsx";
 import {
   Lock,
   Mail,
@@ -15,31 +15,41 @@ import {
   Church,
   CheckCircle2,
   RefreshCw,
-} from 'lucide-react';
+} from "lucide-react";
 
 export const AuthScreen: React.FC = () => {
-  const { loginWithEmail, registerWithEmail, error, clearError, isLocked, lockRemainingSeconds } =
-    useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const {
+    loginWithEmail,
+    registerWithEmail,
+    error,
+    clearError,
+    isLocked,
+    lockRemainingSeconds,
+  } = useAuth();
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Forgot Password Modal State
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  const [resetStep, setResetStep] = useState<'request' | 'verify' | 'new_password' | 'success'>('request');
-  const [resetEmail, setResetEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [resetStep, setResetStep] = useState<
+    "request" | "verify" | "new_password" | "success"
+  >("request");
+  const [resetEmail, setResetEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [testModeActive, setTestModeActive] = useState(false);
   const [simulatedCode, setSimulatedCode] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
-  const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
+  const [registrationNotice, setRegistrationNotice] = useState<string | null>(
+    null,
+  );
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   // Countdown timer for OTP resend cooldown
@@ -56,14 +66,17 @@ export const AuthScreen: React.FC = () => {
     if (submitting || isLocked) return;
     setSubmitting(true);
     try {
-      if (mode === 'login') {
+      if (mode === "login") {
         await loginWithEmail(email, password);
       } else {
         const res = await registerWithEmail(name, email, phoneNumber, password);
         if (res && res.pendingApproval) {
-          setRegistrationNotice(res.message || 'Your account is awaiting admin approval before you can log in.');
-          setMode('login');
-          setPassword('');
+          setRegistrationNotice(
+            res.message ||
+              "Your account is awaiting admin approval before you can log in.",
+          );
+          setMode("login");
+          setPassword("");
         }
       }
     } catch {
@@ -74,14 +87,14 @@ export const AuthScreen: React.FC = () => {
   };
 
   const openForgotPassword = () => {
-    setResetEmail(email || '');
-    setResetStep('request');
-    setOtpCode('');
+    setResetEmail(email || "");
+    setResetStep("request");
+    setOtpCode("");
     setTestModeActive(false);
     setSimulatedCode(null);
     setResetToken(null);
-    setNewPassword('');
-    setConfirmPassword('');
+    setNewPassword("");
+    setConfirmPassword("");
     setResetError(null);
     setResendCooldown(0);
     setShowForgotPasswordModal(true);
@@ -95,9 +108,9 @@ export const AuthScreen: React.FC = () => {
     setResetError(null);
 
     try {
-      const res = await fetch('/api/auth/forgot-password/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/forgot-password/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail }),
       });
 
@@ -106,16 +119,16 @@ export const AuthScreen: React.FC = () => {
         if (res.status === 429 && data.retryAfterSeconds) {
           setResendCooldown(data.retryAfterSeconds);
         }
-        setResetError(data.error || 'Failed to request verification code');
+        setResetError(data.error || "Failed to request verification code");
         return;
       }
 
       setResendCooldown(60); // 60s rate limit countdown
       setTestModeActive(Boolean(data.testMode));
       setSimulatedCode(data.testOtpCode || null);
-      setResetStep('verify');
+      setResetStep("verify");
     } catch (err: any) {
-      setResetError(err.message || 'Network error requesting OTP');
+      setResetError(err.message || "Network error requesting OTP");
     } finally {
       setResetLoading(false);
     }
@@ -128,9 +141,9 @@ export const AuthScreen: React.FC = () => {
     setResetError(null);
 
     try {
-      const res = await fetch('/api/auth/forgot-password/resend-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/forgot-password/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail }),
       });
 
@@ -139,16 +152,16 @@ export const AuthScreen: React.FC = () => {
         if (res.status === 429 && data.retryAfterSeconds) {
           setResendCooldown(data.retryAfterSeconds);
         }
-        setResetError(data.error || 'Failed to resend verification code');
+        setResetError(data.error || "Failed to resend verification code");
         return;
       }
 
       setResendCooldown(60);
       setTestModeActive(Boolean(data.testMode));
       setSimulatedCode(data.testOtpCode || null);
-      setOtpCode('');
+      setOtpCode("");
     } catch (err: any) {
-      setResetError(err.message || 'Network error resending OTP');
+      setResetError(err.message || "Network error resending OTP");
     } finally {
       setResetLoading(false);
     }
@@ -162,22 +175,22 @@ export const AuthScreen: React.FC = () => {
     setResetError(null);
 
     try {
-      const res = await fetch('/api/auth/forgot-password/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/forgot-password/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail, otp: otpCode }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setResetError(data.error || 'Invalid verification code');
+        setResetError(data.error || "Invalid verification code");
         return;
       }
 
       setResetToken(data.resetToken);
-      setResetStep('new_password');
+      setResetStep("new_password");
     } catch (err: any) {
-      setResetError(err.message || 'Network error verifying OTP');
+      setResetError(err.message || "Network error verifying OTP");
     } finally {
       setResetLoading(false);
     }
@@ -187,15 +200,15 @@ export const AuthScreen: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      setResetError('Password must be at least 6 characters long');
+      setResetError("Password must be at least 6 characters long");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setResetError('Passwords do not match');
+      setResetError("Passwords do not match");
       return;
     }
     if (!resetToken) {
-      setResetError('Verification session expired. Please request a new OTP.');
+      setResetError("Verification session expired. Please request a new OTP.");
       return;
     }
 
@@ -203,9 +216,9 @@ export const AuthScreen: React.FC = () => {
     setResetError(null);
 
     try {
-      const res = await fetch('/api/auth/forgot-password/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/forgot-password/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: resetEmail,
           resetToken,
@@ -215,17 +228,17 @@ export const AuthScreen: React.FC = () => {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setResetError(data.error || 'Failed to reset password');
+        setResetError(data.error || "Failed to reset password");
         return;
       }
 
-      setResetStep('success');
+      setResetStep("success");
       setEmail(resetEmail);
-      setPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err: any) {
-      setResetError(err.message || 'Network error setting new password');
+      setResetError(err.message || "Network error setting new password");
     } finally {
       setResetLoading(false);
     }
@@ -234,7 +247,7 @@ export const AuthScreen: React.FC = () => {
   const formatLockTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const s = secs % 60;
-    return `${mins}:${s < 10 ? '0' : ''}${s}`;
+    return `${mins}:${s < 10 ? "0" : ""}${s}`;
   };
 
   return (
@@ -244,14 +257,18 @@ export const AuthScreen: React.FC = () => {
     >
       {/* Brand Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold text-xl shadow-md border border-amber-900/40">
-          <Church className="w-6 h-6" />
-        </div>
+        <img
+          src="/logo.png"
+          alt="St. Mark Music & Instruments"
+          className="w-11 h-11 rounded-2xl object-cover shadow-md border border-amber-900/40"
+        />
         <div>
           <h2 className="text-xl font-bold tracking-tight text-stone-900">
             St. Mark Music & Instruments
           </h2>
-          <p className="text-xs text-stone-600 font-medium">Church Reservation Portal</p>
+          <p className="text-xs text-stone-600 font-medium">
+            Church Reservation Portal
+          </p>
         </div>
       </div>
 
@@ -265,12 +282,12 @@ export const AuthScreen: React.FC = () => {
             <KeyRound className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">
-            {mode === 'login' ? 'Sign In' : 'Create an Account'}
+            {mode === "login" ? "Sign In" : "Create an Account"}
           </h1>
           <p className="text-xs text-stone-500 mt-1">
-            {mode === 'login'
-              ? 'Access church instrument schedules with your email and password'
-              : 'Register with your email and contact information to request instruments'}
+            {mode === "login"
+              ? "Access church instrument schedules with your email and password"
+              : "Register with your email and contact information to request instruments"}
           </p>
         </div>
 
@@ -284,12 +301,12 @@ export const AuthScreen: React.FC = () => {
             type="button"
             onClick={() => {
               clearError();
-              setMode('login');
+              setMode("login");
             }}
             className={`py-2 text-center rounded-lg transition-all cursor-pointer ${
-              mode === 'login'
-                ? 'bg-white text-stone-900 shadow-xs font-bold'
-                : 'text-stone-600 hover:text-stone-900'
+              mode === "login"
+                ? "bg-white text-stone-900 shadow-xs font-bold"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
             Sign In
@@ -300,12 +317,12 @@ export const AuthScreen: React.FC = () => {
             onClick={() => {
               clearError();
               setRegistrationNotice(null);
-              setMode('register');
+              setMode("register");
             }}
             className={`py-2 text-center rounded-lg transition-all cursor-pointer ${
-              mode === 'register'
-                ? 'bg-white text-stone-900 shadow-xs font-bold'
-                : 'text-stone-600 hover:text-stone-900'
+              mode === "register"
+                ? "bg-white text-stone-900 shadow-xs font-bold"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
             New Registration
@@ -320,12 +337,15 @@ export const AuthScreen: React.FC = () => {
           >
             <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <div className="font-bold text-amber-900 text-sm">Registration Submitted</div>
+              <div className="font-bold text-amber-900 text-sm">
+                Registration Submitted
+              </div>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed">
                 {registrationNotice}
               </p>
               <div className="text-[11px] text-amber-700 mt-1.5 font-medium">
-                Church leadership has been notified. Once approved, you can sign in directly with your email and password.
+                Church leadership has been notified. Once approved, you can sign
+                in directly with your email and password.
               </div>
             </div>
           </div>
@@ -339,14 +359,18 @@ export const AuthScreen: React.FC = () => {
           >
             <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <div className="font-bold text-red-900 text-sm">Account Temporarily Locked</div>
+              <div className="font-bold text-red-900 text-sm">
+                Account Temporarily Locked
+              </div>
               <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
-                5 consecutive failed login attempts detected. For security, logins for this account
-                are locked for 15 minutes.
+                5 consecutive failed login attempts detected. For security,
+                logins for this account are locked for 15 minutes.
               </p>
               <div className="flex items-center gap-2 font-mono text-sm font-bold text-red-900 mt-2 bg-red-100 px-3 py-1.5 rounded-lg w-fit border border-red-200">
                 <Clock className="w-4 h-4 text-red-700" />
-                <span>Lockout expires in: {formatLockTime(lockRemainingSeconds)}</span>
+                <span>
+                  Lockout expires in: {formatLockTime(lockRemainingSeconds)}
+                </span>
               </div>
             </div>
           </div>
@@ -365,7 +389,7 @@ export const AuthScreen: React.FC = () => {
 
         {/* Auth Form */}
         <form id="auth-form" onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'register' && (
+          {mode === "register" && (
             <div>
               <label
                 htmlFor="register-name-input"
@@ -415,7 +439,7 @@ export const AuthScreen: React.FC = () => {
           </div>
 
           {/* Phone Number Field (Required for Registration) */}
-          {mode === 'register' && (
+          {mode === "register" && (
             <div>
               <label
                 htmlFor="register-phone-input"
@@ -449,7 +473,7 @@ export const AuthScreen: React.FC = () => {
               >
                 Password
               </label>
-              {mode === 'login' && (
+              {mode === "login" && (
                 <button
                   id="btn-forgot-password"
                   type="button"
@@ -487,7 +511,9 @@ export const AuthScreen: React.FC = () => {
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                <span>{mode === 'login' ? 'Sign In' : 'Complete Registration'}</span>
+                <span>
+                  {mode === "login" ? "Sign In" : "Complete Registration"}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -518,8 +544,12 @@ export const AuthScreen: React.FC = () => {
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-stone-900">Reset Account Password</h3>
-                  <p className="text-xs text-stone-500">Email Verification Code (Resend)</p>
+                  <h3 className="text-base font-bold text-stone-900">
+                    Reset Account Password
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Email Verification Code (Resend)
+                  </p>
                 </div>
               </div>
               <button
@@ -540,10 +570,11 @@ export const AuthScreen: React.FC = () => {
             )}
 
             {/* STEP 1: Request OTP by Email */}
-            {resetStep === 'request' && (
+            {resetStep === "request" && (
               <form onSubmit={handleRequestOtp} className="space-y-4">
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  Enter your registered account email. A 6-digit one-time verification code (OTP) will be dispatched to your inbox.
+                  Enter your registered account email. A 6-digit one-time
+                  verification code (OTP) will be dispatched to your inbox.
                 </p>
 
                 <div>
@@ -585,7 +616,7 @@ export const AuthScreen: React.FC = () => {
             )}
 
             {/* STEP 2: Verify OTP */}
-            {resetStep === 'verify' && (
+            {resetStep === "verify" && (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
                 {/* TEST MODE BANNER */}
                 {testModeActive && (
@@ -597,11 +628,14 @@ export const AuthScreen: React.FC = () => {
                       <span>Simulated Email OTP</span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-normal">
-                      RESEND_API_KEY is not set or in test mode. The generated verification code for <strong className="font-semibold">{resetEmail}</strong> is:
+                      RESEND_API_KEY is not set or in test mode. The generated
+                      verification code for{" "}
+                      <strong className="font-semibold">{resetEmail}</strong>{" "}
+                      is:
                     </p>
                     <div className="flex items-center justify-center bg-white border border-amber-300 px-3 py-1.5 rounded-lg">
                       <span className="font-mono text-base font-bold tracking-widest text-amber-950">
-                        {simulatedCode || '123456'}
+                        {simulatedCode || "123456"}
                       </span>
                     </div>
                   </div>
@@ -618,8 +652,14 @@ export const AuthScreen: React.FC = () => {
                       disabled={resetLoading || resendCooldown > 0}
                       className="text-xs text-amber-800 hover:underline flex items-center gap-1 cursor-pointer font-medium disabled:opacity-50 disabled:no-underline"
                     >
-                      <RefreshCw className={`w-3 h-3 ${resetLoading ? 'animate-spin' : ''}`} />
-                      <span>{resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend Code'}</span>
+                      <RefreshCw
+                        className={`w-3 h-3 ${resetLoading ? "animate-spin" : ""}`}
+                      />
+                      <span>
+                        {resendCooldown > 0
+                          ? `Resend (${resendCooldown}s)`
+                          : "Resend Code"}
+                      </span>
                     </button>
                   </div>
                   <input
@@ -629,7 +669,9 @@ export const AuthScreen: React.FC = () => {
                     maxLength={6}
                     placeholder="123456"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) =>
+                      setOtpCode(e.target.value.replace(/\D/g, ""))
+                    }
                     className="w-full text-center font-mono text-xl tracking-widest py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
                   />
                   <p className="text-[11px] text-stone-500 mt-1 text-center">
@@ -640,7 +682,7 @@ export const AuthScreen: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setResetStep('request')}
+                    onClick={() => setResetStep("request")}
                     className="py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl transition cursor-pointer"
                   >
                     Back
@@ -665,10 +707,11 @@ export const AuthScreen: React.FC = () => {
             )}
 
             {/* STEP 3: Set New Password */}
-            {resetStep === 'new_password' && (
+            {resetStep === "new_password" && (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  Verification successful. Choose a new secure password for your account (minimum 6 characters).
+                  Verification successful. Choose a new secure password for your
+                  account (minimum 6 characters).
                 </p>
 
                 <div>
@@ -714,7 +757,11 @@ export const AuthScreen: React.FC = () => {
                 <button
                   id="btn-save-new-password"
                   type="submit"
-                  disabled={resetLoading || newPassword.length < 6 || newPassword !== confirmPassword}
+                  disabled={
+                    resetLoading ||
+                    newPassword.length < 6 ||
+                    newPassword !== confirmPassword
+                  }
                   className="w-full py-2.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {resetLoading ? (
@@ -730,20 +777,23 @@ export const AuthScreen: React.FC = () => {
             )}
 
             {/* STEP 4: Success */}
-            {resetStep === 'success' && (
+            {resetStep === "success" && (
               <div className="text-center py-2">
                 <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center mx-auto mb-3">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
-                <h4 className="text-base font-bold text-stone-900 mb-1">Password Reset Complete</h4>
+                <h4 className="text-base font-bold text-stone-900 mb-1">
+                  Password Reset Complete
+                </h4>
                 <p className="text-xs text-stone-600 mb-5 leading-relaxed">
-                  Your password has been securely updated. You can now sign in immediately.
+                  Your password has been securely updated. You can now sign in
+                  immediately.
                 </p>
                 <button
                   id="btn-done-reset"
                   onClick={() => {
                     setShowForgotPasswordModal(false);
-                    setMode('login');
+                    setMode("login");
                   }}
                   className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition cursor-pointer"
                 >
