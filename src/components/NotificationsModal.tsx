@@ -12,9 +12,7 @@ import {
   ChevronRight,
   X,
   Clock,
-  Calendar,
   Music2,
-  Trash2,
   RefreshCw,
   Info,
 } from 'lucide-react';
@@ -50,6 +48,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'approvals' | 'rejections' | 'messages'>('all');
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const fetchNotifications = async () => {
     try {
@@ -138,6 +137,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       if (onUnreadCountChange) {
         onUnreadCountChange(0);
       }
+      setActionNotice('All notifications marked as read');
+      setTimeout(() => setActionNotice(null), 3000);
     } catch (e: any) {
       console.warn('Could not mark all as read:', e.message);
     }
@@ -227,7 +228,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       if (diffSec < 60) return 'Just now';
       if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
       if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
-      return `${d.toISOString().substring(0, 10)} ${d.toISOString().substring(11, 16)}`;
+      return `${d.toISOString().substring(0, 10)} ${d.toISOString().substring(11, 16)} UTC`;
     } catch {
       return dateString;
     }
@@ -256,7 +257,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               )}
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Notifications</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white">Notifications</h2>
+              </div>
               <p className="text-xs text-stone-400">
                 {unreadCount > 0
                   ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
@@ -287,6 +290,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Action Notice Bar */}
+        {actionNotice && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 text-xs text-amber-900 font-semibold flex items-center justify-between shrink-0 animate-in fade-in">
+            <span>{actionNotice}</span>
+            <Check className="w-4 h-4 text-amber-700" />
+          </div>
+        )}
 
         {/* Filter Bar */}
         <div className="px-6 py-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
@@ -348,14 +359,16 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={fetchNotifications}
-            className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2 ml-auto">
+            <button
+              type="button"
+              onClick={fetchNotifications}
+              className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Notifications List Body */}
@@ -447,7 +460,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1 text-amber-900 font-bold text-[11px] shrink-0">
-                            <span>Open Detail</span>
+                            <span>View Details</span>
                             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>

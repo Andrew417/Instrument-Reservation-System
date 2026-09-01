@@ -16,7 +16,7 @@ import {
 } from '../db/schema.ts';
 import { eq, and, sql, desc, asc, inArray } from 'drizzle-orm';
 import { validateSession } from './session-manager.ts';
-import { normalizePhoneNumber } from '../lib/auth-helpers.ts';
+import { normalizePhoneNumber, normalizeEmail, isValidEmail } from '../lib/auth-helpers.ts';
 import {
   adminApproveReservation,
   adminRejectReservation,
@@ -744,6 +744,7 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
       SELECT 
         u.id,
         u.name,
+        u.email,
         u.phone_number,
         u.is_trusted,
         u.is_active,
@@ -771,7 +772,7 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
 
     if (search && typeof search === 'string' && search.trim()) {
       const term = `%${search.trim()}%`;
-      querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.phone_number ILIKE ${term})`;
+      querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.email ILIKE ${term} OR u.phone_number ILIKE ${term})`;
     }
 
     querySql = sql`${querySql} GROUP BY u.id ORDER BY u.created_at DESC`;
@@ -836,6 +837,7 @@ router.get('/approvals', async (req: Request, res: Response): Promise<void> => {
       SELECT 
         u.id,
         u.name,
+        u.email,
         u.phone_number,
         u.is_trusted,
         u.is_active,
@@ -857,7 +859,7 @@ router.get('/approvals', async (req: Request, res: Response): Promise<void> => {
 
     if (search && typeof search === 'string' && search.trim()) {
       const term = `%${search.trim()}%`;
-      querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.phone_number ILIKE ${term})`;
+      querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.email ILIKE ${term} OR u.phone_number ILIKE ${term})`;
     }
 
     querySql = sql`${querySql} GROUP BY u.id ORDER BY u.created_at DESC`;
@@ -1175,6 +1177,7 @@ router.post('/users/:userId/promote', requireSuperAdminAuth, async (req: Request
       .insert(admins)
       .values({
         name: user.name,
+        email: user.email,
         phoneNumber: user.phoneNumber,
         passwordHash: user.passwordHash,
         isSuperAdmin: false,
@@ -1224,6 +1227,7 @@ router.post('/admins/:adminId/demote', requireSuperAdminAuth, async (req: Reques
         .insert(users)
         .values({
           name: admin.name,
+          email: admin.email,
           phoneNumber: admin.phoneNumber,
           passwordHash: admin.passwordHash,
           isTrusted: false,
@@ -1255,7 +1259,7 @@ router.post('/admins/:adminId/demote', requireSuperAdminAuth, async (req: Reques
 router.get('/admins', requireSuperAdminAuth, async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.execute(sql`
-      SELECT id, name, phone_number, is_super_admin, role, approval_status, created_at 
+      SELECT id, name, email, phone_number, is_super_admin, role, approval_status, created_at 
       FROM admins 
       ORDER BY is_super_admin DESC, created_at ASC
     `);
@@ -1271,10 +1275,15 @@ router.get('/admins', requireSuperAdminAuth, async (_req: Request, res: Response
  */
 router.post('/admins', requireSuperAdminAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, phoneNumber, password, isSuperAdmin } = req.body;
+    const { name, email, phoneNumber, password, isSuperAdmin } = req.body;
 
     if (!name || !name.trim()) {
       res.status(400).json({ success: false, error: 'Administrator name is required.' });
+      return;
+    }
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+      res.status(400).json({ success: false, error: 'Valid administrator email address is required.' });
       return;
     }
     if (!phoneNumber) {
@@ -1288,10 +1297,10 @@ router.post('/admins', requireSuperAdminAuth, async (req: Request, res: Response
 
     const normalized = normalizePhoneNumber(phoneNumber);
 
-    // Check duplicate
-    const [existing] = await db.select({ id: admins.id }).from(admins).where(eq(admins.phoneNumber, normalized)).limit(1);
+    // Check duplicate by email
+    const [existing] = await db.select({ id: admins.id }).from(admins).where(eq(admins.email, normalizedEmail)).limit(1);
     if (existing) {
-      res.status(409).json({ success: false, error: 'An admin account with this phone number already exists.' });
+      res.status(409).json({ success: false, error: 'An admin account with this email address already exists.' });
       return;
     }
 
@@ -1301,6 +1310,7 @@ router.post('/admins', requireSuperAdminAuth, async (req: Request, res: Response
       .insert(admins)
       .values({
         name: name.trim(),
+        email: normalizedEmail,
         phoneNumber: normalized,
         passwordHash,
         isSuperAdmin: Boolean(isSuperAdmin),
@@ -1314,6 +1324,7 @@ router.post('/admins', requireSuperAdminAuth, async (req: Request, res: Response
       admin: {
         id: newAdmin.id,
         name: newAdmin.name,
+        email: newAdmin.email,
         phoneNumber: newAdmin.phoneNumber,
         isSuperAdmin: newAdmin.isSuperAdmin,
         role: newAdmin.role,

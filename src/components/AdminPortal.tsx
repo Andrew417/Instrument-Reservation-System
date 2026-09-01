@@ -99,17 +99,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
-  // Bulk reservation actions
-  const [selectedReservationIds, setSelectedReservationIds] = useState<Set<string>>(new Set());
-  const [selectAllVisible, setSelectAllVisible] = useState<boolean>(false);
-  const [bulkActionModal, setBulkActionModal] = useState<{
-    isOpen: boolean;
-    action: 'cancel' | 'delete' | null;
-    count: number;
-    submitting: boolean;
-    confirmInput?: string;
-  } | null>(null);
-
   // Instruments
   const [instrumentsList, setInstrumentsList] = useState<any[]>([]);
   const [loadingInstruments, setLoadingInstruments] = useState<boolean>(false);
@@ -266,6 +255,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [showNewAdminModal, setShowNewAdminModal] = useState<boolean>(false);
   const [newAdminForm, setNewAdminForm] = useState({
     name: '',
+    email: '',
     phoneNumber: '',
     password: '',
     isSuperAdmin: false,
@@ -283,7 +273,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     maxConcurrentPerType: 2,
     maxSeriesOccurrences: 8,
     maxSubmissionsPerHour: 10,
-    bypassHardLimits: false,
   });
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
 
@@ -313,6 +302,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     reason: string;
     submitting: boolean;
   } | null>(null);
+
+  // Selected reservations for multi-select bulk actions
+  const [selectedReservationIds, setSelectedReservationIds] = useState<string[]>([]);
 
   // In-App Confirmation Modal State (Replaces blocked window.confirm)
   const [confirmModal, setConfirmModal] = useState<{
@@ -533,7 +525,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setConfirmModal({
       isOpen: true,
       title: `Permanently Delete ${user.name}?`,
-      description: `This will permanently remove ${user.name} (${user.phoneNumber}) from the database. Use this ONLY for correcting mistaken entries or typos. This action cannot be undone.`,
+      description: `This will permanently remove ${user.name} (${user.phoneNumber || user.phone_number}) from the database. Use this ONLY for correcting mistaken entries or typos. This action cannot be undone.`,
       confirmLabel: 'Delete Permanently',
       isDestructive: true,
       onConfirm: async () => {
@@ -586,7 +578,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         maxConcurrentPerType: 2,
         maxSeriesOccurrences: 8,
         maxSubmissionsPerHour: 10,
-        bypassHardLimits: false,
       };
     }
     return {
@@ -597,7 +588,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       maxConcurrentPerType: Number(limits.maxConcurrentPerType ?? limits.max_concurrent_per_type ?? 2),
       maxSeriesOccurrences: Number(limits.maxSeriesOccurrences ?? limits.max_series_occurrences ?? 8),
       maxSubmissionsPerHour: Number(limits.maxSubmissionsPerHour ?? limits.max_submissions_per_hour ?? 10),
-      bypassHardLimits: Boolean(limits.bypassHardLimits ?? limits.bypass_hard_limits ?? false),
     };
   };
 
@@ -793,90 +783,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     openRejectModal({ ...r, isSeriesReject: true });
   };
 
-  // Bulk reservation actions
-  const toggleReservationSelection = (reservationId: string) => {
-    const newSelected = new Set(selectedReservationIds);
-    if (newSelected.has(reservationId)) {
-      newSelected.delete(reservationId);
-    } else {
-      newSelected.add(reservationId);
-    }
-    setSelectedReservationIds(newSelected);
-    setSelectAllVisible(newSelected.size === reservations.length && reservations.length > 0);
-  };
-
-  const toggleSelectAllVisible = () => {
-    if (selectAllVisible || selectedReservationIds.size === 0) {
-      // Deselect all
-      setSelectedReservationIds(new Set());
-      setSelectAllVisible(false);
-    } else {
-      // Select all visible
-      const allIds = new Set(reservations.map((r) => r.id));
-      setSelectedReservationIds(allIds);
-      setSelectAllVisible(true);
-    }
-  };
-
-  const handleBulkCancel = () => {
-    if (selectedReservationIds.size === 0) return;
-    setBulkActionModal({
-      isOpen: true,
-      action: 'cancel',
-      count: selectedReservationIds.size,
-      submitting: false,
-    });
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedReservationIds.size === 0) return;
-    setBulkActionModal({
-      isOpen: true,
-      action: 'delete',
-      count: selectedReservationIds.size,
-      submitting: false,
-      confirmInput: '',
-    });
-  };
-
-  const submitBulkAction = async () => {
-    if (!bulkActionModal || !bulkActionModal.action) return;
-
-    const ids = Array.from(selectedReservationIds);
-
-    setBulkActionModal((prev) => (prev ? { ...prev, submitting: true } : null));
-
-    try {
-      const endpoint =
-        bulkActionModal.action === 'cancel' ? '/reservations/bulk-cancel' : '/reservations/bulk-delete';
-
-      const res = await adminFetch(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({ ids }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        const actionText = bulkActionModal.action === 'cancel' ? 'cancelled' : 'deleted';
-        showNotice(
-          `${selectedReservationIds.size} reservation(s) ${actionText} and members notified.`
-        );
-        setSelectedReservationIds(new Set());
-        setSelectAllVisible(false);
-        setBulkActionModal(null);
-        fetchReservations();
-        fetchStats();
-      } else {
-        showNotice(data.error || `Failed to ${bulkActionModal.action} reservations`, 'error');
-        setBulkActionModal((prev) => (prev ? { ...prev, submitting: false } : null));
-      }
-    } catch (err: any) {
-      showNotice(err.message || `Error during bulk ${bulkActionModal.action}`, 'error');
-      setBulkActionModal((prev) => (prev ? { ...prev, submitting: false } : null));
-    }
-  };
-
   // Instrument CRUD
   const handleSaveInstrument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1065,6 +971,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       if (data.success) {
         showNotice('Message sent to member and recorded on reservation.');
         setMessageText('');
+        setSelectedMsgReservation(null);
       } else {
         showNotice(data.error, 'error');
       }
@@ -1121,7 +1028,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       if (data.success) {
         showNotice('Administrator account created successfully.');
         setShowNewAdminModal(false);
-        setNewAdminForm({ name: '', phoneNumber: '', password: '', isSuperAdmin: false });
+        setNewAdminForm({ name: '', email: '', phoneNumber: '', password: '', isSuperAdmin: false });
         fetchAdmins();
       } else {
         showNotice(data.error || 'Failed to create admin', 'error');
@@ -1129,62 +1036,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } catch (err: any) {
       showNotice(err.message, 'error');
     }
-  };
-
-  // Super Admin: Promote user to admin
-  const handlePromoteToAdmin = (userId: string, userName: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Promote member to administrator',
-      description: `Promote "${userName}" to an administrative account? Their reservation history will be preserved under the new admin identity.`,
-      confirmLabel: 'Promote to Admin',
-      isDestructive: false,
-      onConfirm: async () => {
-        try {
-          const res = await adminFetch(`/users/${userId}/promote`, { method: 'POST' });
-          const data = await res.json();
-          if (data.success) {
-            showNotice(data.message || 'Member promoted to administrator.');
-            await fetchUsers();
-            await fetchAdmins();
-          } else {
-            showNotice(data.error || 'Failed to promote member', 'error');
-          }
-        } catch (err: any) {
-          showNotice(err.message, 'error');
-        } finally {
-          setConfirmModal(null);
-        }
-      },
-    });
-  };
-
-  // Super Admin: Demote admin to regular member
-  const handleDemoteAdmin = (adminId: string, adminName: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Demote administrator to regular member',
-      description: `Convert "${adminName}" back to a regular church member? Their admin permissions will be removed and reservations will be reassigned to their member record.`,
-      confirmLabel: 'Demote to Member',
-      isDestructive: true,
-      onConfirm: async () => {
-        try {
-          const res = await adminFetch(`/admins/${adminId}/demote`, { method: 'POST' });
-          const data = await res.json();
-          if (data.success) {
-            showNotice(data.message || 'Administrator demoted successfully.');
-            await fetchUsers();
-            await fetchAdmins();
-          } else {
-            showNotice(data.error || 'Failed to demote administrator', 'error');
-          }
-        } catch (err: any) {
-          showNotice(err.message, 'error');
-        } finally {
-          setConfirmModal(null);
-        }
-      },
-    });
   };
 
   // Super Admin: Remove Admin Account
@@ -1254,14 +1105,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         maxConcurrentPerType: Number(hardLimitsState.maxConcurrentPerType) || 1,
         maxSeriesOccurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
         maxSubmissionsPerHour: Number(hardLimitsState.maxSubmissionsPerHour) || 5,
-        bypassHardLimits: Boolean(hardLimitsState.bypassHardLimits),
         max_active_reservations: Number(hardLimitsState.maxActiveReservations) || 1,
         max_reservations_per_day: Number(hardLimitsState.maxReservationsPerDay) || 1,
         max_duration_hours: Number(hardLimitsState.maxDurationHours) || 1,
         max_concurrent_per_type: Number(hardLimitsState.maxConcurrentPerType) || 1,
         max_series_occurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
         max_submissions_per_hour: Number(hardLimitsState.maxSubmissionsPerHour) || 5,
-        bypass_hard_limits: Boolean(hardLimitsState.bypassHardLimits),
       };
       const res = await adminFetch('/hard-limits', {
         method: 'PUT',
@@ -1340,30 +1189,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       )}
 
       {/* Top Section Header Card */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-3.5 shadow-2xs flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          {onBackToMemberView && (
-            <button
-              id="btn-return-member-view"
-              type="button"
-              onClick={onBackToMemberView}
-              className="p-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer flex-shrink-0"
-              title="Return to Availability Calendar"
+      <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-stone-900 leading-tight">
+              {isSuperAdmin ? 'Super Administrator Console' : 'Administration & Operations'}
+            </h1>
+            <span
+              className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
+                isSuperAdmin
+                  ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                  : 'bg-stone-100 text-stone-700 border border-stone-200'
+              }`}
             >
-              <ArrowRight className="w-4 h-4 rotate-180" />
-            </button>
-          )}
-          <h1 className="text-lg font-bold text-stone-900 truncate">Admin Console</h1>
-          <span
-            className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 ${
-              isSuperAdmin
-                ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                : 'bg-stone-100 text-stone-700 border border-stone-200'
-            }`}
-          >
-            {isSuperAdmin ? 'Super Admin' : 'Admin'}
-          </span>
+              {isSuperAdmin ? 'Super Admin' : 'Admin'}
+            </span>
+          </div>
+          <p className="text-xs text-stone-500 mt-1">
+            Manage church instruments inventory, review requests, oversee members, and configure scheduling rules.
+          </p>
         </div>
+
+        {onBackToMemberView && (
+          <button
+            id="btn-return-member-view"
+            type="button"
+            onClick={onBackToMemberView}
+            className="self-start md:self-auto px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition flex items-center gap-2 cursor-pointer shadow-2xs"
+          >
+            <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
+            <span>Return to Availability Calendar</span>
+          </button>
+        )}
       </div>
 
       {/* Overview Stat Cards */}
@@ -1714,42 +1571,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
-              {/* Bulk Actions Bar */}
-              {selectedReservationIds.size > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-amber-900">
-                      {selectedReservationIds.size} reservation{selectedReservationIds.size !== 1 ? 's' : ''} selected
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSelectedReservationIds(new Set());
-                        setSelectAllVisible(false);
-                      }}
-                      className="text-xs text-amber-700 hover:text-amber-900 underline cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleBulkCancel}
-                      className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold transition cursor-pointer"
-                    >
-                      Cancel Selected
-                    </button>
-                    {isSuperAdmin && (
-                      <button
-                        onClick={handleBulkDelete}
-                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition cursor-pointer"
-                      >
-                        Delete Selected
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Table */}
               <div className="overflow-x-auto mt-2">
                 {loadingReservations ? (
@@ -1764,15 +1585,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3 w-10">
-                          <input
-                            type="checkbox"
-                            checked={selectAllVisible}
-                            onChange={toggleSelectAllVisible}
-                            className="w-4 h-4 cursor-pointer accent-amber-700"
-                            title="Select all visible reservations"
-                          />
-                        </th>
                         <th className="py-2.5 px-3">Date & Slot</th>
                         <th className="py-2.5 px-3">Instrument</th>
                         <th className="py-2.5 px-3">Member & Service</th>
@@ -1787,14 +1599,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         const isApproved = r.status === 'approved';
                         return (
                           <tr key={r.id} className="hover:bg-stone-50/60 transition">
-                            <td className="py-3 px-3 w-10">
-                              <input
-                                type="checkbox"
-                                checked={selectedReservationIds.has(r.id)}
-                                onChange={() => toggleReservationSelection(r.id)}
-                                className="w-4 h-4 cursor-pointer accent-amber-700"
-                              />
-                            </td>
                             <td className="py-3 px-3">
                               <div className="font-semibold text-stone-900">
                                 {new Date(r.start_time).toLocaleDateString('en-US', {
@@ -1931,7 +1735,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <input
                       id="approvals-search-input"
                       type="text"
-                      placeholder="Search name or phone..."
+                      placeholder="Search name, email, or phone..."
                       value={approvalSearch}
                       onChange={(e) => setApprovalSearch(e.target.value)}
                       className="pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
@@ -1949,100 +1753,98 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
-              {/* Filter status pills: compact segmented control for narrow mobile widths */}
-              <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1.5 pt-2">
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                  <button
-                    id="filter-approvals-pending"
-                    type="button"
-                    onClick={() => setApprovalFilterStatus('pending')}
-                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              {/* Filter status pills */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  id="filter-approvals-pending"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('pending')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'pending'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Pending Review</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === 'pending'
-                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
                     }`}
                   >
-                    <Clock className={`w-3.5 h-3.5 ${approvalFilterStatus === 'pending' ? 'text-white' : 'text-amber-600'}`} />
-                    <span className="text-[11px] font-bold">Pending</span>
-                    <span
-                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                        approvalFilterStatus === 'pending'
-                          ? 'bg-amber-900/30 text-white'
-                          : 'bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      {approvalCounts.pending}
-                    </span>
-                  </button>
+                    {approvalCounts.pending}
+                  </span>
+                </button>
 
-                  <button
-                    id="filter-approvals-approved"
-                    type="button"
-                    onClick={() => setApprovalFilterStatus('approved')}
-                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                <button
+                  id="filter-approvals-approved"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('approved')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'approved'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Approved Accounts</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === 'approved'
-                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
                     }`}
                   >
-                    <Check className={`w-3.5 h-3.5 ${approvalFilterStatus === 'approved' ? 'text-white' : 'text-emerald-600'}`} />
-                    <span className="text-[11px] font-bold">Approved</span>
-                    <span
-                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                        approvalFilterStatus === 'approved'
-                          ? 'bg-amber-900/30 text-white'
-                          : 'bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      {approvalCounts.approved}
-                    </span>
-                  </button>
+                    {approvalCounts.approved}
+                  </span>
+                </button>
 
-                  <button
-                    id="filter-approvals-rejected"
-                    type="button"
-                    onClick={() => setApprovalFilterStatus('rejected')}
-                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                <button
+                  id="filter-approvals-rejected"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('rejected')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'rejected'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Rejected Registrations</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === 'rejected'
-                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
                     }`}
                   >
-                    <X className={`w-3.5 h-3.5 ${approvalFilterStatus === 'rejected' ? 'text-white' : 'text-red-600'}`} />
-                    <span className="text-[11px] font-bold">Rejected</span>
-                    <span
-                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                        approvalFilterStatus === 'rejected'
-                          ? 'bg-amber-900/30 text-white'
-                          : 'bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      {approvalCounts.rejected}
-                    </span>
-                  </button>
+                    {approvalCounts.rejected}
+                  </span>
+                </button>
 
-                  <button
-                    id="filter-approvals-all"
-                    type="button"
-                    onClick={() => setApprovalFilterStatus('all')}
-                    className={`min-h-[46px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                <button
+                  id="filter-approvals-all"
+                  type="button"
+                  onClick={() => setApprovalFilterStatus('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    approvalFilterStatus === 'all'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70'
+                  }`}
+                >
+                  <span>All Registrations</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === 'all'
-                        ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                        : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                        ? 'bg-amber-900 text-amber-100'
+                        : 'bg-stone-200 text-stone-700 font-extrabold'
                     }`}
                   >
-                    <span className="text-[11px] font-bold">All</span>
-                    <span
-                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                        approvalFilterStatus === 'all'
-                          ? 'bg-amber-900/30 text-white'
-                          : 'bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      {approvalCounts.total}
-                    </span>
-                  </button>
-                </div>
+                    {approvalCounts.total}
+                  </span>
+                </button>
               </div>
 
               {/* Table / List */}
@@ -2068,6 +1870,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                         <th className="py-2.5 px-3">Applicant Name</th>
+                        <th className="py-2.5 px-3">Email</th>
                         <th className="py-2.5 px-3">Phone Number</th>
                         <th className="py-2.5 px-3">Registration Date</th>
                         <th className="py-2.5 px-3">Approval Status</th>
@@ -2076,7 +1879,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </thead>
                     <tbody className="divide-y divide-stone-100">
                       {approvalsList.map((u) => {
-                        const status = u.approvalStatus || (u.isActive ? 'approved' : 'pending');
+                        const status = u.approvalStatus || u.approval_status || (u.isActive ? 'approved' : 'pending');
                         const isActioning = approvalActionId === u.id;
 
                         return (
@@ -2093,8 +1896,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </div>
                             </td>
 
-                            <td className="py-3 px-3 font-mono text-stone-700">
-                              {u.phoneNumber}
+                            <td className="py-3 px-3 font-mono text-stone-800">
+                              {u.email || '—'}
+                            </td>
+
+                            <td className="py-3 px-3 font-mono text-stone-600">
+                              {u.phoneNumber || u.phone_number || '—'}
                             </td>
 
                             <td className="py-3 px-3 text-stone-500 text-[11px]">
@@ -2211,25 +2018,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               TAB 3: INSTRUMENTS INVENTORY
              ============================================================= */}
           {activeTab === 'instruments' && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-stone-100 pb-4">
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-bold text-stone-900 text-sm">Instrument Inventory</h2>
-                  <p className="text-xs text-stone-500 mt-0.5 hidden sm:block">
-                    Manage specifications, booking modes, and availability.
-                  </p>
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                <div>
+                  <h2 className="font-bold text-stone-900 text-sm">Church Instruments Inventory</h2>
+                  <p className="text-xs text-stone-500">
+                    Add, edit specifications, change booking mode, mark retired instruments unavailable, or delete accidental mistaken entries.                  </p>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2">
                   <button
                     id="btn-refresh-instruments"
                     type="button"
                     onClick={() => fetchInstruments()}
                     disabled={loadingInstruments}
-                    className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-stone-200 whitespace-nowrap"
+                    className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-stone-200"
                     title="Refresh instrument list from database"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${loadingInstruments ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">Refresh</span>
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingInstruments ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
                   </button>
                   <button
                     id="btn-add-new-instrument"
@@ -2247,11 +2053,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       setShowUrlInput(false);
                       setShowInstrumentModal(true);
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap flex-1 sm:flex-none justify-center sm:justify-start"
+                    className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                   >
-                    <Plus className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline">Add Instrument</span>
-                    <span className="sm:hidden">Add</span>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Instrument</span>
                   </button>
                 </div>
               </div>
@@ -2265,21 +2070,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     const isInstant = currentMode === 'instant';
                     const isDecommissioned = Boolean(inst.isRemoved ?? inst.is_removed);
                     const instPhoto = inst.photoUrl || inst.photo_url;
-                    const hasDescription = inst.description && inst.description.trim().length > 0;
 
                     return (
                       <div
                         key={inst.id}
-                        className={`p-3 sm:p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
+                        className={`p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
                           isDecommissioned
                             ? 'bg-stone-50/60 border-stone-200 opacity-60'
                             : 'bg-white border-stone-200 hover:border-amber-300'
                         }`}
                       >
-                        {/* Instrument Info Section */}
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
                               {instPhoto ? (
                                 <img
                                   src={instPhoto}
@@ -2288,105 +2091,83 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <Music2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-800" />
+                                <Music2 className="w-5 h-5 text-amber-800" />
                               )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="font-bold text-stone-900 text-xs sm:text-sm truncate">
-                                {inst.name}
+                            <div>
+                              <div className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                                <span>{inst.name}</span>
+                                {isDecommissioned && (
+                                  <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold">
+                                    Not Available
+                                  </span>
+                                )}
                               </div>
-                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1 whitespace-nowrap">
-                                <span className="truncate">{inst.type}</span>
-                                <span className="text-stone-300 shrink-0">•</span>
-                                <span className="shrink-0">{inst.totalReservations ?? inst.total_reservations ?? 0}</span>
+                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5">
+                                <span>{inst.type}</span>
+                                <span className="text-stone-300">•</span>
+                                <span>{inst.totalReservations ?? inst.total_reservations ?? 0} bookings</span>
                               </div>
                             </div>
                           </div>
 
-                          {isDecommissioned && (
-                            <span className="text-[9px] sm:text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap shrink-0">
-                              Not Available
-                            </span>
-                          )}
-
                           <span
                             id={`admin-instrument-mode-badge-${inst.id}`}
-                            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold whitespace-nowrap shrink-0 ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               isInstant
                                 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                                 : 'bg-amber-50 text-amber-800 border border-amber-200'
                             }`}
                           >
-                            {isInstant ? '⚡ Instant' : '🛡️ Manual'}
+                            {isInstant ? '⚡ Instant Booking' : '🛡️ Manual Review'}
                           </span>
                         </div>
 
-                        {/* Description - only show if present */}
-                        {hasDescription && (
-                          <p className="text-xs text-stone-600 mb-3 line-clamp-2">
-                            {inst.description}
-                          </p>
-                        )}
+                        <p className="text-xs text-stone-600 my-3 line-clamp-2">
+                          {inst.description || 'No specific description provided.'}
+                        </p>
 
-                        {/* Outside Fee & Actions Section */}
-                        <div className="pt-3 border-t border-stone-100 space-y-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-xs text-stone-500 font-medium">
-                              Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00'}</span>/day
-                            </div>
-
-                            {!isDecommissioned ? (
-                              <button
-                                id={`btn-edit-instrument-${inst.id}`}
-                                onClick={() => {
-                                  setEditingInstrument(inst);
-                                  setInstrumentForm({
-                                    name: inst.name,
-                                    type: inst.type,
-                                    photoUrl: instPhoto || '',
-                                    description: inst.description || '',
-                                    outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
-                                    bookingMode: currentMode as 'instant' | 'manual',
-                                  });
-                                  setPhotoUploadError(null);
-                                  setShowUrlInput(false);
-                                  setShowInstrumentModal(true);
-                                }}
-                                className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap self-end"
-                                title="Edit instrument details"
-                              >
-                                <Edit className="w-3 h-3 shrink-0" />
-                                <span>Edit</span>
-                              </button>
-                            ) : (
-                              <button
-                                id={`btn-restore-instrument-${inst.id}`}
-                                onClick={() => triggerRestoreInstrument(inst)}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs border border-emerald-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap self-end"
-                                title="Restore instrument to available status"
-                              >
-                                <RefreshCw className="w-3 h-3 shrink-0" />
-                                <span className="hidden md:inline">Mark Available</span>
-                                <span className="md:hidden">Available</span>
-                              </button>
-                            )}
+                        <div className="pt-3 border-t border-stone-100 flex items-center justify-between text-xs">
+                          <div className="text-stone-500 font-medium">
+                            Outside Fee: <span className="font-bold text-stone-900">${inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00'}</span> / day
                           </div>
 
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center gap-1.5">
                             {!isDecommissioned ? (
                               <>
+                                <button
+                                  id={`btn-edit-instrument-${inst.id}`}
+                                  onClick={() => {
+                                    setEditingInstrument(inst);
+                                    setInstrumentForm({
+                                      name: inst.name,
+                                      type: inst.type,
+                                      photoUrl: instPhoto || '',
+                                      description: inst.description || '',
+                                      outsideFeePerDay: inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? '0.00',
+                                      bookingMode: currentMode as 'instant' | 'manual',
+                                    });
+                                    setPhotoUploadError(null);
+                                    setShowUrlInput(false);
+                                    setShowInstrumentModal(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Edit instrument details"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
                                 <button
                                   id={`btn-mark-unavailable-instrument-${inst.id}`}
                                   onClick={() => {
                                     setRemovingInstrument(inst);
                                     setRemoveConfirmForce(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs border border-amber-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
+                                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center gap-1 cursor-pointer transition"
                                   title="Retire instrument from service (preserves past history)"
                                 >
-                                  <Archive className="w-3 h-3 shrink-0" />
-                                  <span className="hidden md:inline">Mark Unavailable</span>
-                                  <span className="md:hidden">Unavailable</span>
+                                  <Archive className="w-3 h-3" />
+                                  <span>Mark Unavailable</span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -2394,23 +2175,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setDeletingInstrument(inst);
                                     setDeleteConfirmChecked(false);
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
                                   title="Delete mistaken entry permanently from database"
                                 >
-                                  <Trash2 className="w-3 h-3 shrink-0" />
+                                  <Trash2 className="w-3 h-3" />
                                   <span>Delete</span>
                                 </button>
                               </>
                             ) : (
-                              <button
-                                id={`btn-delete-instrument-${inst.id}`}
-                                onClick={() => { setDeletingInstrument(inst); setDeleteConfirmChecked(false); }}
-                                className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
-                                title="Delete mistaken entry permanently from database"
-                              >
-                                <Trash2 className="w-3 h-3 shrink-0" />
-                                <span>Delete</span>
-                              </button>
+                              <>
+                                <button
+                                  id={`btn-restore-instrument-${inst.id}`}
+                                  onClick={() => triggerRestoreInstrument(inst)}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Restore instrument to available status"
+                                >
+                                  <RefreshCw className="w-3 h-3" />
+                                  <span>Mark Available</span>
+                                </button>
+                                <button
+                                  id={`btn-delete-instrument-${inst.id}`}
+                                  onClick={() => { setDeletingInstrument(inst); setDeleteConfirmChecked(false); }}
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center gap-1 cursor-pointer transition"
+                                  title="Delete mistaken entry permanently from database"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete</span>
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -2440,7 +2232,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
-                      placeholder="Search member name / phone..."
+                      placeholder="Search member name / email / phone..."
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
                       className="pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
@@ -2463,6 +2255,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                         <th className="py-2.5 px-3">Member Name</th>
+                        <th className="py-2.5 px-3">Email</th>
                         <th className="py-2.5 px-3">Phone Number</th>
                         <th className="py-2.5 px-3">Status</th>
                         <th className="py-2.5 px-3">Trusted Status</th>
@@ -2479,15 +2272,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </div>
                           </td>
 
-                          <td className="py-3 px-3 font-mono text-stone-700">{u.phoneNumber}</td>
+                          <td className="py-3 px-3 font-mono text-stone-800">{u.email || '—'}</td>
+
+                          <td className="py-3 px-3 font-mono text-stone-600">{u.phoneNumber || u.phone_number || '—'}</td>
 
                           <td className="py-3 px-3">
-                            {u.approvalStatus === 'pending' ? (
+                            {(u.approval_status === 'pending' || u.approvalStatus === 'pending') ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                                 <Clock className="w-2.5 h-2.5 text-amber-700" />
                                 Pending Approval
                               </span>
-                            ) : u.approvalStatus === 'rejected' ? (
+                            ) : (u.approval_status === 'rejected' || u.approvalStatus === 'rejected') ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                                 <X className="w-2.5 h-2.5 text-rose-700" />
                                 Rejected
@@ -2519,7 +2314,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               {/* Quick Approve if pending */}
-                              {u.approvalStatus === 'pending' && (
+                              {(u.approval_status === 'pending' || u.approvalStatus === 'pending') && (
                                 <button
                                   type="button"
                                   onClick={() => handleApproveRegistration(u.id, u.name)}
@@ -2543,27 +2338,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                               {/* Super Admin Trusted Status Toggle */}
                               {isSuperAdmin && (
-                                <>
-                                  <button
-                                    onClick={() => handleToggleTrusted(u.id, u.isTrusted, u.name)}
-                                    className={`px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
-                                      u.isTrusted
-                                        ? 'bg-stone-50 hover:bg-amber-50 text-amber-900 border-amber-200'
-                                        : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
-                                    }`}
-                                    title={u.isTrusted ? 'Revoke trusted status' : 'Grant trusted status'}
-                                  >
-                                    {u.isTrusted ? 'Revoke Trust' : 'Make Trusted'}
-                                  </button>
-
-                                  <button
-                                    onClick={() => handlePromoteToAdmin(u.id, u.name)}
-                                    className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold cursor-pointer"
-                                    title="Promote member to administrator"
-                                  >
-                                    Make Admin
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => handleToggleTrusted(u.id, u.isTrusted, u.name)}
+                                  className={`px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
+                                    u.isTrusted
+                                      ? 'bg-stone-50 hover:bg-amber-50 text-amber-900 border-amber-200'
+                                      : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
+                                  }`}
+                                  title={u.isTrusted ? 'Revoke trusted status' : 'Grant trusted status'}
+                                >
+                                  {u.isTrusted ? 'Revoke Trust' : 'Make Trusted'}
+                                </button>
                               )}
 
                               {/* Toggle Active Status */}
@@ -2668,26 +2453,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
           {activeTab === 'admin_accounts' && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="w-full border-b border-stone-100 pb-4 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-bold text-stone-900 text-sm sm:text-base">Team & Accounts</h2>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200 whitespace-nowrap">
-                      Admin Only
+              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-bold text-stone-900 text-sm">Administrator Team & Accounts</h2>
+                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200">
+                      Super Admin Only
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-stone-500 leading-relaxed">
-                    Manage admin accounts and access.
+                  <p className="text-xs text-stone-500">
+                    Provision new administrative staff accounts or remove administrative credentials.
                   </p>
                 </div>
 
                 <button
                   id="btn-open-create-admin-modal"
                   onClick={() => {
-                    setNewAdminForm({ name: '', phoneNumber: '', password: '', isSuperAdmin: false });
+                    setNewAdminForm({ name: '', email: '', phoneNumber: '', password: '', isSuperAdmin: false });
                     setShowNewAdminModal(true);
                   }}
-                  className="w-full md:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Add Administrator</span>
@@ -2702,6 +2487,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                         <th className="py-2.5 px-3">Administrator</th>
+                        <th className="py-2.5 px-3">Email</th>
                         <th className="py-2.5 px-3">Phone Number</th>
                         <th className="py-2.5 px-3">Role Authority</th>
                         <th className="py-2.5 px-3">Created</th>
@@ -2709,44 +2495,39 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
-                      {adminAccountsList.map((adm) => (
-                        <tr key={adm.id} className="hover:bg-stone-50/60 transition">
-                          <td className="py-3 px-3">
-                            <div className="font-semibold text-stone-900 flex items-center gap-1.5">
-                              <Shield className="w-3.5 h-3.5 text-amber-800" />
-                              <span>{adm.name}</span>
-                            </div>
-                          </td>
+                      {adminAccountsList.map((adm) => {
+                        const isCurrentAdmin = (adm.email && profile?.email && adm.email.toLowerCase() === profile.email.toLowerCase()) || (adm.id === profile?.id) || (adm.phoneNumber === profile?.phoneNumber);
+                        return (
+                          <tr key={adm.id} className="hover:bg-stone-50/60 transition">
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-stone-900 flex items-center gap-1.5">
+                                <Shield className="w-3.5 h-3.5 text-amber-800" />
+                                <span>{adm.name}</span>
+                              </div>
+                            </td>
 
-                          <td className="py-3 px-3 font-mono text-stone-700">{adm.phoneNumber}</td>
+                            <td className="py-3 px-3 font-mono text-stone-800">{adm.email || '—'}</td>
 
-                          <td className="py-3 px-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                adm.isSuperAdmin
-                                  ? 'bg-amber-100 text-amber-950 border border-amber-300'
-                                  : 'bg-stone-100 text-stone-700 border border-stone-200'
-                              }`}
-                            >
-                              {adm.isSuperAdmin ? '👑 Super Admin' : '🛡️ Standard Admin'}
-                            </span>
-                          </td>
+                            <td className="py-3 px-3 font-mono text-stone-600">{adm.phoneNumber || adm.phone_number || '—'}</td>
 
-                          <td className="py-3 px-3 text-stone-500">
-                            {new Date(adm.createdAt).toLocaleDateString()}
-                          </td>
+                            <td className="py-3 px-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  adm.isSuperAdmin
+                                    ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                                    : 'bg-stone-100 text-stone-700 border border-stone-200'
+                                }`}
+                              >
+                                {adm.isSuperAdmin ? '👑 Super Admin' : '🛡️ Standard Admin'}
+                              </span>
+                            </td>
 
-                          <td className="py-3 px-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {!adm.isSuperAdmin && (
-                                <button
-                                  onClick={() => handleDemoteAdmin(adm.id, adm.name)}
-                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold cursor-pointer"
-                                >
-                                  Demote
-                                </button>
-                              )}
-                              {adm.phoneNumber !== profile?.phoneNumber ? (
+                            <td className="py-3 px-3 text-stone-500">
+                              {new Date(adm.createdAt).toLocaleDateString()}
+                            </td>
+
+                            <td className="py-3 px-3 text-right">
+                              {!isCurrentAdmin ? (
                                 <button
                                   onClick={() => handleRemoveAdmin(adm.id, adm.name)}
                                   className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold cursor-pointer"
@@ -2756,10 +2537,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               ) : (
                                 <span className="text-[10px] text-stone-400 italic">Current Session</span>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -2843,32 +2624,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <form onSubmit={handleSaveHardLimits} className="space-y-4">
-                <div className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-2.5">
-                  <div>
-                    <div className="font-bold text-stone-900 text-xs">Global Hard-Limit Bypass</div>
-                    <div className="text-[11px] text-stone-600">
-                      {hardLimitsState.bypassHardLimits
-                        ? 'Hard limits are currently disabled system-wide.'
-                        : 'Hard limits are active and enforced for all reservations.'}
-                    </div>
-                  </div>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(hardLimitsState.bypassHardLimits)}
-                      onChange={(e) =>
-                        setHardLimitsState((prev: any) => ({
-                          ...prev,
-                          bypassHardLimits: e.target.checked,
-                        }))
-                      }
-                      className="peer sr-only"
-                    />
-                    <span className="h-6 w-11 rounded-full bg-stone-300 transition peer-checked:bg-amber-700" />
-                    <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5" />
-                  </label>
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
                     <label htmlFor="input-max-active-reservations" className="block font-bold text-stone-700 mb-1">
@@ -3702,10 +3457,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-stone-700 mb-1">Phone Number</label>
+                <label className="block font-bold text-stone-700 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. deacon@church.org"
+                  value={newAdminForm.email}
+                  onChange={(e) => setNewAdminForm({ ...newAdminForm, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">Phone Number (Optional)</label>
                 <input
                   type="tel"
-                  required
                   placeholder="e.g. 01012345678"
                   value={newAdminForm.phoneNumber}
                   onChange={(e) =>
@@ -3961,140 +3727,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 }`}
               >
                 {confirmModal.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =============================================================
-          MODAL: Bulk Reservation Actions (Cancel / Delete)
-         ============================================================= */}
-      {bulkActionModal?.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                    bulkActionModal.action === 'delete'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-amber-100 text-amber-700'
-                  }`}
-                >
-                  {bulkActionModal.action === 'delete' ? (
-                    <Trash2 className="w-5 h-5" />
-                  ) : (
-                    <X className="w-5 h-5" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-bold text-stone-900 text-sm">
-                    {bulkActionModal.action === 'delete'
-                      ? 'Permanently Delete Reservations'
-                      : 'Cancel Reservations'}
-                  </h3>
-                  {bulkActionModal.action === 'delete' && (
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 inline-block mt-1">
-                      Permanent Action
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setBulkActionModal(null)}
-                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 leading-relaxed">
-              {bulkActionModal.action === 'delete' ? (
-                <>
-                  <p>
-                    This will <strong className="text-red-700">permanently remove {bulkActionModal.count} reservation{bulkActionModal.count !== 1 ? 's' : ''} from the database</strong>. All
-                    associated messages and notifications will also be deleted. This cannot be undone.
-                  </p>
-                  <p className="mt-2 font-semibold text-red-800">
-                    Affected members will NOT be notified of this deletion.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p>
-                    {bulkActionModal.count} reservation{bulkActionModal.count !== 1 ? 's' : ''} will be <strong className="text-amber-800">cancelled</strong>. Affected members will be notified via email and in-app notification, and their calendar slots will be freed.
-                  </p>
-                </>
-              )}
-            </div>
-
-            {bulkActionModal.action === 'delete' && (
-              <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-xs flex items-start gap-2 text-red-950">
-                <input
-                  type="checkbox"
-                  id="check-bulk-delete-confirm"
-                  checked={bulkActionModal.confirmInput === 'confirm-delete'}
-                  onChange={(e) =>
-                    setBulkActionModal((prev) =>
-                      prev
-                        ? { ...prev, confirmInput: e.target.checked ? 'confirm-delete' : '' }
-                        : null
-                    )
-                  }
-                  className="w-4 h-4 accent-red-700 rounded cursor-pointer mt-0.5 shrink-0"
-                />
-                <label htmlFor="check-bulk-delete-confirm" className="cursor-pointer font-medium select-none">
-                  I understand this is permanent and will permanently delete {bulkActionModal.count} reservation{bulkActionModal.count !== 1 ? 's' : ''}.
-                </label>
-              </div>
-            )}
-
-            <div className="pt-2 flex items-center justify-end gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setBulkActionModal(null)}
-                disabled={bulkActionModal.submitting}
-                className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitBulkAction}
-                disabled={
-                  bulkActionModal.submitting ||
-                  (bulkActionModal.action === 'delete' && bulkActionModal.confirmInput !== 'confirm-delete')
-                }
-                className={`px-4 py-2 rounded-xl text-white font-bold cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-50 ${
-                  bulkActionModal.action === 'delete'
-                    ? 'bg-red-700 hover:bg-red-800'
-                    : 'bg-amber-800 hover:bg-amber-900'
-                }`}
-              >
-                {bulkActionModal.submitting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>
-                      {bulkActionModal.action === 'delete' ? 'Deleting...' : 'Cancelling...'}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    {bulkActionModal.action === 'delete' ? (
-                      <>
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Permanently Delete</span>
-                      </>
-                    ) : (
-                      <>
-                        <X className="w-3.5 h-3.5" />
-                        <span>Cancel Reservations</span>
-                      </>
-                    )}
-                  </>
-                )}
               </button>
             </div>
           </div>

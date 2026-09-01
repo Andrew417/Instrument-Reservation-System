@@ -42,6 +42,7 @@ async function runComprehensiveTests() {
       .insert(admins)
       .values({
         name: 'Father Joseph (Admin)',
+        email: `admin_${ts}@church.org`,
         phoneNumber: `+2010${ts.toString().slice(-8)}`,
         passwordHash: '$2a$10$w0uK/b4e6K8307kO.1H9a.Gv23y6J2Qy8oYm/6n1E9xGz6Z0X3tC2',
         isSuperAdmin: true,
@@ -52,6 +53,7 @@ async function runComprehensiveTests() {
       .insert(users)
       .values({
         name: 'Samuel (Member)',
+        email: `samuel_${ts}@church.org`,
         phoneNumber: `+2011${ts.toString().slice(-8)}`,
         passwordHash: '$2a$10$w0uK/b4e6K8307kO.1H9a.Gv23y6J2Qy8oYm/6n1E9xGz6Z0X3tC2',
         isTrusted: false,

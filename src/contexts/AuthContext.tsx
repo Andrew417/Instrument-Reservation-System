@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { normalizePhoneNumber } from '../lib/auth-helpers.ts';
+import { normalizeEmail, normalizePhoneNumber, isValidEmail } from '../lib/auth-helpers.ts';
 
 export interface UserProfile {
   id: string;
   name: string;
+  email: string;
   phoneNumber: string;
   role: 'user' | 'admin' | 'super_admin';
   isTrusted?: boolean;
@@ -23,7 +24,21 @@ interface AuthContextType {
   error: string | null;
   isLocked: boolean;
   lockRemainingSeconds: number;
-  loginWithPhone: (phone: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  loginWithPhone: (phoneOrEmail: string, password: string) => Promise<void>;
+  register: (
+    name: string,
+    email: string,
+    phone: string,
+    password: string
+  ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
+  registerWithEmail: (
+    name: string,
+    email: string,
+    phone: string,
+    password: string
+  ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   registerWithPhone: (
     name: string,
     phone: string,
@@ -122,12 +137,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setProfile(null);
   };
 
-  const loginWithPhone = async (phone: string, password: string) => {
+  const loginWithEmail = async (rawEmail: string, password: string) => {
     setError(null);
-    const normalizedPhone = normalizePhoneNumber(phone);
+    const normalizedEmail = normalizeEmail(rawEmail);
 
-    if (!normalizedPhone || normalizedPhone.length < 8) {
-      setError('Please enter a valid phone number');
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -141,7 +156,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber: normalizedPhone,
+          email: normalizedEmail,
           password,
         }),
       });
@@ -157,9 +172,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (!res.ok || !data.success) {
         if (data.attemptsRemaining !== undefined) {
-          setError(data.error || `Invalid phone number or password. ${data.attemptsRemaining} attempt(s) remaining before lock.`);
+          setError(data.error || `Invalid email or password. ${data.attemptsRemaining} attempt(s) remaining before lock.`);
         } else {
-          setError(data.error || 'Invalid phone number or password.');
+          setError(data.error || 'Invalid email or password.');
         }
         return;
       }
@@ -177,16 +192,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const registerWithPhone = async (
+  const loginWithPhone = async (phoneOrEmail: string, password: string) => {
+    return loginWithEmail(phoneOrEmail, password);
+  };
+
+  const registerWithEmail = async (
     name: string,
+    rawEmail: string,
     phone: string,
     password: string
   ) => {
     setError(null);
+    const normalizedEmail = normalizeEmail(rawEmail);
     const normalizedPhone = normalizePhoneNumber(phone);
 
     if (!name.trim()) {
       setError('Please enter your full name');
+      return;
+    }
+
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -206,6 +232,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
+          email: normalizedEmail,
           phoneNumber: normalizedPhone,
           password,
         }),
@@ -223,7 +250,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(null);
         return {
           pendingApproval: true,
-          message: data.message || 'Your account is awaiting admin approval.',
+          message: data.message || 'Your account is awaiting admin approval before you can log in.',
         };
       }
 
@@ -245,6 +272,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       throw err;
     }
+  };
+
+  const registerWithPhone = async (
+    name: string,
+    phone: string,
+    password: string
+  ) => {
+    return registerWithEmail(name, '', phone, password);
   };
 
   const logout = async () => {
@@ -292,12 +327,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         profile,
         sessionToken,
         isAuthenticated: Boolean(profile && sessionToken),
-        firebaseUser: profile ? { uid: profile.id, email: profile.phoneNumber, displayName: profile.name } : null,
+        firebaseUser: profile ? { uid: profile.id, email: profile.email || profile.phoneNumber, displayName: profile.name } : null,
         loading,
         error,
         isLocked,
         lockRemainingSeconds,
+        login: loginWithEmail,
+        loginWithEmail,
         loginWithPhone,
+        register: registerWithEmail,
+        registerWithEmail,
         registerWithPhone,
         logout,
         clearError,
@@ -316,3 +355,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

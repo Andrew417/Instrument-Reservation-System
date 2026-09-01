@@ -13,6 +13,7 @@ export const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export interface SessionUser {
   id: string;
   name: string;
+  email: string;
   phoneNumber: string;
   role: 'user' | 'admin' | 'super_admin';
   isTrusted?: boolean;
@@ -76,6 +77,7 @@ export async function createSession(
     userDetails = {
       id: u.id,
       name: u.name,
+      email: u.email,
       phoneNumber: u.phoneNumber,
       role: 'user',
       isTrusted: u.isTrusted,
@@ -88,6 +90,7 @@ export async function createSession(
     userDetails = {
       id: a.id,
       name: a.name,
+      email: a.email,
       phoneNumber: a.phoneNumber,
       role: a.isSuperAdmin ? 'super_admin' : 'admin',
       isSuperAdmin: a.isSuperAdmin,
@@ -167,6 +170,7 @@ export async function validateSession(token: string): Promise<{ valid: boolean; 
       userDetails = {
         id: u.id,
         name: u.name,
+        email: u.email,
         phoneNumber: u.phoneNumber,
         role: 'user',
         isTrusted: u.isTrusted,
@@ -181,6 +185,7 @@ export async function validateSession(token: string): Promise<{ valid: boolean; 
       userDetails = {
         id: a.id,
         name: a.name,
+        email: a.email,
         phoneNumber: a.phoneNumber,
         role: a.isSuperAdmin ? 'super_admin' : 'admin',
         isSuperAdmin: a.isSuperAdmin,

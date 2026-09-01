@@ -249,7 +249,7 @@ const UserPortalMain: React.FC = () => {
                     </span>
                   ) : null}
                 </div>
-                <span className="text-[10px] text-stone-500">{profile?.phoneNumber}</span>
+                <span className="text-[10px] text-stone-500">{profile?.email || profile?.phoneNumber}</span>
               </div>
             </div>
 

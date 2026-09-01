@@ -82,6 +82,7 @@ async function runTests() {
       .insert(users)
       .values({
         name: 'David (Trusted Choirmaster)',
+        email: `david_${Date.now()}@church.org`,
         phoneNumber: '+201011111111',
         passwordHash: '$2a$10$w0uK/b4e6K8307kO.1H9a.Gv23y6J2Qy8oYm/6n1E9xGz6Z0X3tC2',
         isTrusted: true,
@@ -93,6 +94,7 @@ async function runTests() {
       .insert(users)
       .values({
         name: 'Peter (Regular Member)',
+        email: `peter_${Date.now()}@church.org`,
         phoneNumber: '+201022222222',
         passwordHash: '$2a$10$w0uK/b4e6K8307kO.1H9a.Gv23y6J2Qy8oYm/6n1E9xGz6Z0X3tC2',
         isTrusted: false,
@@ -104,6 +106,7 @@ async function runTests() {
       .insert(users)
       .values({
         name: 'Mark (Second Member)',
+        email: `mark_${Date.now()}@church.org`,
         phoneNumber: '+201033333333',
         passwordHash: '$2a$10$w0uK/b4e6K8307kO.1H9a.Gv23y6J2Qy8oYm/6n1E9xGz6Z0X3tC2',
         isTrusted: false,

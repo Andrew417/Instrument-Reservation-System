@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import {
   Lock,
+  Mail,
   Phone,
   User,
   ShieldAlert,
@@ -10,18 +11,17 @@ import {
   KeyRound,
   AlertTriangle,
   Clock,
-  HelpCircle,
   X,
   Church,
-  Info,
   CheckCircle2,
   RefreshCw,
 } from 'lucide-react';
 
 export const AuthScreen: React.FC = () => {
-  const { loginWithPhone, registerWithPhone, error, clearError, isLocked, lockRemainingSeconds } =
+  const { loginWithEmail, registerWithEmail, error, clearError, isLocked, lockRemainingSeconds } =
     useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -30,7 +30,7 @@ export const AuthScreen: React.FC = () => {
   // Forgot Password Modal State
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [resetStep, setResetStep] = useState<'request' | 'verify' | 'new_password' | 'success'>('request');
-  const [resetPhone, setResetPhone] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [testModeActive, setTestModeActive] = useState(false);
   const [simulatedCode, setSimulatedCode] = useState<string | null>(null);
@@ -40,6 +40,16 @@ export const AuthScreen: React.FC = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
+
+  // Countdown timer for OTP resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +57,9 @@ export const AuthScreen: React.FC = () => {
     setSubmitting(true);
     try {
       if (mode === 'login') {
-        await loginWithPhone(phoneNumber, password);
+        await loginWithEmail(email, password);
       } else {
-        const res = await registerWithPhone(name, phoneNumber, password);
+        const res = await registerWithEmail(name, email, phoneNumber, password);
         if (res && res.pendingApproval) {
           setRegistrationNotice(res.message || 'Your account is awaiting admin approval before you can log in.');
           setMode('login');
@@ -64,7 +74,7 @@ export const AuthScreen: React.FC = () => {
   };
 
   const openForgotPassword = () => {
-    setResetPhone(phoneNumber || '');
+    setResetEmail(email || '');
     setResetStep('request');
     setOtpCode('');
     setTestModeActive(false);
@@ -73,13 +83,14 @@ export const AuthScreen: React.FC = () => {
     setNewPassword('');
     setConfirmPassword('');
     setResetError(null);
+    setResendCooldown(0);
     setShowForgotPasswordModal(true);
   };
 
-  // Step 1: Request OTP
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetPhone) return;
+  // Step 1: Request OTP by Email
+  const handleRequestOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!resetEmail) return;
     setResetLoading(true);
     setResetError(null);
 
@@ -87,20 +98,57 @@ export const AuthScreen: React.FC = () => {
       const res = await fetch('/api/auth/forgot-password/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: resetPhone }),
+        body: JSON.stringify({ email: resetEmail }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
+        if (res.status === 429 && data.retryAfterSeconds) {
+          setResendCooldown(data.retryAfterSeconds);
+        }
         setResetError(data.error || 'Failed to request verification code');
         return;
       }
 
+      setResendCooldown(60); // 60s rate limit countdown
       setTestModeActive(Boolean(data.testMode));
       setSimulatedCode(data.testOtpCode || null);
       setResetStep('verify');
     } catch (err: any) {
       setResetError(err.message || 'Network error requesting OTP');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || !resetEmail || resetLoading) return;
+    setResetLoading(true);
+    setResetError(null);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (res.status === 429 && data.retryAfterSeconds) {
+          setResendCooldown(data.retryAfterSeconds);
+        }
+        setResetError(data.error || 'Failed to resend verification code');
+        return;
+      }
+
+      setResendCooldown(60);
+      setTestModeActive(Boolean(data.testMode));
+      setSimulatedCode(data.testOtpCode || null);
+      setOtpCode('');
+    } catch (err: any) {
+      setResetError(err.message || 'Network error resending OTP');
     } finally {
       setResetLoading(false);
     }
@@ -117,7 +165,7 @@ export const AuthScreen: React.FC = () => {
       const res = await fetch('/api/auth/forgot-password/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber: resetPhone, otp: otpCode }),
+        body: JSON.stringify({ email: resetEmail, otp: otpCode }),
       });
 
       const data = await res.json();
@@ -139,7 +187,7 @@ export const AuthScreen: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      setResetError('Password must be at least 6 characters');
+      setResetError('Password must be at least 6 characters long');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -147,7 +195,7 @@ export const AuthScreen: React.FC = () => {
       return;
     }
     if (!resetToken) {
-      setResetError('Session expired. Please request a new OTP.');
+      setResetError('Verification session expired. Please request a new OTP.');
       return;
     }
 
@@ -159,7 +207,7 @@ export const AuthScreen: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber: resetPhone,
+          email: resetEmail,
           resetToken,
           newPassword,
         }),
@@ -172,7 +220,7 @@ export const AuthScreen: React.FC = () => {
       }
 
       setResetStep('success');
-      setPhoneNumber(resetPhone);
+      setEmail(resetEmail);
       setPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -221,8 +269,8 @@ export const AuthScreen: React.FC = () => {
           </h1>
           <p className="text-xs text-stone-500 mt-1">
             {mode === 'login'
-              ? 'Access church instrument schedules with your registered phone number'
-              : 'Register your phone number to request and schedule instruments'}
+              ? 'Access church instrument schedules with your email and password'
+              : 'Register with your email and contact information to request instruments'}
           </p>
         </div>
 
@@ -277,7 +325,7 @@ export const AuthScreen: React.FC = () => {
                 {registrationNotice}
               </p>
               <div className="text-[11px] text-amber-700 mt-1.5 font-medium">
-                Once approved, sign in with your phone number and password.
+                Church leadership has been notified. Once approved, you can sign in directly with your email and password.
               </div>
             </div>
           </div>
@@ -293,8 +341,8 @@ export const AuthScreen: React.FC = () => {
             <div className="flex-1">
               <div className="font-bold text-red-900 text-sm">Account Temporarily Locked</div>
               <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
-                5 consecutive failed login attempts detected. For security, logins from this number
-                are locked.
+                5 consecutive failed login attempts detected. For security, logins for this account
+                are locked for 15 minutes.
               </p>
               <div className="flex items-center gap-2 font-mono text-sm font-bold text-red-900 mt-2 bg-red-100 px-3 py-1.5 rounded-lg w-fit border border-red-200">
                 <Clock className="w-4 h-4 text-red-700" />
@@ -304,7 +352,7 @@ export const AuthScreen: React.FC = () => {
           </div>
         )}
 
-        {/* Failed Attempt / Error Banner with remaining attempts */}
+        {/* Failed Attempt / Error Banner */}
         {error && !isLocked && (
           <div
             id="auth-error-banner"
@@ -342,29 +390,55 @@ export const AuthScreen: React.FC = () => {
             </div>
           )}
 
-          {/* Phone Number Field */}
+          {/* Email Address Field (Unique Identifier) */}
           <div>
             <label
-              htmlFor="auth-phone-input"
+              htmlFor="auth-email-input"
               className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
             >
-              Phone Number
+              Email Address
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                <Phone className="w-4 h-4" />
+                <Mail className="w-4 h-4" />
               </div>
               <input
-                id="auth-phone-input"
-                type="tel"
+                id="auth-email-input"
+                type="email"
                 required
-                placeholder="e.g. 01012345678 or +201012345678"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="e.g. member@church.org"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
               />
             </div>
           </div>
+
+          {/* Phone Number Field (Required for Registration) */}
+          {mode === 'register' && (
+            <div>
+              <label
+                htmlFor="register-phone-input"
+                className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
+              >
+                Phone Number
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                  <Phone className="w-4 h-4" />
+                </div>
+                <input
+                  id="register-phone-input"
+                  type="tel"
+                  required
+                  placeholder="e.g. 01012345678"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Password Field */}
           <div>
@@ -427,7 +501,7 @@ export const AuthScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Interactive SMS OTP Forgot Password Modal */}
+      {/* Interactive Email OTP Forgot Password Modal */}
       {showForgotPasswordModal && (
         <div
           id="forgot-password-modal-backdrop"
@@ -445,7 +519,7 @@ export const AuthScreen: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-stone-900">Reset Account Password</h3>
-                  <p className="text-xs text-stone-500">Secure SMS OTP Verification</p>
+                  <p className="text-xs text-stone-500">Email Verification Code (Resend)</p>
                 </div>
               </div>
               <button
@@ -465,28 +539,28 @@ export const AuthScreen: React.FC = () => {
               </div>
             )}
 
-            {/* STEP 1: Request OTP */}
+            {/* STEP 1: Request OTP by Email */}
             {resetStep === 'request' && (
               <form onSubmit={handleRequestOtp} className="space-y-4">
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  Enter your registered phone number. A 6-digit one-time verification code (OTP) will be dispatched to verify your identity.
+                  Enter your registered account email. A 6-digit one-time verification code (OTP) will be dispatched to your inbox.
                 </p>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                    Phone Number
+                    Email Address
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                      <Phone className="w-4 h-4" />
+                      <Mail className="w-4 h-4" />
                     </div>
                     <input
-                      id="reset-phone-input"
-                      type="tel"
+                      id="reset-email-input"
+                      type="email"
                       required
-                      placeholder="e.g. 01012345678 or +201012345678"
-                      value={resetPhone}
-                      onChange={(e) => setResetPhone(e.target.value)}
+                      placeholder="e.g. member@church.org"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
                       className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
                     />
                   </div>
@@ -495,7 +569,7 @@ export const AuthScreen: React.FC = () => {
                 <button
                   id="btn-request-otp"
                   type="submit"
-                  disabled={resetLoading || !resetPhone}
+                  disabled={resetLoading || !resetEmail}
                   className="w-full py-2.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {resetLoading ? (
@@ -518,12 +592,12 @@ export const AuthScreen: React.FC = () => {
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 flex flex-col gap-2">
                     <div className="flex items-center gap-2 font-bold text-amber-900">
                       <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded text-[10px] uppercase tracking-wider font-extrabold">
-                        TEST MODE
+                        TEST/DEV MODE
                       </span>
-                      <span>Simulated SMS Dispatch</span>
+                      <span>Simulated Email OTP</span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-normal">
-                      In this sandboxed cloud environment without an external SMS gateway, the generated verification code is:
+                      RESEND_API_KEY is not set or in test mode. The generated verification code for <strong className="font-semibold">{resetEmail}</strong> is:
                     </p>
                     <div className="flex items-center justify-center bg-white border border-amber-300 px-3 py-1.5 rounded-lg">
                       <span className="font-mono text-base font-bold tracking-widest text-amber-950">
@@ -540,12 +614,12 @@ export const AuthScreen: React.FC = () => {
                     </label>
                     <button
                       type="button"
-                      onClick={handleRequestOtp}
-                      disabled={resetLoading}
-                      className="text-xs text-amber-800 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      onClick={handleResendOtp}
+                      disabled={resetLoading || resendCooldown > 0}
+                      className="text-xs text-amber-800 hover:underline flex items-center gap-1 cursor-pointer font-medium disabled:opacity-50 disabled:no-underline"
                     >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Resend Code</span>
+                      <RefreshCw className={`w-3 h-3 ${resetLoading ? 'animate-spin' : ''}`} />
+                      <span>{resendCooldown > 0 ? `Resend (${resendCooldown}s)` : 'Resend Code'}</span>
                     </button>
                   </div>
                   <input

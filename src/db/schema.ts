@@ -24,7 +24,8 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
-    phoneNumber: text('phone_number').notNull().unique('users_phone_number_key'),
+    email: text('email').notNull().unique('users_email_key'),
+    phoneNumber: text('phone_number').notNull(),
     passwordHash: text('password_hash').notNull(),
     isTrusted: boolean('is_trusted').default(false).notNull(),
     isActive: boolean('is_active').default(false).notNull(),
@@ -40,7 +41,8 @@ export const users = pgTable(
 export const admins = pgTable('admins', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  phoneNumber: text('phone_number').notNull().unique('admins_phone_number_key'),
+  email: text('email').notNull().unique('admins_email_key'),
+  phoneNumber: text('phone_number').notNull(),
   passwordHash: text('password_hash').notNull(),
   isSuperAdmin: boolean('is_super_admin').default(false).notNull(),
   role: text('role').default('admin').notNull(),
@@ -184,7 +186,7 @@ export const trustedStatusAuditLog = pgTable(
 
 // 11. Failed Login Attempts Table
 export const failedLoginAttempts = pgTable('failed_login_attempts', {
-  phoneNumber: text('phone_number').primaryKey(),
+  email: text('email').primaryKey(),
   consecutiveFailures: integer('consecutive_failures').default(0).notNull(),
   lockedUntil: timestamp('locked_until', { withTimezone: true }),
   lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }).defaultNow().notNull(),
@@ -202,14 +204,29 @@ export const sessions = pgTable('sessions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// 13. Password Reset OTPs Table (For Phone OTP Reset Flow)
+// 13. Password Reset OTPs Table (For Email OTP Reset Flow via Resend)
 export const passwordResetOtps = pgTable('password_reset_otps', {
   id: uuid('id').primaryKey().defaultRandom(),
-  phoneNumber: text('phone_number').notNull(),
+  email: text('email').notNull(),
   otpHash: text('otp_hash').notNull(),
   attempts: integer('attempts').default(0).notNull(),
   verified: boolean('verified').default(false).notNull(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  lastRequestedAt: timestamp('last_requested_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// 14. Role Audit Log Table (For tracking Super Admin promote/demote/delete actions)
+export const roleAuditLog = pgTable('role_audit_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  actorAdminId: uuid('actor_admin_id'),
+  actorAdminName: text('actor_admin_name'),
+  targetEmail: text('target_email').notNull(),
+  targetName: text('target_name').notNull(),
+  oldRole: text('old_role').notNull(), // 'user' | 'admin' | 'super_admin'
+  newRole: text('new_role').notNull(), // 'user' | 'admin' | 'super_admin' | 'deleted'
+  action: text('action').notNull(), // 'promote' | 'demote' | 'delete'
+  notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
