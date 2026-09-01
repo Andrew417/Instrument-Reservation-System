@@ -1008,6 +1008,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
       name: row.name,
       phoneNumber: row.phone_number,
       isTrusted: row.is_trusted,
+      email: row.email,
       isActive: row.is_active,
       approvalStatus: row.approval_status,
       createdAt: row.created_at,
