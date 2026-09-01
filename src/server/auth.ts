@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { Resend } from "resend";
 import { db } from "../db/index.js";
+import { sendOtpEmail } from "../lib/mailer.js";
 import {
   users,
   admins,
@@ -27,20 +27,10 @@ const router = Router();
 // OTP settings
 const OTP_EXPIRATION_MS = 10 * 60 * 1000; // 10 minutes
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds rate limit
-const MAX_OTP_VERIFY_ATTEMPTS = 3;
-
-// Lazy initialization of Resend client
-let resendClient: Resend | null = null;
-function getResendClient(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey || !apiKey.trim()) {
-    return null;
-  }
-  if (!resendClient) {
-    resendClient = new Resend(apiKey.trim());
-  }
-  return resendClient;
-}
+const MAX_OTP_VERIFY_ATTEMPTS = 5;
+const OTP_LOCKOUT_MS = 15 * 60 * 1000;
+const MAX_OTP_REQUESTS_PER_HOUR = 3;
+const OTP_REQUEST_WINDOW_MS = 60 * 60 * 1000;
 
 // Helper to hash passwords / tokens with bcrypt
 async function hashPassword(plainText: string): Promise<string> {
@@ -239,7 +229,6 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: "Failed to create user account" });
   }
 });
-
 /**
  * 3. Member & Admin Login
  * Uses email as unique identifier
@@ -487,83 +476,6 @@ router.post("/logout", async (req: Request, res: Response): Promise<void> => {
 /**
  * Helper to send email OTP via Resend
  */
-async function sendOtpEmail(
-  email: string,
-  otpCode: string,
-): Promise<{ sent: boolean; error?: string }> {
-  const resend = getResendClient();
-  if (!resend) {
-    return { sent: false };
-  }
-
-  const fromEmail =
-    process.env.RESEND_FROM_EMAIL ||
-    "St. Mark Reservations <onboarding@resend.dev>";
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #fcfbf9; margin: 0; padding: 24px; color: #292524; }
-          .card { max-width: 480px; margin: 0 auto; background: #ffffff; border: 1px solid #e7e5e4; border-radius: 16px; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-          .header { text-align: center; margin-bottom: 24px; }
-          .logo { display: inline-block; font-size: 28px; line-height: 1; margin-bottom: 8px; }
-          .title { font-size: 20px; font-weight: 700; color: #1c1917; margin: 0; }
-          .subtitle { font-size: 13px; color: #78716c; margin-top: 4px; }
-          .body-text { font-size: 14px; line-height: 1.6; color: #44403c; margin: 16px 0; }
-          .otp-container { background: #fdf8f4; border: 1px solid #fed7aa; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
-          .otp-code { font-family: monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #9a3412; margin: 0; }
-          .otp-expiry { font-size: 12px; color: #c2410c; margin-top: 8px; font-weight: 600; }
-          .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #f5f5f4; font-size: 12px; color: #a8a29e; text-align: center; line-height: 1.5; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="header">
-            <div class="logo">⛪</div>
-            <h1 class="title">Password Reset Code</h1>
-            <div class="subtitle">St. Mark Church Instrument Reservation</div>
-          </div>
-          <p class="body-text">
-            We received a request to reset your password. Use the 6-digit verification code below to verify your identity:
-          </p>
-          <div class="otp-container">
-            <div class="otp-code">${otpCode}</div>
-            <div class="otp-expiry">⏱️ Valid for 10 minutes</div>
-          </div>
-          <p class="body-text">
-            If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
-          </p>
-          <div class="footer">
-            St. Mark Church Instrument Reservation System<br>
-            Secure Church Member Portal
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-
-  try {
-    const { data, error } = await resend.emails.send({
-      from: fromEmail,
-      to: email,
-      subject: `${otpCode} is your Password Reset Code - St. Mark Church`,
-      html: htmlContent,
-    });
-
-    if (error) {
-      console.warn("Resend email error:", error);
-      return { sent: false, error: error.message };
-    }
-
-    return { sent: true };
-  } catch (err: any) {
-    console.error("Error invoking Resend email API:", err);
-    return { sent: false, error: err.message };
-  }
-}
 
 /**
  * 6. Forgot Password - Step 1: Request OTP by Email
@@ -605,13 +517,22 @@ router.post(
 
       const now = new Date();
 
-      // Check rate limiting: max 1 request per 60 seconds per email
       const [existingOtp] = await db
         .select()
         .from(passwordResetOtps)
         .where(eq(passwordResetOtps.email, normalizedEmail))
-        .orderBy(desc(passwordResetOtps.createdAt))
         .limit(1);
+
+      if (existingOtp?.lockedUntil && existingOtp.lockedUntil > now) {
+        const remainingSeconds = Math.ceil(
+          (existingOtp.lockedUntil.getTime() - now.getTime()) / 1000,
+        );
+        res.status(423).json({
+          error: `Too many failed attempts. Please try again in ${Math.ceil(remainingSeconds / 60)} minutes.`,
+          remainingSeconds,
+        });
+        return;
+      }
 
       if (existingOtp) {
         const timeSinceLastRequest =
@@ -628,25 +549,52 @@ router.post(
         }
       }
 
-      // Generate secure 6-digit numeric OTP
+      const windowExpired =
+        !existingOtp ||
+        now.getTime() - new Date(existingOtp.windowStartAt).getTime() >=
+          OTP_REQUEST_WINDOW_MS;
+
+      const nextRequestCount = windowExpired ? 1 : existingOtp.requestCount + 1;
+
+      if (!windowExpired && nextRequestCount > MAX_OTP_REQUESTS_PER_HOUR) {
+        res.status(429).json({
+          error: `Maximum of ${MAX_OTP_REQUESTS_PER_HOUR} verification codes per hour reached. Please try again later.`,
+        });
+        return;
+      }
+
+      const nextWindowStartAt = windowExpired ? now : existingOtp.windowStartAt;
+
       const otpCode = crypto.randomInt(100000, 999999).toString();
       const otpHash = await hashPassword(otpCode);
       const expiresAt = new Date(now.getTime() + OTP_EXPIRATION_MS);
 
-      // Invalidate prior OTPs for this email
       await db
-        .delete(passwordResetOtps)
-        .where(eq(passwordResetOtps.email, normalizedEmail));
-
-      // Store new OTP
-      await db.insert(passwordResetOtps).values({
-        email: normalizedEmail,
-        otpHash,
-        attempts: 0,
-        verified: false,
-        expiresAt,
-        lastRequestedAt: now,
-      });
+        .insert(passwordResetOtps)
+        .values({
+          email: normalizedEmail,
+          otpHash,
+          attempts: 0,
+          verified: false,
+          lockedUntil: null,
+          requestCount: nextRequestCount,
+          windowStartAt: nextWindowStartAt,
+          expiresAt,
+          lastRequestedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: passwordResetOtps.email,
+          set: {
+            otpHash,
+            attempts: 0,
+            verified: false,
+            lockedUntil: null,
+            requestCount: nextRequestCount,
+            windowStartAt: nextWindowStartAt,
+            expiresAt,
+            lastRequestedAt: now,
+          },
+        });
 
       // Send email via Resend
       const { sent: emailSent, error: emailError } = await sendOtpEmail(
@@ -724,13 +672,22 @@ router.post(
 
       const now = new Date();
 
-      // Check rate limit: 60s
       const [existingOtp] = await db
         .select()
         .from(passwordResetOtps)
         .where(eq(passwordResetOtps.email, normalizedEmail))
-        .orderBy(desc(passwordResetOtps.createdAt))
         .limit(1);
+
+      if (existingOtp?.lockedUntil && existingOtp.lockedUntil > now) {
+        const remainingSeconds = Math.ceil(
+          (existingOtp.lockedUntil.getTime() - now.getTime()) / 1000,
+        );
+        res.status(423).json({
+          error: `Too many failed attempts. Please try again in ${Math.ceil(remainingSeconds / 60)} minutes.`,
+          remainingSeconds,
+        });
+        return;
+      }
 
       if (existingOtp) {
         const timeSinceLastRequest =
@@ -747,24 +704,45 @@ router.post(
         }
       }
 
-      // Invalidate all previous OTPs for that email
-      await db
-        .delete(passwordResetOtps)
-        .where(eq(passwordResetOtps.email, normalizedEmail));
-
       // Generate new 6-digit numeric OTP
       const otpCode = crypto.randomInt(100000, 999999).toString();
       const otpHash = await hashPassword(otpCode);
       const expiresAt = new Date(now.getTime() + OTP_EXPIRATION_MS);
 
-      await db.insert(passwordResetOtps).values({
-        email: normalizedEmail,
-        otpHash,
-        attempts: 0,
-        verified: false,
-        expiresAt,
-        lastRequestedAt: now,
-      });
+      const windowExpired =
+        !existingOtp ||
+        now.getTime() - new Date(existingOtp.windowStartAt).getTime() >=
+          OTP_REQUEST_WINDOW_MS;
+
+      const nextRequestCount = windowExpired ? 1 : existingOtp.requestCount + 1;
+      const nextWindowStartAt = windowExpired ? now : existingOtp.windowStartAt;
+
+      await db
+        .insert(passwordResetOtps)
+        .values({
+          email: normalizedEmail,
+          otpHash,
+          attempts: 0,
+          verified: false,
+          lockedUntil: null,
+          requestCount: nextRequestCount,
+          windowStartAt: nextWindowStartAt,
+          expiresAt,
+          lastRequestedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: passwordResetOtps.email,
+          set: {
+            otpHash,
+            attempts: 0,
+            verified: false,
+            lockedUntil: null,
+            requestCount: nextRequestCount,
+            windowStartAt: nextWindowStartAt,
+            expiresAt,
+            lastRequestedAt: now,
+          },
+        });
 
       const { sent: emailSent } = await sendOtpEmail(normalizedEmail, otpCode);
 
@@ -831,13 +809,13 @@ router.post(
         return;
       }
 
-      if (record.attempts >= MAX_OTP_VERIFY_ATTEMPTS) {
-        await db
-          .delete(passwordResetOtps)
-          .where(eq(passwordResetOtps.id, record.id));
-        res.status(429).json({
-          error:
-            "Too many incorrect attempts. Please request a new verification code.",
+      if (record.lockedUntil && record.lockedUntil > now) {
+        const remainingSeconds = Math.ceil(
+          (record.lockedUntil.getTime() - now.getTime()) / 1000,
+        );
+        res.status(423).json({
+          error: `Too many failed attempts. Please try again in ${Math.ceil(remainingSeconds / 60)} minutes.`,
+          remainingSeconds,
         });
         return;
       }
@@ -845,13 +823,29 @@ router.post(
       const isValidOtp = await bcrypt.compare(otp.trim(), record.otpHash);
 
       if (!isValidOtp) {
-        const remainingAttempts =
-          MAX_OTP_VERIFY_ATTEMPTS - (record.attempts + 1);
+        const newAttempts = record.attempts + 1;
+
+        if (newAttempts >= MAX_OTP_VERIFY_ATTEMPTS) {
+          const lockedUntil = new Date(now.getTime() + OTP_LOCKOUT_MS);
+          await db
+            .update(passwordResetOtps)
+            .set({ attempts: newAttempts, lockedUntil })
+            .where(eq(passwordResetOtps.id, record.id));
+
+          res.status(423).json({
+            error:
+              "Too many incorrect attempts. Account locked for 15 minutes.",
+            remainingSeconds: OTP_LOCKOUT_MS / 1000,
+          });
+          return;
+        }
+
         await db
           .update(passwordResetOtps)
-          .set({ attempts: record.attempts + 1 })
+          .set({ attempts: newAttempts })
           .where(eq(passwordResetOtps.id, record.id));
 
+        const remainingAttempts = MAX_OTP_VERIFY_ATTEMPTS - newAttempts;
         res.status(400).json({
           error: `Incorrect code. ${remainingAttempts} attempt${remainingAttempts === 1 ? "" : "s"} remaining.`,
           remainingAttempts,
