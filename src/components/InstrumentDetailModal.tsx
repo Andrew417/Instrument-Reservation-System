@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Instrument } from './AvailabilityCalendar.tsx';
-import { useAuth } from '../contexts/AuthContext.tsx';
-import { getReservantColorTheme } from '../lib/reservant-colors.ts';
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Instrument } from "./AvailabilityCalendar.tsx";
+import { useAuth } from "../contexts/AuthContext.tsx";
+import { getReservantColorTheme } from "../lib/reservant-colors";
 import {
   getLocalDateString,
   getTodayDateString,
@@ -9,7 +9,7 @@ import {
   addDaysToDateString,
   formatDisplayDate,
   formatHhmmTo12Hour,
-} from '../lib/date-utils.ts';
+} from "../lib/date-utils";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -26,14 +26,19 @@ import {
   CalendarRange,
   Upload,
   Trash2,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface InstrumentDetailModalProps {
   instrument: Instrument;
   allInstruments: Instrument[];
   initialDate?: string;
   onClose: () => void;
-  onSelectSlot: (instrument: Instrument, date: string, timeHhmm: string, durationHours: number) => void;
+  onSelectSlot: (
+    instrument: Instrument,
+    date: string,
+    timeHhmm: string,
+    durationHours: number,
+  ) => void;
   onInstrumentUpdated?: (updated: Instrument) => void;
 }
 
@@ -44,10 +49,10 @@ for (let hour = 9; hour <= 21; hour++) {
   TIME_SLOTS.push(`${hStr}:00`);
   TIME_SLOTS.push(`${hStr}:30`);
 }
-TIME_SLOTS.push('22:00');
+TIME_SLOTS.push("22:00");
 
 function hhmmToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
+  const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }
 
@@ -61,11 +66,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 }) => {
   const { profile, sessionToken } = useAuth();
   const isAdminOrSuperAdmin =
-    profile?.role === 'admin' ||
-    profile?.role === 'super_admin' ||
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
     Boolean(profile?.isSuperAdmin);
 
-  const [currentInstrument, setCurrentInstrument] = useState<Instrument>(instrument);
+  const [currentInstrument, setCurrentInstrument] =
+    useState<Instrument>(instrument);
   const [isUpdatingMode, setIsUpdatingMode] = useState<boolean>(false);
   const [modeNotice, setModeNotice] = useState<string | null>(null);
 
@@ -75,30 +81,33 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   const handleToggleMode = async () => {
     if (!isAdminOrSuperAdmin || isUpdatingMode) return;
-    const nextMode: 'manual' | 'instant' = currentInstrument.bookingMode === 'instant' ? 'manual' : 'instant';
-    const nextLabel = nextMode === 'instant' ? 'Instant Booking' : 'Manual Approval';
+    const nextMode: "manual" | "instant" =
+      currentInstrument.bookingMode === "instant" ? "manual" : "instant";
+    const nextLabel =
+      nextMode === "instant" ? "Instant Booking" : "Manual Approval";
 
     setIsUpdatingMode(true);
     const updated: Instrument = { ...currentInstrument, bookingMode: nextMode };
     setCurrentInstrument(updated);
 
     try {
-      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      const token =
+        sessionToken || localStorage.getItem("church_session_token_v1");
       let res = await fetch(`/api/instruments/${currentInstrument.id}/mode`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({ bookingMode: nextMode }),
       });
 
       if (!res.ok) {
         res = await fetch(`/api/admin/instruments/${currentInstrument.id}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: token ? `Bearer ${token}` : '',
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
           },
           body: JSON.stringify({ bookingMode: nextMode }),
         });
@@ -106,7 +115,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to update mode');
+        throw new Error(data.error || "Failed to update mode");
       }
 
       setModeNotice(`Switched to ${nextLabel}`);
@@ -116,9 +125,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         onInstrumentUpdated(updated);
       }
     } catch (err: any) {
-      console.error('Failed to toggle mode:', err);
+      console.error("Failed to toggle mode:", err);
       setCurrentInstrument(instrument);
-      setModeNotice(`Error: ${err.message || 'Failed to update'}`);
+      setModeNotice(`Error: ${err.message || "Failed to update"}`);
       setTimeout(() => setModeNotice(null), 3500);
     } finally {
       setIsUpdatingMode(false);
@@ -126,7 +135,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   };
 
   // View mode: 'daily' | 'weekly' | 'monthly'
-  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [viewMode, setViewMode] = useState<"daily" | "weekly" | "monthly">(
+    "daily",
+  );
 
   // Navigation anchors
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -147,19 +158,20 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   const fetchReservations = async () => {
     setLoading(true);
     try {
-      const token = sessionToken || localStorage.getItem('church_session_token_v1');
+      const token =
+        sessionToken || localStorage.getItem("church_session_token_v1");
       const res = await fetch(
         `/api/reservations?instrumentId=${instrument.id}&status=approved,ongoing`,
         {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
+        },
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.reservations)) {
         setApprovedReservations(data.reservations);
       }
     } catch (err) {
-      console.error('Failed to load reservations for instrument:', err);
+      console.error("Failed to load reservations for instrument:", err);
     } finally {
       setLoading(false);
     }
@@ -175,11 +187,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
 
-  const handlePhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
-    if (!file.type.startsWith('image/')) {
-      setModeNotice('Please select an image file (PNG, JPG, WEBP).');
+    if (!file.type.startsWith("image/")) {
+      setModeNotice("Please select an image file (PNG, JPG, WEBP).");
       setTimeout(() => setModeNotice(null), 3000);
       return;
     }
@@ -201,67 +215,77 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             height = maxDim;
           }
         }
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        let dataUrl = String(ev.target?.result || '');
+        const ctx = canvas.getContext("2d");
+        let dataUrl = String(ev.target?.result || "");
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+          dataUrl = canvas.toDataURL("image/jpeg", 0.86);
         }
 
         try {
-          const token = sessionToken || localStorage.getItem('church_session_token_v1');
-          const res = await fetch(`/api/admin/instruments/${currentInstrument.id}/photo`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: token ? `Bearer ${token}` : '',
+          const token =
+            sessionToken || localStorage.getItem("church_session_token_v1");
+          const res = await fetch(
+            `/api/admin/instruments/${currentInstrument.id}/photo`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: token ? `Bearer ${token}` : "",
+              },
+              body: JSON.stringify({ photoUrl: dataUrl }),
             },
-            body: JSON.stringify({ photoUrl: dataUrl }),
-          });
+          );
           const data = await res.json();
           if (data.success) {
             const updated = { ...currentInstrument, photoUrl: dataUrl };
             setCurrentInstrument(updated);
             onInstrumentUpdated?.(updated);
-            setModeNotice('Photo attached to instrument successfully.');
+            setModeNotice("Photo attached to instrument successfully.");
             setTimeout(() => setModeNotice(null), 3000);
           } else {
-            setModeNotice(data.error || 'Failed to update photo');
+            setModeNotice(data.error || "Failed to update photo");
             setTimeout(() => setModeNotice(null), 3000);
           }
         } catch (err: any) {
-          setModeNotice(err.message || 'Network error updating photo');
+          setModeNotice(err.message || "Network error updating photo");
           setTimeout(() => setModeNotice(null), 3000);
         } finally {
           setIsUploadingPhoto(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
+          if (fileInputRef.current) fileInputRef.current.value = "";
         }
       };
-      img.src = String(ev.target?.result || '');
+      img.src = String(ev.target?.result || "");
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemovePhotoOnScreen4 = async () => {
     try {
-      const token = sessionToken || localStorage.getItem('church_session_token_v1');
-      const res = await fetch(`/api/admin/instruments/${currentInstrument.id}/photo`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
+      const token =
+        sessionToken || localStorage.getItem("church_session_token_v1");
+      const res = await fetch(
+        `/api/admin/instruments/${currentInstrument.id}/photo`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({ photoUrl: "" }),
         },
-        body: JSON.stringify({ photoUrl: '' }),
-      });
+      );
       const data = await res.json();
       if (data.success) {
-        const updated = { ...currentInstrument, photoUrl: '' };
+        const updated = { ...currentInstrument, photoUrl: "" };
         setCurrentInstrument(updated);
         onInstrumentUpdated?.(updated);
-        setModeNotice('Instrument photo removed. The default image is now shown.');
+        setModeNotice(
+          "Instrument photo removed. The default image is now shown.",
+        );
         setTimeout(() => setModeNotice(null), 3000);
       }
     } catch (err: any) {
@@ -280,8 +304,8 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   // Helper to check if a specific date and time slot is booked
   const isSlotBooked = (dateStr: string, slotHhmm: string) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const [h, min] = slotHhmm.split(':').map(Number);
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const [h, min] = slotHhmm.split(":").map(Number);
     const slotStart = new Date(Date.UTC(y, m - 1, d, h, min, 0, 0));
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
 
@@ -294,8 +318,8 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   // Helper to retrieve reservation details for a booked slot
   const getSlotReservation = (dateStr: string, slotHhmm: string) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const [h, min] = slotHhmm.split(':').map(Number);
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const [h, min] = slotHhmm.split(":").map(Number);
     const slotStart = new Date(Date.UTC(y, m - 1, d, h, min, 0, 0));
     const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
 
@@ -314,15 +338,28 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     // Find Monday of the current week (0 is Sunday, 1 is Monday...)
     const dayOfWeek = base.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(base.getFullYear(), base.getMonth(), base.getDate() + diffToMonday);
+    const monday = new Date(
+      base.getFullYear(),
+      base.getMonth(),
+      base.getDate() + diffToMonday,
+    );
 
-    const days: { dateStr: string; dayName: string; dayNum: number; isSelected: boolean }[] = [];
+    const days: {
+      dateStr: string;
+      dayName: string;
+      dayNum: number;
+      isSelected: boolean;
+    }[] = [];
     for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const dayDate = new Date(
+        monday.getFullYear(),
+        monday.getMonth(),
+        monday.getDate() + i,
+      );
       const dateStr = getLocalDateString(dayDate);
       days.push({
         dateStr,
-        dayName: dayDate.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayName: dayDate.toLocaleDateString("en-US", { weekday: "short" }),
         dayNum: dayDate.getDate(),
         isSelected: dateStr === selectedDate,
       });
@@ -373,7 +410,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
       // Count approved reservations on this date
       const count = approvedReservations.filter((res) => {
-        const rDate = res.reservation_date || (res.startTime ? getLocalDateString(new Date(res.startTime)) : '');
+        const rDate =
+          res.reservation_date ||
+          (res.startTime ? getLocalDateString(new Date(res.startTime)) : "");
         return rDate === dateStr;
       }).length;
 
@@ -408,13 +447,21 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
   const handlePrevMonth = () => {
     setCurrentMonthDate(
-      new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1)
+      new Date(
+        currentMonthDate.getFullYear(),
+        currentMonthDate.getMonth() - 1,
+        1,
+      ),
     );
   };
 
   const handleNextMonth = () => {
     setCurrentMonthDate(
-      new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1)
+      new Date(
+        currentMonthDate.getFullYear(),
+        currentMonthDate.getMonth() + 1,
+        1,
+      ),
     );
   };
 
@@ -492,7 +539,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       className="px-2.5 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer"
                     >
                       <Upload className="w-3 h-3" />
-                      <span>{isUploadingPhoto ? 'Uploading...' : 'Change Photo'}</span>
+                      <span>
+                        {isUploadingPhoto ? "Uploading..." : "Change Photo"}
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -511,8 +560,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-amber-100/70 text-amber-800 flex items-center justify-center mb-1">
                   <Music2 className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold text-stone-700">No Photo</span>
-                <span className="text-[10px] text-stone-400">No photo uploaded yet</span>
+                <span className="text-[11px] font-bold text-stone-700">
+                  No Photo
+                </span>
+                <span className="text-[10px] text-stone-400">
+                  No photo uploaded yet
+                </span>
                 {isAdminOrSuperAdmin && (
                   <button
                     type="button"
@@ -521,7 +574,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     className="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
                   >
                     <Upload className="w-3 h-3" />
-                    <span>{isUploadingPhoto ? 'Uploading...' : 'Upload Photo'}</span>
+                    <span>
+                      {isUploadingPhoto ? "Uploading..." : "Upload Photo"}
+                    </span>
                   </button>
                 )}
                 <div className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-stone-800/80 backdrop-blur-xs text-white text-[10px] font-bold">
@@ -546,28 +601,38 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       onClick={handleToggleMode}
                       disabled={isUpdatingMode}
                       title={`Admin: Click to switch to ${
-                        currentInstrument.bookingMode === 'instant' ? 'Manual Approval' : 'Instant Booking'
+                        currentInstrument.bookingMode === "instant"
+                          ? "Manual Approval"
+                          : "Instant Booking"
                       }`}
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
-                        currentInstrument.bookingMode === 'instant'
-                          ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
-                          : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
-                      } ${isUpdatingMode ? 'opacity-50 cursor-wait' : ''}`}
+                        currentInstrument.bookingMode === "instant"
+                          ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300"
+                          : "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300"
+                      } ${isUpdatingMode ? "opacity-50 cursor-wait" : ""}`}
                     >
                       <Shield className="w-3 h-3" />
-                      <span>{currentInstrument.bookingMode === 'instant' ? 'Instant Booking' : 'Manual Approval'}</span>
-                      <span className="text-[9px] lowercase font-normal opacity-75">(click to toggle)</span>
+                      <span>
+                        {currentInstrument.bookingMode === "instant"
+                          ? "Instant Booking"
+                          : "Manual Approval"}
+                      </span>
+                      <span className="text-[9px] lowercase font-normal opacity-75">
+                        (click to toggle)
+                      </span>
                     </button>
                   ) : (
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                        currentInstrument.bookingMode === 'instant'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                          : 'bg-amber-100 text-amber-900 border border-amber-200'
+                        currentInstrument.bookingMode === "instant"
+                          ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                          : "bg-amber-100 text-amber-900 border border-amber-200"
                       }`}
                     >
                       <Shield className="w-3 h-3" />
-                      {currentInstrument.bookingMode === 'instant' ? 'Instant Booking' : 'Manual Approval'}
+                      {currentInstrument.bookingMode === "instant"
+                        ? "Instant Booking"
+                        : "Manual Approval"}
                     </span>
                   )}
 
@@ -587,7 +652,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                 <p className="text-xs text-stone-600 leading-relaxed">
                   {instrument.description ||
-                    'Church sanctuary instrument available for liturgical services, rehearsals, and approved ministries.'}
+                    "Church sanctuary instrument available for liturgical services, rehearsals, and approved ministries."}
                 </p>
               </div>
 
@@ -614,11 +679,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
               <button
                 type="button"
                 id="btn-view-daily"
-                onClick={() => setViewMode('daily')}
+                onClick={() => setViewMode("daily")}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === 'daily'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
+                  viewMode === "daily"
+                    ? "bg-white text-stone-900 shadow-xs"
+                    : "text-stone-600 hover:text-stone-900"
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
@@ -628,11 +693,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
               <button
                 type="button"
                 id="btn-view-weekly"
-                onClick={() => setViewMode('weekly')}
+                onClick={() => setViewMode("weekly")}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === 'weekly'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
+                  viewMode === "weekly"
+                    ? "bg-white text-stone-900 shadow-xs"
+                    : "text-stone-600 hover:text-stone-900"
                 }`}
               >
                 <CalendarRange className="w-3.5 h-3.5" />
@@ -642,11 +707,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
               <button
                 type="button"
                 id="btn-view-monthly"
-                onClick={() => setViewMode('monthly')}
+                onClick={() => setViewMode("monthly")}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === 'monthly'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
+                  viewMode === "monthly"
+                    ? "bg-white text-stone-900 shadow-xs"
+                    : "text-stone-600 hover:text-stone-900"
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
@@ -656,7 +721,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
             {/* Date Navigator depending on View */}
             <div className="flex items-center gap-2">
-              {viewMode === 'daily' && (
+              {viewMode === "daily" && (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -683,7 +748,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 </div>
               )}
 
-              {viewMode === 'weekly' && (
+              {viewMode === "weekly" && (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -707,7 +772,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 </div>
               )}
 
-              {viewMode === 'monthly' && (
+              {viewMode === "monthly" && (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -718,7 +783,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200">
-                    {currentMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {currentMonthDate.toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </span>
                   <button
                     type="button"
@@ -736,7 +804,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           {/* ========================================================= */}
           {/* 1. DAILY VIEW GRID (30-min intervals, 09:00 - 22:00) */}
           {/* ========================================================= */}
-          {viewMode === 'daily' && (
+          {viewMode === "daily" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
@@ -748,12 +816,16 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   {isAdminOrSuperAdmin ? (
                     <>
                       <span className="inline-block w-2.5 h-2.5 rounded-sm bg-indigo-950 border border-indigo-600" />
-                      <span>Assigned Color per Reservant (Name &amp; Service)</span>
+                      <span>
+                        Assigned Color per Reservant (Name &amp; Service)
+                      </span>
                     </>
                   ) : (
                     <>
                       <span className="inline-block w-2.5 h-2.5 rounded-sm bg-black" />
-                      <span className="font-semibold text-stone-900">Booked</span>
+                      <span className="font-semibold text-stone-900">
+                        Booked
+                      </span>
                     </>
                   )}
                 </span>
@@ -766,10 +838,19 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                   if (booked) {
                     if (isAdminOrSuperAdmin) {
-                      const reservantKey = slotRes?.user_id || slotRes?.userId || slotRes?.user_name || slotRes?.userName || 'admin-booking';
+                      const reservantKey =
+                        slotRes?.user_id ||
+                        slotRes?.userId ||
+                        slotRes?.user_name ||
+                        slotRes?.userName ||
+                        "admin-booking";
                       const colorTheme = getReservantColorTheme(reservantKey);
-                      const reservantName = slotRes?.user_name || slotRes?.userName || 'Reservant';
-                      const serviceName = slotRes?.service_name || slotRes?.serviceName || 'Reserved Service';
+                      const reservantName =
+                        slotRes?.user_name || slotRes?.userName || "Reservant";
+                      const serviceName =
+                        slotRes?.service_name ||
+                        slotRes?.serviceName ||
+                        "Reserved Service";
 
                       return (
                         <button
@@ -846,7 +927,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     <button
                       key={slotHhmm}
                       type="button"
-                      onClick={() => onSelectSlot(instrument, selectedDate, slotHhmm, 2)}
+                      onClick={() =>
+                        onSelectSlot(instrument, selectedDate, slotHhmm, 2)
+                      }
                       className="p-2.5 rounded-xl border text-left transition relative flex flex-col justify-between min-h-[72px] select-none bg-white hover:bg-amber-50/60 hover:border-amber-700 border-stone-200 text-stone-800 cursor-pointer shadow-2xs hover:shadow-xs"
                     >
                       <div className="flex items-center justify-between w-full">
@@ -871,7 +954,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           {/* ========================================================= */}
           {/* 2. WEEKLY VIEW GRID (7-day columns x 30-min intervals) */}
           {/* ========================================================= */}
-          {viewMode === 'weekly' && (
+          {viewMode === "weekly" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
@@ -893,10 +976,16 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       <div
                         key={d.dateStr}
                         className={`p-2.5 border-r last:border-r-0 border-stone-200 ${
-                          d.isSelected ? 'bg-amber-800 text-white font-bold' : ''
+                          d.isSelected
+                            ? "bg-amber-800 text-white font-bold"
+                            : ""
                         }`}
                       >
-                        <div className={`text-[10px] uppercase ${d.isSelected ? 'text-amber-100' : 'text-stone-500'}`}>{d.dayName}</div>
+                        <div
+                          className={`text-[10px] uppercase ${d.isSelected ? "text-amber-100" : "text-stone-500"}`}
+                        >
+                          {d.dayName}
+                        </div>
                         <div>{d.dateStr.slice(5)}</div>
                       </div>
                     ))}
@@ -905,7 +994,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   {/* Time rows */}
                   <div className="divide-y divide-stone-100 max-h-[380px] overflow-y-auto">
                     {TIME_SLOTS.slice(0, -1).map((slotHhmm) => (
-                      <div key={slotHhmm} className="grid grid-cols-8 text-center text-xs">
+                      <div
+                        key={slotHhmm}
+                        className="grid grid-cols-8 text-center text-xs"
+                      >
                         {/* Time Column */}
                         <div className="p-2 text-[11px] font-semibold text-stone-500 bg-stone-50/50 border-r border-stone-200 flex items-center justify-center">
                           {formatHhmmTo12Hour(slotHhmm)}
@@ -914,14 +1006,29 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                         {/* 7 Days for this time */}
                         {weekDays.map((d) => {
                           const booked = isSlotBooked(d.dateStr, slotHhmm);
-                          const slotRes = getSlotReservation(d.dateStr, slotHhmm);
+                          const slotRes = getSlotReservation(
+                            d.dateStr,
+                            slotHhmm,
+                          );
 
                           if (booked) {
                             if (isAdminOrSuperAdmin) {
-                              const reservantKey = slotRes?.user_id || slotRes?.userId || slotRes?.user_name || slotRes?.userName || 'admin-booking';
-                              const colorTheme = getReservantColorTheme(reservantKey);
-                              const reservantName = slotRes?.user_name || slotRes?.userName || 'Reservant';
-                              const serviceName = slotRes?.service_name || slotRes?.serviceName || 'Reserved Service';
+                              const reservantKey =
+                                slotRes?.user_id ||
+                                slotRes?.userId ||
+                                slotRes?.user_name ||
+                                slotRes?.userName ||
+                                "admin-booking";
+                              const colorTheme =
+                                getReservantColorTheme(reservantKey);
+                              const reservantName =
+                                slotRes?.user_name ||
+                                slotRes?.userName ||
+                                "Reservant";
+                              const serviceName =
+                                slotRes?.service_name ||
+                                slotRes?.serviceName ||
+                                "Reserved Service";
 
                               return (
                                 <button
@@ -976,11 +1083,15 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                             <button
                               key={d.dateStr}
                               type="button"
-                              onClick={() => onSelectSlot(instrument, d.dateStr, slotHhmm, 2)}
+                              onClick={() =>
+                                onSelectSlot(instrument, d.dateStr, slotHhmm, 2)
+                              }
                               title={`Available • Tap to reserve at ${formatHhmmTo12Hour(slotHhmm)}`}
                               className="p-1 border-r last:border-r-0 border-stone-100 transition h-11 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 text-stone-300 hover:text-amber-900 cursor-pointer"
                             >
-                              <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">+</span>
+                              <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">
+                                +
+                              </span>
                             </button>
                           );
                         })}
@@ -995,11 +1106,15 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           {/* ========================================================= */}
           {/* 3. MONTHLY VIEW GRID (Day cells with density indicators) */}
           {/* ========================================================= */}
-          {viewMode === 'monthly' && (
+          {viewMode === "monthly" && (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
-                  Month Overview ({currentMonthDate.toLocaleDateString('en-US', { month: 'long' })})
+                  Month Overview (
+                  {currentMonthDate.toLocaleDateString("en-US", {
+                    month: "long",
+                  })}
+                  )
                 </span>
                 <span className="text-[11px] text-stone-400">
                   Select a day to jump into its daily time slot schedule
@@ -1028,26 +1143,26 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                         type="button"
                         onClick={() => {
                           setSelectedDate(cell.dateStr);
-                          setViewMode('daily');
+                          setViewMode("daily");
                         }}
                         className={`p-3 min-h-[70px] text-left transition flex flex-col justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-amber-800 text-white font-bold shadow-xs'
+                            ? "bg-amber-800 text-white font-bold shadow-xs"
                             : !cell.isCurrentMonth
-                            ? 'bg-stone-50/40 text-stone-300 opacity-60 hover:bg-stone-100/50'
-                            : cell.isToday
-                            ? 'bg-amber-50/80 text-amber-900 font-bold hover:bg-amber-100/60'
-                            : 'bg-white text-stone-800 hover:bg-amber-50/40'
+                              ? "bg-stone-50/40 text-stone-300 opacity-60 hover:bg-stone-100/50"
+                              : cell.isToday
+                                ? "bg-amber-50/80 text-amber-900 font-bold hover:bg-amber-100/60"
+                                : "bg-white text-stone-800 hover:bg-amber-50/40"
                         }`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <span
                             className={`text-xs font-bold ${
                               isSelected
-                                ? 'text-white'
+                                ? "text-white"
                                 : cell.isToday
-                                ? 'w-5 h-5 rounded-full bg-amber-800 text-white flex items-center justify-center text-[10px]'
-                                : ''
+                                  ? "w-5 h-5 rounded-full bg-amber-800 text-white flex items-center justify-center text-[10px]"
+                                  : ""
                             }`}
                           >
                             {cell.dayNumber}
@@ -1057,8 +1172,8 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                             <span
                               className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
                                 isSelected
-                                  ? 'bg-amber-900 text-amber-100'
-                                  : 'bg-amber-800 text-amber-100'
+                                  ? "bg-amber-900 text-amber-100"
+                                  : "bg-amber-800 text-amber-100"
                               }`}
                             >
                               {cell.approvedCount} booked
@@ -1070,18 +1185,22 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                         <div className="flex items-center gap-1 pt-1">
                           {cell.approvedCount > 0 ? (
                             <div className="flex items-center gap-0.5">
-                              {Array.from({ length: Math.min(cell.approvedCount, 4) }).map((_, dotIdx) => (
+                              {Array.from({
+                                length: Math.min(cell.approvedCount, 4),
+                              }).map((_, dotIdx) => (
                                 <span
                                   key={dotIdx}
                                   className={`w-1.5 h-1.5 rounded-full ${
-                                    isSelected ? 'bg-amber-200' : 'bg-amber-800'
+                                    isSelected ? "bg-amber-200" : "bg-amber-800"
                                   }`}
                                 />
                               ))}
                               {cell.approvedCount > 4 && (
                                 <span
                                   className={`text-[9px] font-bold ${
-                                    isSelected ? 'text-amber-100' : 'text-amber-800'
+                                    isSelected
+                                      ? "text-amber-100"
+                                      : "text-amber-800"
                                   }`}
                                 >
                                   +
@@ -1091,7 +1210,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                           ) : cell.isCurrentMonth ? (
                             <span
                               className={`text-[9px] font-medium ${
-                                isSelected ? 'text-amber-200' : 'text-emerald-600'
+                                isSelected
+                                  ? "text-amber-200"
+                                  : "text-emerald-600"
                               }`}
                             >
                               Available
@@ -1111,7 +1232,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500 shrink-0">
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-stone-400" />
-            <span>Strict privacy: Booking details & reserved users are hidden.</span>
+            <span>
+              Strict privacy: Booking details & reserved users are hidden.
+            </span>
           </div>
 
           <button

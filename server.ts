@@ -1,9 +1,9 @@
 import path from "path";
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { createExpressApp } from "./src/app.ts";
-import { seedSuperAdmin } from "./src/db/seed-super-admin.ts";
-import { runStatusTransitions } from "./src/services/reservation-logic.ts";
+import { createExpressApp } from "./src/app";
+import { seedSuperAdmin } from "./src/db/seed-super-admin";
+import { runStatusTransitions } from "./src/services/reservation-logic";
 
 export async function createServer() {
   const app = createExpressApp();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
-import { getTodayDateString } from "../lib/date-utils.ts";
+import { getTodayDateString } from "../lib/date-utils";
 import {
   Shield,
   LayoutDashboard,
