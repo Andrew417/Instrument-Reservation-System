@@ -339,7 +339,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-upcoming-reservations"
             onClick={() => setActiveTab("upcoming")}
-            className={`h-10 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-12 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "upcoming"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
@@ -364,7 +364,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-pending-reservations"
             onClick={() => setActiveTab("pending")}
-            className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-12 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "pending"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
@@ -389,7 +389,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-past-reservations"
             onClick={() => setActiveTab("past")}
-            className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-12 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "past"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
