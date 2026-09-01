@@ -277,7 +277,7 @@ export const AuthScreen: React.FC = () => {
                 {registrationNotice}
               </p>
               <div className="text-[11px] text-amber-700 mt-1.5 font-medium">
-                Church leadership has been notified. Once approved, you can sign in directly with your phone number and password.
+                Once approved, sign in with your phone number and password.
               </div>
             </div>
           </div>

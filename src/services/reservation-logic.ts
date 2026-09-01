@@ -1253,6 +1253,33 @@ export async function adminBulkReject(reservationIds: string[], reason: string, 
   };
 }
 
+export async function adminBulkCancel(reservationIds: string[], adminId?: string | null) {
+  if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
+    throw new Error('No reservation IDs provided for bulk cancellation.');
+  }
+
+  const cleanAdminId = toNullableString(adminId);
+  const cancelled: any[] = [];
+  const errors: { id: string; error: string }[] = [];
+
+  for (const id of reservationIds) {
+    try {
+      const result = await cancelReservation(id, { cancelMode: 'single' }, { adminId: cleanAdminId || undefined });
+      cancelled.push(result.reservation || result);
+    } catch (err: any) {
+      errors.push({ id, error: err.message });
+    }
+  }
+
+  return {
+    success: true,
+    totalRequested: reservationIds.length,
+    cancelledCount: cancelled.length,
+    cancelled,
+    errors,
+  };
+}
+
 /**
  * =========================================================================
  * 6. STATUS TRANSITIONS (Scheduled Check / Background Job)

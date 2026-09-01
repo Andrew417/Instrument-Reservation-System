@@ -236,7 +236,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({
       success: true,
       pendingApproval: true,
-      message: 'Your registration has been submitted successfully. Your account is awaiting admin approval before you can log in.',
+      message: 'Registration submitted. Your account is awaiting admin approval before you can log in',
       user: {
         id: newUser.id,
         name: newUser.name,

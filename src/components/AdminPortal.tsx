@@ -99,6 +99,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
+  // Bulk reservation actions
+  const [selectedReservationIds, setSelectedReservationIds] = useState<Set<string>>(new Set());
+  const [selectAllVisible, setSelectAllVisible] = useState<boolean>(false);
+  const [bulkActionModal, setBulkActionModal] = useState<{
+    isOpen: boolean;
+    action: 'cancel' | 'delete' | null;
+    count: number;
+    submitting: boolean;
+    confirmInput?: string;
+  } | null>(null);
+
   // Instruments
   const [instrumentsList, setInstrumentsList] = useState<any[]>([]);
   const [loadingInstruments, setLoadingInstruments] = useState<boolean>(false);
@@ -302,9 +313,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     reason: string;
     submitting: boolean;
   } | null>(null);
-
-  // Selected reservations for multi-select bulk actions
-  const [selectedReservationIds, setSelectedReservationIds] = useState<string[]>([]);
 
   // In-App Confirmation Modal State (Replaces blocked window.confirm)
   const [confirmModal, setConfirmModal] = useState<{
@@ -525,7 +533,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setConfirmModal({
       isOpen: true,
       title: `Permanently Delete ${user.name}?`,
-      description: `This will permanently remove ${user.name} (${user.phoneNumber || user.phone_number}) from the database. Use this ONLY for correcting mistaken entries or typos. This action cannot be undone.`,
+      description: `This will permanently remove ${user.name} (${user.phoneNumber}) from the database. Use this ONLY for correcting mistaken entries or typos. This action cannot be undone.`,
       confirmLabel: 'Delete Permanently',
       isDestructive: true,
       onConfirm: async () => {
@@ -785,6 +793,90 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     openRejectModal({ ...r, isSeriesReject: true });
   };
 
+  // Bulk reservation actions
+  const toggleReservationSelection = (reservationId: string) => {
+    const newSelected = new Set(selectedReservationIds);
+    if (newSelected.has(reservationId)) {
+      newSelected.delete(reservationId);
+    } else {
+      newSelected.add(reservationId);
+    }
+    setSelectedReservationIds(newSelected);
+    setSelectAllVisible(newSelected.size === reservations.length && reservations.length > 0);
+  };
+
+  const toggleSelectAllVisible = () => {
+    if (selectAllVisible || selectedReservationIds.size === 0) {
+      // Deselect all
+      setSelectedReservationIds(new Set());
+      setSelectAllVisible(false);
+    } else {
+      // Select all visible
+      const allIds = new Set(reservations.map((r) => r.id));
+      setSelectedReservationIds(allIds);
+      setSelectAllVisible(true);
+    }
+  };
+
+  const handleBulkCancel = () => {
+    if (selectedReservationIds.size === 0) return;
+    setBulkActionModal({
+      isOpen: true,
+      action: 'cancel',
+      count: selectedReservationIds.size,
+      submitting: false,
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedReservationIds.size === 0) return;
+    setBulkActionModal({
+      isOpen: true,
+      action: 'delete',
+      count: selectedReservationIds.size,
+      submitting: false,
+      confirmInput: '',
+    });
+  };
+
+  const submitBulkAction = async () => {
+    if (!bulkActionModal || !bulkActionModal.action) return;
+
+    const ids = Array.from(selectedReservationIds);
+
+    setBulkActionModal((prev) => (prev ? { ...prev, submitting: true } : null));
+
+    try {
+      const endpoint =
+        bulkActionModal.action === 'cancel' ? '/reservations/bulk-cancel' : '/reservations/bulk-delete';
+
+      const res = await adminFetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        const actionText = bulkActionModal.action === 'cancel' ? 'cancelled' : 'deleted';
+        showNotice(
+          `${selectedReservationIds.size} reservation(s) ${actionText} and members notified.`
+        );
+        setSelectedReservationIds(new Set());
+        setSelectAllVisible(false);
+        setBulkActionModal(null);
+        fetchReservations();
+        fetchStats();
+      } else {
+        showNotice(data.error || `Failed to ${bulkActionModal.action} reservations`, 'error');
+        setBulkActionModal((prev) => (prev ? { ...prev, submitting: false } : null));
+      }
+    } catch (err: any) {
+      showNotice(err.message || `Error during bulk ${bulkActionModal.action}`, 'error');
+      setBulkActionModal((prev) => (prev ? { ...prev, submitting: false } : null));
+    }
+  };
+
   // Instrument CRUD
   const handleSaveInstrument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1039,6 +1131,62 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Super Admin: Promote user to admin
+  const handlePromoteToAdmin = (userId: string, userName: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Promote member to administrator',
+      description: `Promote "${userName}" to an administrative account? Their reservation history will be preserved under the new admin identity.`,
+      confirmLabel: 'Promote to Admin',
+      isDestructive: false,
+      onConfirm: async () => {
+        try {
+          const res = await adminFetch(`/users/${userId}/promote`, { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            showNotice(data.message || 'Member promoted to administrator.');
+            await fetchUsers();
+            await fetchAdmins();
+          } else {
+            showNotice(data.error || 'Failed to promote member', 'error');
+          }
+        } catch (err: any) {
+          showNotice(err.message, 'error');
+        } finally {
+          setConfirmModal(null);
+        }
+      },
+    });
+  };
+
+  // Super Admin: Demote admin to regular member
+  const handleDemoteAdmin = (adminId: string, adminName: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Demote administrator to regular member',
+      description: `Convert "${adminName}" back to a regular church member? Their admin permissions will be removed and reservations will be reassigned to their member record.`,
+      confirmLabel: 'Demote to Member',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await adminFetch(`/admins/${adminId}/demote`, { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            showNotice(data.message || 'Administrator demoted successfully.');
+            await fetchUsers();
+            await fetchAdmins();
+          } else {
+            showNotice(data.error || 'Failed to demote administrator', 'error');
+          }
+        } catch (err: any) {
+          showNotice(err.message, 'error');
+        } finally {
+          setConfirmModal(null);
+        }
+      },
+    });
+  };
+
   // Super Admin: Remove Admin Account
   const handleRemoveAdmin = (adminId: string, adminName: string) => {
     setConfirmModal({
@@ -1192,38 +1340,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       )}
 
       {/* Top Section Header Card */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-stone-900 leading-tight">
-              {isSuperAdmin ? 'Super Administrator Console' : 'Administration & Operations'}
-            </h1>
-            <span
-              className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${
-                isSuperAdmin
-                  ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                  : 'bg-stone-100 text-stone-700 border border-stone-200'
-              }`}
+      <div className="bg-white border border-stone-200 rounded-2xl p-3.5 shadow-2xs flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          {onBackToMemberView && (
+            <button
+              id="btn-return-member-view"
+              type="button"
+              onClick={onBackToMemberView}
+              className="p-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer flex-shrink-0"
+              title="Return to Availability Calendar"
             >
-              {isSuperAdmin ? 'Super Admin' : 'Admin'}
-            </span>
-          </div>
-          <p className="text-xs text-stone-500 mt-1">
-            Manage church instruments inventory, review requests, oversee members, and configure scheduling rules.
-          </p>
-        </div>
-
-        {onBackToMemberView && (
-          <button
-            id="btn-return-member-view"
-            type="button"
-            onClick={onBackToMemberView}
-            className="self-start md:self-auto px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition flex items-center gap-2 cursor-pointer shadow-2xs"
+              <ArrowRight className="w-4 h-4 rotate-180" />
+            </button>
+          )}
+          <h1 className="text-lg font-bold text-stone-900 truncate">Admin Console</h1>
+          <span
+            className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider flex-shrink-0 ${
+              isSuperAdmin
+                ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                : 'bg-stone-100 text-stone-700 border border-stone-200'
+            }`}
           >
-            <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
-            <span>Return to Availability Calendar</span>
-          </button>
-        )}
+            {isSuperAdmin ? 'Super Admin' : 'Admin'}
+          </span>
+        </div>
       </div>
 
       {/* Overview Stat Cards */}
@@ -1574,6 +1714,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
+              {/* Bulk Actions Bar */}
+              {selectedReservationIds.size > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-amber-900">
+                      {selectedReservationIds.size} reservation{selectedReservationIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSelectedReservationIds(new Set());
+                        setSelectAllVisible(false);
+                      }}
+                      className="text-xs text-amber-700 hover:text-amber-900 underline cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleBulkCancel}
+                      className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold transition cursor-pointer"
+                    >
+                      Cancel Selected
+                    </button>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={handleBulkDelete}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition cursor-pointer"
+                      >
+                        Delete Selected
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Table */}
               <div className="overflow-x-auto mt-2">
                 {loadingReservations ? (
@@ -1588,6 +1764,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                        <th className="py-2.5 px-3 w-10">
+                          <input
+                            type="checkbox"
+                            checked={selectAllVisible}
+                            onChange={toggleSelectAllVisible}
+                            className="w-4 h-4 cursor-pointer accent-amber-700"
+                            title="Select all visible reservations"
+                          />
+                        </th>
                         <th className="py-2.5 px-3">Date & Slot</th>
                         <th className="py-2.5 px-3">Instrument</th>
                         <th className="py-2.5 px-3">Member & Service</th>
@@ -1602,6 +1787,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         const isApproved = r.status === 'approved';
                         return (
                           <tr key={r.id} className="hover:bg-stone-50/60 transition">
+                            <td className="py-3 px-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={selectedReservationIds.has(r.id)}
+                                onChange={() => toggleReservationSelection(r.id)}
+                                className="w-4 h-4 cursor-pointer accent-amber-700"
+                              />
+                            </td>
                             <td className="py-3 px-3">
                               <div className="font-semibold text-stone-900">
                                 {new Date(r.start_time).toLocaleDateString('en-US', {
@@ -1883,7 +2076,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </thead>
                     <tbody className="divide-y divide-stone-100">
                       {approvalsList.map((u) => {
-                        const status = u.approvalStatus || u.approval_status || (u.isActive ? 'approved' : 'pending');
+                        const status = u.approvalStatus || (u.isActive ? 'approved' : 'pending');
                         const isActioning = approvalActionId === u.id;
 
                         return (
@@ -1901,7 +2094,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </td>
 
                             <td className="py-3 px-3 font-mono text-stone-700">
-                              {u.phoneNumber || u.phone_number}
+                              {u.phoneNumber}
                             </td>
 
                             <td className="py-3 px-3 text-stone-500 text-[11px]">
@@ -2289,12 +2482,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <td className="py-3 px-3 font-mono text-stone-700">{u.phoneNumber}</td>
 
                           <td className="py-3 px-3">
-                            {(u.approval_status === 'pending' || u.approvalStatus === 'pending') ? (
+                            {u.approvalStatus === 'pending' ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                                 <Clock className="w-2.5 h-2.5 text-amber-700" />
                                 Pending Approval
                               </span>
-                            ) : (u.approval_status === 'rejected' || u.approvalStatus === 'rejected') ? (
+                            ) : u.approvalStatus === 'rejected' ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                                 <X className="w-2.5 h-2.5 text-rose-700" />
                                 Rejected
@@ -2326,7 +2519,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               {/* Quick Approve if pending */}
-                              {(u.approval_status === 'pending' || u.approvalStatus === 'pending') && (
+                              {u.approvalStatus === 'pending' && (
                                 <button
                                   type="button"
                                   onClick={() => handleApproveRegistration(u.id, u.name)}
@@ -2350,17 +2543,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                               {/* Super Admin Trusted Status Toggle */}
                               {isSuperAdmin && (
-                                <button
-                                  onClick={() => handleToggleTrusted(u.id, u.isTrusted, u.name)}
-                                  className={`px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
-                                    u.isTrusted
-                                      ? 'bg-stone-50 hover:bg-amber-50 text-amber-900 border-amber-200'
-                                      : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
-                                  }`}
-                                  title={u.isTrusted ? 'Revoke trusted status' : 'Grant trusted status'}
-                                >
-                                  {u.isTrusted ? 'Revoke Trust' : 'Make Trusted'}
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleToggleTrusted(u.id, u.isTrusted, u.name)}
+                                    className={`px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
+                                      u.isTrusted
+                                        ? 'bg-stone-50 hover:bg-amber-50 text-amber-900 border-amber-200'
+                                        : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
+                                    }`}
+                                    title={u.isTrusted ? 'Revoke trusted status' : 'Grant trusted status'}
+                                  >
+                                    {u.isTrusted ? 'Revoke Trust' : 'Make Trusted'}
+                                  </button>
+
+                                  <button
+                                    onClick={() => handlePromoteToAdmin(u.id, u.name)}
+                                    className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold cursor-pointer"
+                                    title="Promote member to administrator"
+                                  >
+                                    Make Admin
+                                  </button>
+                                </>
                               )}
 
                               {/* Toggle Active Status */}
@@ -2534,16 +2737,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </td>
 
                           <td className="py-3 px-3 text-right">
-                            {adm.phoneNumber !== profile?.phoneNumber ? (
-                              <button
-                                onClick={() => handleRemoveAdmin(adm.id, adm.name)}
-                                className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold cursor-pointer"
-                              >
-                                Delete
-                              </button>
-                            ) : (
-                              <span className="text-[10px] text-stone-400 italic">Current Session</span>
-                            )}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!adm.isSuperAdmin && (
+                                <button
+                                  onClick={() => handleDemoteAdmin(adm.id, adm.name)}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold cursor-pointer"
+                                >
+                                  Demote
+                                </button>
+                              )}
+                              {adm.phoneNumber !== profile?.phoneNumber ? (
+                                <button
+                                  onClick={() => handleRemoveAdmin(adm.id, adm.name)}
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold cursor-pointer"
+                                >
+                                  Delete
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-stone-400 italic">Current Session</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -3748,6 +3961,140 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 }`}
               >
                 {confirmModal.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================
+          MODAL: Bulk Reservation Actions (Cancel / Delete)
+         ============================================================= */}
+      {bulkActionModal?.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    bulkActionModal.action === 'delete'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
+                  {bulkActionModal.action === 'delete' ? (
+                    <Trash2 className="w-5 h-5" />
+                  ) : (
+                    <X className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-sm">
+                    {bulkActionModal.action === 'delete'
+                      ? 'Permanently Delete Reservations'
+                      : 'Cancel Reservations'}
+                  </h3>
+                  {bulkActionModal.action === 'delete' && (
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200 inline-block mt-1">
+                      Permanent Action
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBulkActionModal(null)}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 leading-relaxed">
+              {bulkActionModal.action === 'delete' ? (
+                <>
+                  <p>
+                    This will <strong className="text-red-700">permanently remove {bulkActionModal.count} reservation{bulkActionModal.count !== 1 ? 's' : ''} from the database</strong>. All
+                    associated messages and notifications will also be deleted. This cannot be undone.
+                  </p>
+                  <p className="mt-2 font-semibold text-red-800">
+                    Affected members will NOT be notified of this deletion.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    {bulkActionModal.count} reservation{bulkActionModal.count !== 1 ? 's' : ''} will be <strong className="text-amber-800">cancelled</strong>. Affected members will be notified via email and in-app notification, and their calendar slots will be freed.
+                  </p>
+                </>
+              )}
+            </div>
+
+            {bulkActionModal.action === 'delete' && (
+              <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-xs flex items-start gap-2 text-red-950">
+                <input
+                  type="checkbox"
+                  id="check-bulk-delete-confirm"
+                  checked={bulkActionModal.confirmInput === 'confirm-delete'}
+                  onChange={(e) =>
+                    setBulkActionModal((prev) =>
+                      prev
+                        ? { ...prev, confirmInput: e.target.checked ? 'confirm-delete' : '' }
+                        : null
+                    )
+                  }
+                  className="w-4 h-4 accent-red-700 rounded cursor-pointer mt-0.5 shrink-0"
+                />
+                <label htmlFor="check-bulk-delete-confirm" className="cursor-pointer font-medium select-none">
+                  I understand this is permanent and will permanently delete {bulkActionModal.count} reservation{bulkActionModal.count !== 1 ? 's' : ''}.
+                </label>
+              </div>
+            )}
+
+            <div className="pt-2 flex items-center justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setBulkActionModal(null)}
+                disabled={bulkActionModal.submitting}
+                className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitBulkAction}
+                disabled={
+                  bulkActionModal.submitting ||
+                  (bulkActionModal.action === 'delete' && bulkActionModal.confirmInput !== 'confirm-delete')
+                }
+                className={`px-4 py-2 rounded-xl text-white font-bold cursor-pointer shadow-xs flex items-center gap-1.5 disabled:opacity-50 ${
+                  bulkActionModal.action === 'delete'
+                    ? 'bg-red-700 hover:bg-red-800'
+                    : 'bg-amber-800 hover:bg-amber-900'
+                }`}
+              >
+                {bulkActionModal.submitting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>
+                      {bulkActionModal.action === 'delete' ? 'Deleting...' : 'Cancelling...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {bulkActionModal.action === 'delete' ? (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Permanently Delete</span>
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel Reservations</span>
+                      </>
+                    )}
+                  </>
+                )}
               </button>
             </div>
           </div>

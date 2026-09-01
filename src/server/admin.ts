@@ -24,9 +24,11 @@ import {
   adminRejectSeries,
   adminBulkApprove,
   adminBulkReject,
+  adminBulkCancel,
   removeInstrumentWithConfirmation,
   createReservation,
   getHardLimits,
+  cancelReservation,
 } from '../services/reservation-logic.ts';
 
 const router = Router();
@@ -309,6 +311,59 @@ router.post('/reservations/bulk-reject', async (req: Request, res: Response): Pr
     const adminId = (req as any).adminSession?.adminId || (req as any).adminUser?.id || '';
     const result = await adminBulkReject(ids, reason || 'Bulk rejected by administrator.', adminId);
     res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Bulk cancel reservations
+ */
+router.post('/reservations/bulk-cancel', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ids } = req.body;
+    const adminId = (req as any).adminSession?.adminId || (req as any).adminUser?.id || '';
+    const result = await adminBulkCancel(ids, adminId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Bulk delete reservations (hard delete with cleanup; super-admin only)
+ */
+router.post('/reservations/bulk-delete', requireSuperAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ids } = req.body;
+    const list = Array.isArray(ids) ? ids.filter(Boolean) : [];
+
+    if (list.length === 0) {
+      res.status(400).json({ success: false, error: 'No reservation IDs provided for bulk deletion.' });
+      return;
+    }
+
+    const deleted: any[] = [];
+    const errors: { id: string; error: string }[] = [];
+
+    for (const id of list) {
+      try {
+        const [target] = await db.select().from(reservations).where(eq(reservations.id, id)).limit(1);
+        if (!target) {
+          errors.push({ id, error: 'Reservation not found.' });
+          continue;
+        }
+
+        await db.delete(notifications).where(eq(notifications.reservationId, id));
+        await db.delete(messages).where(eq(messages.reservationId, id));
+        const [removed] = await db.delete(reservations).where(eq(reservations.id, id)).returning();
+        deleted.push(removed);
+      } catch (err: any) {
+        errors.push({ id, error: err.message });
+      }
+    }
+
+    res.json({ success: true, totalRequested: list.length, deletedCount: deleted.length, deleted, errors });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }
@@ -722,7 +777,19 @@ router.get('/users', async (req: Request, res: Response): Promise<void> => {
     querySql = sql`${querySql} GROUP BY u.id ORDER BY u.created_at DESC`;
 
     const result = await db.execute(querySql);
-    res.json({ success: true, users: (result as any).rows || [] });
+    const transformedUsers = ((result as any).rows || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      phoneNumber: row.phone_number,
+      isTrusted: row.is_trusted,
+      isActive: row.is_active,
+      approvalStatus: row.approval_status,
+      createdAt: row.created_at,
+      totalReservations: row.total_reservations,
+      approvedReservations: row.approved_reservations,
+      pendingReservations: row.pending_reservations,
+    }));
+    res.json({ success: true, users: transformedUsers });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -796,6 +863,16 @@ router.get('/approvals', async (req: Request, res: Response): Promise<void> => {
     querySql = sql`${querySql} GROUP BY u.id ORDER BY u.created_at DESC`;
 
     const result = await db.execute(querySql);
+    const transformedUsers = ((result as any).rows || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      phoneNumber: row.phone_number,
+      isTrusted: row.is_trusted,
+      isActive: row.is_active,
+      approvalStatus: row.approval_status,
+      createdAt: row.created_at,
+      totalReservations: row.total_reservations,
+    }));
 
     // Get breakdown counts
     const countsRes = await db.execute(sql`
@@ -810,7 +887,7 @@ router.get('/approvals', async (req: Request, res: Response): Promise<void> => {
 
     res.json({
       success: true,
-      users: (result as any).rows || [],
+      users: transformedUsers,
       counts: {
         pending: Number(counts.pending || 0),
         approved: Number(counts.approved || 0),
@@ -1074,6 +1151,103 @@ router.post('/reservations/:id/message', async (req: Request, res: Response): Pr
 /* =========================================================================
    6. SUPER ADMIN ONLY SECTIONS
    ========================================================================= */
+
+/**
+ * 6.0 Role Migration: Promote a member to admin without losing reservation history
+ */
+router.post('/users/:userId/promote', requireSuperAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found.' });
+      return;
+    }
+
+    const [existingAdmin] = await db.select({ id: admins.id }).from(admins).where(eq(admins.phoneNumber, user.phoneNumber)).limit(1);
+    if (existingAdmin) {
+      res.status(409).json({ success: false, error: 'An administrator account already exists for this member.' });
+      return;
+    }
+
+    const [newAdmin] = await db
+      .insert(admins)
+      .values({
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        passwordHash: user.passwordHash,
+        isSuperAdmin: false,
+        role: 'admin',
+        approvalStatus: 'approved',
+      })
+      .returning();
+
+    await db.update(reservations).set({ adminId: newAdmin.id, userId: null }).where(eq(reservations.userId, user.id));
+    await db.update(reservationSeries).set({ adminId: newAdmin.id, userId: null }).where(eq(reservationSeries.userId, user.id));
+    await db.delete(sessions).where(eq(sessions.userId, user.id));
+    await db.delete(notifications).where(eq(notifications.userId, user.id));
+    await db.delete(users).where(eq(users.id, user.id));
+
+    res.json({
+      success: true,
+      admin: newAdmin,
+      message: `${user.name} was promoted to administrator and reservation ownership was reassigned successfully.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * 6.0 Role Migration: Demote an admin back to a regular church member
+ */
+router.post('/admins/:adminId/demote', requireSuperAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { adminId } = req.params;
+    const [admin] = await db.select().from(admins).where(eq(admins.id, adminId)).limit(1);
+
+    if (!admin) {
+      res.status(404).json({ success: false, error: 'Administrator not found.' });
+      return;
+    }
+
+    if (admin.isSuperAdmin) {
+      res.status(403).json({ success: false, error: 'Super administrators cannot be demoted using the regular admin flow.' });
+      return;
+    }
+
+    const [existingUser] = await db.select().from(users).where(eq(users.phoneNumber, admin.phoneNumber)).limit(1);
+
+    const targetUser = existingUser || (
+      await db
+        .insert(users)
+        .values({
+          name: admin.name,
+          phoneNumber: admin.phoneNumber,
+          passwordHash: admin.passwordHash,
+          isTrusted: false,
+          isActive: true,
+          approvalStatus: 'approved',
+        })
+        .returning()
+    )[0];
+
+    await db.update(reservations).set({ userId: targetUser.id, adminId: null }).where(eq(reservations.adminId, admin.id));
+    await db.update(reservationSeries).set({ userId: targetUser.id, adminId: null }).where(eq(reservationSeries.adminId, admin.id));
+    await db.delete(sessions).where(eq(sessions.adminId, admin.id));
+    await db.delete(messages).where(eq(messages.adminId, admin.id));
+    await db.delete(admins).where(eq(admins.id, admin.id));
+
+    res.json({
+      success: true,
+      user: targetUser,
+      message: `${admin.name} was demoted to a regular member and reservation ownership was reassigned successfully.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
 
 /**
  * 6.1 Admin Account Management: List All Admin Accounts
