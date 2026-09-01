@@ -44,9 +44,9 @@ BEGIN
     RETURN false;
   END IF;
   RETURN (
-    (lower(tr) AT TIME ZONE 'UTC')::time >= TIME '09:00:00'
-    AND (upper(tr) AT TIME ZONE 'UTC')::time <= TIME '22:00:00'
-    AND (lower(tr) AT TIME ZONE 'UTC')::date = (upper(tr) AT TIME ZONE 'UTC')::date
+    (lower(tr) AT TIME ZONE 'Africa/Cairo')::time >= TIME '09:00:00'
+    AND (upper(tr) AT TIME ZONE 'Africa/Cairo')::time <= TIME '22:00:00'
+    AND (lower(tr) AT TIME ZONE 'Africa/Cairo')::date = (upper(tr) AT TIME ZONE 'Africa/Cairo')::date
     AND lower(tr) < upper(tr)
   );
 END;

@@ -108,8 +108,9 @@ export function validateWorkingHours(start: Date, end: Date) {
     throw new Error("Reservation cannot span multiple calendar days.");
   }
 
-  if (start <= new Date()) {
-    throw new Error("Reservation start time must be in the future.");
+  const now = new Date();
+  if (start <= now || end <= now) {
+    throw new Error("Reservation time must be in the future.");
   }
 
   if (startHour < 9 || endHour > 22 || startHour >= endHour) {
