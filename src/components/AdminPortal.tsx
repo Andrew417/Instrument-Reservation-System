@@ -2736,6 +2736,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   <UserCheck className="w-3.5 h-3.5" />
                                 )}
                               </button>
+
+                              {/* Super Admin: Permanently Delete Account */}
+                              {isSuperAdmin && (
+                                <button
+                                  onClick={() => handleDeleteUser(u.id, u.name)}
+                                  className="p-1.5 rounded-lg bg-stone-50 hover:bg-red-50 text-red-600 border border-stone-200 hover:border-red-200 transition cursor-pointer"
+                                  title="Permanently delete account"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
