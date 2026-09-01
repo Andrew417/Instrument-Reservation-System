@@ -1285,8 +1285,7 @@ export async function adminBulkCancel(reservationIds: string[], adminId?: string
  * 6. STATUS TRANSITIONS (Scheduled Check / Background Job)
  * =========================================================================
  */
-export async function runStatusTransitions() {
-  // 1. Move 'approved' -> 'ongoing' when current time enters time_range
+export async function ensureCurrentReservationStatuses() {
   const toOngoingRes = await db.execute(sql`
     UPDATE reservations
     SET status = 'ongoing'
@@ -1296,7 +1295,6 @@ export async function runStatusTransitions() {
     RETURNING id;
   `);
 
-  // 2. Move 'ongoing' or 'approved' -> 'completed' when current time passes end of time_range
   const toCompletedRes = await db.execute(sql`
     UPDATE reservations
     SET status = 'completed'
@@ -1309,6 +1307,10 @@ export async function runStatusTransitions() {
   const completedCount = ((toCompletedRes as any).rows || []).length;
 
   return { ongoingCount, completedCount };
+}
+
+export async function runStatusTransitions() {
+  return ensureCurrentReservationStatuses();
 }
 
 /**

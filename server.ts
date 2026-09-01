@@ -7,15 +7,24 @@ import reservationsRouter from './src/server/reservations.ts';
 import instrumentsRouter from './src/server/instruments.ts';
 import notificationsRouter from './src/server/notifications.ts';
 import adminRouter from './src/server/admin.ts';
-import { runStatusTransitions } from './src/services/reservation-logic.ts';
+import { ensureCurrentReservationStatuses } from './src/services/reservation-logic.ts';
 
-async function startServer() {
+export async function createApp() {
   const app = express();
-  const PORT = 3000;
 
   // Middleware
   app.use(express.json({ limit: '25mb' }));
   app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+
+  app.use('/api', async (_req, _res, next) => {
+    try {
+      await ensureCurrentReservationStatuses();
+      next();
+    } catch (error) {
+      console.error('Reservation status refresh failed:', error);
+      next();
+    }
+  });
 
   // API Routes
   app.get('/api/health', (req, res) => {
@@ -28,23 +37,14 @@ async function startServer() {
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/admin', adminRouter);
 
-  // Background status transitions: run every 60 seconds
-  setInterval(async () => {
-    try {
-      await runStatusTransitions();
-    } catch (e) {
-      console.error('Error in status transitions job:', e);
-    }
-  }, 60 * 1000);
-
   // Vite middleware for development vs static build in production
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -52,11 +52,22 @@ async function startServer() {
     });
   }
 
+  return app;
+}
+
+async function startServer() {
+  const app = await createApp();
+  const PORT = Number(process.env.PORT || 3000);
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-});
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error('Failed to start server:', err);
+  });
+}
+
+export default createApp;

@@ -677,7 +677,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="space-y-2.5 max-h-48 overflow-y-auto">
                 {adminMessages.map((msg) => {
                   const msgDate = new Date(msg.created_at || msg.createdAt);
-                  const msgDateFormatted = `${formatDisplayDate(msgDate)} • ${formatHhmmTo12Hour(msgDate)}`;
+                  const msgDateIso = `${msgDate.getFullYear()}-${String(msgDate.getMonth() + 1).padStart(2, '0')}-${String(msgDate.getDate()).padStart(2, '0')}`;
+                  const msgTime = msgDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const msgDateFormatted = `${formatDisplayDate(msgDateIso)} • ${formatHhmmTo12Hour(msgTime)}`;
 
                   return (
                     <div
