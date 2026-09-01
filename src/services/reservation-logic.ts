@@ -100,6 +100,10 @@ export function validateWorkingHours(start: Date, end: Date) {
     throw new Error("Reservation cannot span multiple calendar days.");
   }
 
+  if (start <= new Date()) {
+    throw new Error("Reservation start time must be in the future.");
+  }
+
   if (startHour < 9 || endHour > 22 || startHour >= endHour) {
     throw new Error(
       `Reservation time (${start.toISOString().substring(11, 16)} - ${end.toISOString().substring(11, 16)}) falls outside working hours (09:00 - 22:00 UTC).`,

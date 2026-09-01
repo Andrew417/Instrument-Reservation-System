@@ -92,11 +92,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/reservations?userId=${profile.id}`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken || ""}`,
+      const res = await fetch(
+        `/api/reservations?userId=${encodeURIComponent(profile.id)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${sessionToken || ""}`,
+          },
         },
-      });
+      );
       const data = await res.json();
       if (!res.ok || !data.success) {
         setFetchError(data.error || "Failed to fetch reservations.");
@@ -113,7 +116,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
   useEffect(() => {
     fetchMyReservations();
-  }, [profile?.id, refreshTrigger]);
+  }, [profile?.id, refreshTrigger, sessionToken]);
 
   const toggleSeriesExpansion = (seriesId: string) => {
     setExpandedSeries((prev) => ({

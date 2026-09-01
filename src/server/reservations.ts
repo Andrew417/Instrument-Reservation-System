@@ -582,6 +582,31 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     // Ensure status transitions are up-to-date in serverless environment
     await ensureCurrentReservationStatuses().catch(() => {});
 
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : (req.headers["x-session-token"] as string);
+
+    let isAdmin = false;
+    let currentUserId: string | null = null;
+    if (token) {
+      try {
+        const { valid, session } = await validateSession(token);
+        if (valid && session) {
+          currentUserId = session.user?.id || session.userId || null;
+          if (
+            session.role === "admin" ||
+            session.role === "super_admin" ||
+            session.user?.isSuperAdmin
+          ) {
+            isAdmin = true;
+          }
+        }
+      } catch {
+        // Continue with guest/standard permissions
+      }
+    }
+
     const result = await db.execute(sql`
       SELECT 
         r.id,
@@ -614,37 +639,16 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
       WHERE 1=1
-      ${userId ? sql`AND r.user_id = ${userId as string}` : sql``}
+      ${
+        userId
+          ? sql`AND (r.user_id = ${userId as string} OR ${isAdmin ? sql`r.admin_id = ${userId as string}` : sql`false`})`
+          : sql``
+      }
       ${instrumentId ? sql`AND r.instrument_id = ${instrumentId as string}` : sql``}
       ${status ? ((status as string).includes(",") ? sql`AND r.status = ANY(string_to_array(${status as string}, ','))` : sql`AND r.status = ${status as string}`) : sql``}
       ${seriesId ? sql`AND r.series_id = ${seriesId as string}` : sql``}
       ORDER BY lower(r.time_range) ASC
     `);
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.substring(7)
-      : (req.headers["x-session-token"] as string);
-
-    let isAdmin = false;
-    let currentUserId: string | null = null;
-    if (token) {
-      try {
-        const { valid, session } = await validateSession(token);
-        if (valid && session) {
-          currentUserId = session.user?.id || session.userId || null;
-          if (
-            session.role === "admin" ||
-            session.role === "super_admin" ||
-            session.user?.isSuperAdmin
-          ) {
-            isAdmin = true;
-          }
-        }
-      } catch {
-        // Continue with guest/standard permissions
-      }
-    }
 
     const rows = (result as any).rows || [];
     const sanitizedRows = rows.map((r: any) => {
