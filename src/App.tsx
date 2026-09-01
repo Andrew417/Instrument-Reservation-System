@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
-import { AuthScreen } from './components/AuthScreen.tsx';
-import { AvailabilityCalendar, Instrument } from './components/AvailabilityCalendar.tsx';
-import { ReservationFormModal } from './components/ReservationFormModal.tsx';
-import { SeriesBuilderModal } from './components/SeriesBuilderModal.tsx';
-import { InstrumentDetailModal } from './components/InstrumentDetailModal.tsx';
-import { MyReservations } from './components/MyReservations.tsx';
-import { ReservationDetailModal } from './components/ReservationDetailModal.tsx';
-import { EditReservationModal } from './components/EditReservationModal.tsx';
-import { NotificationsModal } from './components/NotificationsModal.tsx';
-import { AdminPortal } from './components/AdminPortal.tsx';
-import { getTodayDateString } from './lib/date-utils.ts';
+import React, { useState, useEffect } from "react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
+import { AuthScreen } from "./components/AuthScreen.tsx";
+import {
+  AvailabilityCalendar,
+  Instrument,
+} from "./components/AvailabilityCalendar.tsx";
+import { ReservationFormModal } from "./components/ReservationFormModal.tsx";
+import { SeriesBuilderModal } from "./components/SeriesBuilderModal.tsx";
+import { InstrumentDetailModal } from "./components/InstrumentDetailModal.tsx";
+import { MyReservations } from "./components/MyReservations.tsx";
+import { ReservationDetailModal } from "./components/ReservationDetailModal.tsx";
+import { EditReservationModal } from "./components/EditReservationModal.tsx";
+import { NotificationsModal } from "./components/NotificationsModal.tsx";
+import { AdminPortal } from "./components/AdminPortal.tsx";
+import { getTodayDateString } from "./lib/date-utils";
 import {
   LogOut,
   Sparkles,
@@ -28,7 +31,7 @@ import {
   Plus,
   BookmarkCheck,
   CalendarDays,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface SelectedSlotInfo {
   instrument: Instrument;
@@ -43,27 +46,41 @@ interface SeriesPrefillInfo {
   date: string;
   startTime: string;
   duration: number;
-  reservationType: 'in_church' | 'outside_church';
+  reservationType: "in_church" | "outside_church";
 }
 
 const UserPortalMain: React.FC = () => {
   const { profile, logout, sessionToken } = useAuth();
-  const isAdminOrSuperAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.isSuperAdmin;
-  
+  const isAdminOrSuperAdmin =
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin;
+
   // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'admin_portal'
-  const [currentView, setCurrentView] = useState<'calendar' | 'my_reservations' | 'admin_portal'>('calendar');
+  const [currentView, setCurrentView] = useState<
+    "calendar" | "my_reservations" | "admin_portal"
+  >("calendar");
 
   // Modals & Active Selections
-  const [selectedSlot, setSelectedSlot] = useState<SelectedSlotInfo | null>(null);
-  const [seriesPrefill, setSeriesPrefill] = useState<SeriesPrefillInfo | null>(null);
-  const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
-  
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlotInfo | null>(
+    null,
+  );
+  const [seriesPrefill, setSeriesPrefill] = useState<SeriesPrefillInfo | null>(
+    null,
+  );
+  const [selectedInstrument, setSelectedInstrument] =
+    useState<Instrument | null>(null);
+
   // Screen 6 (Reservation Detail Modal) and Edit Modal
-  const [selectedReservationDetailId, setSelectedReservationDetailId] = useState<string | null>(null);
-  const [editingReservation, setEditingReservation] = useState<any | null>(null);
+  const [selectedReservationDetailId, setSelectedReservationDetailId] =
+    useState<string | null>(null);
+  const [editingReservation, setEditingReservation] = useState<any | null>(
+    null,
+  );
 
   // Screen 7: Notifications
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] =
+    useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const [allInstruments, setAllInstruments] = useState<Instrument[]>([]);
@@ -73,9 +90,9 @@ const UserPortalMain: React.FC = () => {
   useEffect(() => {
     const checkUnread = async () => {
       try {
-        const res = await fetch('/api/notifications', {
+        const res = await fetch("/api/notifications", {
           headers: {
-            Authorization: `Bearer ${sessionToken || ''}`,
+            Authorization: `Bearer ${sessionToken || ""}`,
           },
         });
         const data = await res.json();
@@ -94,7 +111,7 @@ const UserPortalMain: React.FC = () => {
     instrument: Instrument,
     date: string,
     timeHhmm: string,
-    durationHours: number
+    durationHours: number,
   ) => {
     setSelectedSlot({
       instrument,
@@ -114,12 +131,15 @@ const UserPortalMain: React.FC = () => {
   };
 
   return (
-    <div id="user-portal-root" className="min-h-screen bg-stone-100 text-stone-900 font-sans flex flex-col">
+    <div
+      id="user-portal-root"
+      className="min-h-screen bg-stone-100 text-stone-900 font-sans flex flex-col"
+    >
       {/* Top Application Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-                        <img
+            <img
               src="/logo.png"
               alt="Church logo"
               className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-amber-900/30"
@@ -139,11 +159,11 @@ const UserPortalMain: React.FC = () => {
             <button
               id="nav-btn-calendar"
               type="button"
-              onClick={() => setCurrentView('calendar')}
+              onClick={() => setCurrentView("calendar")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                currentView === 'calendar'
-                  ? 'bg-white text-stone-900 shadow-2xs'
-                  : 'text-stone-600 hover:text-stone-900'
+                currentView === "calendar"
+                  ? "bg-white text-stone-900 shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
@@ -153,11 +173,11 @@ const UserPortalMain: React.FC = () => {
             <button
               id="nav-btn-my-reservations"
               type="button"
-              onClick={() => setCurrentView('my_reservations')}
+              onClick={() => setCurrentView("my_reservations")}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                currentView === 'my_reservations'
-                  ? 'bg-white text-amber-950 shadow-2xs'
-                  : 'text-stone-600 hover:text-stone-900'
+                currentView === "my_reservations"
+                  ? "bg-white text-amber-950 shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
               }`}
             >
               <BookmarkCheck className="w-3.5 h-3.5 text-amber-800" />
@@ -168,11 +188,11 @@ const UserPortalMain: React.FC = () => {
               <button
                 id="nav-btn-admin-portal"
                 type="button"
-                onClick={() => setCurrentView('admin_portal')}
+                onClick={() => setCurrentView("admin_portal")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  currentView === 'admin_portal'
-                    ? 'bg-white text-amber-950 shadow-2xs'
-                    : 'text-stone-600 hover:text-amber-950 hover:bg-white/60'
+                  currentView === "admin_portal"
+                    ? "bg-white text-amber-950 shadow-2xs"
+                    : "text-stone-600 hover:text-amber-950 hover:bg-white/60"
                 }`}
               >
                 <Shield className="w-3.5 h-3.5 text-amber-800" />
@@ -190,33 +210,37 @@ const UserPortalMain: React.FC = () => {
               onClick={() => setIsNotificationsOpen(true)}
               className={`relative p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
                 unreadCount > 0
-                  ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100'
-                  : 'border-stone-200 text-stone-700 hover:bg-stone-50'
+                  ? "bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100"
+                  : "border-stone-200 text-stone-700 hover:bg-stone-50"
               }`}
               title="Notifications"
             >
               <div className="relative">
-                <Bell className={`w-4 h-4 ${unreadCount > 0 ? 'text-amber-800' : 'text-stone-600'}`} />
+                <Bell
+                  className={`w-4 h-4 ${unreadCount > 0 ? "text-amber-800" : "text-stone-600"}`}
+                />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-600 text-white font-bold text-[9px] rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
-                    {unreadCount > 9 ? '9+' : unreadCount}
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </div>
               <span className="hidden md:inline">
-                {unreadCount > 0 ? `${unreadCount} Alert${unreadCount === 1 ? '' : 's'}` : 'Alerts'}
+                {unreadCount > 0
+                  ? `${unreadCount} Alert${unreadCount === 1 ? "" : "s"}`
+                  : "Alerts"}
               </span>
             </button>
 
             {/* Quick New Reservation Button */}
-            {allInstruments.length > 0 && currentView !== 'admin_portal' && (
+            {allInstruments.length > 0 && currentView !== "admin_portal" && (
               <button
                 id="btn-quick-new-reservation"
                 onClick={() => {
                   setSelectedSlot({
                     instrument: allInstruments[0],
                     date: getTodayDateString(),
-                    timeHhmm: '10:00',
+                    timeHhmm: "10:00",
                     duration: 2,
                   });
                 }}
@@ -229,16 +253,18 @@ const UserPortalMain: React.FC = () => {
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs">
               <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs">
-                {profile?.name ? profile.name.charAt(0).toUpperCase() : 'M'}
+                {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
               </div>
               <div className="flex flex-col text-left">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-stone-900 leading-none">{profile?.name}</span>
-                  {profile?.role === 'super_admin' || profile?.isSuperAdmin ? (
+                  <span className="font-semibold text-stone-900 leading-none">
+                    {profile?.name}
+                  </span>
+                  {profile?.role === "super_admin" || profile?.isSuperAdmin ? (
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-200">
                       Super Admin
                     </span>
-                  ) : profile?.role === 'admin' ? (
+                  ) : profile?.role === "admin" ? (
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-stone-200 text-stone-800">
                       Admin
                     </span>
@@ -249,7 +275,9 @@ const UserPortalMain: React.FC = () => {
                     </span>
                   ) : null}
                 </div>
-                <span className="text-[10px] text-stone-500">{profile?.email || profile?.phoneNumber}</span>
+                <span className="text-[10px] text-stone-500">
+                  {profile?.email || profile?.phoneNumber}
+                </span>
               </div>
             </div>
 
@@ -265,14 +293,16 @@ const UserPortalMain: React.FC = () => {
         </div>
 
         {/* Mobile View Switcher Tabs */}
-        <div className={`sm:hidden grid ${isAdminOrSuperAdmin ? 'grid-cols-3' : 'grid-cols-2'} border-t border-stone-200 bg-stone-50`}>
+        <div
+          className={`sm:hidden grid ${isAdminOrSuperAdmin ? "grid-cols-3" : "grid-cols-2"} border-t border-stone-200 bg-stone-50`}
+        >
           <button
             type="button"
-            onClick={() => setCurrentView('calendar')}
+            onClick={() => setCurrentView("calendar")}
             className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-              currentView === 'calendar'
-                ? 'border-amber-800 text-amber-900 bg-white'
-                : 'border-transparent text-stone-600'
+              currentView === "calendar"
+                ? "border-amber-800 text-amber-900 bg-white"
+                : "border-transparent text-stone-600"
             }`}
           >
             <CalendarDays className="w-3.5 h-3.5" />
@@ -280,11 +310,11 @@ const UserPortalMain: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setCurrentView('my_reservations')}
+            onClick={() => setCurrentView("my_reservations")}
             className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-              currentView === 'my_reservations'
-                ? 'border-amber-800 text-amber-900 bg-white'
-                : 'border-transparent text-stone-600'
+              currentView === "my_reservations"
+                ? "border-amber-800 text-amber-900 bg-white"
+                : "border-transparent text-stone-600"
             }`}
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
@@ -293,11 +323,11 @@ const UserPortalMain: React.FC = () => {
           {isAdminOrSuperAdmin && (
             <button
               type="button"
-              onClick={() => setCurrentView('admin_portal')}
+              onClick={() => setCurrentView("admin_portal")}
               className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-                currentView === 'admin_portal'
-                  ? 'border-amber-800 text-amber-900 bg-white'
-                  : 'border-transparent text-stone-600'
+                currentView === "admin_portal"
+                  ? "border-amber-800 text-amber-900 bg-white"
+                  : "border-transparent text-stone-600"
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
@@ -309,7 +339,7 @@ const UserPortalMain: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {currentView === 'calendar' && (
+        {currentView === "calendar" && (
           <AvailabilityCalendar
             onSelectSlot={handleSelectSlot}
             onSelectInstrument={handleSelectInstrument}
@@ -317,35 +347,37 @@ const UserPortalMain: React.FC = () => {
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
           />
         )}
-        {currentView === 'my_reservations' && (
+        {currentView === "my_reservations" && (
           <MyReservations
             allInstruments={allInstruments}
             refreshTrigger={refreshTrigger}
             onOpenNewReservation={() => {
               setSelectedSlot({
                 instrument: allInstruments[0],
-                date: new Date().toISOString().split('T')[0],
-                timeHhmm: '10:00',
+                date: new Date().toISOString().split("T")[0],
+                timeHhmm: "10:00",
                 duration: 2,
               });
             }}
             onOpenSeriesBuilder={() => {
               setSeriesPrefill({
                 instrument: allInstruments[0],
-                serviceName: '',
-                date: new Date().toISOString().split('T')[0],
-                startTime: '10:00',
+                serviceName: "",
+                date: new Date().toISOString().split("T")[0],
+                startTime: "10:00",
                 duration: 2,
-                reservationType: 'in_church',
+                reservationType: "in_church",
               });
             }}
-            onSelectReservationDetail={(id) => setSelectedReservationDetailId(id)}
+            onSelectReservationDetail={(id) =>
+              setSelectedReservationDetailId(id)
+            }
             onEditReservation={(res) => setEditingReservation(res)}
           />
         )}
-        {currentView === 'admin_portal' && isAdminOrSuperAdmin && (
+        {currentView === "admin_portal" && isAdminOrSuperAdmin && (
           <AdminPortal
-            onBackToMemberView={() => setCurrentView('calendar')}
+            onBackToMemberView={() => setCurrentView("calendar")}
             onOpenReservationDetail={(id) => setSelectedReservationDetailId(id)}
             onInstrumentsChanged={() => {
               setRefreshTrigger((prev) => prev + 1);
@@ -358,7 +390,11 @@ const UserPortalMain: React.FC = () => {
       {selectedSlot && (
         <ReservationFormModal
           initialInstrument={selectedSlot.instrument}
-          allInstruments={allInstruments.length > 0 ? allInstruments : [selectedSlot.instrument]}
+          allInstruments={
+            allInstruments.length > 0
+              ? allInstruments
+              : [selectedSlot.instrument]
+          }
           initialDate={selectedSlot.date}
           initialTimeHhmm={selectedSlot.timeHhmm}
           initialDuration={selectedSlot.duration}
@@ -375,7 +411,11 @@ const UserPortalMain: React.FC = () => {
       {seriesPrefill && (
         <SeriesBuilderModal
           initialInstrument={seriesPrefill.instrument}
-          allInstruments={allInstruments.length > 0 ? allInstruments : [seriesPrefill.instrument]}
+          allInstruments={
+            allInstruments.length > 0
+              ? allInstruments
+              : [seriesPrefill.instrument]
+          }
           initialServiceName={seriesPrefill.serviceName}
           initialDate={seriesPrefill.date}
           initialTimeHhmm={seriesPrefill.startTime}
@@ -404,7 +444,7 @@ const UserPortalMain: React.FC = () => {
           onInstrumentUpdated={(updatedInst) => {
             setSelectedInstrument(updatedInst);
             setAllInstruments((prev) =>
-              prev.map((i) => (i.id === updatedInst.id ? updatedInst : i))
+              prev.map((i) => (i.id === updatedInst.id ? updatedInst : i)),
             );
             setRefreshTrigger((prev) => prev + 1);
           }}
@@ -473,7 +513,9 @@ const AppRoot: React.FC = () => {
       <div className="min-h-screen bg-stone-100 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-3 border-amber-800/20 border-t-amber-800 rounded-full animate-spin" />
-          <div className="text-xs font-semibold text-stone-600">Loading Church Portal...</div>
+          <div className="text-xs font-semibold text-stone-600">
+            Loading Church Portal...
+          </div>
         </div>
       </div>
     );
@@ -485,4 +527,3 @@ const AppRoot: React.FC = () => {
 
   return <UserPortalMain />;
 };
-

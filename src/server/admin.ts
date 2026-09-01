@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { db } from "../db/index.ts";
+import { db } from "../db/index";
 import {
   admins,
   users,
@@ -13,14 +13,14 @@ import {
   trustedStatusAuditLog,
   messages,
   sessions,
-} from "../db/schema.ts";
+} from "../db/schema";
 import { eq, and, sql, desc, asc, inArray } from "drizzle-orm";
-import { validateSession } from "./session-manager.ts";
+import { validateSession } from "./session-manager";
 import {
   normalizePhoneNumber,
   normalizeEmail,
   isValidEmail,
-} from "../lib/auth-helpers.ts";
+} from "../lib/auth-helpers";
 import {
   adminApproveReservation,
   adminRejectReservation,
@@ -34,7 +34,7 @@ import {
   getHardLimits,
   cancelReservation,
   ensureCurrentReservationStatuses,
-} from "../services/reservation-logic.ts";
+} from "../services/reservation-logic";
 
 const router = Router();
 

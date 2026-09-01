@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext.tsx';
-import { Instrument } from './AvailabilityCalendar.tsx';
-import { getLocalDateString } from '../lib/date-utils.ts';
+import React, { useState } from "react";
+import { useAuth } from "../contexts/AuthContext.tsx";
+import { Instrument } from "./AvailabilityCalendar.tsx";
+import { getLocalDateString } from "../lib/date-utils";
 import {
   Calendar,
   Clock,
@@ -18,7 +18,7 @@ import {
   Info,
   CalendarRange,
   Layers,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface EditReservationModalProps {
   reservation: any;
@@ -28,22 +28,43 @@ export interface EditReservationModalProps {
 }
 
 const TIME_SLOTS = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
-  '21:00', '21:30'
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
 ];
 
 const DURATION_OPTIONS = [
-  { label: '30 min', value: 0.5 },
-  { label: '1 hour', value: 1 },
-  { label: '1.5 hrs', value: 1.5 },
-  { label: '2 hours', value: 2 },
-  { label: '2.5 hrs', value: 2.5 },
-  { label: '3 hours', value: 3 },
-  { label: '4 hours', value: 4 },
-  { label: '5 hours', value: 5 },
+  { label: "30 min", value: 0.5 },
+  { label: "1 hour", value: 1 },
+  { label: "1.5 hrs", value: 1.5 },
+  { label: "2 hours", value: 2 },
+  { label: "2.5 hrs", value: 2.5 },
+  { label: "3 hours", value: 3 },
+  { label: "4 hours", value: 4 },
+  { label: "5 hours", value: 5 },
 ];
 
 export const EditReservationModal: React.FC<EditReservationModalProps> = ({
@@ -57,57 +78,70 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   // Derive initial values from reservation
   const startUtc = new Date(reservation.start_time || reservation.startTime);
   const endUtc = new Date(reservation.end_time || reservation.endTime);
-  const initialDateStr = reservation.reservation_date || (reservation.start_time ? String(reservation.start_time).substring(0, 10) : getLocalDateString(startUtc));
-  const initialTimeStr = reservation.start_hhmm || `${String(startUtc.getUTCHours()).padStart(2, '0')}:${String(startUtc.getUTCMinutes()).padStart(2, '0')}`;
-  const initialDurationHours = Math.max(0.5, (endUtc.getTime() - startUtc.getTime()) / (3600 * 1000));
+  const initialDateStr =
+    reservation.reservation_date ||
+    (reservation.start_time
+      ? String(reservation.start_time).substring(0, 10)
+      : getLocalDateString(startUtc));
+  const initialTimeStr =
+    reservation.start_hhmm ||
+    `${String(startUtc.getUTCHours()).padStart(2, "0")}:${String(startUtc.getUTCMinutes()).padStart(2, "0")}`;
+  const initialDurationHours = Math.max(
+    0.5,
+    (endUtc.getTime() - startUtc.getTime()) / (3600 * 1000),
+  );
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
-    reservation.instrument_id || reservation.instrumentId || allInstruments[0]?.id || ''
+    reservation.instrument_id ||
+      reservation.instrumentId ||
+      allInstruments[0]?.id ||
+      "",
   );
   const [serviceName, setServiceName] = useState<string>(
-    reservation.service_name || reservation.serviceName || ''
+    reservation.service_name || reservation.serviceName || "",
   );
   const [date, setDate] = useState<string>(initialDateStr);
   const [startTime, setStartTime] = useState<string>(initialTimeStr);
   const [duration, setDuration] = useState<number>(initialDurationHours);
-  const [reservationType, setReservationType] = useState<'in_church' | 'outside_church'>(
-    reservation.reservation_type || reservation.reservationType || 'in_church'
-  );
+  const [reservationType, setReservationType] = useState<
+    "in_church" | "outside_church"
+  >(reservation.reservation_type || reservation.reservationType || "in_church");
   const [feeAcknowledged, setFeeAcknowledged] = useState<boolean>(true);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const currentInstrument =
-    allInstruments.find((i) => i.id === selectedInstrumentId) || allInstruments[0];
+    allInstruments.find((i) => i.id === selectedInstrumentId) ||
+    allInstruments[0];
   const feeNumber = Number(currentInstrument?.outsideFeePerDay || 0);
 
   const calculateEndTime = () => {
     try {
-      const [h, m] = startTime.split(':').map(Number);
+      const [h, m] = startTime.split(":").map(Number);
       const totalMinutes = h * 60 + m + Math.round(duration * 60);
       const endH = Math.floor(totalMinutes / 60);
       const endM = totalMinutes % 60;
-      return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
     } catch {
-      return '--:--';
+      return "--:--";
     }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) {
-      setErrorMsg('You must be signed in.');
+      setErrorMsg("You must be signed in.");
       return;
     }
 
     if (!serviceName.trim()) {
-      setErrorMsg('Please specify what this reservation is for.');
+      setErrorMsg("Please specify what this reservation is for.");
       return;
     }
 
-    if (reservationType === 'outside_church' && !feeAcknowledged) {
-      setErrorMsg('Please acknowledge the outside-church fee agreement.');
+    if (reservationType === "outside_church" && !feeAcknowledged) {
+      setErrorMsg("Please acknowledge the outside-church fee agreement.");
       return;
     }
 
@@ -116,9 +150,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
     try {
       const res = await fetch(`/api/reservations/${reservation.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
@@ -129,13 +163,14 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           startTime,
           duration,
           reservationType,
-          feeAcknowledged: reservationType === 'outside_church' ? feeAcknowledged : false,
+          feeAcknowledged:
+            reservationType === "outside_church" ? feeAcknowledged : false,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setErrorMsg(data.error || 'Failed to update reservation.');
+        setErrorMsg(data.error || "Failed to update reservation.");
         setIsSubmitting(false);
         return;
       }
@@ -143,7 +178,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       setIsSubmitting(false);
       onSuccess(data.reservation);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Network error updating reservation.');
+      setErrorMsg(err.message || "Network error updating reservation.");
       setIsSubmitting(false);
     }
   };
@@ -196,7 +231,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
           {/* Instrument Selector */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-stone-700">Select Instrument</label>
+            <label className="block text-xs font-bold text-stone-700">
+              Select Instrument
+            </label>
             <select
               value={selectedInstrumentId}
               onChange={(e) => setSelectedInstrumentId(e.target.value)}
@@ -213,7 +250,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           {/* Purpose */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-stone-700">
-              What is this reservation for? <span className="text-amber-800 font-bold">*</span>
+              What is this reservation for?{" "}
+              <span className="text-amber-800 font-bold">*</span>
             </label>
             <input
               type="text"
@@ -227,11 +265,15 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
           {/* Date & Time Slot Grid */}
           <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
-            <div className="text-xs font-bold text-stone-900">Schedule & Duration</div>
+            <div className="text-xs font-bold text-stone-900">
+              Schedule & Duration
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1">Date</label>
+                <label className="block text-[11px] font-bold text-stone-600 mb-1">
+                  Date
+                </label>
                 <input
                   type="date"
                   value={date}
@@ -242,7 +284,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1">Start Time (UTC)</label>
+                <label className="block text-[11px] font-bold text-stone-600 mb-1">
+                  Start Time (UTC)
+                </label>
                 <select
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
@@ -277,46 +321,56 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
           {/* Usage Type */}
           <div className="space-y-2.5">
-            <label className="block text-xs font-bold text-stone-700">Usage Type</label>
+            <label className="block text-xs font-bold text-stone-700">
+              Usage Type
+            </label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setReservationType('in_church')}
+                onClick={() => setReservationType("in_church")}
                 className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                  reservationType === 'in_church'
-                    ? 'bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30'
-                    : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-700'
+                  reservationType === "in_church"
+                    ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
+                    : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
                 }`}
               >
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-bold text-xs text-stone-900">In-Church Use</span>
+                  <span className="font-bold text-xs text-stone-900">
+                    In-Church Use
+                  </span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
                     Free
                   </span>
                 </div>
-                <p className="text-[10px] text-stone-500">For choir, liturgy, and church services.</p>
+                <p className="text-[10px] text-stone-500">
+                  For choir, liturgy, and church services.
+                </p>
               </button>
 
               <button
                 type="button"
-                onClick={() => setReservationType('outside_church')}
+                onClick={() => setReservationType("outside_church")}
                 className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                  reservationType === 'outside_church'
-                    ? 'bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30'
-                    : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-700'
+                  reservationType === "outside_church"
+                    ? "bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30"
+                    : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
                 }`}
               >
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-bold text-xs text-stone-900">Outside Church</span>
+                  <span className="font-bold text-xs text-stone-900">
+                    Outside Church
+                  </span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800">
                     EGP {feeNumber}/day
                   </span>
                 </div>
-                <p className="text-[10px] text-stone-500">Off-premises borrow with daily fee.</p>
+                <p className="text-[10px] text-stone-500">
+                  Off-premises borrow with daily fee.
+                </p>
               </button>
             </div>
 
-            {reservationType === 'outside_church' && (
+            {reservationType === "outside_church" && (
               <label className="flex items-start gap-2.5 p-3 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -325,7 +379,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer"
                 />
                 <span className="text-xs font-semibold text-purple-950">
-                  I acknowledge the outside usage fee of EGP {feeNumber}/day for this instrument.
+                  I acknowledge the outside usage fee of EGP {feeNumber}/day for
+                  this instrument.
                 </span>
               </label>
             )}
@@ -346,8 +401,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               disabled={isSubmitting || !serviceName.trim()}
               className={`flex-1 py-3 px-6 rounded-2xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${
                 isSubmitting || !serviceName.trim()
-                  ? 'bg-stone-300 cursor-not-allowed text-stone-500 shadow-none'
-                  : 'bg-amber-800 hover:bg-amber-900 active:scale-[0.99]'
+                  ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
+                  : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
               }`}
             >
               {isSubmitting ? (

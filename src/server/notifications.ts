@@ -1,7 +1,7 @@
-import { Router, Request, Response } from 'express';
-import { db } from '../db/index.ts';
-import { sql } from 'drizzle-orm';
-import { validateSession } from './session-manager.ts';
+import { Router, Request, Response } from "express";
+import { db } from "../db/index";
+import { sql } from "drizzle-orm";
+import { validateSession } from "./session-manager";
 
 const router = Router();
 
@@ -10,9 +10,9 @@ const router = Router();
  */
 async function resolveUserId(req: Request): Promise<string | null> {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ')
+  const token = authHeader?.startsWith("Bearer ")
     ? authHeader.substring(7)
-    : (req.headers['x-session-token'] as string);
+    : (req.headers["x-session-token"] as string);
 
   if (token) {
     const { valid, session } = await validateSession(token);
@@ -21,15 +21,17 @@ async function resolveUserId(req: Request): Promise<string | null> {
     }
   }
 
-  if (req.query.userId && typeof req.query.userId === 'string') {
+  if (req.query.userId && typeof req.query.userId === "string") {
     return req.query.userId;
   }
-  if (req.body?.userId && typeof req.body.userId === 'string') {
+  if (req.body?.userId && typeof req.body.userId === "string") {
     return req.body.userId;
   }
 
   // Fallback to first user in system for demo/development if not logged in
-  const fallbackUserRes = await db.execute(sql`SELECT id FROM users ORDER BY created_at ASC LIMIT 1`);
+  const fallbackUserRes = await db.execute(
+    sql`SELECT id FROM users ORDER BY created_at ASC LIMIT 1`,
+  );
   const userRows = (fallbackUserRes as any).rows || [];
   return userRows.length > 0 ? userRows[0].id : null;
 }
@@ -38,7 +40,7 @@ async function resolveUserId(req: Request): Promise<string | null> {
  * 1. GET /api/notifications
  * Fetch user notifications with unread badge count
  */
-router.get('/', async (req: Request, res: Response): Promise<void> => {
+router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = await resolveUserId(req);
 
@@ -91,7 +93,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
  * 2. POST /api/notifications/:id/read
  * Mark a single notification as read
  */
-router.post('/:id/read', async (req: Request, res: Response): Promise<void> => {
+router.post("/:id/read", async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -112,25 +114,28 @@ router.post('/:id/read', async (req: Request, res: Response): Promise<void> => {
  * 3. POST /api/notifications/mark-all-read
  * Mark all notifications for user as read
  */
-router.post('/mark-all-read', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = await resolveUserId(req);
+router.post(
+  "/mark-all-read",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = await resolveUserId(req);
 
-    if (!userId) {
-      res.status(400).json({ success: false, error: 'User ID is required' });
-      return;
-    }
+      if (!userId) {
+        res.status(400).json({ success: false, error: "User ID is required" });
+        return;
+      }
 
-    await db.execute(sql`
+      await db.execute(sql`
       UPDATE notifications 
       SET is_read = true 
       WHERE user_id = ${userId} AND is_read = false
     `);
 
-    res.json({ success: true, message: 'All notifications marked as read' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+      res.json({ success: true, message: "All notifications marked as read" });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
 
 export default router;

@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext.tsx';
-import { Instrument } from './AvailabilityCalendar.tsx';
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext.tsx";
+import { Instrument } from "./AvailabilityCalendar.tsx";
 import {
   formatDisplayDate,
   formatHhmmTo12Hour,
   getLocalDateString,
-} from '../lib/date-utils.ts';
+} from "../lib/date-utils";
 import {
   Calendar,
   Clock,
@@ -35,7 +35,7 @@ import {
   MessageSquare,
   Image as ImageIcon,
   Check,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface ReservationDetailModalProps {
   reservationId: string;
@@ -70,14 +70,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const [copiedNumber, setCopiedNumber] = useState<boolean>(false);
 
   // Payment Screenshot Upload State
-  const [uploadingScreenshot, setUploadingScreenshot] = useState<boolean>(false);
+  const [uploadingScreenshot, setUploadingScreenshot] =
+    useState<boolean>(false);
   const [screenshotSuccess, setScreenshotSuccess] = useState<boolean>(false);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Cancellation State
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
-  const [cancelPrompt, setCancelPrompt] = useState<'single' | 'series' | null>(null);
+  const [cancelPrompt, setCancelPrompt] = useState<"single" | "series" | null>(
+    null,
+  );
 
   // Fetch full details of the reservation
   const loadReservationData = async () => {
@@ -88,7 +91,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       const res = await fetch(`/api/reservations/${reservationId}`);
       const data = await res.json();
       if (!res.ok || !data.success || !data.reservation) {
-        setErrorMsg(data.error || 'Failed to load reservation details.');
+        setErrorMsg(data.error || "Failed to load reservation details.");
         setLoading(false);
         return;
       }
@@ -102,27 +105,31 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       }
 
       // 3. Fetch Payment Settings (Instapay) if outside church
-      if (data.reservation.reservation_type === 'outside_church') {
-        const payRes = await fetch('/api/reservations/payment-settings');
+      if (data.reservation.reservation_type === "outside_church") {
+        const payRes = await fetch("/api/reservations/payment-settings");
         const payData = await payRes.json();
         if (payData.success && payData.settings) {
           setPaymentSettings({
-            instapayNumber: payData.settings.instapay_number || '0100 123 4567',
-            instapayLink: payData.settings.instapay_link || 'https://ipn.eg/coptic-church-instruments',
+            instapayNumber: payData.settings.instapay_number || "0100 123 4567",
+            instapayLink:
+              payData.settings.instapay_link ||
+              "https://ipn.eg/coptic-church-instruments",
           });
         }
       }
 
       // 4. If part of a series, fetch all series occurrences
       if (data.reservation.series_id) {
-        const seriesRes = await fetch(`/api/reservations?seriesId=${data.reservation.series_id}`);
+        const seriesRes = await fetch(
+          `/api/reservations?seriesId=${data.reservation.series_id}`,
+        );
         const seriesData = await seriesRes.json();
         if (seriesData.success && Array.isArray(seriesData.reservations)) {
           setSeriesOccurrences(seriesData.reservations);
         }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Network error fetching reservation details.');
+      setErrorMsg(err.message || "Network error fetching reservation details.");
     } finally {
       setLoading(false);
     }
@@ -142,13 +149,13 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   // Upload Payment Screenshot handler (File -> Base64 data URL -> API)
   const processScreenshotFile = async (file: File) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setErrorMsg('Please select a valid image file (PNG, JPG, JPEG, WEBP).');
+    if (!file.type.startsWith("image/")) {
+      setErrorMsg("Please select a valid image file (PNG, JPG, JPEG, WEBP).");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg('Image size should be less than 5MB.');
+      setErrorMsg("Image size should be less than 5MB.");
       return;
     }
 
@@ -161,25 +168,28 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       reader.onload = async (e) => {
         const base64Url = e.target?.result as string;
         if (!base64Url) {
-          setErrorMsg('Failed to process image file.');
+          setErrorMsg("Failed to process image file.");
           setUploadingScreenshot(false);
           return;
         }
 
-        const res = await fetch(`/api/reservations/${reservationId}/payment-screenshot`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${sessionToken}`,
+        const res = await fetch(
+          `/api/reservations/${reservationId}/payment-screenshot`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionToken}`,
+            },
+            body: JSON.stringify({
+              screenshotUrl: base64Url,
+            }),
           },
-          body: JSON.stringify({
-            screenshotUrl: base64Url,
-          }),
-        });
+        );
 
         const data = await res.json();
         if (!res.ok || !data.success) {
-          setErrorMsg(data.error || 'Failed to upload screenshot.');
+          setErrorMsg(data.error || "Failed to upload screenshot.");
           setUploadingScreenshot(false);
           return;
         }
@@ -195,7 +205,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
       reader.readAsDataURL(file);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to read image file.');
+      setErrorMsg(err.message || "Failed to read image file.");
       setUploadingScreenshot(false);
     }
   };
@@ -203,9 +213,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -219,15 +229,15 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     }
   };
 
-  const handleCancelExecution = async (mode: 'single' | 'series') => {
+  const handleCancelExecution = async (mode: "single" | "series") => {
     if (!profile) return;
     setIsCancelling(true);
     setErrorMsg(null);
     try {
       const res = await fetch(`/api/reservations/${reservationId}/cancel`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
@@ -238,7 +248,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setErrorMsg(data.error || 'Failed to cancel reservation.');
+        setErrorMsg(data.error || "Failed to cancel reservation.");
         setIsCancelling(false);
         setCancelPrompt(null);
         return;
@@ -249,7 +259,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       onCancelled();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error occurred while processing cancellation.');
+      setErrorMsg(
+        err.message || "Error occurred while processing cancellation.",
+      );
       setIsCancelling(false);
       setCancelPrompt(null);
     }
@@ -263,7 +275,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       >
         <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl border border-stone-200">
           <div className="w-10 h-10 border-3 border-amber-800 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-stone-600">Loading Reservation Details...</p>
+          <p className="text-xs font-bold text-stone-600">
+            Loading Reservation Details...
+          </p>
         </div>
       </div>
     );
@@ -281,7 +295,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             <h3 className="font-bold text-sm">Reservation Not Found</h3>
           </div>
           <p className="text-xs text-stone-600 leading-relaxed">
-            {errorMsg || 'The requested reservation could not be loaded.'}
+            {errorMsg || "The requested reservation could not be loaded."}
           </p>
           <button
             onClick={onClose}
@@ -296,18 +310,32 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
   const startUtc = new Date(reservation.start_time || reservation.startTime);
   const endUtc = new Date(reservation.end_time || reservation.endTime);
-  const rawDate = reservation.reservation_date || (reservation.start_time ? String(reservation.start_time).substring(0, 10) : getLocalDateString(startUtc));
+  const rawDate =
+    reservation.reservation_date ||
+    (reservation.start_time
+      ? String(reservation.start_time).substring(0, 10)
+      : getLocalDateString(startUtc));
   const dateStr = formatDisplayDate(rawDate);
-  const timeStr = reservation.start_hhmm && reservation.end_hhmm
-    ? `${formatHhmmTo12Hour(reservation.start_hhmm)} – ${formatHhmmTo12Hour(reservation.end_hhmm)}`
-    : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
-  const durationHours = ((endUtc.getTime() - startUtc.getTime()) / (3600 * 1000)).toFixed(1).replace('.0', '');
+  const timeStr =
+    reservation.start_hhmm && reservation.end_hhmm
+      ? `${formatHhmmTo12Hour(reservation.start_hhmm)} – ${formatHhmmTo12Hour(reservation.end_hhmm)}`
+      : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
+  const durationHours = (
+    (endUtc.getTime() - startUtc.getTime()) /
+    (3600 * 1000)
+  )
+    .toFixed(1)
+    .replace(".0", "");
 
   const isPast = endUtc < new Date();
-  const isCancelled = reservation.status === 'cancelled' || reservation.status === 'rejected';
-  const isApproved = reservation.status === 'approved' || reservation.status === 'ongoing' || reservation.status === 'completed';
-  const isPending = reservation.status === 'pending';
-  const isOutsideChurch = reservation.reservation_type === 'outside_church';
+  const isCancelled =
+    reservation.status === "cancelled" || reservation.status === "rejected";
+  const isApproved =
+    reservation.status === "approved" ||
+    reservation.status === "ongoing" ||
+    reservation.status === "completed";
+  const isPending = reservation.status === "pending";
+  const isOutsideChurch = reservation.reservation_type === "outside_church";
   const isApprovedOutsideChurch = isApproved && isOutsideChurch;
 
   return (
@@ -365,7 +393,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 Reservation Purpose
               </span>
               <span className="text-base font-bold text-stone-900">
-                {reservation.service_name || reservation.serviceName || 'Church Service'}
+                {reservation.service_name ||
+                  reservation.serviceName ||
+                  "Church Service"}
               </span>
             </div>
 
@@ -373,10 +403,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <span
                 className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
                   isApproved
-                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
                     : isPending
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                    : 'bg-stone-200 text-stone-700 border border-stone-300'
+                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                      : "bg-stone-200 text-stone-700 border border-stone-300"
                 }`}
               >
                 {isApproved ? (
@@ -404,8 +434,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div className="text-xs space-y-1">
-                <div className="font-bold text-red-950">Administrative Rejection Reason</div>
-                <div className="text-red-800 leading-relaxed">{reservation.rejection_reason}</div>
+                <div className="font-bold text-red-950">
+                  Administrative Rejection Reason
+                </div>
+                <div className="text-red-800 leading-relaxed">
+                  {reservation.rejection_reason}
+                </div>
               </div>
             </div>
           )}
@@ -420,10 +454,16 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
               <div className="flex items-start gap-3">
                 <div className="w-14 h-14 rounded-xl bg-amber-100/70 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-                  {reservation.instrument_photo_url || reservation.photoUrl || (reservation as any).photo_url ? (
+                  {reservation.instrument_photo_url ||
+                  reservation.photoUrl ||
+                  (reservation as any).photo_url ? (
                     <img
-                      src={reservation.instrument_photo_url || reservation.photoUrl || (reservation as any).photo_url}
-                      alt={reservation.instrument_name || 'Instrument'}
+                      src={
+                        reservation.instrument_photo_url ||
+                        reservation.photoUrl ||
+                        (reservation as any).photo_url
+                      }
+                      alt={reservation.instrument_name || "Instrument"}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />
@@ -433,14 +473,19 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
                 <div className="space-y-1 text-xs flex-1">
                   <div className="font-bold text-stone-900 text-sm">
-                    {reservation.instrument_name || 'Instrument'}
+                    {reservation.instrument_name || "Instrument"}
                   </div>
                   <div className="text-stone-500">
-                    <span className="font-semibold text-stone-700">Type:</span> {reservation.instrument_type || 'General'}
+                    <span className="font-semibold text-stone-700">Type:</span>{" "}
+                    {reservation.instrument_type || "General"}
                   </div>
                   <div className="text-stone-500">
-                    <span className="font-semibold text-stone-700">Booking Mode:</span>{' '}
-                    <span className="capitalize">{reservation.booking_mode || 'Manual'}</span>
+                    <span className="font-semibold text-stone-700">
+                      Booking Mode:
+                    </span>{" "}
+                    <span className="capitalize">
+                      {reservation.booking_mode || "Manual"}
+                    </span>
                   </div>
                   {reservation.instrument_description && (
                     <div className="text-stone-500 text-[11px] pt-1 italic">
@@ -458,10 +503,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <span>Date & Time Slot</span>
               </div>
               <div className="space-y-1 text-xs">
-                <div className="font-bold text-stone-900 text-sm">{dateStr}</div>
+                <div className="font-bold text-stone-900 text-sm">
+                  {dateStr}
+                </div>
                 <div className="text-stone-700 font-semibold">{timeStr}</div>
                 <div className="text-stone-500 text-[11px]">
-                  Duration: {durationHours} hr{Number(durationHours) > 1 ? 's' : ''} (Working Hours: 09:00 - 22:00 UTC)
+                  Duration: {durationHours} hr
+                  {Number(durationHours) > 1 ? "s" : ""} (Working Hours: 09:00 -
+                  22:00 UTC)
                 </div>
               </div>
             </div>
@@ -477,11 +526,13 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <span
                 className={`px-2.5 py-0.5 rounded-md text-xs font-bold ${
                   isOutsideChurch
-                    ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                    : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                    ? "bg-purple-100 text-purple-900 border border-purple-200"
+                    : "bg-emerald-100 text-emerald-900 border border-emerald-200"
                 }`}
               >
-                {isOutsideChurch ? 'Outside Church Use' : 'In-Church Free Service'}
+                {isOutsideChurch
+                  ? "Outside Church Use"
+                  : "In-Church Free Service"}
               </span>
             </div>
 
@@ -495,7 +546,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="text-base font-bold text-purple-900">
-                    EGP {reservation.fee_snapshot || reservation.outside_fee_per_day || 0}
+                    EGP{" "}
+                    {reservation.fee_snapshot ||
+                      reservation.outside_fee_per_day ||
+                      0}
                   </span>
                 </div>
               </div>
@@ -518,7 +572,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     Outside Usage Payment (Instapay)
                   </h3>
                   <p className="text-xs text-purple-800">
-                    Please transfer the fee of <strong>EGP {reservation.fee_snapshot || 0}</strong> via Instapay
+                    Please transfer the fee of{" "}
+                    <strong>EGP {reservation.fee_snapshot || 0}</strong> via
+                    Instapay
                   </p>
                 </div>
               </div>
@@ -590,8 +646,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-2xl p-4 sm:p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
                     dragActive
-                      ? 'border-purple-600 bg-purple-100/50'
-                      : 'border-purple-300 bg-white hover:bg-purple-50/50'
+                      ? "border-purple-600 bg-purple-100/50"
+                      : "border-purple-300 bg-white hover:bg-purple-50/50"
                   }`}
                 >
                   <input
@@ -619,8 +675,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       <div>
                         <span className="text-xs font-bold text-purple-950">
                           {reservation.payment_screenshot_url
-                            ? 'Click or drag to replace payment screenshot'
-                            : 'Click to select or drag and drop transfer receipt screenshot'}
+                            ? "Click or drag to replace payment screenshot"
+                            : "Click to select or drag and drop transfer receipt screenshot"}
                         </span>
                         <p className="text-[11px] text-purple-700 mt-0.5">
                           Supports PNG, JPG, JPEG (Max 5MB)
@@ -665,7 +721,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <span>Messages from Admin</span>
               </div>
               <span className="text-[11px] text-stone-500 font-normal">
-                {adminMessages.length} message{adminMessages.length === 1 ? '' : 's'}
+                {adminMessages.length} message
+                {adminMessages.length === 1 ? "" : "s"}
               </span>
             </div>
 
@@ -677,8 +734,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="space-y-2.5 max-h-48 overflow-y-auto">
                 {adminMessages.map((msg) => {
                   const msgDate = new Date(msg.created_at || msg.createdAt);
-                  const msgDateIso = `${msgDate.getFullYear()}-${String(msgDate.getMonth() + 1).padStart(2, '0')}-${String(msgDate.getDate()).padStart(2, '0')}`;
-                  const msgTime = msgDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const msgDateIso = `${msgDate.getFullYear()}-${String(msgDate.getMonth() + 1).padStart(2, "0")}-${String(msgDate.getDate()).padStart(2, "0")}`;
+                  const msgTime = msgDate.toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  });
                   const msgDateFormatted = `${formatDisplayDate(msgDateIso)} • ${formatHhmmTo12Hour(msgTime)}`;
 
                   return (
@@ -689,9 +750,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-bold text-amber-900 flex items-center gap-1.5">
                           <Shield className="w-3.5 h-3.5 text-amber-800" />
-                          {msg.admin_name || 'Church Administrator'}
+                          {msg.admin_name || "Church Administrator"}
                         </span>
-                        <span className="text-stone-400 font-mono">{msgDateFormatted}</span>
+                        <span className="text-stone-400 font-mono">
+                          {msgDateFormatted}
+                        </span>
                       </div>
                       <p className="text-stone-800 font-medium leading-relaxed">
                         {msg.content}
@@ -719,7 +782,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 max-h-48 overflow-y-auto bg-stone-50/50">
                 {seriesOccurrences.map((occ, idx) => {
                   const occStart = new Date(occ.start_time || occ.startTime);
-                  const occDateStr = occStart.toISOString().split('T')[0];
+                  const occDateStr = occStart.toISOString().split("T")[0];
                   const occTimeStr = occStart.toISOString().substring(11, 16);
                   const isCurrent = occ.id === reservation.id;
 
@@ -733,8 +796,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       }}
                       className={`p-3 text-xs flex items-center justify-between transition ${
                         isCurrent
-                          ? 'bg-amber-100/50 font-bold border-l-4 border-l-amber-800'
-                          : 'hover:bg-stone-100 cursor-pointer'
+                          ? "bg-amber-100/50 font-bold border-l-4 border-l-amber-800"
+                          : "hover:bg-stone-100 cursor-pointer"
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
@@ -742,19 +805,23 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           {idx + 1}
                         </span>
                         <div>
-                          <span className="text-stone-900 font-semibold">{occDateStr}</span>
-                          <span className="text-stone-500 ml-2 text-[11px]">at {occTimeStr}</span>
+                          <span className="text-stone-900 font-semibold">
+                            {occDateStr}
+                          </span>
+                          <span className="text-stone-500 ml-2 text-[11px]">
+                            at {occTimeStr}
+                          </span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            occ.status === 'approved'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : occ.status === 'pending'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-stone-200 text-stone-600'
+                            occ.status === "approved"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : occ.status === "pending"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-stone-200 text-stone-600"
                           }`}
                         >
                           {occ.status}
@@ -778,15 +845,15 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="flex items-center gap-2 text-red-950 font-bold text-xs">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                 <span>
-                  {cancelPrompt === 'series'
-                    ? 'Confirm Cancel Entire Recurring Series?'
-                    : 'Confirm Cancel This Reservation?'}
+                  {cancelPrompt === "series"
+                    ? "Confirm Cancel Entire Recurring Series?"
+                    : "Confirm Cancel This Reservation?"}
                 </span>
               </div>
               <p className="text-xs text-red-800 leading-relaxed">
-                {cancelPrompt === 'series'
-                  ? 'This will cancel all future occurrences of this series. Past occurrences will remain intact.'
-                  : 'This time slot will immediately be freed up in the master calendar for other church members.'}
+                {cancelPrompt === "series"
+                  ? "This will cancel all future occurrences of this series. Past occurrences will remain intact."
+                  : "This time slot will immediately be freed up in the master calendar for other church members."}
               </p>
 
               <div className="flex items-center gap-2 pt-1">
@@ -803,7 +870,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   onClick={() => handleCancelExecution(cancelPrompt)}
                   className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
                 >
-                  {isCancelling ? 'Cancelling...' : 'Yes, Cancel Now'}
+                  {isCancelling ? "Cancelling..." : "Yes, Cancel Now"}
                 </button>
               </div>
             </div>
@@ -838,18 +905,22 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               {/* Single Cancel */}
               <button
                 type="button"
-                onClick={() => setCancelPrompt('single')}
+                onClick={() => setCancelPrompt("single")}
                 className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{reservation.series_id ? 'Cancel This Occurrence' : 'Cancel Reservation'}</span>
+                <span>
+                  {reservation.series_id
+                    ? "Cancel This Occurrence"
+                    : "Cancel Reservation"}
+                </span>
               </button>
 
               {/* Series Cancel if applicable */}
               {reservation.series_id && (
                 <button
                   type="button"
-                  onClick={() => setCancelPrompt('series')}
+                  onClick={() => setCancelPrompt("series")}
                   className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Repeat className="w-3.5 h-3.5" />
@@ -863,4 +934,3 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     </div>
   );
 };
-

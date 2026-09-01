@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
-import { db } from "../db/index.ts";
-import { instruments, reservations } from "../db/schema.ts";
+import { db } from "../db/index";
+import { instruments, reservations } from "../db/schema";
 import { eq, and, sql, asc } from "drizzle-orm";
-import { validateSession } from "./session-manager.ts";
-import { ensureCurrentReservationStatuses } from "../services/reservation-logic.ts";
+import { validateSession } from "./session-manager";
+import { ensureCurrentReservationStatuses } from "../services/reservation-logic";
 
 const router = Router();
 

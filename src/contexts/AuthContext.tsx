@@ -1,15 +1,25 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { normalizeEmail, normalizePhoneNumber, isValidEmail } from '../lib/auth-helpers.ts';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import {
+  normalizeEmail,
+  normalizePhoneNumber,
+  isValidEmail,
+} from "../lib/auth-helpers";
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   phoneNumber: string;
-  role: 'user' | 'admin' | 'super_admin';
+  role: "user" | "admin" | "super_admin";
   isTrusted?: boolean;
   isActive?: boolean;
-  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  approvalStatus?: "pending" | "approved" | "rejected";
   isSuperAdmin?: boolean;
   createdAt: string;
 }
@@ -31,18 +41,18 @@ interface AuthContextType {
     name: string,
     email: string,
     phone: string,
-    password: string
+    password: string,
   ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   registerWithEmail: (
     name: string,
     email: string,
     phone: string,
-    password: string
+    password: string,
   ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   registerWithPhone: (
     name: string,
     phone: string,
-    password: string
+    password: string,
   ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -50,11 +60,15 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const SESSION_TOKEN_KEY = 'church_session_token_v1';
-const USER_PROFILE_KEY = 'church_user_profile_v1';
+const SESSION_TOKEN_KEY = "church_session_token_v1";
+const USER_PROFILE_KEY = "church_user_profile_v1";
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [sessionToken, setSessionToken] = useState<string | null>(() => sessionStorage.getItem(SESSION_TOKEN_KEY));
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const [sessionToken, setSessionToken] = useState<string | null>(() =>
+    sessionStorage.getItem(SESSION_TOKEN_KEY),
+  );
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     try {
       const stored = sessionStorage.getItem(USER_PROFILE_KEY);
@@ -97,7 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       try {
-        const res = await fetch('/api/auth/me', {
+        const res = await fetch("/api/auth/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -108,7 +122,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (data.profile) {
             setProfile(data.profile);
             setSessionToken(token);
-            sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+            sessionStorage.setItem(
+              USER_PROFILE_KEY,
+              JSON.stringify(data.profile),
+            );
           } else {
             handleLogoutLocally();
           }
@@ -116,12 +133,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Token expired or invalid
           const data = await res.json().catch(() => ({}));
           if (data.isExpired) {
-            setError('Your previous session expired due to inactivity. Please sign in again.');
+            setError(
+              "Your previous session expired due to inactivity. Please sign in again.",
+            );
           }
           handleLogoutLocally();
         }
       } catch (err) {
-        console.error('Error verifying auth session:', err);
+        console.error("Error verifying auth session:", err);
       } finally {
         setLoading(false);
       }
@@ -142,19 +161,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const normalizedEmail = normalizeEmail(rawEmail);
 
     if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
-      setError('Please enter a valid email address');
+      setError("Please enter a valid email address");
       return;
     }
 
     if (!password) {
-      setError('Please enter your password');
+      setError("Please enter your password");
       return;
     }
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: normalizedEmail,
           password,
@@ -166,15 +185,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (res.status === 423 || data.isLocked) {
         setIsLocked(true);
         setLockRemainingSeconds(data.remainingSeconds || 900);
-        setError(data.message || 'Account locked for 15 minutes due to 5 consecutive failed login attempts.');
+        setError(
+          data.message ||
+            "Account locked for 15 minutes due to 5 consecutive failed login attempts.",
+        );
         return;
       }
 
       if (!res.ok || !data.success) {
         if (data.attemptsRemaining !== undefined) {
-          setError(data.error || `Invalid email or password. ${data.attemptsRemaining} attempt(s) remaining before lock.`);
+          setError(
+            data.error ||
+              `Invalid email or password. ${data.attemptsRemaining} attempt(s) remaining before lock.`,
+          );
         } else {
-          setError(data.error || 'Invalid email or password.');
+          setError(data.error || "Invalid email or password.");
         }
         return;
       }
@@ -187,8 +212,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(null);
       }
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'An unexpected error occurred during login');
+      console.error("Login error:", err);
+      setError(err.message || "An unexpected error occurred during login");
     }
   };
 
@@ -200,36 +225,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     name: string,
     rawEmail: string,
     phone: string,
-    password: string
+    password: string,
   ) => {
     setError(null);
     const normalizedEmail = normalizeEmail(rawEmail);
     const normalizedPhone = normalizePhoneNumber(phone);
 
     if (!name.trim()) {
-      setError('Please enter your full name');
+      setError("Please enter your full name");
       return;
     }
 
     if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
-      setError('Please enter a valid email address');
+      setError("Please enter a valid email address");
       return;
     }
 
     if (!normalizedPhone || normalizedPhone.length < 8) {
-      setError('Please enter a valid phone number');
+      setError("Please enter a valid phone number");
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError("Password must be at least 6 characters");
       return;
     }
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
           email: normalizedEmail,
@@ -241,7 +266,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        const errorMsg = data.error || 'Failed to register account.';
+        const errorMsg = data.error || "Failed to register account.";
         setError(errorMsg);
         throw new Error(errorMsg);
       }
@@ -250,7 +275,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(null);
         return {
           pendingApproval: true,
-          message: data.message || 'Your account is awaiting admin approval before you can log in.',
+          message:
+            data.message ||
+            "Your account is awaiting admin approval before you can log in.",
         };
       }
 
@@ -262,13 +289,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(null);
         return {
           pendingApproval: false,
-          message: 'Registration successful',
+          message: "Registration successful",
         };
       }
     } catch (err: any) {
-      console.error('Registration error:', err);
+      console.error("Registration error:", err);
       if (!error) {
-        setError(err.message || 'Failed to register account.');
+        setError(err.message || "Failed to register account.");
       }
       throw err;
     }
@@ -277,23 +304,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const registerWithPhone = async (
     name: string,
     phone: string,
-    password: string
+    password: string,
   ) => {
-    return registerWithEmail(name, '', phone, password);
+    return registerWithEmail(name, "", phone, password);
   };
 
   const logout = async () => {
     try {
       const token = sessionToken || sessionStorage.getItem(SESSION_TOKEN_KEY);
       if (token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
+        await fetch("/api/auth/logout", {
+          method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         }).catch(() => {});
       }
       handleLogoutLocally();
     } catch (err: any) {
-      console.error('Logout error:', err);
+      console.error("Logout error:", err);
       handleLogoutLocally();
     }
   };
@@ -305,18 +332,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!token) return;
 
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch("/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         if (data.profile) {
           setProfile(data.profile);
-          sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+          sessionStorage.setItem(
+            USER_PROFILE_KEY,
+            JSON.stringify(data.profile),
+          );
         }
       }
     } catch (err) {
-      console.error('Failed to refresh profile:', err);
+      console.error("Failed to refresh profile:", err);
     }
   };
 
@@ -327,7 +357,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         profile,
         sessionToken,
         isAuthenticated: Boolean(profile && sessionToken),
-        firebaseUser: profile ? { uid: profile.id, email: profile.email || profile.phoneNumber, displayName: profile.name } : null,
+        firebaseUser: profile
+          ? {
+              uid: profile.id,
+              email: profile.email || profile.phoneNumber,
+              displayName: profile.name,
+            }
+          : null,
         loading,
         error,
         isLocked,
@@ -351,8 +387,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-

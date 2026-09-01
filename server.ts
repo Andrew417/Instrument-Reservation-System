@@ -1,7 +1,7 @@
 import path from "path";
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { createExpressApp } from "./src/app";
+import { createExpressApp } from "./src/server-app";
 import { seedSuperAdmin } from "./src/db/seed-super-admin";
 import { runStatusTransitions } from "./src/services/reservation-logic";
 

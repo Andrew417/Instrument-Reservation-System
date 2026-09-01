@@ -1,14 +1,14 @@
-import dotenv from 'dotenv';
-import path from 'path';
+import dotenv from "dotenv";
+import path from "path";
 
 // Load environment variables from .env.local and .env
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
 
-import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
-import { db } from './index.ts';
-import { admins } from './schema.ts';
+import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
+import { db } from "./index";
+import { admins } from "./schema";
 
 /**
  * Seed Super Admin account directly at the database level.
@@ -22,14 +22,14 @@ export async function seedSuperAdmin(): Promise<void> {
 
   // 1. Fail fast if any required environment variable is missing
   const missingVars: string[] = [];
-  if (!email) missingVars.push('SUPER_ADMIN_EMAIL');
-  if (!phone) missingVars.push('SUPER_ADMIN_PHONE');
-  if (!name) missingVars.push('SUPER_ADMIN_NAME');
-  if (!password) missingVars.push('SUPER_ADMIN_PASSWORD');
+  if (!email) missingVars.push("SUPER_ADMIN_EMAIL");
+  if (!phone) missingVars.push("SUPER_ADMIN_PHONE");
+  if (!name) missingVars.push("SUPER_ADMIN_NAME");
+  if (!password) missingVars.push("SUPER_ADMIN_PASSWORD");
 
   if (missingVars.length > 0) {
     throw new Error(
-      `[Super Admin Seed] Missing required environment variable(s): ${missingVars.join(', ')}. Please provide them in .env.local or the runtime environment.`
+      `[Super Admin Seed] Missing required environment variable(s): ${missingVars.join(", ")}. Please provide them in .env.local or the runtime environment.`,
     );
   }
 
@@ -44,9 +44,16 @@ export async function seedSuperAdmin(): Promise<void> {
 
   if (existing.length > 0) {
     const adminRecord = existing[0];
-    const isPasswordMatch = await bcrypt.compare(password, adminRecord.passwordHash);
+    const isPasswordMatch = await bcrypt.compare(
+      password,
+      adminRecord.passwordHash,
+    );
 
-    if (!isPasswordMatch || !adminRecord.isSuperAdmin || adminRecord.role !== 'super_admin') {
+    if (
+      !isPasswordMatch ||
+      !adminRecord.isSuperAdmin ||
+      adminRecord.role !== "super_admin"
+    ) {
       const saltRounds = 10;
       const updatedHash = await bcrypt.hash(password, saltRounds);
       await db
@@ -56,17 +63,17 @@ export async function seedSuperAdmin(): Promise<void> {
           phoneNumber: phone,
           passwordHash: updatedHash,
           isSuperAdmin: true,
-          role: 'super_admin',
-          approvalStatus: 'approved',
+          role: "super_admin",
+          approvalStatus: "approved",
         })
         .where(eq(admins.id, adminRecord.id));
 
       console.log(
-        `[Super Admin Seed] ✅ Synchronized Super Admin credentials and status for ${normalizedEmail}.`
+        `[Super Admin Seed] ✅ Synchronized Super Admin credentials and status for ${normalizedEmail}.`,
       );
     } else {
       console.log(
-        `[Super Admin Seed] Account for ${normalizedEmail} already exists and is up to date (ID: ${adminRecord.id}). Skipping insert.`
+        `[Super Admin Seed] Account for ${normalizedEmail} already exists and is up to date (ID: ${adminRecord.id}). Skipping insert.`,
       );
     }
     return;
@@ -83,12 +90,12 @@ export async function seedSuperAdmin(): Promise<void> {
     phoneNumber: phone,
     passwordHash,
     isSuperAdmin: true,
-    role: 'super_admin',
-    approvalStatus: 'approved',
+    role: "super_admin",
+    approvalStatus: "approved",
   });
 
   console.log(
-    `[Super Admin Seed] ✅ Successfully seeded Super Admin account for ${name} (${normalizedEmail}) with Super Admin authority.`
+    `[Super Admin Seed] ✅ Successfully seeded Super Admin account for ${name} (${normalizedEmail}) with Super Admin authority.`,
   );
 }
 
@@ -96,11 +103,11 @@ export async function seedSuperAdmin(): Promise<void> {
 if (import.meta.url === `file://${process.argv[1]}`) {
   seedSuperAdmin()
     .then(() => {
-      console.log('[Super Admin Seed] Process complete.');
+      console.log("[Super Admin Seed] Process complete.");
       process.exit(0);
     })
     .catch((err) => {
-      console.error('[Super Admin Seed] ❌ Error:', err.message);
+      console.error("[Super Admin Seed] ❌ Error:", err.message);
       process.exit(1);
     });
 }

@@ -5,7 +5,7 @@ import {
   formatDisplayDate,
   formatHhmmTo12Hour,
   getLocalDateString,
-} from "../lib/date-utils.ts";
+} from "../lib/date-utils";
 import {
   Calendar,
   Clock,

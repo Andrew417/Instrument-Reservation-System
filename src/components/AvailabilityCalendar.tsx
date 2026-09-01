@@ -16,7 +16,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.tsx";
-import { getReservantColorTheme } from "../lib/reservant-colors.ts";
+import { getReservantColorTheme } from "../lib/reservant-colors";
 import {
   formatHhmmTo12Hour,
   getLocalDateString,
@@ -24,7 +24,7 @@ import {
   addDaysToDateString,
   parseLocalDate,
   formatDisplayDate,
-} from "../lib/date-utils.ts";
+} from "../lib/date-utils";
 
 export interface Instrument {
   id: string;

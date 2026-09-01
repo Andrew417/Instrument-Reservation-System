@@ -1,6 +1,6 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
-import * as schema from './schema.ts';
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./schema";
 
 declare global {
   var _postgresPool: Pool | undefined;
@@ -8,8 +8,10 @@ declare global {
 
 export const createPool = () => {
   if (!global._postgresPool) {
-    const isServerless = process.env.VERCEL === '1' || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
-    
+    const isServerless =
+      process.env.VERCEL === "1" ||
+      Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
     // In AI Studio / Cloud Run, SQL_HOST provides the Cloud SQL Unix socket path
     if (process.env.SQL_HOST) {
       global._postgresPool = new Pool({
@@ -24,11 +26,11 @@ export const createPool = () => {
     } else if (process.env.DATABASE_URL) {
       // In Vercel / Neon / standalone production environments
       const isLocalhost =
-        process.env.DATABASE_URL.includes('localhost') ||
-        process.env.DATABASE_URL.includes('127.0.0.1');
+        process.env.DATABASE_URL.includes("localhost") ||
+        process.env.DATABASE_URL.includes("127.0.0.1");
       const requiresSsl =
-        process.env.DATABASE_URL.includes('sslmode=require') ||
-        (!isLocalhost && process.env.NODE_ENV === 'production');
+        process.env.DATABASE_URL.includes("sslmode=require") ||
+        (!isLocalhost && process.env.NODE_ENV === "production");
 
       global._postgresPool = new Pool({
         connectionString: process.env.DATABASE_URL,
@@ -39,10 +41,10 @@ export const createPool = () => {
       });
     } else {
       global._postgresPool = new Pool({
-        host: '127.0.0.1',
-        user: 'postgres',
-        password: '',
-        database: 'postgres',
+        host: "127.0.0.1",
+        user: "postgres",
+        password: "",
+        database: "postgres",
         max: isServerless ? 1 : 10,
         idleTimeoutMillis: isServerless ? 10000 : 30000,
         connectionTimeoutMillis: 5000,

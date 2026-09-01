@@ -1,4 +1,4 @@
-import { db, pool } from '../db/index.ts';
+import { db, pool } from "../db/index";
 import {
   users,
   admins,
@@ -7,8 +7,8 @@ import {
   reservationSeries,
   notifications,
   hardLimits,
-} from '../db/schema.ts';
-import { eq, and, sql, inArray, gte, lte, desc } from 'drizzle-orm';
+} from "../db/schema";
+import { eq, and, sql, inArray, gte, lte, desc } from "drizzle-orm";
 
 export interface TimeSlot {
   date: string; // 'YYYY-MM-DD'
@@ -24,7 +24,7 @@ export interface ReservationSubmissionInput {
   date: string; // 'YYYY-MM-DD'
   startTime: string; // 'HH:mm'
   duration: number; // in hours
-  reservationType: 'in_church' | 'outside_church';
+  reservationType: "in_church" | "outside_church";
   feeAcknowledged?: boolean;
 }
 
@@ -33,14 +33,14 @@ export interface SeriesSubmissionInput {
   adminId?: string;
   instrumentId: string;
   serviceName: string; // Applies to the whole series
-  patternType: 'weekly' | 'custom';
+  patternType: "weekly" | "custom";
   occurrences: TimeSlot[];
-  reservationType: 'in_church' | 'outside_church';
+  reservationType: "in_church" | "outside_church";
   feeAcknowledged?: boolean;
 }
 
 export interface EvaluationResult {
-  status: 'approved' | 'pending';
+  status: "approved" | "pending";
   reasons: string[];
   isTrustedOrAdmin: boolean;
   outsideFeeSnapshot: string | null;
@@ -53,20 +53,26 @@ export interface EvaluationResult {
  * Parses date ('YYYY-MM-DD') and time ('HH:mm') into UTC Date objects,
  * and formats the PostgreSQL tstzrange string.
  */
-export function buildTimeRange(date: string, startTime: string, duration: number) {
+export function buildTimeRange(
+  date: string,
+  startTime: string,
+  duration: number,
+) {
   // Validate format
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
   const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(startTime.trim());
 
   if (!dateMatch || !timeMatch) {
-    throw new Error('Invalid date or time format. Expected YYYY-MM-DD and HH:mm.');
+    throw new Error(
+      "Invalid date or time format. Expected YYYY-MM-DD and HH:mm.",
+    );
   }
 
   const [_, year, month, day] = dateMatch.map(Number);
   const [__, hours, minutes] = timeMatch.map(Number);
 
   if (duration <= 0) {
-    throw new Error('Duration must be greater than 0.');
+    throw new Error("Duration must be greater than 0.");
   }
 
   const start = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
@@ -91,12 +97,12 @@ export function validateWorkingHours(start: Date, end: Date) {
   const endDay = `${end.getUTCFullYear()}-${end.getUTCMonth()}-${end.getUTCDate()}`;
 
   if (startDay !== endDay) {
-    throw new Error('Reservation cannot span multiple calendar days.');
+    throw new Error("Reservation cannot span multiple calendar days.");
   }
 
   if (startHour < 9 || endHour > 22 || startHour >= endHour) {
     throw new Error(
-      `Reservation time (${start.toISOString().substring(11, 16)} - ${end.toISOString().substring(11, 16)}) falls outside working hours (09:00 - 22:00 UTC).`
+      `Reservation time (${start.toISOString().substring(11, 16)} - ${end.toISOString().substring(11, 16)}) falls outside working hours (09:00 - 22:00 UTC).`,
     );
   }
 
@@ -158,7 +164,7 @@ export async function getHardLimits() {
 export function toNullableString(val: any): string | null {
   if (val === undefined || val === null) return null;
   const str = String(val).trim();
-  return str === '' ? null : str;
+  return str === "" ? null : str;
 }
 
 /**
@@ -167,7 +173,7 @@ export function toNullableString(val: any): string | null {
  */
 export async function resolveUserAndAdminIds(
   rawUserId?: string | null,
-  rawAdminId?: string | null
+  rawAdminId?: string | null,
 ): Promise<{
   resolvedUserId: string | null;
   resolvedAdminId: string | null;
@@ -256,7 +262,7 @@ export async function resolveUserAndAdminIds(
  */
 export async function evaluateReservationSubmission(
   input: ReservationSubmissionInput,
-  options?: { skipRateLimitCheck?: boolean; preloadedLimits?: any }
+  options?: { skipRateLimitCheck?: boolean; preloadedLimits?: any },
 ): Promise<EvaluationResult> {
   const {
     userId,
@@ -269,26 +275,30 @@ export async function evaluateReservationSubmission(
     feeAcknowledged,
   } = input;
 
-  const { resolvedUserId, resolvedAdminId, isTrusted, isAdmin } = await resolveUserAndAdminIds(
-    userId,
-    adminId
-  );
+  const { resolvedUserId, resolvedAdminId, isTrusted, isAdmin } =
+    await resolveUserAndAdminIds(userId, adminId);
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
 
   // 1. Working hours check
-  const { start, end, timeRangeSqlString } = buildTimeRange(date, startTime, duration);
+  const { start, end, timeRangeSqlString } = buildTimeRange(
+    date,
+    startTime,
+    duration,
+  );
   validateWorkingHours(start, end);
 
   // Fetch instrument
   const instrumentRes = await db
     .select()
     .from(instruments)
-    .where(and(eq(instruments.id, instrumentId), eq(instruments.isRemoved, false)))
+    .where(
+      and(eq(instruments.id, instrumentId), eq(instruments.isRemoved, false)),
+    )
     .limit(1);
 
   if (instrumentRes.length === 0) {
-    throw new Error('Instrument not found or has been removed.');
+    throw new Error("Instrument not found or has been removed.");
   }
   const instrument = instrumentRes[0];
 
@@ -303,14 +313,14 @@ export async function evaluateReservationSubmission(
       .where(
         and(
           eq(reservations.userId, cleanUserId),
-          gte(reservations.createdAt, oneHourAgo)
-        )
+          gte(reservations.createdAt, oneHourAgo),
+        ),
       );
 
     const submissionCount = Number(recentSubmissions[0]?.count || 0);
     if (submissionCount >= limits.maxSubmissionsPerHour) {
       throw new Error(
-        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`
+        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`,
       );
     }
   }
@@ -323,12 +333,14 @@ export async function evaluateReservationSubmission(
     .where(
       sql`${reservations.instrumentId} = ${instrumentId}
         AND ${reservations.status} = 'approved'
-        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
     )
     .limit(1);
 
   if (conflicts.length > 0) {
-    throw new Error('This time slot conflicts with an existing approved reservation on this instrument.');
+    throw new Error(
+      "This time slot conflicts with an existing approved reservation on this instrument.",
+    );
   }
 
   // 4. Trusted or Admin check
@@ -336,26 +348,30 @@ export async function evaluateReservationSubmission(
 
   // 5. Outside church fee requirement check
   let outsideFeeSnapshot: string | null = null;
-  if (reservationType === 'outside_church') {
+  if (reservationType === "outside_church") {
     if (!feeAcknowledged) {
       throw new Error(
-        `Outside church reservation requires fee acknowledgment (fee: ${instrument.outsideFeePerDay} EGP/day).`
+        `Outside church reservation requires fee acknowledgment (fee: ${instrument.outsideFeePerDay} EGP/day).`,
       );
     }
-    outsideFeeSnapshot = instrument.outsideFeePerDay ? String(instrument.outsideFeePerDay) : '0.00';
+    outsideFeeSnapshot = instrument.outsideFeePerDay
+      ? String(instrument.outsideFeePerDay)
+      : "0.00";
   }
 
-  let calculatedStatus: 'approved' | 'pending' = 'pending';
+  let calculatedStatus: "approved" | "pending" = "pending";
   const reasons: string[] = [];
 
-  if (reservationType === 'outside_church') {
+  if (reservationType === "outside_church") {
     // Outside-church ALWAYS sets status to Pending on submission (manual review), never Instant — regardless of instrument mode
-    calculatedStatus = 'pending';
-    reasons.push('Outside-church reservation requires administrator review and payment arrangement.');
+    calculatedStatus = "pending";
+    reasons.push(
+      "Outside-church reservation requires administrator review and payment arrangement.",
+    );
   } else if (isTrustedOrAdmin) {
     // Auto-approve immediately for Trusted Users and Admins (in-church reservations)
-    calculatedStatus = 'approved';
-    reasons.push('Auto-approved via Trusted User / Admin privilege');
+    calculatedStatus = "approved";
+    reasons.push("Auto-approved via Trusted User / Admin privilege");
   } else {
     // Regular user, in_church reservation:
     let limitExceeded = false;
@@ -371,15 +387,15 @@ export async function evaluateReservationSubmission(
           .where(
             and(
               eq(reservations.userId, cleanUserId),
-              inArray(reservations.status, ['pending', 'approved'])
-            )
+              inArray(reservations.status, ["pending", "approved"]),
+            ),
           );
 
         const activeCount = Number(activeRes[0]?.activeCount || 0);
         if (activeCount >= limits.maxActiveReservations) {
           limitExceeded = true;
           reasons.push(
-            `Active reservations limit reached (${activeCount}/${limits.maxActiveReservations} active slots). Forced to Pending.`
+            `Active reservations limit reached (${activeCount}/${limits.maxActiveReservations} active slots). Forced to Pending.`,
           );
         }
       }
@@ -393,14 +409,14 @@ export async function evaluateReservationSubmission(
           .where(
             sql`${reservations.userId} = ${cleanUserId}
               AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
-              AND (lower(${reservations.timeRange}) AT TIME ZONE 'UTC')::date = ${dateStr}::date`
+              AND (lower(${reservations.timeRange}) AT TIME ZONE 'UTC')::date = ${dateStr}::date`,
           );
 
         const dayCount = Number(dayRes[0]?.count || 0);
         if (dayCount >= limits.maxReservationsPerDay) {
           limitExceeded = true;
           reasons.push(
-            `Daily reservation limit reached for ${dateStr} (${dayCount}/${limits.maxReservationsPerDay}). Forced to Pending.`
+            `Daily reservation limit reached for ${dateStr} (${dayCount}/${limits.maxReservationsPerDay}). Forced to Pending.`,
           );
         }
       }
@@ -409,7 +425,7 @@ export async function evaluateReservationSubmission(
       if (duration > limits.maxDurationHours) {
         limitExceeded = true;
         reasons.push(
-          `Duration (${duration}h) exceeds maximum allowed duration (${limits.maxDurationHours}h). Forced to Pending.`
+          `Duration (${duration}h) exceeds maximum allowed duration (${limits.maxDurationHours}h). Forced to Pending.`,
         );
       }
 
@@ -422,29 +438,29 @@ export async function evaluateReservationSubmission(
           .where(
             and(
               eq(reservations.userId, cleanUserId),
-              inArray(reservations.status, ['pending', 'approved']),
-              eq(instruments.type, instrument.type)
-            )
+              inArray(reservations.status, ["pending", "approved"]),
+              eq(instruments.type, instrument.type),
+            ),
           );
 
         const concurrentCount = Number(concurrentRes[0]?.count || 0);
         if (concurrentCount >= limits.maxConcurrentPerType) {
           limitExceeded = true;
           reasons.push(
-            `Concurrent active reservations limit for instrument type '${instrument.type}' reached (${concurrentCount}/${limits.maxConcurrentPerType}). Forced to Pending.`
+            `Concurrent active reservations limit for instrument type '${instrument.type}' reached (${concurrentCount}/${limits.maxConcurrentPerType}). Forced to Pending.`,
           );
         }
       }
     }
 
     // Instrument mode check + limit decision
-    if (instrument.bookingMode === 'instant' && !limitExceeded) {
-      calculatedStatus = 'approved';
-      reasons.push('Auto-approved via Instant Booking mode');
+    if (instrument.bookingMode === "instant" && !limitExceeded) {
+      calculatedStatus = "approved";
+      reasons.push("Auto-approved via Instant Booking mode");
     } else {
-      calculatedStatus = 'pending';
-      if (instrument.bookingMode === 'manual') {
-        reasons.push('Instrument is set to Manual Approval mode');
+      calculatedStatus = "pending";
+      if (instrument.bookingMode === "manual") {
+        reasons.push("Instrument is set to Manual Approval mode");
       }
     }
   }
@@ -467,7 +483,7 @@ export async function autoRejectOverlappingPending(
   instrumentId: string,
   start: Date,
   end: Date,
-  approvedReservationId?: string
+  approvedReservationId?: string,
 ) {
   const query = sql`
     UPDATE reservations
@@ -489,8 +505,9 @@ export async function autoRejectOverlappingPending(
       await db.insert(notifications).values({
         userId: row.user_id,
         reservationId: row.id,
-        type: 'reservation_auto_rejected',
-        message: 'Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.',
+        type: "reservation_auto_rejected",
+        message:
+          "Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.",
       });
     }
   }
@@ -504,7 +521,7 @@ export async function autoRejectOverlappingPending(
 export async function createReservation(input: ReservationSubmissionInput) {
   const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
     input.userId,
-    input.adminId
+    input.adminId,
   );
 
   const evalResult = await evaluateReservationSubmission({
@@ -516,11 +533,11 @@ export async function createReservation(input: ReservationSubmissionInput) {
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
   const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
-  const cleanServiceName = (input.serviceName || '').trim() || 'Not specified';
+  const cleanServiceName = (input.serviceName || "").trim() || "Not specified";
 
   // Runtime validation assertion
   if (!input.instrumentId) {
-    throw new Error('Instrument ID is required.');
+    throw new Error("Instrument ID is required.");
   }
 
   const reservationParams = {
@@ -529,7 +546,8 @@ export async function createReservation(input: ReservationSubmissionInput) {
     adminId: cleanAdminId,
     instrumentId: input.instrumentId,
     serviceName: cleanServiceName,
-    timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+    timeRange:
+      sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
     reservationType: input.reservationType,
     feeSnapshot: cleanFeeSnapshot,
     status: evalResult.status,
@@ -543,12 +561,12 @@ export async function createReservation(input: ReservationSubmissionInput) {
     .returning();
 
   // If approved: auto-reject other overlapping pending reservations
-  if (evalResult.status === 'approved') {
+  if (evalResult.status === "approved") {
     await autoRejectOverlappingPending(
       input.instrumentId,
       evalResult.startTimeUtc,
       evalResult.endTimeUtc,
-      newReservation.id
+      newReservation.id,
     );
 
     // 8. Notification for approved user
@@ -556,20 +574,21 @@ export async function createReservation(input: ReservationSubmissionInput) {
       await db.insert(notifications).values({
         userId: cleanUserId,
         reservationId: newReservation.id,
-        type: 'reservation_approved',
+        type: "reservation_approved",
         message: `Your reservation on ${input.date} (${input.startTime} - ${evalResult.endTimeUtc.toISOString().substring(11, 16)} UTC) has been approved.`,
       });
     }
   } else if (cleanUserId) {
     // Notification for pending submission
-    const pendingMsg = input.reservationType === 'outside_church'
-      ? 'Your outside-church reservation request has been submitted. If approved, an administrator will contact you on WhatsApp to confirm details and arrange payment.'
-      : `Your reservation request on ${input.date} (${input.startTime}) has been submitted and is pending administrator review.`;
+    const pendingMsg =
+      input.reservationType === "outside_church"
+        ? "Your outside-church reservation request has been submitted. If approved, an administrator will contact you on WhatsApp to confirm details and arrange payment."
+        : `Your reservation request on ${input.date} (${input.startTime}) has been submitted and is pending administrator review.`;
 
     await db.insert(notifications).values({
       userId: cleanUserId,
       reservationId: newReservation.id,
-      type: 'reservation_submitted',
+      type: "reservation_submitted",
       message: pendingMsg,
     });
   }
@@ -597,12 +616,12 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   } = input;
 
   if (!occurrences || occurrences.length === 0) {
-    throw new Error('Series must have at least one occurrence.');
+    throw new Error("Series must have at least one occurrence.");
   }
 
   const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
     userId,
-    adminId
+    adminId,
   );
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
@@ -610,19 +629,28 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   const limits = await getHardLimits();
 
   // 1. Occurrence count check: reject if > max_series_occurrences (unless bypass enabled)
-  if (!limits.bypassHardLimits && occurrences.length > limits.maxSeriesOccurrences) {
+  if (
+    !limits.bypassHardLimits &&
+    occurrences.length > limits.maxSeriesOccurrences
+  ) {
     throw new Error(
-      `Series exceeds maximum allowed occurrences of ${limits.maxSeriesOccurrences} (provided ${occurrences.length}).`
+      `Series exceeds maximum allowed occurrences of ${limits.maxSeriesOccurrences} (provided ${occurrences.length}).`,
     );
   }
 
   // 2. Working hours check for each occurrence
   const parsedOccurrences = occurrences.map((occ, idx) => {
-    const { start, end, timeRangeSqlString } = buildTimeRange(occ.date, occ.startTime, occ.duration);
+    const { start, end, timeRangeSqlString } = buildTimeRange(
+      occ.date,
+      occ.startTime,
+      occ.duration,
+    );
     try {
       validateWorkingHours(start, end);
     } catch (err: any) {
-      throw new Error(`Occurrence #${idx + 1} (${occ.date} ${occ.startTime}): ${err.message}`);
+      throw new Error(
+        `Occurrence #${idx + 1} (${occ.date} ${occ.startTime}): ${err.message}`,
+      );
     }
     return { ...occ, start, end, timeRangeSqlString, index: idx + 1 };
   });
@@ -636,7 +664,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       // Overlap condition: startA < endB AND startB < endA
       if (a.start < b.end && b.start < a.end) {
         throw new Error(
-          `Self-overlap detected within series: Occurrence #${a.index} (${a.date} ${a.startTime}) overlaps with Occurrence #${b.index} (${b.date} ${b.startTime}).`
+          `Self-overlap detected within series: Occurrence #${a.index} (${a.date} ${a.startTime}) overlaps with Occurrence #${b.index} (${b.date} ${b.startTime}).`,
         );
       }
     }
@@ -651,7 +679,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       .where(
         sql`${reservations.instrumentId} = ${instrumentId}
           AND ${reservations.status} = 'approved'
-          AND ${reservations.timeRange} && tstzrange(${occ.start.toISOString()}, ${occ.end.toISOString()}, '[)')`
+          AND ${reservations.timeRange} && tstzrange(${occ.start.toISOString()}, ${occ.end.toISOString()}, '[)')`,
       );
 
     if (conflicts.length > 0) {
@@ -667,10 +695,10 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
 
   if (conflictingOccurrences.length > 0) {
     const conflictDescriptions = conflictingOccurrences.map(
-      (c) => `Occurrence #${c.occurrenceIndex} on ${c.date} at ${c.startTime}`
+      (c) => `Occurrence #${c.occurrenceIndex} on ${c.date} at ${c.startTime}`,
     );
     const error: any = new Error(
-      `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations: ${conflictDescriptions.join(', ')}.`
+      `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations: ${conflictDescriptions.join(", ")}.`,
     );
     error.conflicts = conflictingOccurrences;
     throw error;
@@ -685,14 +713,14 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       .where(
         and(
           eq(reservations.userId, cleanUserId),
-          gte(reservations.createdAt, oneHourAgo)
-        )
+          gte(reservations.createdAt, oneHourAgo),
+        ),
       );
 
     const submissionCount = Number(recentSubmissions[0]?.count || 0);
     if (submissionCount >= limits.maxSubmissionsPerHour) {
       throw new Error(
-        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`
+        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`,
       );
     }
   }
@@ -724,7 +752,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         reservationType,
         feeAcknowledged,
       },
-      { skipRateLimitCheck: true, preloadedLimits: limits }
+      { skipRateLimitCheck: true, preloadedLimits: limits },
     );
 
     const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
@@ -734,8 +762,9 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       userId: cleanUserId,
       adminId: cleanAdminId,
       instrumentId,
-      serviceName: (input.serviceName || '').trim() || 'Not specified',
-      timeRange: sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+      serviceName: (input.serviceName || "").trim() || "Not specified",
+      timeRange:
+        sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
       reservationType,
       feeSnapshot: cleanFeeSnapshot,
       status: evalResult.status,
@@ -748,12 +777,12 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       .values(occurrenceParams)
       .returning();
 
-    if (evalResult.status === 'approved') {
+    if (evalResult.status === "approved") {
       await autoRejectOverlappingPending(
         instrumentId,
         evalResult.startTimeUtc,
         evalResult.endTimeUtc,
-        resRow.id
+        resRow.id,
       );
     }
 
@@ -765,10 +794,12 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
 
   // User notification for series creation
   if (cleanUserId) {
-    const approvedCount = createdOccurrences.filter((c) => c.reservation.status === 'approved').length;
+    const approvedCount = createdOccurrences.filter(
+      (c) => c.reservation.status === "approved",
+    ).length;
     await db.insert(notifications).values({
       userId: cleanUserId,
-      type: 'series_submitted',
+      type: "series_submitted",
       message: `Your recurring series (${createdOccurrences.length} occurrences) has been created (${approvedCount} approved, ${createdOccurrences.length - approvedCount} pending review).`,
     });
   }
@@ -792,10 +823,10 @@ export async function editReservation(
     date?: string;
     startTime?: string;
     duration?: number;
-    reservationType?: 'in_church' | 'outside_church';
+    reservationType?: "in_church" | "outside_church";
     feeAcknowledged?: boolean;
   },
-  caller: { userId?: string; adminId?: string; isSuperAdmin?: boolean }
+  caller: { userId?: string; adminId?: string; isSuperAdmin?: boolean },
 ) {
   const existingRes = await db
     .select()
@@ -804,14 +835,17 @@ export async function editReservation(
     .limit(1);
 
   if (existingRes.length === 0) {
-    throw new Error('Reservation not found.');
+    throw new Error("Reservation not found.");
   }
 
   const existing = existingRes[0];
 
   // Authorization check
-  if (!caller.adminId && (!caller.userId || existing.userId !== caller.userId)) {
-    throw new Error('You are not authorized to edit this reservation.');
+  if (
+    !caller.adminId &&
+    (!caller.userId || existing.userId !== caller.userId)
+  ) {
+    throw new Error("You are not authorized to edit this reservation.");
   }
 
   const instrumentId = updates.instrumentId || existing.instrumentId;
@@ -824,15 +858,21 @@ export async function editReservation(
   if (updates.date || updates.startTime || updates.duration) {
     // Need all three or fallback
     if (!updates.date || !updates.startTime || !updates.duration) {
-      throw new Error('When editing time, date, startTime, and duration must all be provided.');
+      throw new Error(
+        "When editing time, date, startTime, and duration must all be provided.",
+      );
     }
-    const tr = buildTimeRange(updates.date, updates.startTime, updates.duration);
+    const tr = buildTimeRange(
+      updates.date,
+      updates.startTime,
+      updates.duration,
+    );
     start = tr.start;
     end = tr.end;
   } else {
     // Query postgres to extract bounds of existing time_range
     const boundsRes: any = await db.execute(
-      sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`
+      sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
     );
     start = new Date(boundsRes.rows[0].start_time);
     end = new Date(boundsRes.rows[0].end_time);
@@ -848,12 +888,14 @@ export async function editReservation(
       sql`${reservations.instrumentId} = ${instrumentId}
         AND ${reservations.id} != ${reservationId}
         AND ${reservations.status} = 'approved'
-        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
     )
     .limit(1);
 
   if (conflicts.length > 0) {
-    throw new Error('The updated time slot conflicts with an existing approved reservation.');
+    throw new Error(
+      "The updated time slot conflicts with an existing approved reservation.",
+    );
   }
 
   // Fetch instrument
@@ -864,7 +906,7 @@ export async function editReservation(
     .limit(1);
 
   if (!instrument) {
-    throw new Error('Target instrument not found.');
+    throw new Error("Target instrument not found.");
   }
 
   // Check Trusted or Admin status
@@ -872,21 +914,25 @@ export async function editReservation(
   if (existing.adminId || caller.adminId) {
     isTrustedOrAdmin = true;
   } else if (existing.userId) {
-    const [u] = await db.select().from(users).where(eq(users.id, existing.userId)).limit(1);
+    const [u] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, existing.userId))
+      .limit(1);
     if (u?.isTrusted) isTrustedOrAdmin = true;
   }
 
-  let newStatus: 'approved' | 'pending' = 'pending';
+  let newStatus: "approved" | "pending" = "pending";
 
   if (isTrustedOrAdmin) {
     // Always re-run and auto-approve again (skip limit/mode checks, conflict check already passed)
-    newStatus = 'approved';
-  } else if (existing.status === 'pending') {
+    newStatus = "approved";
+  } else if (existing.status === "pending") {
     // Stays pending, conflict check already passed
-    newStatus = 'pending';
-  } else if (existing.status === 'approved') {
-    if (instrument.bookingMode === 'manual') {
-      newStatus = 'pending';
+    newStatus = "pending";
+  } else if (existing.status === "approved") {
+    if (instrument.bookingMode === "manual") {
+      newStatus = "pending";
     } else {
       // Check hard limits
       const limits = await getHardLimits();
@@ -904,23 +950,25 @@ export async function editReservation(
             and(
               eq(reservations.userId, existing.userId),
               sql`${reservations.id} != ${reservationId}`,
-              inArray(reservations.status, ['pending', 'approved'])
-            )
+              inArray(reservations.status, ["pending", "approved"]),
+            ),
           );
         if (Number(activeRes[0]?.count || 0) >= limits.maxActiveReservations) {
           limitExceeded = true;
         }
       }
 
-      newStatus = limitExceeded ? 'pending' : 'approved';
+      newStatus = limitExceeded ? "pending" : "approved";
     }
   }
 
   let outsideFee = existing.feeSnapshot;
   const resType = updates.reservationType || existing.reservationType;
-  if (resType === 'outside_church') {
+  if (resType === "outside_church") {
     if (!updates.feeAcknowledged && !existing.feeSnapshot) {
-      throw new Error('Outside church reservation requires fee acknowledgment.');
+      throw new Error(
+        "Outside church reservation requires fee acknowledgment.",
+      );
     }
     outsideFee = instrument.outsideFeePerDay;
   } else {
@@ -928,14 +976,18 @@ export async function editReservation(
   }
 
   const cleanFee = toNullableString(outsideFee);
-  const cleanServiceName = updates.serviceName !== undefined ? updates.serviceName.trim() : existing.serviceName;
+  const cleanServiceName =
+    updates.serviceName !== undefined
+      ? updates.serviceName.trim()
+      : existing.serviceName;
 
   const [updated] = await db
     .update(reservations)
     .set({
       instrumentId,
       serviceName: cleanServiceName,
-      timeRange: sql`tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')` as any,
+      timeRange:
+        sql`tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')` as any,
       reservationType: resType,
       feeSnapshot: cleanFee,
       status: newStatus,
@@ -944,7 +996,7 @@ export async function editReservation(
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  if (newStatus === 'approved') {
+  if (newStatus === "approved") {
     await autoRejectOverlappingPending(instrumentId, start, end, reservationId);
   }
 
@@ -958,8 +1010,8 @@ export async function editReservation(
  */
 export async function cancelReservation(
   reservationId: string,
-  options: { cancelMode?: 'single' | 'series' },
-  caller: { userId?: string; adminId?: string }
+  options: { cancelMode?: "single" | "series" },
+  caller: { userId?: string; adminId?: string },
 ) {
   const [target] = await db
     .select()
@@ -968,40 +1020,47 @@ export async function cancelReservation(
     .limit(1);
 
   if (!target) {
-    throw new Error('Reservation not found.');
+    throw new Error("Reservation not found.");
   }
 
   // Authorization check
   const cleanCallerAdminId = toNullableString(caller.adminId);
   const cleanCallerUserId = toNullableString(caller.userId);
-  if (!cleanCallerAdminId && (!cleanCallerUserId || target.userId !== cleanCallerUserId)) {
-    throw new Error('You are not authorized to cancel this reservation.');
+  if (
+    !cleanCallerAdminId &&
+    (!cleanCallerUserId || target.userId !== cleanCallerUserId)
+  ) {
+    throw new Error("You are not authorized to cancel this reservation.");
   }
 
-  if (options.cancelMode === 'series' && target.seriesId) {
+  if (options.cancelMode === "series" && target.seriesId) {
     // Cancel all active/pending/approved occurrences in this series
     const cancelled = await db
       .update(reservations)
-      .set({ status: 'cancelled' })
+      .set({ status: "cancelled" })
       .where(
         and(
           eq(reservations.seriesId, target.seriesId),
-          inArray(reservations.status, ['pending', 'approved', 'ongoing'])
-        )
+          inArray(reservations.status, ["pending", "approved", "ongoing"]),
+        ),
       )
       .returning();
 
-    return { mode: 'series', cancelledCount: cancelled.length, reservations: cancelled };
+    return {
+      mode: "series",
+      cancelledCount: cancelled.length,
+      reservations: cancelled,
+    };
   }
 
   // Cancel single occurrence
   const [cancelled] = await db
     .update(reservations)
-    .set({ status: 'cancelled' })
+    .set({ status: "cancelled" })
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  return { mode: 'single', reservation: cancelled };
+  return { mode: "single", reservation: cancelled };
 }
 
 /**
@@ -1009,18 +1068,21 @@ export async function cancelReservation(
  * 5. ADMIN ACTIONS
  * =========================================================================
  */
-export async function adminApproveReservation(reservationId: string, adminId?: string | null) {
+export async function adminApproveReservation(
+  reservationId: string,
+  adminId?: string | null,
+) {
   const [res] = await db
     .select()
     .from(reservations)
     .where(eq(reservations.id, reservationId))
     .limit(1);
 
-  if (!res) throw new Error('Reservation not found.');
+  if (!res) throw new Error("Reservation not found.");
 
   // Extract time range
   const boundsRes: any = await db.execute(
-    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
   );
   const start = new Date(boundsRes.rows[0].start_time);
   const end = new Date(boundsRes.rows[0].end_time);
@@ -1033,12 +1095,14 @@ export async function adminApproveReservation(reservationId: string, adminId?: s
       sql`${reservations.instrumentId} = ${res.instrumentId}
         AND ${reservations.id} != ${reservationId}
         AND ${reservations.status} = 'approved'
-        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
     )
     .limit(1);
 
   if (conflicts.length > 0) {
-    throw new Error('Cannot approve: this time slot conflicts with another already approved reservation.');
+    throw new Error(
+      "Cannot approve: this time slot conflicts with another already approved reservation.",
+    );
   }
 
   const cleanAdminId = toNullableString(adminId);
@@ -1046,7 +1110,7 @@ export async function adminApproveReservation(reservationId: string, adminId?: s
   const [approved] = await db
     .update(reservations)
     .set({
-      status: 'approved',
+      status: "approved",
       rejectionReason: null,
       adminId: cleanAdminId,
     })
@@ -1054,15 +1118,20 @@ export async function adminApproveReservation(reservationId: string, adminId?: s
     .returning();
 
   // Auto-reject other pending overlapping
-  await autoRejectOverlappingPending(res.instrumentId, start, end, reservationId);
+  await autoRejectOverlappingPending(
+    res.instrumentId,
+    start,
+    end,
+    reservationId,
+  );
 
   // Notify user
   if (res.userId) {
     await db.insert(notifications).values({
       userId: res.userId,
       reservationId: res.id,
-      type: 'reservation_approved',
-      message: 'Your reservation has been approved by an administrator.',
+      type: "reservation_approved",
+      message: "Your reservation has been approved by an administrator.",
     });
   }
 
@@ -1072,10 +1141,10 @@ export async function adminApproveReservation(reservationId: string, adminId?: s
 export async function adminRejectReservation(
   reservationId: string,
   reason: string,
-  adminId?: string | null
+  adminId?: string | null,
 ) {
   if (!reason || !reason.trim()) {
-    throw new Error('A rejection reason is required.');
+    throw new Error("A rejection reason is required.");
   }
 
   const [res] = await db
@@ -1084,14 +1153,14 @@ export async function adminRejectReservation(
     .where(eq(reservations.id, reservationId))
     .limit(1);
 
-  if (!res) throw new Error('Reservation not found.');
+  if (!res) throw new Error("Reservation not found.");
 
   const cleanAdminId = toNullableString(adminId);
 
   const [rejected] = await db
     .update(reservations)
     .set({
-      status: 'rejected',
+      status: "rejected",
       rejectionReason: reason.trim(),
       adminId: cleanAdminId,
     })
@@ -1102,7 +1171,7 @@ export async function adminRejectReservation(
     await db.insert(notifications).values({
       userId: res.userId,
       reservationId: res.id,
-      type: 'reservation_rejected',
+      type: "reservation_rejected",
       message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
     });
   }
@@ -1110,7 +1179,10 @@ export async function adminRejectReservation(
   return rejected;
 }
 
-export async function adminApproveSeries(seriesId: string, adminId?: string | null) {
+export async function adminApproveSeries(
+  seriesId: string,
+  adminId?: string | null,
+) {
   // Find all pending occurrences in this series
   const pendingOccurrences = await db
     .select()
@@ -1118,8 +1190,8 @@ export async function adminApproveSeries(seriesId: string, adminId?: string | nu
     .where(
       and(
         eq(reservations.seriesId, seriesId),
-        eq(reservations.status, 'pending')
-      )
+        eq(reservations.status, "pending"),
+      ),
     );
 
   const cleanAdminId = toNullableString(adminId);
@@ -1130,16 +1202,27 @@ export async function adminApproveSeries(seriesId: string, adminId?: string | nu
       const app = await adminApproveReservation(occ.id, cleanAdminId);
       approvedList.push(app);
     } catch (e: any) {
-      console.warn(`Could not approve occurrence ${occ.id} in series:`, e.message);
+      console.warn(
+        `Could not approve occurrence ${occ.id} in series:`,
+        e.message,
+      );
     }
   }
 
-  return { seriesId, approvedCount: approvedList.length, approved: approvedList };
+  return {
+    seriesId,
+    approvedCount: approvedList.length,
+    approved: approvedList,
+  };
 }
 
-export async function adminRejectSeries(seriesId: string, reason: string, adminId?: string | null) {
+export async function adminRejectSeries(
+  seriesId: string,
+  reason: string,
+  adminId?: string | null,
+) {
   if (!reason || !reason.trim()) {
-    throw new Error('A rejection reason is required.');
+    throw new Error("A rejection reason is required.");
   }
 
   const cleanAdminId = toNullableString(adminId);
@@ -1151,22 +1234,22 @@ export async function adminRejectSeries(seriesId: string, reason: string, adminI
     .where(
       and(
         eq(reservations.seriesId, seriesId),
-        inArray(reservations.status, ['pending', 'approved', 'ongoing'])
-      )
+        inArray(reservations.status, ["pending", "approved", "ongoing"]),
+      ),
     );
 
   const rejectedList = await db
     .update(reservations)
     .set({
-      status: 'rejected',
+      status: "rejected",
       rejectionReason: reason.trim(),
       adminId: cleanAdminId,
     })
     .where(
       and(
         eq(reservations.seriesId, seriesId),
-        inArray(reservations.status, ['pending', 'approved', 'ongoing'])
-      )
+        inArray(reservations.status, ["pending", "approved", "ongoing"]),
+      ),
     )
     .returning();
 
@@ -1175,17 +1258,24 @@ export async function adminRejectSeries(seriesId: string, reason: string, adminI
   if (userId) {
     await db.insert(notifications).values({
       userId,
-      type: 'series_rejected',
+      type: "series_rejected",
       message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
     });
   }
 
-  return { seriesId, rejectedCount: rejectedList.length, rejected: rejectedList };
+  return {
+    seriesId,
+    rejectedCount: rejectedList.length,
+    rejected: rejectedList,
+  };
 }
 
-export async function adminBulkApprove(reservationIds: string[], adminId?: string | null) {
+export async function adminBulkApprove(
+  reservationIds: string[],
+  adminId?: string | null,
+) {
   if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
-    throw new Error('No reservation IDs provided for bulk approval.');
+    throw new Error("No reservation IDs provided for bulk approval.");
   }
 
   const cleanAdminId = toNullableString(adminId);
@@ -1210,12 +1300,16 @@ export async function adminBulkApprove(reservationIds: string[], adminId?: strin
   };
 }
 
-export async function adminBulkReject(reservationIds: string[], reason: string, adminId?: string | null) {
+export async function adminBulkReject(
+  reservationIds: string[],
+  reason: string,
+  adminId?: string | null,
+) {
   if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
-    throw new Error('No reservation IDs provided for bulk rejection.');
+    throw new Error("No reservation IDs provided for bulk rejection.");
   }
   if (!reason || !reason.trim()) {
-    throw new Error('A rejection reason is required for bulk rejection.');
+    throw new Error("A rejection reason is required for bulk rejection.");
   }
 
   const cleanAdminId = toNullableString(adminId);
@@ -1223,24 +1317,26 @@ export async function adminBulkReject(reservationIds: string[], reason: string, 
   const rejectedList = await db
     .update(reservations)
     .set({
-      status: 'rejected',
+      status: "rejected",
       rejectionReason: reason.trim(),
       adminId: cleanAdminId,
     })
     .where(
       and(
         inArray(reservations.id, reservationIds),
-        inArray(reservations.status, ['pending', 'approved', 'ongoing'])
-      )
+        inArray(reservations.status, ["pending", "approved", "ongoing"]),
+      ),
     )
     .returning();
 
   // Group notifications by userId
-  const userIds = Array.from(new Set(rejectedList.map((r) => r.userId).filter(Boolean)));
+  const userIds = Array.from(
+    new Set(rejectedList.map((r) => r.userId).filter(Boolean)),
+  );
   for (const uid of userIds) {
     await db.insert(notifications).values({
       userId: uid as string,
-      type: 'reservation_rejected',
+      type: "reservation_rejected",
       message: `Your reservation request(s) were rejected by an administrator. Reason: ${reason.trim()}`,
     });
   }
@@ -1253,9 +1349,12 @@ export async function adminBulkReject(reservationIds: string[], reason: string, 
   };
 }
 
-export async function adminBulkCancel(reservationIds: string[], adminId?: string | null) {
+export async function adminBulkCancel(
+  reservationIds: string[],
+  adminId?: string | null,
+) {
   if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
-    throw new Error('No reservation IDs provided for bulk cancellation.');
+    throw new Error("No reservation IDs provided for bulk cancellation.");
   }
 
   const cleanAdminId = toNullableString(adminId);
@@ -1264,7 +1363,11 @@ export async function adminBulkCancel(reservationIds: string[], adminId?: string
 
   for (const id of reservationIds) {
     try {
-      const result = await cancelReservation(id, { cancelMode: 'single' }, { adminId: cleanAdminId || undefined });
+      const result = await cancelReservation(
+        id,
+        { cancelMode: "single" },
+        { adminId: cleanAdminId || undefined },
+      );
       cancelled.push(result.reservation || result);
     } catch (err: any) {
       errors.push({ id, error: err.message });
@@ -1321,7 +1424,7 @@ export async function runStatusTransitions() {
 export async function removeInstrumentWithConfirmation(
   instrumentId: string,
   options: { confirmForce: boolean },
-  adminId?: string | null
+  adminId?: string | null,
 ) {
   const cleanAdminId = toNullableString(adminId);
 
@@ -1336,9 +1439,9 @@ export async function removeInstrumentWithConfirmation(
     .where(
       and(
         eq(reservations.instrumentId, instrumentId),
-        inArray(reservations.status, ['approved', 'pending']),
-        sql`upper(${reservations.timeRange}) > NOW()`
-      )
+        inArray(reservations.status, ["approved", "pending"]),
+        sql`upper(${reservations.timeRange}) > NOW()`,
+      ),
     );
 
   if (futureActive.length > 0 && !options.confirmForce) {
@@ -1354,16 +1457,16 @@ export async function removeInstrumentWithConfirmation(
     await db
       .update(reservations)
       .set({
-        status: 'cancelled',
-        rejectionReason: 'Instrument removed by administration',
+        status: "cancelled",
+        rejectionReason: "Instrument removed by administration",
         adminId: cleanAdminId,
       })
       .where(
         and(
           eq(reservations.instrumentId, instrumentId),
-          inArray(reservations.status, ['approved', 'pending']),
-          sql`upper(${reservations.timeRange}) > NOW()`
-        )
+          inArray(reservations.status, ["approved", "pending"]),
+          sql`upper(${reservations.timeRange}) > NOW()`,
+        ),
       );
 
     // Notify all affected users
@@ -1372,8 +1475,9 @@ export async function removeInstrumentWithConfirmation(
         await db.insert(notifications).values({
           userId: res.userId,
           reservationId: res.id,
-          type: 'instrument_removed_cancellation',
-          message: 'Your reservation was cancelled because the instrument was removed from the inventory by administration.',
+          type: "instrument_removed_cancellation",
+          message:
+            "Your reservation was cancelled because the instrument was removed from the inventory by administration.",
         });
       }
     }
