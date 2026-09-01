@@ -3,6 +3,10 @@ import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { getTodayDateString } from "../lib/date-utils";
 import {
+  buildHardLimitsPayload,
+  normalizeHardLimitsState,
+} from "../lib/hard-limits";
+import {
   Shield,
   LayoutDashboard,
   CalendarCheck,
@@ -296,6 +300,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     maxConcurrentPerType: 2,
     maxSeriesOccurrences: 8,
     maxSubmissionsPerHour: 10,
+    bypassHardLimits: false,
   });
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
 
@@ -652,37 +657,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const normalizeLimits = (limits: any) => {
-    if (!limits) {
-      return {
-        maxActiveReservations: 5,
-        maxReservationsPerDay: 5,
-        maxDurationHours: 5,
-        maxConcurrentPerType: 2,
-        maxSeriesOccurrences: 8,
-        maxSubmissionsPerHour: 10,
-      };
-    }
-    return {
-      id: limits.id,
-      maxActiveReservations: Number(
-        limits.maxActiveReservations ?? limits.max_active_reservations ?? 5,
-      ),
-      maxReservationsPerDay: Number(
-        limits.maxReservationsPerDay ?? limits.max_reservations_per_day ?? 5,
-      ),
-      maxDurationHours: Number(
-        limits.maxDurationHours ?? limits.max_duration_hours ?? 5,
-      ),
-      maxConcurrentPerType: Number(
-        limits.maxConcurrentPerType ?? limits.max_concurrent_per_type ?? 2,
-      ),
-      maxSeriesOccurrences: Number(
-        limits.maxSeriesOccurrences ?? limits.max_series_occurrences ?? 8,
-      ),
-      maxSubmissionsPerHour: Number(
-        limits.maxSubmissionsPerHour ?? limits.max_submissions_per_hour ?? 10,
-      ),
-    };
+    return normalizeHardLimitsState(limits);
   };
 
   // Fetch Hard Limits (Super Admin)
@@ -1301,28 +1276,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     e.preventDefault();
     setSavingLimits(true);
     try {
-      const payload = {
-        maxActiveReservations:
-          Number(hardLimitsState.maxActiveReservations) || 1,
-        maxReservationsPerDay:
-          Number(hardLimitsState.maxReservationsPerDay) || 1,
-        maxDurationHours: Number(hardLimitsState.maxDurationHours) || 1,
-        maxConcurrentPerType: Number(hardLimitsState.maxConcurrentPerType) || 1,
-        maxSeriesOccurrences: Number(hardLimitsState.maxSeriesOccurrences) || 2,
-        maxSubmissionsPerHour:
-          Number(hardLimitsState.maxSubmissionsPerHour) || 5,
-        max_active_reservations:
-          Number(hardLimitsState.maxActiveReservations) || 1,
-        max_reservations_per_day:
-          Number(hardLimitsState.maxReservationsPerDay) || 1,
-        max_duration_hours: Number(hardLimitsState.maxDurationHours) || 1,
-        max_concurrent_per_type:
-          Number(hardLimitsState.maxConcurrentPerType) || 1,
-        max_series_occurrences:
-          Number(hardLimitsState.maxSeriesOccurrences) || 2,
-        max_submissions_per_hour:
-          Number(hardLimitsState.maxSubmissionsPerHour) || 5,
-      };
+      const payload = buildHardLimitsPayload(hardLimitsState);
       const res = await adminFetch("/hard-limits", {
         method: "PUT",
         body: JSON.stringify(payload),
@@ -3115,6 +3069,42 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <form onSubmit={handleSaveHardLimits} className="space-y-4">
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+                  <div>
+                    <div className="font-bold text-stone-800 text-xs">
+                      Hard Limit Bypass
+                    </div>
+                    <div className="text-[11px] text-stone-500">
+                      {hardLimitsState.bypassHardLimits
+                        ? "OFF: hard limits are bypassed"
+                        : "ON: configured limits are active"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle hard limit bypass"
+                    onClick={() =>
+                      setHardLimitsState({
+                        ...hardLimitsState,
+                        bypassHardLimits: !hardLimitsState.bypassHardLimits,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                      hardLimitsState.bypassHardLimits
+                        ? "bg-stone-300"
+                        : "bg-amber-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        hardLimitsState.bypassHardLimits
+                          ? "translate-x-1"
+                          : "translate-x-6"
+                      }`}
+                    />
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
                     <label
