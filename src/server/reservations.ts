@@ -176,10 +176,11 @@ router.post(
     try {
       const { id } = req.params;
       const { userId, adminId, cancelMode } = req.body;
+      const sessionIdentity = await extractSessionIdentity(req);
       const result = await cancelReservation(
         id,
         { cancelMode },
-        { userId, adminId },
+        sessionIdentity || { userId, adminId },
       );
       res.json({ success: true, ...result });
     } catch (err: any) {

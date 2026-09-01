@@ -138,7 +138,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
-          userId: profile.id,
+          userId:
+            profile.role === "admin" || profile.role === "super_admin"
+              ? null
+              : profile.id,
+          adminId:
+            profile.role === "admin" || profile.role === "super_admin"
+              ? profile.id
+              : null,
           cancelMode: cancellingItem.mode,
         }),
       });
