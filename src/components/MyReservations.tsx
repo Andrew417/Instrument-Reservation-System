@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../contexts/AuthContext.tsx';
-import { Instrument } from './AvailabilityCalendar.tsx';
+import React, { useState, useEffect, useMemo } from "react";
+import { useAuth } from "../contexts/AuthContext.tsx";
+import { Instrument } from "./AvailabilityCalendar.tsx";
 import {
   formatDisplayDate,
   formatHhmmTo12Hour,
   getLocalDateString,
-} from '../lib/date-utils.ts';
+} from "../lib/date-utils.ts";
 import {
   Calendar,
   Clock,
@@ -28,7 +28,7 @@ import {
   Trash2,
   RefreshCw,
   Plus,
-} from 'lucide-react';
+} from "lucide-react";
 
 export interface MyReservationsProps {
   allInstruments: Instrument[];
@@ -64,15 +64,19 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   const { profile, sessionToken } = useAuth();
 
   // Tab: 'upcoming' | 'pending' | 'past'
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'pending' | 'past'>('upcoming');
+  const [activeTab, setActiveTab] = useState<"upcoming" | "pending" | "past">(
+    "upcoming",
+  );
 
   // Expanded series IDs map
-  const [expandedSeries, setExpandedSeries] = useState<Record<string, boolean>>({});
+  const [expandedSeries, setExpandedSeries] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // Cancellation confirm dialog state
   const [cancellingItem, setCancellingItem] = useState<{
     id: string;
-    mode: 'single' | 'series';
+    mode: "single" | "series";
     title: string;
   } | null>(null);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
@@ -90,18 +94,18 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     try {
       const res = await fetch(`/api/reservations?userId=${profile.id}`, {
         headers: {
-          Authorization: `Bearer ${sessionToken || ''}`,
+          Authorization: `Bearer ${sessionToken || ""}`,
         },
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setFetchError(data.error || 'Failed to fetch reservations.');
+        setFetchError(data.error || "Failed to fetch reservations.");
         setLoading(false);
         return;
       }
       setReservations(data.reservations || []);
     } catch (err: any) {
-      setFetchError(err.message || 'Network error fetching reservations.');
+      setFetchError(err.message || "Network error fetching reservations.");
     } finally {
       setLoading(false);
     }
@@ -125,9 +129,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     setCancelError(null);
     try {
       const res = await fetch(`/api/reservations/${cancellingItem.id}/cancel`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
@@ -138,7 +142,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setCancelError(data.error || 'Cancellation failed.');
+        setCancelError(data.error || "Cancellation failed.");
         setIsCancelling(false);
         return;
       }
@@ -147,7 +151,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       setCancellingItem(null);
       fetchMyReservations();
     } catch (err: any) {
-      setCancelError(err.message || 'Error occurred while processing cancellation.');
+      setCancelError(
+        err.message || "Error occurred while processing cancellation.",
+      );
       setIsCancelling(false);
     }
   };
@@ -176,69 +182,74 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     });
 
     // Build series group objects
-    const seriesGroups: GroupedSeries[] = Object.entries(seriesMap).map(([seriesId, occs]) => {
-      const sorted = [...occs].sort(
-        (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-      );
-      const first = sorted[0];
-      const last = sorted[sorted.length - 1];
+    const seriesGroups: GroupedSeries[] = Object.entries(seriesMap).map(
+      ([seriesId, occs]) => {
+        const sorted = [...occs].sort(
+          (a, b) =>
+            new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+        );
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
 
-      return {
-        seriesId,
-        instrumentName: first.instrument_name || 'Instrument',
-        instrumentType: first.instrument_type || 'General',
-        bookingMode: first.booking_mode || 'manual',
-        serviceName: first.service_name || 'Recurring Service',
-        patternType: first.series_pattern_type || 'weekly',
-        reservationType: first.reservation_type || 'in_church',
-        feeSnapshot: first.fee_snapshot,
-        occurrences: sorted,
-        earliestStart: new Date(first.start_time),
-        latestEnd: new Date(last.end_time),
-      };
-    });
+        return {
+          seriesId,
+          instrumentName: first.instrument_name || "Instrument",
+          instrumentType: first.instrument_type || "General",
+          bookingMode: first.booking_mode || "manual",
+          serviceName: first.service_name || "Recurring Service",
+          patternType: first.series_pattern_type || "weekly",
+          reservationType: first.reservation_type || "in_church",
+          feeSnapshot: first.fee_snapshot,
+          occurrences: sorted,
+          earliestStart: new Date(first.start_time),
+          latestEnd: new Date(last.end_time),
+        };
+      },
+    );
 
     // 1. Process Standalone Items
     standaloneList.forEach((r) => {
       const start = new Date(r.start_time);
       const end = new Date(r.end_time);
 
-      if (r.status === 'pending') {
-        pendingList.push({ type: 'single', data: r, time: start });
-      } else if (r.status === 'approved' || r.status === 'ongoing') {
+      if (r.status === "pending") {
+        pendingList.push({ type: "single", data: r, time: start });
+      } else if (r.status === "approved" || r.status === "ongoing") {
         if (end > now) {
-          upcomingList.push({ type: 'single', data: r, time: start });
+          upcomingList.push({ type: "single", data: r, time: start });
         } else {
-          pastList.push({ type: 'single', data: r, time: start });
+          pastList.push({ type: "single", data: r, time: start });
         }
       } else {
         // cancelled, rejected, completed
-        pastList.push({ type: 'single', data: r, time: start });
+        pastList.push({ type: "single", data: r, time: start });
       }
     });
 
     // 2. Process Series Groups
     seriesGroups.forEach((sg) => {
-      const hasPending = sg.occurrences.some((o) => o.status === 'pending');
+      const hasPending = sg.occurrences.some((o) => o.status === "pending");
       const hasUpcomingApproved = sg.occurrences.some(
-        (o) => (o.status === 'approved' || o.status === 'ongoing') && new Date(o.end_time) > now
+        (o) =>
+          (o.status === "approved" || o.status === "ongoing") &&
+          new Date(o.end_time) > now,
       );
       const allPastOrInactive = sg.occurrences.every(
         (o) =>
           new Date(o.end_time) <= now ||
-          o.status === 'cancelled' ||
-          o.status === 'rejected' ||
-          o.status === 'completed'
+          o.status === "cancelled" ||
+          o.status === "rejected" ||
+          o.status === "completed",
       );
 
       if (hasPending) {
-        pendingList.push({ type: 'series', data: sg, time: sg.earliestStart });
+        pendingList.push({ type: "series", data: sg, time: sg.earliestStart });
       } else if (hasUpcomingApproved) {
-        upcomingList.push({ type: 'series', data: sg, time: sg.earliestStart });
+        upcomingList.push({ type: "series", data: sg, time: sg.earliestStart });
       } else if (allPastOrInactive) {
-        pastList.push({ type: 'series', data: sg, time: sg.earliestStart });
+        pastList.push({ type: "series", data: sg, time: sg.earliestStart });
       } else {
-        upcomingList.push({ type: 'series', data: sg, time: sg.earliestStart });
+        upcomingList.push({ type: "series", data: sg, time: sg.earliestStart });
       }
     });
 
@@ -251,55 +262,59 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   }, [reservations]);
 
   const currentList =
-    activeTab === 'upcoming'
+    activeTab === "upcoming"
       ? categorizedData.upcomingList
-      : activeTab === 'pending'
-      ? categorizedData.pendingList
-      : categorizedData.pastList;
+      : activeTab === "pending"
+        ? categorizedData.pendingList
+        : categorizedData.pastList;
 
   return (
     <div id="screen-5-my-reservations" className="space-y-6">
       {/* Top Banner / Header */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold shadow-xs">
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-2xs space-y-4">
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <Calendar className="w-5 h-5" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-stone-900 leading-tight">My Reservations</h1>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-stone-900 leading-tight">
+                My Reservations
+              </h1>
               <p className="text-xs text-stone-500">
                 Track your active, pending, and recurring church bookings
               </p>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={fetchMyReservations}
-            className="p-2.5 rounded-xl border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50 transition cursor-pointer"
+            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50 transition cursor-pointer"
             title="Refresh list"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+            />
           </button>
+        </div>
 
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onOpenSeriesBuilder}
-            className="px-3.5 py-2.5 rounded-xl border border-amber-800/30 bg-amber-50 hover:bg-amber-100/80 text-amber-950 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            className="flex-1 h-9 rounded-lg border border-amber-800/30 bg-amber-50 hover:bg-amber-100/80 text-amber-950 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <Repeat className="w-3.5 h-3.5 text-amber-800" />
+            <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
             <span>Recurring Series</span>
           </button>
 
           <button
             type="button"
             onClick={onOpenNewReservation}
-            className="px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+            className="flex-1 h-9 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 shrink-0" />
             <span>New Reservation</span>
           </button>
         </div>
@@ -311,20 +326,22 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             id="tab-upcoming-reservations"
-            onClick={() => setActiveTab('upcoming')}
-            className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'upcoming'
-                ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+            onClick={() => setActiveTab("upcoming")}
+            className={`h-10 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === "upcoming"
+                ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
+                : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
             }`}
           >
-            <CheckCircle2 className={`w-3.5 h-3.5 ${activeTab === 'upcoming' ? 'text-white' : 'text-emerald-600'}`} />
+            <CheckCircle2
+              className={`w-3.5 h-3.5 ${activeTab === "upcoming" ? "text-white" : "text-emerald-600"}`}
+            />
             <span className="text-[11px] font-bold">Upcoming</span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                activeTab === 'upcoming'
-                  ? 'bg-amber-900/30 text-white'
-                  : 'bg-stone-100 text-stone-600'
+                activeTab === "upcoming"
+                  ? "bg-amber-900/30 text-white"
+                  : "bg-stone-100 text-stone-600"
               }`}
             >
               {categorizedData.upcomingList.length}
@@ -334,20 +351,22 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             id="tab-pending-reservations"
-            onClick={() => setActiveTab('pending')}
+            onClick={() => setActiveTab("pending")}
             className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'pending'
-                ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+              activeTab === "pending"
+                ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
+                : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
             }`}
           >
-            <Clock className={`w-3.5 h-3.5 ${activeTab === 'pending' ? 'text-white' : 'text-amber-600'}`} />
+            <Clock
+              className={`w-3.5 h-3.5 ${activeTab === "pending" ? "text-white" : "text-amber-600"}`}
+            />
             <span className="text-[11px] font-bold">Pending</span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                activeTab === 'pending'
-                  ? 'bg-amber-900/30 text-white'
-                  : 'bg-stone-100 text-stone-600'
+                activeTab === "pending"
+                  ? "bg-amber-900/30 text-white"
+                  : "bg-stone-100 text-stone-600"
               }`}
             >
               {categorizedData.pendingList.length}
@@ -357,20 +376,22 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             id="tab-past-reservations"
-            onClick={() => setActiveTab('past')}
+            onClick={() => setActiveTab("past")}
             className={`min-h-[48px] w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'past'
-                ? 'bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20'
-                : 'bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+              activeTab === "past"
+                ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
+                : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
             }`}
           >
-            <CalendarRange className={`w-3.5 h-3.5 ${activeTab === 'past' ? 'text-white' : 'text-stone-400'}`} />
+            <CalendarRange
+              className={`w-3.5 h-3.5 ${activeTab === "past" ? "text-white" : "text-stone-400"}`}
+            />
             <span className="text-[11px] font-bold">Past</span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                activeTab === 'past'
-                  ? 'bg-amber-900/30 text-white'
-                  : 'bg-stone-100 text-stone-600'
+                activeTab === "past"
+                  ? "bg-amber-900/30 text-white"
+                  : "bg-stone-100 text-stone-600"
               }`}
             >
               {categorizedData.pastList.length}
@@ -389,9 +410,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               </div>
               <div>
                 <h3 className="font-bold text-sm text-stone-900">
-                  {cancellingItem.mode === 'series'
-                    ? 'Cancel Entire Recurring Series?'
-                    : 'Cancel Reservation?'}
+                  {cancellingItem.mode === "series"
+                    ? "Cancel Entire Recurring Series?"
+                    : "Cancel Reservation?"}
                 </h3>
                 <p className="text-xs text-stone-500">{cancellingItem.title}</p>
               </div>
@@ -404,9 +425,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             )}
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              {cancellingItem.mode === 'series'
-                ? 'This will cancel all upcoming occurrences of this recurring series. This action cannot be undone.'
-                : 'This time slot will immediately become available for other church services in the master calendar.'}
+              {cancellingItem.mode === "series"
+                ? "This will cancel all upcoming occurrences of this recurring series. This action cannot be undone."
+                : "This time slot will immediately become available for other church services in the master calendar."}
             </p>
 
             <div className="flex items-center gap-3 pt-2">
@@ -427,7 +448,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 onClick={executeCancellation}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
               >
-                {isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
+                {isCancelling ? "Cancelling..." : "Yes, Cancel"}
               </button>
             </div>
           </div>
@@ -438,7 +459,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       {loading ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-stone-200 shadow-2xs space-y-3">
           <div className="w-8 h-8 border-3 border-amber-800 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-bold text-stone-600">Loading your reservations...</p>
+          <p className="text-xs font-bold text-stone-600">
+            Loading your reservations...
+          </p>
         </div>
       ) : fetchError ? (
         <div className="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-900 space-y-2">
@@ -460,13 +483,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             No {activeTab} reservations found
           </div>
           <p className="text-xs text-stone-500 max-w-sm mx-auto">
-            {activeTab === 'upcoming'
-              ? 'You do not have any upcoming church instrument reservations scheduled.'
-              : activeTab === 'pending'
-              ? 'You do not have any reservations pending administrative review.'
-              : 'No past reservation history.'}
+            {activeTab === "upcoming"
+              ? "You do not have any upcoming church instrument reservations scheduled."
+              : activeTab === "pending"
+                ? "You do not have any reservations pending administrative review."
+                : "No past reservation history."}
           </p>
-          {activeTab !== 'past' && (
+          {activeTab !== "past" && (
             <div className="pt-2 flex items-center justify-center gap-2">
               <button
                 type="button"
@@ -481,19 +504,26 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       ) : (
         <div className="space-y-4">
           {currentList.map((item, idx) => {
-            if (item.type === 'single') {
+            if (item.type === "single") {
               const res = item.data;
               const startUtc = new Date(res.start_time || res.startTime);
               const endUtc = new Date(res.end_time || res.endTime);
-              const dateRaw = res.reservation_date || (res.start_time ? String(res.start_time).substring(0, 10) : getLocalDateString(startUtc));
+              const dateRaw =
+                res.reservation_date ||
+                (res.start_time
+                  ? String(res.start_time).substring(0, 10)
+                  : getLocalDateString(startUtc));
               const dateStr = formatDisplayDate(dateRaw);
-              const timeStr = res.start_hhmm && res.end_hhmm
-                ? `${formatHhmmTo12Hour(res.start_hhmm)} – ${formatHhmmTo12Hour(res.end_hhmm)}`
-                : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
-              const isApproved = res.status === 'approved' || res.status === 'ongoing';
-              const isPending = res.status === 'pending';
+              const timeStr =
+                res.start_hhmm && res.end_hhmm
+                  ? `${formatHhmmTo12Hour(res.start_hhmm)} – ${formatHhmmTo12Hour(res.end_hhmm)}`
+                  : `${startUtc.toISOString().substring(11, 16)} – ${endUtc.toISOString().substring(11, 16)}`;
+              const isApproved =
+                res.status === "approved" || res.status === "ongoing";
+              const isPending = res.status === "pending";
               const isPast = endUtc < new Date();
-              const isCancelled = res.status === 'cancelled' || res.status === 'rejected';
+              const isCancelled =
+                res.status === "cancelled" || res.status === "rejected";
 
               return (
                 <div
@@ -512,16 +542,18 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition">
-                          {res.service_name || res.serviceName || 'Church Service'}
+                          {res.service_name ||
+                            res.serviceName ||
+                            "Church Service"}
                         </span>
 
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                             isApproved
-                              ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
                               : isPending
-                              ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                              : 'bg-stone-100 text-stone-600 border border-stone-200'
+                                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                : "bg-stone-100 text-stone-600 border border-stone-200"
                           }`}
                         >
                           {isApproved ? (
@@ -539,7 +571,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           )}
                         </span>
 
-                        {res.reservation_type === 'outside_church' && (
+                        {res.reservation_type === "outside_church" && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
                             <DollarSign className="w-3 h-3" />
                             Outside Use
@@ -548,7 +580,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       </div>
 
                       <div className="text-xs text-stone-600 flex flex-wrap items-center gap-3">
-                        <span className="font-semibold text-stone-800">{res.instrument_name}</span>
+                        <span className="font-semibold text-stone-800">
+                          {res.instrument_name}
+                        </span>
                         <span>•</span>
                         <span className="text-stone-500 font-medium">
                           {dateStr} ({timeStr})
@@ -576,7 +610,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           onClick={() =>
                             setCancellingItem({
                               id: res.id,
-                              mode: 'single',
+                              mode: "single",
                               title: `${res.instrument_name} on ${dateStr}`,
                             })
                           }
@@ -605,8 +639,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               // ---------------------------------------------------------
               const sg: GroupedSeries = item.data;
               const isExpanded = Boolean(expandedSeries[sg.seriesId]);
-              const approvedCount = sg.occurrences.filter((o) => o.status === 'approved').length;
-              const pendingCount = sg.occurrences.filter((o) => o.status === 'pending').length;
+              const approvedCount = sg.occurrences.filter(
+                (o) => o.status === "approved",
+              ).length;
+              const pendingCount = sg.occurrences.filter(
+                (o) => o.status === "pending",
+              ).length;
               const firstOcc = sg.occurrences[0];
 
               return (
@@ -641,10 +679,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </div>
 
                         <div className="text-xs text-stone-600 flex flex-wrap items-center gap-3">
-                          <span className="font-semibold text-stone-800">{sg.instrumentName}</span>
+                          <span className="font-semibold text-stone-800">
+                            {sg.instrumentName}
+                          </span>
                           <span>•</span>
                           <span className="text-stone-500">
-                            {approvedCount} Approved, {pendingCount} Pending Review
+                            {approvedCount} Approved, {pendingCount} Pending
+                            Review
                           </span>
                         </div>
                       </div>
@@ -658,7 +699,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         onClick={() =>
                           setCancellingItem({
                             id: firstOcc?.id,
-                            mode: 'series',
+                            mode: "series",
                             title: `Entire Recurring Series: ${sg.serviceName} (${sg.occurrences.length} occurrences)`,
                           })
                         }
@@ -675,7 +716,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}
                         className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                       >
-                        <span>{isExpanded ? 'Collapse' : 'View Occurrences'}</span>
+                        <span>
+                          {isExpanded ? "Collapse" : "View Occurrences"}
+                        </span>
                         {isExpanded ? (
                           <ChevronUp className="w-3.5 h-3.5" />
                         ) : (
@@ -697,16 +740,27 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                       <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 bg-white">
                         {sg.occurrences.map((occ, occIdx) => {
-                          const occStart = new Date(occ.start_time || occ.startTime);
+                          const occStart = new Date(
+                            occ.start_time || occ.startTime,
+                          );
                           const occEnd = new Date(occ.end_time || occ.endTime);
-                          const occRawDate = occ.reservation_date || (occ.start_time ? String(occ.start_time).substring(0, 10) : getLocalDateString(occStart));
+                          const occRawDate =
+                            occ.reservation_date ||
+                            (occ.start_time
+                              ? String(occ.start_time).substring(0, 10)
+                              : getLocalDateString(occStart));
                           const occDateStr = formatDisplayDate(occRawDate);
-                          const occTimeStr = occ.start_hhmm && occ.end_hhmm
-                            ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
-                            : `${occStart.toISOString().substring(11, 16)} – ${occEnd.toISOString().substring(11, 16)}`;
-                          const isOccApproved = occ.status === 'approved' || occ.status === 'ongoing';
+                          const occTimeStr =
+                            occ.start_hhmm && occ.end_hhmm
+                              ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
+                              : `${occStart.toISOString().substring(11, 16)} – ${occEnd.toISOString().substring(11, 16)}`;
+                          const isOccApproved =
+                            occ.status === "approved" ||
+                            occ.status === "ongoing";
                           const isOccPast = occEnd < new Date();
-                          const isOccCancelled = occ.status === 'cancelled' || occ.status === 'rejected';
+                          const isOccCancelled =
+                            occ.status === "cancelled" ||
+                            occ.status === "rejected";
 
                           return (
                             <div
@@ -714,15 +768,21 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               className="p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-stone-50/80 transition"
                             >
                               <div
-                                onClick={() => onSelectReservationDetail(occ.id)}
+                                onClick={() =>
+                                  onSelectReservationDetail(occ.id)
+                                }
                                 className="flex items-center gap-3 cursor-pointer flex-1"
                               >
                                 <span className="w-6 h-6 rounded-lg bg-stone-100 text-stone-700 font-bold flex items-center justify-center text-[10px]">
                                   {occIdx + 1}
                                 </span>
                                 <div>
-                                  <div className="font-bold text-stone-900">{occDateStr}</div>
-                                  <div className="text-[11px] text-stone-500">{occTimeStr}</div>
+                                  <div className="font-bold text-stone-900">
+                                    {occDateStr}
+                                  </div>
+                                  <div className="text-[11px] text-stone-500">
+                                    {occTimeStr}
+                                  </div>
                                 </div>
                               </div>
 
@@ -730,10 +790,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                     isOccApproved
-                                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
-                                      : occ.status === 'pending'
-                                      ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                                      : 'bg-stone-100 text-stone-600'
+                                      ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                                      : occ.status === "pending"
+                                        ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                        : "bg-stone-100 text-stone-600"
                                   }`}
                                 >
                                   {occ.status}
@@ -745,7 +805,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                     onClick={() =>
                                       setCancellingItem({
                                         id: occ.id,
-                                        mode: 'single',
+                                        mode: "single",
                                         title: `Session #${occIdx + 1} on ${occDateStr}`,
                                       })
                                     }
@@ -758,7 +818,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                                 <button
                                   type="button"
-                                  onClick={() => onSelectReservationDetail(occ.id)}
+                                  onClick={() =>
+                                    onSelectReservationDetail(occ.id)
+                                  }
                                   className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 text-[11px] font-bold rounded-lg transition cursor-pointer"
                                 >
                                   Details
