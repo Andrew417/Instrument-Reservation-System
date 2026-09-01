@@ -511,7 +511,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 {isFilterPanelOpen && (
                   <div
                     id="instrument-filter-panel"
-                    className="fixed sm:absolute left-1/2 sm:left-auto right-auto sm:right-0 top-1/2 sm:top-full -translate-x-1/2 sm:translate-x-0 -translate-y-1/2 sm:translate-y-0 mt-0 sm:mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[80vh] sm:max-h-96 overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
+                    className="fixed left-1/2 top-24 -translate-x-1/2 w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
                   >
                     {allInstrumentTypes.map((type) => {
                       const isTypeChecked = checkedTypes.includes(type);
