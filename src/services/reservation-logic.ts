@@ -528,7 +528,7 @@ export async function autoRejectOverlappingPending(
   const result = await db.execute(query);
   const autoRejectedRows = (result as any).rows || [];
 
-  // Notify affected users in-app and via email
+  // Notify affected users in-app
   for (const row of autoRejectedRows) {
     if (row.user_id) {
       await db.insert(notifications).values({
@@ -538,38 +538,6 @@ export async function autoRejectOverlappingPending(
         message:
           "Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.",
       });
-
-      // Send rejection email (non-blocking)
-      (async () => {
-        try {
-          const [userInfo] = await db
-            .select({ name: users.name, email: users.email })
-            .from(users)
-            .where(eq(users.id, row.user_id))
-            .limit(1);
-
-          const [instInfo] = await db
-            .select({ name: instruments.name })
-            .from(instruments)
-            .where(eq(instruments.id, instrumentId))
-            .limit(1);
-
-          if (userInfo?.email) {
-            await sendReservationRejectedEmail({
-              email: userInfo.email,
-              name: userInfo.name,
-              instrumentName: instInfo?.name || "Instrument",
-              serviceName: row.service_name,
-              startTime: start,
-              endTime: end,
-              rejectionReason: "Another reservation was approved for this time slot",
-              isSeries: false,
-            });
-          }
-        } catch (mailErr) {
-          console.error("Error sending auto-reject email:", mailErr);
-        }
-      })();
     }
   }
 
@@ -639,6 +607,39 @@ export async function createReservation(input: ReservationSubmissionInput) {
         type: "reservation_approved",
         message: `Your reservation on ${input.date} (${input.startTime} - ${getCairoTimeString(evalResult.endTimeUtc)}) has been approved.`,
       });
+
+      // Send approval email for auto-approved booking (non-blocking)
+      (async () => {
+        try {
+          const [userInfo] = await db
+            .select({ name: users.name, email: users.email })
+            .from(users)
+            .where(eq(users.id, cleanUserId))
+            .limit(1);
+
+          const [instInfo] = await db
+            .select({ name: instruments.name })
+            .from(instruments)
+            .where(eq(instruments.id, input.instrumentId))
+            .limit(1);
+
+          if (userInfo?.email) {
+            await sendReservationApprovedEmail({
+              email: userInfo.email,
+              name: userInfo.name,
+              instrumentName: instInfo?.name || "Instrument",
+              serviceName: input.serviceName,
+              reservationType: input.reservationType,
+              startTime: evalResult.startTimeUtc,
+              endTime: evalResult.endTimeUtc,
+              isSeries: false,
+              feeSnapshot: cleanFeeSnapshot,
+            });
+          }
+        } catch (mailErr) {
+          console.error("Error sending auto-approved reservation email:", mailErr);
+        }
+      })();
     }
   } else if (cleanUserId) {
     // Notification for pending submission
@@ -924,6 +925,43 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       type: "series_submitted",
       message: `Your recurring series (${createdOccurrences.length} occurrences) has been created (${approvedCount} approved, ${pendingCount} pending review).`,
     });
+
+    // If all occurrences were auto-approved, send approval email to user
+    if (approvedCount > 0 && pendingCount === 0 && createdOccurrences.length > 0) {
+      (async () => {
+        try {
+          const [userInfo] = await db
+            .select({ name: users.name, email: users.email })
+            .from(users)
+            .where(eq(users.id, cleanUserId))
+            .limit(1);
+
+          const [instInfo] = await db
+            .select({ name: instruments.name })
+            .from(instruments)
+            .where(eq(instruments.id, instrumentId))
+            .limit(1);
+
+          const firstOcc = createdOccurrences[0];
+          if (userInfo?.email) {
+            await sendReservationApprovedEmail({
+              email: userInfo.email,
+              name: userInfo.name,
+              instrumentName: instInfo?.name || "Instrument",
+              serviceName: input.serviceName,
+              reservationType,
+              startTime: firstOcc.evaluation.startTimeUtc,
+              endTime: firstOcc.evaluation.endTimeUtc,
+              isSeries: true,
+              seriesOccurrencesCount: createdOccurrences.length,
+              feeSnapshot: firstOcc.reservation.feeSnapshot,
+            });
+          }
+        } catch (mailErr) {
+          console.error("Error sending series auto-approved reservation email:", mailErr);
+        }
+      })();
+    }
 
     // If any occurrence is pending, broadcast to admins and notify super admin
     if (pendingCount > 0 && createdOccurrences.length > 0) {
