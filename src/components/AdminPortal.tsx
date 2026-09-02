@@ -47,6 +47,8 @@ import {
   Repeat,
   Upload,
   Archive,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface AdminPortalProps {
@@ -282,6 +284,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [adminAccountsList, setAdminAccountsList] = useState<any[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState<boolean>(false);
   const [showNewAdminModal, setShowNewAdminModal] = useState<boolean>(false);
+  const [showNewAdminPassword, setShowNewAdminPassword] =
+    useState<boolean>(false);
   const [newAdminForm, setNewAdminForm] = useState({
     name: "",
     email: "",
@@ -4580,19 +4584,40 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <label className="block font-bold text-stone-700 mb-1">
                   Password (Minimum 6 Characters)
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={newAdminForm.password}
-                  onChange={(e) =>
-                    setNewAdminForm({
-                      ...newAdminForm,
-                      password: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewAdminPassword ? "text" : "password"}
+                    required
+                    placeholder="••••••••"
+                    value={newAdminForm.password}
+                    onChange={(e) =>
+                      setNewAdminForm({
+                        ...newAdminForm,
+                        password: e.target.value,
+                      })
+                    }
+                    className="w-full pl-3 pr-10 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                  />
+                  <button
+                    type="button"
+                    id="btn-toggle-new-admin-password"
+                    onClick={() => setShowNewAdminPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none"
+                    tabIndex={-1}
+                    aria-label={
+                      showNewAdminPassword ? "Hide password" : "Show password"
+                    }
+                    title={
+                      showNewAdminPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showNewAdminPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center gap-2">
