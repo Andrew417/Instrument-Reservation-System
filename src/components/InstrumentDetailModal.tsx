@@ -649,7 +649,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                 <p className="text-xs text-stone-600 leading-relaxed">
                   {instrument.description ||
-                    "Church sanctuary instrument available for liturgical services, rehearsals, and approved ministries."}
+                    "An instrument dedicated to church rehearsals, events, and prayer meetings."}
                 </p>
               </div>
 

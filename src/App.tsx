@@ -172,7 +172,7 @@ const UserPortalMain: React.FC = () => {
             />
             <div className="min-w-0">
               <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight whitespace-nowrap">
-                Church Instrument Schedule
+                Church Instruments Schedule
               </div>
               <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap hidden lg:block">
                 St. Mark Instrument Reservations

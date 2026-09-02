@@ -119,7 +119,7 @@ export async function sendOtpEmail(
 
   try {
     await transport.sendMail({
-      from: `"St. Mark Church Instrument Reservation" <${process.env.GMAIL_USER}>`,
+      from: `"St. Mark Musicians" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: `${otpCode} is your Password Reset Code - St. Mark Church`,
       html: buildOtpEmailHtml(otpCode),

@@ -679,7 +679,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 type="text"
                 value={serviceName}
                 onChange={(e) => setServiceName(e.target.value)}
-                placeholder="e.g. Sunday Morning Worship, Youth Choir Practice"
+                placeholder="e.g. Sunday Worship, Youth Choir Rehersals"
                 className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                 required
               />
@@ -1010,7 +1010,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     </span>
                   </div>
                   <p className="text-[10px] text-stone-500">
-                    For choir, liturgy, and church services.
+                    Dedicated for prayer services and hymns, choir practice, and
+                    concerts inside the church.
                   </p>
                 </button>
 
@@ -1032,7 +1033,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     </span>
                   </div>
                   <p className="text-[10px] text-stone-500">
-                    Off-premises borrow with daily fee.
+                    For external events, outside performances, and conferences
                   </p>
                 </button>
               </div>
