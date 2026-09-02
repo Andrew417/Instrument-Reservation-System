@@ -435,7 +435,7 @@ export const AuthScreen: React.FC = () => {
                 id="auth-email-input"
                 type="email"
                 required
-                placeholder="e.g. member@church.org"
+                placeholder="e.g. membername@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
@@ -609,7 +609,7 @@ export const AuthScreen: React.FC = () => {
                       id="reset-email-input"
                       type="email"
                       required
-                      placeholder="e.g. member@church.org"
+                      placeholder="e.g. membername@gmail.com"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
@@ -760,7 +760,10 @@ export const AuthScreen: React.FC = () => {
                       aria-label={
                         showNewPassword ? "Hide password" : "Show password"
                       }
-                      title={showNewPassword ? "Hide password" : "Show password"}
+                      aria-describedby="password-visibility-hint"
+                      title={
+                        showNewPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showNewPassword ? (
                         <EyeOff className="w-4 h-4" />

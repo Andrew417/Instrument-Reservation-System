@@ -153,7 +153,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
     if (!serviceName.trim()) {
       setErrorMsg(
-        "Please specify what this reservation is for (e.g. Sunday Morning Worship, Youth Practice).",
+        "Please specify what this reservation is for (e.g. Sunday Morning Worship, Youth Choir).",
       );
       return;
     }
@@ -558,7 +558,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 type="text"
                 value={serviceName}
                 onChange={(e) => setServiceName(e.target.value)}
-                placeholder="e.g. Sunday Morning Worship, Youth Practice"
+                placeholder="e.g. Sunday Worship, Youth Choir Rehersal"
                 className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                 required
               />
@@ -666,8 +666,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-500 leading-tight">
-                    For liturgical services, choir practice & rehearsals on
-                    premises.
+                    Dedicated for prayer services and hymns, choir practice, and
+                    concerts inside the church.
                   </p>
                 </button>
 
@@ -691,7 +691,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-500 leading-tight">
-                    For external events, conferences, or off-premises borrow.
+                    For external events, outside performances, and conferences
                   </p>
                 </button>
               </div>

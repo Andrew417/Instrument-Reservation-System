@@ -341,7 +341,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[10px] text-stone-500">
-                  For choir, liturgy, and church services.
+                  Dedicated for prayer services and hymns, choir practice, and
+                  concerts inside the church.
                 </p>
               </button>
 
