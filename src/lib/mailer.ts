@@ -36,11 +36,13 @@ function formatSlotDateTime(
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: "Africa/Cairo", // add this
     });
     const startTimePart = startDate.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZone: "Africa/Cairo", // add this
     });
     if (end) {
       const endDate = typeof end === "string" ? new Date(end) : end;
@@ -48,6 +50,7 @@ function formatSlotDateTime(
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
+        timeZone: "Africa/Cairo", // add this
       });
       return `${datePart} • ${startTimePart} - ${endTimePart}`;
     }
@@ -108,7 +111,9 @@ export async function sendOtpEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -214,7 +219,9 @@ export async function sendAccountApprovedEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping account approval email.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping account approval email.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -365,7 +372,9 @@ export async function sendReservationApprovedEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation approved email.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation approved email.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -387,7 +396,10 @@ export async function sendReservationApprovedEmail(
     });
     return { sent: true };
   } catch (err: any) {
-    console.error("Error sending reservation approval email via Gmail SMTP:", err);
+    console.error(
+      "Error sending reservation approval email via Gmail SMTP:",
+      err,
+    );
     return { sent: false, error: err.message };
   }
 }
@@ -514,7 +526,9 @@ export async function sendReservationRejectedEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation rejection email.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation rejection email.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -536,7 +550,10 @@ export async function sendReservationRejectedEmail(
     });
     return { sent: true };
   } catch (err: any) {
-    console.error("Error sending reservation rejection email via Gmail SMTP:", err);
+    console.error(
+      "Error sending reservation rejection email via Gmail SMTP:",
+      err,
+    );
     return { sent: false, error: err.message };
   }
 }
