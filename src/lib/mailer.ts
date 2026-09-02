@@ -108,13 +108,15 @@ export async function sendOtpEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
   try {
     await transport.sendMail({
-      from: `"St. Mark Church Instrument Reservation" <${process.env.GMAIL_USER}>`,
+      from: `"St. Mark Musicians" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: `${otpCode} is your Password Reset Code - St. Mark Church`,
       html: buildOtpEmailHtml(otpCode),
@@ -214,7 +216,9 @@ export async function sendAccountApprovedEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping account approval email.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping account approval email.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -365,7 +369,9 @@ export async function sendReservationApprovedEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation approved email.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation approved email.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -387,7 +393,10 @@ export async function sendReservationApprovedEmail(
     });
     return { sent: true };
   } catch (err: any) {
-    console.error("Error sending reservation approval email via Gmail SMTP:", err);
+    console.error(
+      "Error sending reservation approval email via Gmail SMTP:",
+      err,
+    );
     return { sent: false, error: err.message };
   }
 }
@@ -514,7 +523,9 @@ export async function sendReservationRejectedEmail(
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
   if (!transport) {
-    console.warn("Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation rejection email.");
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation rejection email.",
+    );
     return { sent: false, error: "Gmail SMTP not configured" };
   }
 
@@ -536,7 +547,10 @@ export async function sendReservationRejectedEmail(
     });
     return { sent: true };
   } catch (err: any) {
-    console.error("Error sending reservation rejection email via Gmail SMTP:", err);
+    console.error(
+      "Error sending reservation rejection email via Gmail SMTP:",
+      err,
+    );
     return { sent: false, error: err.message };
   }
 }
