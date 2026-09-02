@@ -420,10 +420,10 @@ router.post(
   "/reservations/bulk-cancel",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { ids } = req.body;
+      const { ids, cancellationReason } = req.body;
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
-      const result = await adminBulkCancel(ids, adminId);
+      const result = await adminBulkCancel(ids, adminId, cancellationReason);
       res.json(result);
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });

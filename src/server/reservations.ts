@@ -175,11 +175,11 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { userId, adminId, cancelMode } = req.body;
+      const { userId, adminId, cancelMode, cancellationReason } = req.body;
       const sessionIdentity = await extractSessionIdentity(req);
       const result = await cancelReservation(
         id,
-        { cancelMode },
+        { cancelMode, cancellationReason },
         sessionIdentity || { userId, adminId },
       );
       res.json({ success: true, ...result });
@@ -188,7 +188,6 @@ router.post(
     }
   },
 );
-
 /**
  * 6. Admin: Approve single reservation
  */

@@ -131,6 +131,7 @@ export const reservations = pgTable(
     feeSnapshot: numeric("fee_snapshot"),
     status: text("status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected' | 'auto_rejected' | 'cancelled' | 'ongoing' | 'completed'
     rejectionReason: text("rejection_reason"),
+    cancellationReason: text("cancellation_reason"), // admin-provided reason, only set on admin-initiated cancellations
     paymentScreenshotUrl: text("payment_screenshot_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

@@ -109,6 +109,19 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const [cancelPrompt, setCancelPrompt] = useState<"single" | "series" | null>(
     null,
   );
+  const [cancelReasonPreset, setCancelReasonPreset] = useState<string>(
+    "Instrument in maintenance",
+  );
+  const [cancelReasonCustom, setCancelReasonCustom] = useState<string>("");
+
+  const CANCELLATION_REASON_PRESETS = [
+    "Instrument in maintenance",
+    "Schedule conflict",
+    "Duplicate reservation",
+    "Policy violation",
+    "Urgent event — no other instrument available",
+    "Other",
+  ];
 
   // Fetch full details of the reservation
   const loadReservationData = async () => {
@@ -262,6 +275,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     setIsCancelling(true);
     setErrorMsg(null);
     try {
+      const cancellationReason = isAdminViewer
+        ? cancelReasonPreset === "Other"
+          ? cancelReasonCustom.trim() || undefined
+          : cancelReasonPreset
+        : undefined;
+
       const res = await fetch(`/api/reservations/${reservationId}/cancel`, {
         method: "POST",
         headers: {
@@ -271,6 +290,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         body: JSON.stringify({
           userId: profile.id,
           cancelMode: mode,
+          cancellationReason,
         }),
       });
 
@@ -903,6 +923,22 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             </div>
           )}
 
+          {/* Cancellation Reason notice if admin-cancelled with a reason */}
+          {reservation.status === "cancelled" &&
+            reservation.cancellation_reason && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                <XCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <div className="font-bold text-amber-950">
+                    Cancellation Reason
+                  </div>
+                  <div className="text-amber-900 leading-relaxed">
+                    {reservation.cancellation_reason}
+                  </div>
+                </div>
+              </div>
+            )}
+
           {/* 2. Full Info Grid: Instrument, Date/Time, Pricing & Financials */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Instrument Info Card */}
@@ -1313,6 +1349,34 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   ? "This will cancel all future occurrences of this series. Past occurrences will remain intact."
                   : "This time slot will immediately be freed up in the master calendar for other church members."}
               </p>
+
+              {isAdminViewer && (
+                <div className="space-y-2 pt-1">
+                  <label className="block text-[11px] font-bold uppercase text-red-800">
+                    Reason (optional, shown to member)
+                  </label>
+                  <select
+                    value={cancelReasonPreset}
+                    onChange={(e) => setCancelReasonPreset(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-red-500"
+                  >
+                    {CANCELLATION_REASON_PRESETS.map((preset) => (
+                      <option key={preset} value={preset}>
+                        {preset}
+                      </option>
+                    ))}
+                  </select>
+                  {cancelReasonPreset === "Other" && (
+                    <textarea
+                      rows={2}
+                      value={cancelReasonCustom}
+                      onChange={(e) => setCancelReasonCustom(e.target.value)}
+                      placeholder="Describe the reason..."
+                      className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-red-500"
+                    />
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center gap-2 pt-1">
                 <button

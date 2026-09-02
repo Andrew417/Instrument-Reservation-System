@@ -637,7 +637,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
             });
           }
         } catch (mailErr) {
-          console.error("Error sending auto-approved reservation email:", mailErr);
+          console.error(
+            "Error sending auto-approved reservation email:",
+            mailErr,
+          );
         }
       })();
     }
@@ -927,7 +930,11 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     });
 
     // If all occurrences were auto-approved, send approval email to user
-    if (approvedCount > 0 && pendingCount === 0 && createdOccurrences.length > 0) {
+    if (
+      approvedCount > 0 &&
+      pendingCount === 0 &&
+      createdOccurrences.length > 0
+    ) {
       (async () => {
         try {
           const [userInfo] = await db
@@ -958,7 +965,10 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
             });
           }
         } catch (mailErr) {
-          console.error("Error sending series auto-approved reservation email:", mailErr);
+          console.error(
+            "Error sending series auto-approved reservation email:",
+            mailErr,
+          );
         }
       })();
     }
@@ -1228,7 +1238,10 @@ export async function editReservation(
  */
 export async function cancelReservation(
   reservationId: string,
-  options: { cancelMode?: "single" | "series" },
+  options: {
+    cancelMode?: "single" | "series";
+    cancellationReason?: string | null;
+  },
   caller: { userId?: string; adminId?: string },
 ) {
   const [target] = await db
@@ -1256,11 +1269,19 @@ export async function cancelReservation(
     return { mode: "single", reservation: target, skipped: true };
   }
 
+  // cancellation_reason only applies to admin-initiated cancellations
+  const cleanReason = cleanCallerAdminId
+    ? toNullableString(options.cancellationReason)
+    : null;
+  const bellMessage = cleanReason
+    ? `Reservation cancelled — ${cleanReason}`
+    : "Reservation cancelled";
+
   if (options.cancelMode === "series" && target.seriesId) {
     // Cancel all active/pending/approved occurrences in this series
     const cancelled = await db
       .update(reservations)
-      .set({ status: "cancelled" })
+      .set({ status: "cancelled", cancellationReason: cleanReason })
       .where(
         and(
           eq(reservations.seriesId, target.seriesId),
@@ -1268,6 +1289,19 @@ export async function cancelReservation(
         ),
       )
       .returning();
+
+    if (cleanCallerAdminId) {
+      const userIds = Array.from(
+        new Set(cancelled.map((r) => r.userId).filter(Boolean)),
+      );
+      for (const uid of userIds) {
+        await db.insert(notifications).values({
+          userId: uid as string,
+          type: "reservation_cancelled",
+          message: bellMessage,
+        });
+      }
+    }
 
     return {
       mode: "series",
@@ -1279,9 +1313,18 @@ export async function cancelReservation(
   // Cancel single occurrence
   const [cancelled] = await db
     .update(reservations)
-    .set({ status: "cancelled" })
+    .set({ status: "cancelled", cancellationReason: cleanReason })
     .where(eq(reservations.id, reservationId))
     .returning();
+
+  if (cleanCallerAdminId && cancelled.userId) {
+    await db.insert(notifications).values({
+      userId: cancelled.userId,
+      reservationId: cancelled.id,
+      type: "reservation_cancelled",
+      message: bellMessage,
+    });
+  }
 
   return { mode: "single", reservation: cancelled };
 }
@@ -1751,6 +1794,7 @@ export async function adminBulkReject(
 export async function adminBulkCancel(
   reservationIds: string[],
   adminId?: string | null,
+  cancellationReason?: string | null,
 ) {
   if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
     throw new Error("No reservation IDs provided for bulk cancellation.");
@@ -1765,7 +1809,7 @@ export async function adminBulkCancel(
     try {
       const result = await cancelReservation(
         id,
-        { cancelMode: "single" },
+        { cancelMode: "single", cancellationReason },
         { adminId: cleanAdminId || undefined },
       );
       if ((result as any)?.skipped) {

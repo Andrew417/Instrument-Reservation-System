@@ -348,10 +348,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     submitting: boolean;
   } | null>(null);
 
-  // Selected reservations for multi-select bulk actions
   const [selectedReservationIds, setSelectedReservationIds] = useState<
     string[]
   >([]);
+
+  // Cancel Reason Modal (bulk cancel — preset dropdown + optional custom text)
+  const [cancelReasonModal, setCancelReasonModal] = useState<{
+    isOpen: boolean;
+    ids: string[];
+    preset: string;
+    customText: string;
+    submitting: boolean;
+  } | null>(null);
+
+  const CANCELLATION_REASON_PRESETS = [
+    "Instrument in maintenance",
+    "Schedule conflict",
+    "Duplicate reservation",
+    "Policy violation",
+    "Urgent event — no other instrument available",
+    "Other",
+  ];
 
   // In-App Confirmation Modal State (Replaces blocked window.confirm)
   const [confirmModal, setConfirmModal] = useState<{
@@ -805,49 +822,64 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Bulk Cancel: Available to all admins, skips terminal states gracefully
   const handleTriggerBulkCancel = () => {
     if (selectedReservationIds.length === 0) return;
-    const count = selectedReservationIds.length;
-    setConfirmModal({
+    setCancelReasonModal({
       isOpen: true,
-      title: `Cancel ${count} Selected Reservation${count > 1 ? "s" : ""}?`,
-      description: `Are you sure you want to cancel ${count} selected reservation${count > 1 ? "s" : ""}? Active and pending bookings will be marked as cancelled and members will be notified. Reservations already completed or cancelled will be skipped.`,
-      confirmLabel: `Cancel ${count} Reservation${count > 1 ? "s" : ""}`,
-      isDestructive: true,
-      onConfirm: async () => {
-        setConfirmModal(null);
-        try {
-          const res = await adminFetch("/reservations/bulk-cancel", {
-            method: "POST",
-            body: JSON.stringify({ ids: selectedReservationIds }),
-          });
-          const data = await res.json();
-          if (data.success) {
-            const cancelledCount =
-              data.cancelledCount ?? data.cancelled?.length ?? 0;
-            const skippedCount = data.skippedCount ?? data.skipped?.length ?? 0;
-            let msg = `Successfully cancelled ${cancelledCount} reservation${cancelledCount === 1 ? "" : "s"}.`;
-            if (skippedCount > 0) {
-              msg += ` (${skippedCount} already completed/cancelled skipped)`;
-            }
-            showNotice(msg, "success");
-            setSelectedReservationIds([]);
-            await fetchReservations();
-            await fetchStats();
-          } else {
-            showNotice(
-              data.error || "Failed to cancel selected reservations.",
-              "error",
-            );
-          }
-        } catch (err: any) {
-          showNotice(
-            err.message || "Network error during bulk cancellation.",
-            "error",
-          );
-        }
-      },
+      ids: [...selectedReservationIds],
+      preset: CANCELLATION_REASON_PRESETS[0],
+      customText: "",
+      submitting: false,
     });
   };
 
+  const handleConfirmBulkCancel = async () => {
+    if (!cancelReasonModal) return;
+    const { ids, preset, customText } = cancelReasonModal;
+    const reason = preset === "Other" ? customText.trim() : preset;
+
+    setCancelReasonModal((prev) =>
+      prev ? { ...prev, submitting: true } : null,
+    );
+    try {
+      const res = await adminFetch("/reservations/bulk-cancel", {
+        method: "POST",
+        body: JSON.stringify({
+          ids,
+          cancellationReason: reason || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const cancelledCount =
+          data.cancelledCount ?? data.cancelled?.length ?? 0;
+        const skippedCount = data.skippedCount ?? data.skipped?.length ?? 0;
+        let msg = `Successfully cancelled ${cancelledCount} reservation${cancelledCount === 1 ? "" : "s"}.`;
+        if (skippedCount > 0) {
+          msg += ` (${skippedCount} already completed/cancelled skipped)`;
+        }
+        showNotice(msg, "success");
+        setSelectedReservationIds([]);
+        setCancelReasonModal(null);
+        await fetchReservations();
+        await fetchStats();
+      } else {
+        showNotice(
+          data.error || "Failed to cancel selected reservations.",
+          "error",
+        );
+        setCancelReasonModal((prev) =>
+          prev ? { ...prev, submitting: false } : null,
+        );
+      }
+    } catch (err: any) {
+      showNotice(
+        err.message || "Network error during bulk cancellation.",
+        "error",
+      );
+      setCancelReasonModal((prev) =>
+        prev ? { ...prev, submitting: false } : null,
+      );
+    }
+  };
   // Bulk Delete: Super Admin ONLY, hard delete with cascading cleanup
   const handleTriggerBulkDelete = () => {
     if (selectedReservationIds.length === 0) return;
@@ -4825,6 +4857,114 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <>
                     <XCircle className="w-3.5 h-3.5" />
                     <span>Confirm Rejection</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================================
+          MODAL 5B: Bulk Cancellation Reason (Preset + Optional Custom Text)
+         ============================================================= */}
+      {cancelReasonModal && cancelReasonModal.isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200">
+                  <XCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-stone-900 text-sm">
+                    Cancel {cancelReasonModal.ids.length} Reservation
+                    {cancelReasonModal.ids.length > 1 ? "s" : ""}
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Reason is optional but shown to affected members
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelReasonModal(null)}
+                disabled={cancelReasonModal.submitting}
+                className="text-stone-400 hover:text-stone-600 cursor-pointer disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold uppercase text-stone-500">
+                Reason
+              </label>
+              <select
+                value={cancelReasonModal.preset}
+                onChange={(e) =>
+                  setCancelReasonModal({
+                    ...cancelReasonModal,
+                    preset: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+              >
+                {CANCELLATION_REASON_PRESETS.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {cancelReasonModal.preset === "Other" && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-stone-700">
+                  Custom Reason
+                </label>
+                <textarea
+                  rows={2}
+                  value={cancelReasonModal.customText}
+                  onChange={(e) =>
+                    setCancelReasonModal({
+                      ...cancelReasonModal,
+                      customText: e.target.value,
+                    })
+                  }
+                  placeholder="Describe the reason for cancelling..."
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                />
+              </div>
+            )}
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={cancelReasonModal.submitting}
+                onClick={() => setCancelReasonModal(null)}
+                className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={cancelReasonModal.submitting}
+                onClick={handleConfirmBulkCancel}
+                className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-bold cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {cancelReasonModal.submitting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Cancelling...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>
+                      Cancel {cancelReasonModal.ids.length} Reservation
+                      {cancelReasonModal.ids.length > 1 ? "s" : ""}
+                    </span>
                   </>
                 )}
               </button>

@@ -1,5 +1,5 @@
 {
-  "id": "723aaab2-413a-4c56-8fc0-d0c60e0f0629",
+  "id": "93f8d97a-d7fc-40bf-9036-8e09fe317025",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -17,12 +17,6 @@
         },
         "name": {
           "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -72,11 +66,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "admins_email_key": {
-          "name": "admins_email_key",
+        "admins_phone_number_key": {
+          "name": "admins_phone_number_key",
           "nullsNotDistinct": false,
           "columns": [
-            "email"
+            "phone_number"
           ]
         }
       },
@@ -88,8 +82,8 @@
       "name": "failed_login_attempts",
       "schema": "",
       "columns": {
-        "email": {
-          "name": "email",
+        "phone_number": {
+          "name": "phone_number",
           "type": "text",
           "primaryKey": true,
           "notNull": true
@@ -168,13 +162,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 8
-        },
-        "show_policy_explainer_to_users": {
-          "name": "show_policy_explainer_to_users",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         },
         "max_submissions_per_hour": {
           "name": "max_submissions_per_hour",
@@ -361,47 +348,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.notification_settings": {
-      "name": "notification_settings",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "mute_account_approval_emails": {
-          "name": "mute_account_approval_emails",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "mute_reservation_request_emails": {
-          "name": "mute_reservation_request_emails",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.notifications": {
       "name": "notifications",
       "schema": "",
@@ -417,13 +363,7 @@
           "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
-        },
-        "admin_id": {
-          "name": "admin_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "reservation_id": {
           "name": "reservation_id",
@@ -473,19 +413,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "notifications_admin_id_admins_id_fk": {
-          "name": "notifications_admin_id_admins_id_fk",
-          "tableFrom": "notifications",
-          "tableTo": "admins",
-          "columnsFrom": [
-            "admin_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "notifications_reservation_id_reservations_id_fk": {
           "name": "notifications_reservation_id_reservations_id_fk",
           "tableFrom": "notifications",
@@ -517,8 +444,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "email": {
-          "name": "email",
+        "phone_number": {
+          "name": "phone_number",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -543,38 +470,11 @@
           "notNull": true,
           "default": false
         },
-        "locked_until": {
-          "name": "locked_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "request_count": {
-          "name": "request_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "window_start_at": {
-          "name": "window_start_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
         "expires_at": {
           "name": "expires_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "last_requested_at": {
-          "name": "last_requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         },
         "created_at": {
           "name": "created_at",
@@ -587,15 +487,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "password_reset_otps_email_key": {
-          "name": "password_reset_otps_email_key",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -807,12 +699,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "cancellation_reason": {
-          "name": "cancellation_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "payment_screenshot_url": {
           "name": "payment_screenshot_url",
           "type": "text",
@@ -895,81 +781,6 @@
           "value": "\"reservations\".\"status\" IN ('pending','approved','rejected','auto_rejected','cancelled','ongoing','completed')"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.role_audit_log": {
-      "name": "role_audit_log",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "actor_admin_id": {
-          "name": "actor_admin_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "actor_admin_name": {
-          "name": "actor_admin_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "target_email": {
-          "name": "target_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "target_name": {
-          "name": "target_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "old_role": {
-          "name": "old_role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "new_role": {
-          "name": "new_role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "action": {
-          "name": "action",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.sessions": {
@@ -1165,12 +976,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "phone_number": {
           "name": "phone_number",
           "type": "text",
@@ -1216,11 +1021,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_email_key": {
-          "name": "users_email_key",
+        "users_phone_number_key": {
+          "name": "users_phone_number_key",
           "nullsNotDistinct": false,
           "columns": [
-            "email"
+            "phone_number"
           ]
         }
       },

@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:generate": "drizzle-kit generate --config=src/db/drizzle.config.local.ts",
+    "db:migrate:local": "drizzle-kit migrate --config=src/db/drizzle.config.local.ts",
+    "db:migrate:prod": "drizzle-kit migrate --config=src/db/drizzle.config.prod.ts",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "tsx src/db/seed-super-admin.ts",
     "lint": "tsc --noEmit"
