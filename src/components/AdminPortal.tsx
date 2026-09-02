@@ -870,8 +870,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           });
           const data = await res.json();
           if (data.success) {
-            const deletedCount =
-              data.deletedCount ?? data.deleted?.length ?? 0;
+            const deletedCount = data.deletedCount ?? data.deleted?.length ?? 0;
             showNotice(
               `Permanently deleted ${deletedCount} reservation${deletedCount === 1 ? "" : "s"} from the database.`,
               "success",
@@ -2180,7 +2179,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               />
                             </td>
 
-                            <td className="py-3 px-3">
+                            <td className="py-3 px-3 whitespace-nowrap">
                               <div className="font-semibold text-stone-900">
                                 {new Date(r.start_time).toLocaleDateString(
                                   "en-US",
@@ -2192,13 +2191,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </div>
                               <div className="text-[11px] text-stone-500">
                                 {new Date(r.start_time).toLocaleTimeString([], {
-                                  hour: "2-digit",
+                                  hour: "numeric",
                                   minute: "2-digit",
-                                })}{" "}
-                                -{" "}
+                                  hour12: true,
+                                })}
+                                {" – "}
                                 {new Date(r.end_time).toLocaleTimeString([], {
-                                  hour: "2-digit",
+                                  hour: "numeric",
                                   minute: "2-digit",
+                                  hour12: true,
                                 })}
                               </div>
                             </td>
