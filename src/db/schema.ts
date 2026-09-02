@@ -193,6 +193,9 @@ export const hardLimits = pgTable("hard_limits", {
   maxDurationHours: integer("max_duration_hours").default(5).notNull(),
   maxConcurrentPerType: integer("max_concurrent_per_type").default(2).notNull(),
   maxSeriesOccurrences: integer("max_series_occurrences").default(8).notNull(),
+  showPolicyExplainerToUsers: boolean("show_policy_explainer_to_users")
+    .default(true)
+    .notNull(),
   maxSubmissionsPerHour: integer("max_submissions_per_hour")
     .default(10)
     .notNull(),

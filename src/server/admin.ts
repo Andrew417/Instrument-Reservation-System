@@ -508,15 +508,14 @@ router.delete(
         .limit(1);
 
       if (!target) {
-        res
-          .status(404)
-          .json({ success: false, error: "Reservation not found in database." });
+        res.status(404).json({
+          success: false,
+          error: "Reservation not found in database.",
+        });
         return;
       }
 
-      await db
-        .delete(notifications)
-        .where(eq(notifications.reservationId, id));
+      await db.delete(notifications).where(eq(notifications.reservationId, id));
       await db.delete(messages).where(eq(messages.reservationId, id));
       const [deleted] = await db
         .delete(reservations)
@@ -1966,6 +1965,8 @@ router.put(
       const rawSubmissions =
         body.maxSubmissionsPerHour ?? body.max_submissions_per_hour;
       const rawBypass = body.bypassHardLimits ?? body.bypass_hard_limits;
+      const rawShowExplainer =
+        body.showPolicyExplainerToUsers ?? body.show_policy_explainer_to_users;
 
       const existingRows = await db
         .select()
@@ -2007,6 +2008,10 @@ router.put(
         rawBypass !== undefined
           ? Boolean(rawBypass)
           : (existing?.bypassHardLimits ?? false);
+      const newShowExplainer =
+        rawShowExplainer !== undefined
+          ? Boolean(rawShowExplainer)
+          : (existing?.showPolicyExplainerToUsers ?? true);
 
       let updatedLimits;
       if (existing) {
@@ -2020,12 +2025,12 @@ router.put(
             maxSeriesOccurrences: newSeries,
             maxSubmissionsPerHour: newSubmissions,
             bypassHardLimits: newBypass,
+            showPolicyExplainerToUsers: newShowExplainer,
             updatedAt: new Date(),
           })
           .where(eq(hardLimits.id, existing.id))
           .returning();
 
-        // Ensure table remains a singleton: remove any duplicate rows if they exist
         if (existingRows.length > 1) {
           await db.delete(hardLimits).where(sql`id != ${existing.id}`);
         }
@@ -2040,6 +2045,7 @@ router.put(
             maxSeriesOccurrences: newSeries,
             maxSubmissionsPerHour: newSubmissions,
             bypassHardLimits: newBypass,
+            showPolicyExplainerToUsers: newShowExplainer,
             updatedAt: new Date(),
           })
           .returning();
@@ -2054,6 +2060,7 @@ router.put(
         maxSeriesOccurrences: updatedLimits.maxSeriesOccurrences,
         maxSubmissionsPerHour: updatedLimits.maxSubmissionsPerHour,
         bypassHardLimits: updatedLimits.bypassHardLimits,
+        showPolicyExplainerToUsers: updatedLimits.showPolicyExplainerToUsers,
         max_active_reservations: updatedLimits.maxActiveReservations,
         max_reservations_per_day: updatedLimits.maxReservationsPerDay,
         max_duration_hours: updatedLimits.maxDurationHours,
@@ -2061,6 +2068,8 @@ router.put(
         max_series_occurrences: updatedLimits.maxSeriesOccurrences,
         max_submissions_per_hour: updatedLimits.maxSubmissionsPerHour,
         bypass_hard_limits: updatedLimits.bypassHardLimits,
+        show_policy_explainer_to_users:
+          updatedLimits.showPolicyExplainerToUsers,
       };
 
       res.json({

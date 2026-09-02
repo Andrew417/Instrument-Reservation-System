@@ -8,6 +8,7 @@ export type HardLimitsState = {
   maxSubmissionsPerHour: number;
   bypassHardLimits: boolean;
   hardLimitsEnabled: boolean;
+  showPolicyExplainerToUsers: boolean;
 };
 
 export function normalizeHardLimitsState(limits: any): HardLimitsState {
@@ -37,11 +38,16 @@ export function normalizeHardLimitsState(limits: any): HardLimitsState {
     ),
     bypassHardLimits: bypass,
     hardLimitsEnabled: !bypass,
+    showPolicyExplainerToUsers: Boolean(
+      limits?.showPolicyExplainerToUsers ??
+      limits?.show_policy_explainer_to_users ??
+      true,
+    ),
   };
 }
 
 export function buildHardLimitsPayload(state: any) {
-  const payload = {
+  return {
     maxActiveReservations: Number(state?.maxActiveReservations ?? 1) || 1,
     maxReservationsPerDay: Number(state?.maxReservationsPerDay ?? 1) || 1,
     maxDurationHours: Number(state?.maxDurationHours ?? 1) || 1,
@@ -56,7 +62,11 @@ export function buildHardLimitsPayload(state: any) {
     max_submissions_per_hour: Number(state?.maxSubmissionsPerHour ?? 5) || 5,
     bypassHardLimits: Boolean(state?.bypassHardLimits ?? false),
     bypass_hard_limits: Boolean(state?.bypassHardLimits ?? false),
+    showPolicyExplainerToUsers: Boolean(
+      state?.showPolicyExplainerToUsers ?? true,
+    ),
+    show_policy_explainer_to_users: Boolean(
+      state?.showPolicyExplainerToUsers ?? true,
+    ),
   };
-
-  return payload;
 }

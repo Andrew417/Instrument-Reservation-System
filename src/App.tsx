@@ -14,6 +14,7 @@ import { EditReservationModal } from "./components/EditReservationModal.tsx";
 import { NotificationsModal } from "./components/NotificationsModal.tsx";
 import { AdminPortal } from "./components/AdminPortal.tsx";
 import { getTodayDateString } from "./lib/date-utils";
+import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
 import {
   LogOut,
   Sparkles,
@@ -22,6 +23,7 @@ import {
   Calendar,
   CheckCircle2,
   Bell,
+  HelpCircle,
   Clock,
   Music2,
   DollarSign,
@@ -55,7 +57,8 @@ const UserPortalMain: React.FC = () => {
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin;
-
+  const [policyExplainerEnabled, setPolicyExplainerEnabled] = useState(true);
+  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'admin_portal'
   const [currentView, setCurrentView] = useState<
     "calendar" | "my_reservations" | "admin_portal"
@@ -109,6 +112,25 @@ const UserPortalMain: React.FC = () => {
     };
     checkUnread();
   }, [sessionToken, refreshTrigger]);
+
+  useEffect(() => {
+    const fetchPolicyFlag = async () => {
+      try {
+        const res = await fetch("/api/reservations/limits");
+        const data = await res.json();
+        if (data.success && data.limits) {
+          setPolicyExplainerEnabled(
+            data.limits.showPolicyExplainerToUsers ??
+              data.limits.show_policy_explainer_to_users ??
+              true,
+          );
+        }
+      } catch {
+        // default stays true; non-fatal
+      }
+    };
+    fetchPolicyFlag();
+  }, []);
 
   // Callback from Screen 2 when tapping a free slot
   const handleSelectSlot = (
@@ -207,6 +229,18 @@ const UserPortalMain: React.FC = () => {
 
           {/* User Profile & Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {policyExplainerEnabled && (
+              <button
+                id="header-policy-help-btn"
+                type="button"
+                onClick={() => setIsPolicyModalOpen(true)}
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer"
+                title="How booking works"
+              >
+                <HelpCircle className="w-4 h-4 text-stone-600" />
+                <span className="hidden xl:inline">How Booking Works</span>
+              </button>
+            )}
             {/* Screen 7: Notifications Bell Button */}
             <button
               id="header-notifications-bell-btn"
@@ -487,6 +521,11 @@ const UserPortalMain: React.FC = () => {
           }}
         />
       )}
+
+      <PolicyExplainerModal
+        isOpen={isPolicyModalOpen}
+        onClose={() => setIsPolicyModalOpen(false)}
+      />
 
       {/* Screen 7: Notifications Modal */}
       <NotificationsModal
