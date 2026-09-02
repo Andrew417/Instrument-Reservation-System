@@ -15,6 +15,13 @@
       "when": 1788307547186,
       "tag": "0001_same_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788310063812,
+      "tag": "0002_kind_greymalkin",
+      "breakpoints": true
     }
   ]
 }
