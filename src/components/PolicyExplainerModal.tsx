@@ -112,74 +112,55 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               <span>Booking Modes</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-900">
-                  <Zap className="w-4 h-4 text-emerald-700" />
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-900">
+                  <Zap className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Instant Mode</span>
                 </div>
-                <p className="text-xs text-emerald-900/80 leading-relaxed">
-                  If the slot is free and you're within your fair-usage limits,
-                  your reservation is confirmed immediately — no admin review
-                  needed.
+                <p className="text-[11px] text-emerald-900/80 leading-snug">
+                  Free slot + within your limits = confirmed instantly.
                 </p>
               </div>
 
-              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                  <Clock className="w-4 h-4 text-amber-700" />
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
+                  <Clock className="w-3.5 h-3.5 text-amber-700" />
                   <span>Manual Mode</span>
                 </div>
-                <p className="text-xs text-amber-900/80 leading-relaxed">
-                  Every request on this instrument goes to an admin for review
-                  before it's confirmed, regardless of your usage limits.
+                <p className="text-[11px] text-amber-900/80 leading-snug">
+                  Always needs admin approval, regardless of limits.
                 </p>
               </div>
             </div>
 
             <p className="text-[11px] text-stone-500 leading-relaxed pt-0.5">
-              Booking mode is set per instrument, not app-wide — check the mode
-              badge on each instrument before booking.
+              Set per instrument — check the badge before booking.
             </p>
           </div>
 
           {/* 2. Hard Limits */}
           <div className="space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
-              <ShieldCheck className="w-4 h-4 text-amber-800" />
-              <span>Fair Usage Limits</span>
-            </div>
-            <p className="text-xs text-stone-600 leading-relaxed">
-              To keep instruments available for everyone, a few limits apply to
-              each member. Most of them don't block your request outright —
-              going over just means an admin reviews it instead of it being
-              confirmed automatically.
-            </p>
-
-            <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 bg-stone-50/50">
-              {HARD_LIMIT_EXPLAINERS.map((limit) => (
-                <div key={limit.title} className="p-3.5 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center shrink-0">
-                    {limit.icon}
-                  </div>
-                  <div className="text-xs space-y-0.5">
-                    <div className="font-bold text-stone-900">
-                      {limit.title}
-                    </div>
-                    <div className="text-stone-600 leading-relaxed">
-                      {limit.description}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-800 leading-relaxed">
-                One thing is never bypassed: a slot that's already approved for
-                someone else can't be booked, no matter your status or limits.
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
+                <ShieldCheck className="w-4 h-4 text-amber-800" />
+                <span>Fair Usage Limits</span>
+              </div>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                A few limits apply per member to keep instruments available for
+                everyone. If you go over one, your request isn't blocked — it
+                just needs admin approval instead of being confirmed
+                automatically. Only one limit (spam prevention) blocks
+                submission outright.
               </p>
+
+              <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-800 leading-relaxed">
+                  Approved slots are never bookable by anyone else, no
+                  exceptions.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -190,9 +171,8 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               <span>Outside-Church Fee & Payment</span>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Using an instrument inside the church is free. Taking it to an
-              outside performance carries a per-day fee, shown on the calendar
-              before you open the reservation form.
+              Free in-church. Outside performances cost a per-day fee, shown on
+              the calendar before you book.
             </p>
 
             <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 bg-stone-50/50">
@@ -201,12 +181,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                   <CheckCircle2 className="w-4 h-4 text-amber-800" />
                 </div>
                 <div className="text-xs space-y-0.5">
-                  <div className="font-bold text-stone-900">
-                    1. Check Outside-Church & Acknowledge the Fee
-                  </div>
+                  <div className="font-bold text-stone-900">1. Confirm Fee</div>
                   <div className="text-stone-600 leading-relaxed">
-                    When submitting, mark the reservation as outside-church and
-                    confirm you agree to pay the fee shown.
+                    Mark the reservation as outside-church and agree to pay the
+                    shown fee.
                   </div>
                 </div>
               </div>
@@ -217,26 +195,11 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 </div>
                 <div className="text-xs space-y-0.5">
                   <div className="font-bold text-stone-900">
-                    2. Admin Calls You on WhatsApp
+                    2. WhatsApp Call
                   </div>
                   <div className="text-stone-600 leading-relaxed">
-                    Once your request is reviewed, an admin will contact you on
-                    WhatsApp to confirm details and arrange payment.
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3.5 flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-amber-800" />
-                </div>
-                <div className="text-xs space-y-0.5">
-                  <div className="font-bold text-stone-900">
-                    3. Fee Is Locked In
-                  </div>
-                  <div className="text-stone-600 leading-relaxed">
-                    The fee you owe is locked in at the time you submitted, so
-                    later price changes don't affect it.
+                    After admin review, you'll get a WhatsApp message to arrange
+                    payment & approval.
                   </div>
                 </div>
               </div>
