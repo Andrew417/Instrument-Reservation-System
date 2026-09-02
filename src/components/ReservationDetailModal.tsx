@@ -21,6 +21,7 @@ import {
   Repeat,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   Info,
   CalendarRange,
   Layers,
@@ -43,6 +44,7 @@ export interface ReservationDetailModalProps {
   reservationId: string;
   allInstruments: Instrument[];
   onClose: () => void;
+  onBack?: () => void;
   onEdit: (reservation: any) => void;
   onCancelled: () => void;
   onNavigateToReservation?: (id: string) => void;
@@ -52,6 +54,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   reservationId,
   allInstruments,
   onClose,
+  onBack,
   onEdit,
   onCancelled,
   onNavigateToReservation,
@@ -299,12 +302,24 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
           <p className="text-xs text-stone-600 leading-relaxed">
             {errorMsg || "The requested reservation could not be loaded."}
           </p>
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-xs font-bold"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            {onBack ? (
+              <button
+                id="reservation-detail-notfound-back-btn"
+                onClick={onBack}
+                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Notifications</span>
+              </button>
+            ) : null}
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold cursor-pointer transition"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -352,6 +367,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         {/* Header */}
         <div className="bg-stone-900 text-white px-6 py-5 flex items-center justify-between border-b border-stone-800 shrink-0">
           <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                type="button"
+                id="reservation-detail-back-btn"
+                onClick={onBack}
+                className="w-8 h-8 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer mr-0.5"
+                title="Back to notifications"
+                aria-label="Back to notifications"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
             <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs">
               <FileText className="w-5 h-5" />
             </div>

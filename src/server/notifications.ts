@@ -51,7 +51,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     const result = await db.execute(sql`
       SELECT n.id, n.user_id, n.admin_id, n.type, n.message, n.is_read, n.reservation_id, n.created_at,
-             r.status as reservation_status, r.service_name, r.rejection_reason, i.name as instrument_name
+             r.status as reservation_status, r.service_name, r.rejection_reason, r.series_id, i.name as instrument_name
       FROM notifications n
       LEFT JOIN reservations r ON n.reservation_id = r.id
       LEFT JOIN instruments i ON r.instrument_id = i.id

@@ -1,5 +1,11 @@
-import { pgTable, text, integer, timestamp, uuid, boolean, unique, foreignKey, check, numeric } from "drizzle-orm/pg-core"
+import { pgTable, text, integer, timestamp, uuid, boolean, unique, foreignKey, check, numeric, customType } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
+
+export const tstzrange = customType<{ data: string; driverData: string }>({
+	dataType() {
+		return "tstzrange";
+	},
+});
 
 
 
@@ -133,8 +139,7 @@ export const reservations = pgTable("reservations", {
 	adminId: uuid("admin_id"),
 	instrumentId: uuid("instrument_id").notNull(),
 	serviceName: text("service_name").notNull(),
-	// TODO: failed to parse database type 'tstzrange'
-	timeRange: unknown("time_range").notNull(),
+	timeRange: tstzrange("time_range").notNull(),
 	reservationType: text("reservation_type").notNull(),
 	feeSnapshot: numeric("fee_snapshot"),
 	status: text().default('pending').notNull(),

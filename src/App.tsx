@@ -74,6 +74,10 @@ const UserPortalMain: React.FC = () => {
   // Screen 6 (Reservation Detail Modal) and Edit Modal
   const [selectedReservationDetailId, setSelectedReservationDetailId] =
     useState<string | null>(null);
+  const [
+    reservationDetailFromNotifications,
+    setReservationDetailFromNotifications,
+  ] = useState<boolean>(false);
   const [editingReservation, setEditingReservation] = useState<any | null>(
     null,
   );
@@ -369,16 +373,23 @@ const UserPortalMain: React.FC = () => {
                 reservationType: "in_church",
               });
             }}
-            onSelectReservationDetail={(id) =>
-              setSelectedReservationDetailId(id)
-            }
-            onEditReservation={(res) => setEditingReservation(res)}
+            onSelectReservationDetail={(id) => {
+              setSelectedReservationDetailId(id);
+              setReservationDetailFromNotifications(false);
+            }}
+            onEditReservation={(res) => {
+              setEditingReservation(res);
+              setReservationDetailFromNotifications(false);
+            }}
           />
         )}
         {currentView === "admin_portal" && isAdminOrSuperAdmin && (
           <AdminPortal
             onBackToMemberView={() => setCurrentView("calendar")}
-            onOpenReservationDetail={(id) => setSelectedReservationDetailId(id)}
+            onOpenReservationDetail={(id) => {
+              setSelectedReservationDetailId(id);
+              setReservationDetailFromNotifications(false);
+            }}
             onInstrumentsChanged={() => {
               setRefreshTrigger((prev) => prev + 1);
             }}
@@ -456,9 +467,22 @@ const UserPortalMain: React.FC = () => {
         <ReservationDetailModal
           reservationId={selectedReservationDetailId}
           allInstruments={allInstruments}
-          onClose={() => setSelectedReservationDetailId(null)}
+          onClose={() => {
+            setSelectedReservationDetailId(null);
+            setReservationDetailFromNotifications(false);
+          }}
+          onBack={
+            reservationDetailFromNotifications
+              ? () => {
+                  setSelectedReservationDetailId(null);
+                  setReservationDetailFromNotifications(false);
+                  setIsNotificationsOpen(true);
+                }
+              : undefined
+          }
           onEdit={(res) => {
             setSelectedReservationDetailId(null);
+            setReservationDetailFromNotifications(false);
             setEditingReservation(res);
           }}
           onCancelled={() => {
@@ -491,6 +515,7 @@ const UserPortalMain: React.FC = () => {
         onSelectReservation={(reservationId) => {
           setIsNotificationsOpen(false);
           setSelectedReservationDetailId(reservationId);
+          setReservationDetailFromNotifications(true);
         }}
       />
     </div>

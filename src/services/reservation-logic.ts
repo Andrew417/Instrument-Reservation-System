@@ -880,11 +880,72 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     const approvedCount = createdOccurrences.filter(
       (c) => c.reservation.status === "approved",
     ).length;
+    const pendingCount = createdOccurrences.length - approvedCount;
+
     await db.insert(notifications).values({
       userId: cleanUserId,
+      reservationId: createdOccurrences[0]?.reservation?.id,
       type: "series_submitted",
-      message: `Your recurring series (${createdOccurrences.length} occurrences) has been created (${approvedCount} approved, ${createdOccurrences.length - approvedCount} pending review).`,
+      message: `Your recurring series (${createdOccurrences.length} occurrences) has been created (${approvedCount} approved, ${pendingCount} pending review).`,
     });
+
+    // If any occurrence is pending, broadcast to admins and notify super admin
+    if (pendingCount > 0 && createdOccurrences.length > 0) {
+      const [requester] = await db
+        .select({ name: users.name, phoneNumber: users.phoneNumber })
+        .from(users)
+        .where(eq(users.id, cleanUserId))
+        .limit(1);
+
+      const [instrumentRow] = await db
+        .select({ name: instruments.name })
+        .from(instruments)
+        .where(eq(instruments.id, instrumentId))
+        .limit(1);
+
+      const notifSettings = await getNotificationSettings();
+      if (!notifSettings.muteReservationRequestEmails) {
+        await sendSuperAdminNotificationEmail(
+          "New Recurring Series Pending Approval - St. Mark Musicians",
+          "New Recurring Series Request",
+          "A recurring reservation series request is awaiting your approval.",
+          [
+            { label: "Requested by:", value: requester?.name || "Unknown" },
+            { label: "Phone:", value: requester?.phoneNumber || "N/A" },
+            { label: "Instrument:", value: instrumentRow?.name || "Unknown" },
+            { label: "Service:", value: input.serviceName },
+            {
+              label: "Occurrences:",
+              value: `${createdOccurrences.length} occurrences (${pendingCount} pending review)`,
+            },
+            {
+              label: "Starting Date:",
+              value: occurrences[0]?.date || "N/A",
+            },
+            {
+              label: "Type:",
+              value:
+                reservationType === "outside_church"
+                  ? "Outside Church"
+                  : "In-Church",
+            },
+          ],
+        ).catch(() => {});
+      }
+
+      const allAdmins = await db.select({ id: admins.id }).from(admins);
+      for (const adm of allAdmins) {
+        await db
+          .insert(notifications)
+          .values({
+            adminId: adm.id,
+            reservationId: createdOccurrences[0].reservation.id,
+            type: "reservation_submitted",
+            message: `New recurring series request (${createdOccurrences.length} occurrences) from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} starting ${occurrences[0]?.date}.`,
+          })
+          .catch(() => {});
+      }
+    }
   }
 
   return {

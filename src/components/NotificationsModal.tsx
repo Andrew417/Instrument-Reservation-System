@@ -19,11 +19,13 @@ import {
 
 export interface AppNotification {
   id: string;
-  user_id: string;
+  user_id?: string | null;
+  admin_id?: string | null;
   type: string;
   message: string;
   is_read: boolean;
   reservation_id?: string | null;
+  series_id?: string | null;
   created_at: string;
   reservation_status?: string | null;
   service_name?: string | null;
@@ -45,12 +47,23 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onUnreadCountChange,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const isAdminViewer = Boolean(
+    profile?.role === "admin" ||
+      profile?.role === "super_admin" ||
+      profile?.isSuperAdmin,
+  );
+
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<
-    "all" | "unread" | "approvals" | "rejections" | "messages"
+    "all" | "unread" | "requests" | "approvals" | "rejections" | "messages"
   >("all");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  // Inline action state for Admins
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>("");
 
   const fetchNotifications = async () => {
     try {
@@ -156,12 +169,135 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
   };
 
+  const handleApproveFromNotification = async (
+    notif: AppNotification,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    if (!notif.reservation_id) return;
+
+    setActioningId(notif.id);
+    try {
+      let url = `/api/reservations/admin/${notif.reservation_id}/approve`;
+      if (notif.series_id) {
+        url = `/api/reservations/admin/series/${notif.series_id}/approve-all`;
+      }
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken || ""}`,
+        },
+        body: JSON.stringify({
+          adminId: profile?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setActionNotice(data.error || "Failed to approve reservation.");
+        setTimeout(() => setActionNotice(null), 4000);
+        return;
+      }
+
+      // Mark local state as approved
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notif.id ||
+          (notif.series_id && n.series_id === notif.series_id)
+            ? { ...n, reservation_status: "approved" }
+            : n,
+        ),
+      );
+
+      setActionNotice(
+        notif.series_id
+          ? "Recurring series approved successfully."
+          : "Reservation approved successfully.",
+      );
+      setTimeout(() => setActionNotice(null), 3000);
+    } catch (err: any) {
+      setActionNotice(err.message || "Network error approving reservation.");
+      setTimeout(() => setActionNotice(null), 4000);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleConfirmReject = async (
+    notif: AppNotification,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    if (!notif.reservation_id || !rejectReason.trim()) return;
+
+    setActioningId(notif.id);
+    try {
+      let url = `/api/reservations/admin/${notif.reservation_id}/reject`;
+      if (notif.series_id) {
+        url = `/api/reservations/admin/series/${notif.series_id}/reject-all`;
+      }
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken || ""}`,
+        },
+        body: JSON.stringify({
+          reason: rejectReason.trim(),
+          adminId: profile?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setActionNotice(data.error || "Failed to reject reservation.");
+        setTimeout(() => setActionNotice(null), 4000);
+        return;
+      }
+
+      // Mark local state as rejected
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notif.id ||
+          (notif.series_id && n.series_id === notif.series_id)
+            ? {
+                ...n,
+                reservation_status: "rejected",
+                rejection_reason: rejectReason.trim(),
+              }
+            : n,
+        ),
+      );
+
+      setRejectingId(null);
+      setRejectReason("");
+      setActionNotice(
+        notif.series_id
+          ? "Recurring series rejected."
+          : "Reservation rejected.",
+      );
+      setTimeout(() => setActionNotice(null), 3000);
+    } catch (err: any) {
+      setActionNotice(err.message || "Network error rejecting reservation.");
+      setTimeout(() => setActionNotice(null), 4000);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   if (!isOpen) return null;
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const filteredNotifications = notifications.filter((n) => {
     if (filter === "unread") return !n.is_read;
+    if (filter === "requests")
+      return (
+        n.type === "reservation_submitted" || n.type === "series_submitted"
+      );
     if (filter === "approvals") return n.type === "reservation_approved";
     if (filter === "rejections")
       return (
@@ -176,6 +312,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
   const getNotificationVisuals = (notif: AppNotification) => {
     switch (notif.type) {
+      case "reservation_submitted":
+      case "series_submitted":
+        return {
+          icon: <Clock className="w-5 h-5 text-amber-600 shrink-0" />,
+          badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
+          typeLabel:
+            notif.type === "series_submitted" || notif.series_id
+              ? "Series Request"
+              : "Reservation Request",
+          accentBorder: "border-amber-500",
+        };
       case "reservation_approved":
         return {
           icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
@@ -196,6 +343,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
           typeLabel: "Auto-Rejected (Conflict)",
           accentBorder: "border-amber-500",
+        };
+      case "series_rejected":
+        return {
+          icon: <XCircle className="w-5 h-5 text-red-600 shrink-0" />,
+          badgeBg: "bg-red-50 border-red-200 text-red-900",
+          typeLabel: "Series Rejected",
+          accentBorder: "border-red-500",
         };
       case "instrument_removed_cancellation":
         return {
@@ -331,6 +485,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               }`}
             >
               Unread ({unreadCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("requests")}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                filter === "requests"
+                  ? "bg-stone-900 text-white shadow-2xs"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+              }`}
+            >
+              Requests
             </button>
             <button
               type="button"
@@ -479,6 +644,137 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           </div>
                         </div>
                       )}
+
+                      {/* Admin Inline Actions for Pending Requests */}
+                      {isAdminViewer &&
+                        notif.type === "reservation_submitted" &&
+                        notif.reservation_status === "pending" && (
+                          <div
+                            className="mt-3 pt-2.5 border-t border-stone-200/80"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {rejectingId === notif.id ? (
+                              <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200 animate-in fade-in">
+                                <label className="block text-[11px] font-bold text-stone-800">
+                                  Reason for Rejection (Required):
+                                </label>
+                                <textarea
+                                  value={rejectReason}
+                                  onChange={(e) =>
+                                    setRejectReason(e.target.value)
+                                  }
+                                  placeholder="e.g. Schedule conflict with choir rehearsal"
+                                  rows={2}
+                                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 bg-white text-stone-900 resize-none"
+                                  autoFocus
+                                />
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRejectingId(null);
+                                      setRejectReason("");
+                                    }}
+                                    disabled={actioningId === notif.id}
+                                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-200 transition cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) =>
+                                      handleConfirmReject(notif, e)
+                                    }
+                                    disabled={
+                                      !rejectReason.trim() ||
+                                      actioningId === notif.id
+                                    }
+                                    className="px-3 py-1 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    {actioningId === notif.id ? (
+                                      <>
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Rejecting...</span>
+                                      </>
+                                    ) : (
+                                      <span>
+                                        Confirm Reject
+                                        {notif.series_id ? " Series" : ""}
+                                      </span>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) =>
+                                    handleApproveFromNotification(notif, e)
+                                  }
+                                  disabled={actioningId === notif.id}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+                                >
+                                  {actioningId === notif.id ? (
+                                    <>
+                                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                      <span>Approving...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>
+                                        Approve
+                                        {notif.series_id ? " Series" : ""}
+                                      </span>
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRejectingId(notif.id);
+                                    setRejectReason("");
+                                  }}
+                                  disabled={actioningId === notif.id}
+                                  className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-red-50 text-stone-700 hover:text-red-700 border border-stone-200 hover:border-red-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>
+                                    Reject{notif.series_id ? " Series" : ""}
+                                  </span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                      {/* Status indicator if already resolved */}
+                      {isAdminViewer &&
+                        notif.type === "reservation_submitted" &&
+                        notif.reservation_status &&
+                        notif.reservation_status !== "pending" && (
+                          <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center gap-1.5 text-xs">
+                            {notif.reservation_status === "approved" ? (
+                              <div className="flex items-center gap-1 text-emerald-700 font-semibold">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Approved</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-red-700 font-semibold">
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>
+                                  Rejected
+                                  {notif.rejection_reason
+                                    ? `: ${notif.rejection_reason}`
+                                    : ""}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                     </div>
 
                     {/* Mark As Read Button */}
