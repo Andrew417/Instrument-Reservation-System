@@ -64,8 +64,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const isAdminViewer = Boolean(
     profile?.role === "admin" ||
-      profile?.role === "super_admin" ||
-      profile?.isSuperAdmin,
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
   );
 
   const [reservation, setReservation] = useState<any | null>(null);
@@ -492,7 +492,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const timeStr =
     reservation.start_hhmm && reservation.end_hhmm
       ? `${formatHhmmTo12Hour(reservation.start_hhmm)} – ${formatHhmmTo12Hour(reservation.end_hhmm)}`
-      : `${getCairoTimeString(startUtc)} – ${getCairoTimeString(endUtc)}`;
+      : `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
   const durationHours = (
     (endUtc.getTime() - startUtc.getTime()) /
     (3600 * 1000)
@@ -595,69 +595,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="text-xs space-y-1">
                 <div className="font-bold text-red-950">Notice</div>
                 <div className="text-red-800">{errorMsg}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Admin Pending Review Action Banner */}
-          {isAdminViewer && isPending && !isRejectOpen && (
-            <div
-              id="admin-pending-review-banner"
-              className="bg-amber-500/10 border-2 border-amber-300/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold shrink-0 shadow-2xs">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-stone-900">
-                    Administrator Review Required
-                  </h4>
-                  <p className="text-[11px] text-stone-600">
-                    This reservation request is pending administrative decision.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRejectOpen(true);
-                    setRejectError(null);
-                  }}
-                  disabled={isApproving}
-                  className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-red-50 text-stone-700 hover:text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                >
-                  <XCircle className="w-3.5 h-3.5 text-red-600" />
-                  <span>Reject</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAdminApprove(
-                      reservation.series_id ? "series" : "single",
-                    )
-                  }
-                  disabled={isApproving}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
-                >
-                  {isApproving ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Approving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>
-                        Approve
-                        {reservation.series_id ? " Series" : ""}
-                      </span>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
           )}
@@ -857,100 +794,99 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             </div>
           )}
 
-          {/* 1. Status & Service Purpose Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-4.5 bg-stone-50 border border-stone-200 rounded-2xl">
-            <div>
-              <span className="text-[11px] text-stone-500 font-semibold uppercase tracking-wider block">
-                Reservation Purpose
-              </span>
-              <span className="text-base font-bold text-stone-900">
-                {reservation.service_name ||
-                  reservation.serviceName ||
-                  "Church Service"}
-              </span>
-            </div>
-
-            <div>
-              <span
-                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                  isApproved
-                    ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                    : isPending
-                      ? "bg-amber-100 text-amber-900 border border-amber-300"
-                      : "bg-stone-200 text-stone-700 border border-stone-300"
-                }`}
-              >
-                {isApproved ? (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                    Approved
-                  </>
-                ) : isPending ? (
-                  <>
-                    <Clock className="w-3.5 h-3.5 text-amber-700" />
-                    Pending Review
-                  </>
-                ) : (
-                  <>
-                    <X className="w-3.5 h-3.5 text-stone-500" />
-                    {reservation.status}
-                  </>
-                )}
-              </span>
-            </div>
-          </div>
-
-          {/* Member / Requester Identity Card */}
-          {(isAdminViewer || reservation.user_name) && (
+          {/* 1. Status & Service Purpose + Requester Identity (merged) */}
+          {isAdminViewer || reservation.user_name ? (
             <div
-              id="requester-identity-card"
-              className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-2.5"
+              id="reservation-summary-card"
+              className="p-4.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-3.5"
             >
-              <div className="flex items-center justify-between text-xs font-bold text-stone-800">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-amber-800" />
-                  <span>Requester (Member Identity)</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] text-stone-500 font-semibold uppercase tracking-wider block">
+                    Reservation Purpose
+                  </span>
+                  <span className="text-base font-bold text-stone-900">
+                    {reservation.service_name ||
+                      reservation.serviceName ||
+                      "Church Service"}
+                  </span>
                 </div>
-                {reservation.user_is_trusted ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                    <Shield className="w-3 h-3 text-amber-800" />
-                    Trusted Member
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-stone-500 font-normal">
-                    Standard Member
-                  </span>
-                )}
+
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    isApproved
+                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                      : isPending
+                        ? "bg-amber-100 text-amber-900 border border-amber-300"
+                        : "bg-stone-200 text-stone-700 border border-stone-300"
+                  }`}
+                >
+                  {isApproved ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                      Approved
+                    </>
+                  ) : isPending ? (
+                    <>
+                      <Clock className="w-3.5 h-3.5 text-amber-700" />
+                      Pending Review
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-3.5 h-3.5 text-stone-500" />
+                      {reservation.status}
+                    </>
+                  )}
+                </span>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-0.5">
-                <div>
-                  <div className="font-bold text-stone-900 text-sm">
-                    {reservation.user_name || "Church Member"}
+              <div className="border-t border-stone-200 pt-3 space-y-2.5">
+                <div className="flex items-center justify-between text-xs font-bold text-stone-800">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-amber-800" />
+                    <span>Requester (Member Identity)</span>
                   </div>
-                  {reservation.user_phone && (
-                    <div className="flex items-center gap-1.5 text-stone-600 text-xs mt-0.5 font-mono">
-                      <Phone className="w-3 h-3 text-stone-400" />
-                      <span>{reservation.user_phone}</span>
-                    </div>
+                  {reservation.user_is_trusted ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                      <Shield className="w-3 h-3 text-amber-800" />
+                      Trusted Member
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-stone-500 font-normal">
+                      Standard Member
+                    </span>
                   )}
                 </div>
 
-                <div className="text-right text-[11px] text-stone-500">
-                  <div>Request Submitted</div>
-                  <div className="font-mono text-stone-700">
-                    {new Date(
-                      reservation.created_at || Date.now(),
-                    ).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div>
+                    <div className="font-bold text-stone-900 text-sm">
+                      {reservation.user_name || "Church Member"}
+                    </div>
+                    {reservation.user_phone && (
+                      <div className="flex items-center gap-1.5 text-stone-600 text-xs mt-0.5 font-mono">
+                        <Phone className="w-3 h-3 text-stone-400" />
+                        <span>{reservation.user_phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-right text-[11px] text-stone-500">
+                    <div>Request Submitted</div>
+                    <div className="font-mono text-stone-700">
+                      {new Date(
+                        reservation.created_at || Date.now(),
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Rejection Reason notice if rejected */}
           {reservation.rejection_reason && (
@@ -1029,11 +965,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <div className="font-bold text-stone-900 text-sm">
                   {dateStr}
                 </div>
-                <div className="text-stone-700 font-semibold">{timeStr}</div>
-                <div className="text-stone-500 text-[11px]">
-                  Duration: {durationHours} hr
-                  {Number(durationHours) > 1 ? "s" : ""} (Working Hours: 09:00 -
-                  22:00)
+                <div className="text-stone-700 font-semibold flex items-center gap-1.5 flex-wrap">
+                  <span>{timeStr}</span>
+                  <span className="text-stone-400">•</span>
+                  <span className="text-stone-500 text-[11px] font-normal">
+                    {durationHours} hr{Number(durationHours) > 1 ? "s" : ""}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1461,8 +1398,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     )}
                     <span>
-                      Approve Entire Series (
-                      {seriesOccurrences.length || "All"})
+                      Approve Entire Series ({seriesOccurrences.length || "All"}
+                      )
                     </span>
                   </button>
                 </>
