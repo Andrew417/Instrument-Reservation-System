@@ -23,6 +23,7 @@ import {
   normalizeEmail,
   isValidEmail,
 } from "../lib/auth-helpers.js";
+import { sendAccountApprovedEmail } from "../lib/mailer.js";
 import {
   adminApproveReservation,
   adminRejectReservation,
@@ -1232,6 +1233,15 @@ router.post(
         return;
       }
 
+      if (updated.email) {
+        sendAccountApprovedEmail({
+          email: updated.email,
+          name: updated.name,
+        }).catch((err) =>
+          console.error("Failed to send account approval email:", err),
+        );
+      }
+
       res.json({
         success: true,
         user: updated,
@@ -1262,6 +1272,15 @@ router.post(
       if (!updated) {
         res.status(404).json({ success: false, error: "User not found." });
         return;
+      }
+
+      if (updated.email) {
+        sendAccountApprovedEmail({
+          email: updated.email,
+          name: updated.name,
+        }).catch((err) =>
+          console.error("Failed to send account approval email:", err),
+        );
       }
 
       res.json({

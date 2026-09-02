@@ -1,5 +1,9 @@
 import { db, pool } from "../db/index.js";
-import { sendSuperAdminNotificationEmail } from "../lib/mailer.js";
+import {
+  sendSuperAdminNotificationEmail,
+  sendReservationApprovedEmail,
+  sendReservationRejectedEmail,
+} from "../lib/mailer.js";
 import {
   users,
   admins,
@@ -518,13 +522,13 @@ export async function autoRejectOverlappingPending(
       AND status = 'pending'
       ${approvedReservationId ? sql`AND id != ${approvedReservationId}` : sql``}
       AND time_range && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')
-    RETURNING id, user_id, time_range;
+    RETURNING id, user_id, service_name, time_range;
   `;
 
   const result = await db.execute(query);
   const autoRejectedRows = (result as any).rows || [];
 
-  // Notify affected users
+  // Notify affected users in-app and via email
   for (const row of autoRejectedRows) {
     if (row.user_id) {
       await db.insert(notifications).values({
@@ -534,6 +538,38 @@ export async function autoRejectOverlappingPending(
         message:
           "Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.",
       });
+
+      // Send rejection email (non-blocking)
+      (async () => {
+        try {
+          const [userInfo] = await db
+            .select({ name: users.name, email: users.email })
+            .from(users)
+            .where(eq(users.id, row.user_id))
+            .limit(1);
+
+          const [instInfo] = await db
+            .select({ name: instruments.name })
+            .from(instruments)
+            .where(eq(instruments.id, instrumentId))
+            .limit(1);
+
+          if (userInfo?.email) {
+            await sendReservationRejectedEmail({
+              email: userInfo.email,
+              name: userInfo.name,
+              instrumentName: instInfo?.name || "Instrument",
+              serviceName: row.service_name,
+              startTime: start,
+              endTime: end,
+              rejectionReason: "Another reservation was approved for this time slot",
+              isSeries: false,
+            });
+          }
+        } catch (mailErr) {
+          console.error("Error sending auto-reject email:", mailErr);
+        }
+      })();
     }
   }
 
@@ -1220,6 +1256,7 @@ export async function cancelReservation(
 export async function adminApproveReservation(
   reservationId: string,
   adminId?: string | null,
+  options?: { skipEmail?: boolean },
 ) {
   const [res] = await db
     .select()
@@ -1274,7 +1311,7 @@ export async function adminApproveReservation(
     reservationId,
   );
 
-  // Notify user
+  // Notify user in-app
   if (res.userId) {
     await db.insert(notifications).values({
       userId: res.userId,
@@ -1282,6 +1319,41 @@ export async function adminApproveReservation(
       type: "reservation_approved",
       message: "Your reservation has been approved by an administrator.",
     });
+
+    // Send transactional email (non-blocking) unless skipped (e.g. during series approval)
+    if (!options?.skipEmail) {
+      (async () => {
+        try {
+          const [userInfo] = await db
+            .select({ name: users.name, email: users.email })
+            .from(users)
+            .where(eq(users.id, res.userId!))
+            .limit(1);
+
+          const [instInfo] = await db
+            .select({ name: instruments.name })
+            .from(instruments)
+            .where(eq(instruments.id, res.instrumentId))
+            .limit(1);
+
+          if (userInfo?.email) {
+            await sendReservationApprovedEmail({
+              email: userInfo.email,
+              name: userInfo.name,
+              instrumentName: instInfo?.name || "Instrument",
+              serviceName: res.serviceName,
+              reservationType: res.reservationType,
+              startTime: start,
+              endTime: end,
+              isSeries: Boolean(res.seriesId),
+              feeSnapshot: res.feeSnapshot,
+            });
+          }
+        } catch (mailErr) {
+          console.error("Error sending reservation approval email:", mailErr);
+        }
+      })();
+    }
   }
 
   return approved;
@@ -1291,6 +1363,7 @@ export async function adminRejectReservation(
   reservationId: string,
   reason: string,
   adminId?: string | null,
+  options?: { skipEmail?: boolean },
 ) {
   if (!reason || !reason.trim()) {
     throw new Error("A rejection reason is required.");
@@ -1323,6 +1396,51 @@ export async function adminRejectReservation(
       type: "reservation_rejected",
       message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
     });
+
+    // Send rejection email (non-blocking)
+    if (!options?.skipEmail) {
+      (async () => {
+        try {
+          const boundsRes: any = await db.execute(
+            sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
+          );
+          const start = boundsRes.rows?.[0]?.start_time
+            ? new Date(boundsRes.rows[0].start_time)
+            : null;
+          const end = boundsRes.rows?.[0]?.end_time
+            ? new Date(boundsRes.rows[0].end_time)
+            : null;
+
+          const [userInfo] = await db
+            .select({ name: users.name, email: users.email })
+            .from(users)
+            .where(eq(users.id, res.userId!))
+            .limit(1);
+
+          const [instInfo] = await db
+            .select({ name: instruments.name })
+            .from(instruments)
+            .where(eq(instruments.id, res.instrumentId))
+            .limit(1);
+
+          if (userInfo?.email) {
+            await sendReservationRejectedEmail({
+              email: userInfo.email,
+              name: userInfo.name,
+              instrumentName: instInfo?.name || "Instrument",
+              serviceName: res.serviceName,
+              reservationType: res.reservationType,
+              startTime: start,
+              endTime: end,
+              rejectionReason: reason.trim(),
+              isSeries: Boolean(res.seriesId),
+            });
+          }
+        } catch (mailErr) {
+          console.error("Error sending reservation rejection email:", mailErr);
+        }
+      })();
+    }
   }
 
   return rejected;
@@ -1348,7 +1466,9 @@ export async function adminApproveSeries(
 
   for (const occ of pendingOccurrences) {
     try {
-      const app = await adminApproveReservation(occ.id, cleanAdminId);
+      const app = await adminApproveReservation(occ.id, cleanAdminId, {
+        skipEmail: true,
+      });
       approvedList.push(app);
     } catch (e: any) {
       console.warn(
@@ -1356,6 +1476,53 @@ export async function adminApproveSeries(
         e.message,
       );
     }
+  }
+
+  // Send ONE consolidated approval email for the recurring series
+  if (approvedList.length > 0 && pendingOccurrences[0]?.userId) {
+    (async () => {
+      try {
+        const firstOcc = pendingOccurrences[0];
+        const [userInfo] = await db
+          .select({ name: users.name, email: users.email })
+          .from(users)
+          .where(eq(users.id, firstOcc.userId!))
+          .limit(1);
+
+        const [instInfo] = await db
+          .select({ name: instruments.name })
+          .from(instruments)
+          .where(eq(instruments.id, firstOcc.instrumentId))
+          .limit(1);
+
+        const boundsRes: any = await db.execute(
+          sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${firstOcc.id}`,
+        );
+        const start = boundsRes.rows?.[0]?.start_time
+          ? new Date(boundsRes.rows[0].start_time)
+          : null;
+        const end = boundsRes.rows?.[0]?.end_time
+          ? new Date(boundsRes.rows[0].end_time)
+          : null;
+
+        if (userInfo?.email) {
+          await sendReservationApprovedEmail({
+            email: userInfo.email,
+            name: userInfo.name,
+            instrumentName: instInfo?.name || "Instrument",
+            serviceName: firstOcc.serviceName,
+            reservationType: firstOcc.reservationType,
+            startTime: start,
+            endTime: end,
+            isSeries: true,
+            seriesOccurrencesCount: approvedList.length,
+            feeSnapshot: firstOcc.feeSnapshot,
+          });
+        }
+      } catch (mailErr) {
+        console.error("Error sending series approval email:", mailErr);
+      }
+    })();
   }
 
   return {
@@ -1402,7 +1569,7 @@ export async function adminRejectSeries(
     )
     .returning();
 
-  // Notify user
+  // Notify user in-app
   const userId = seriesOccurrences[0]?.userId;
   if (userId) {
     await db.insert(notifications).values({
@@ -1410,6 +1577,51 @@ export async function adminRejectSeries(
       type: "series_rejected",
       message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
     });
+
+    // Send ONE consolidated rejection email for the series
+    (async () => {
+      try {
+        const firstOcc = seriesOccurrences[0];
+        const [userInfo] = await db
+          .select({ name: users.name, email: users.email })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+
+        const [instInfo] = await db
+          .select({ name: instruments.name })
+          .from(instruments)
+          .where(eq(instruments.id, firstOcc.instrumentId))
+          .limit(1);
+
+        const boundsRes: any = await db.execute(
+          sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${firstOcc.id}`,
+        );
+        const start = boundsRes.rows?.[0]?.start_time
+          ? new Date(boundsRes.rows[0].start_time)
+          : null;
+        const end = boundsRes.rows?.[0]?.end_time
+          ? new Date(boundsRes.rows[0].end_time)
+          : null;
+
+        if (userInfo?.email) {
+          await sendReservationRejectedEmail({
+            email: userInfo.email,
+            name: userInfo.name,
+            instrumentName: instInfo?.name || "Instrument",
+            serviceName: firstOcc.serviceName,
+            reservationType: firstOcc.reservationType,
+            startTime: start,
+            endTime: end,
+            rejectionReason: reason.trim(),
+            isSeries: true,
+            seriesOccurrencesCount: rejectedList.length,
+          });
+        }
+      } catch (mailErr) {
+        console.error("Error sending series rejection email:", mailErr);
+      }
+    })();
   }
 
   return {
