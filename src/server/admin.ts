@@ -492,6 +492,48 @@ router.post(
 );
 
 /**
+ * Delete single reservation (hard delete with cleanup; super-admin only)
+ */
+router.delete(
+  "/reservations/:id",
+  requireSuperAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const [target] = await db
+        .select()
+        .from(reservations)
+        .where(eq(reservations.id, id))
+        .limit(1);
+
+      if (!target) {
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found in database." });
+        return;
+      }
+
+      await db
+        .delete(notifications)
+        .where(eq(notifications.reservationId, id));
+      await db.delete(messages).where(eq(messages.reservationId, id));
+      const [deleted] = await db
+        .delete(reservations)
+        .where(eq(reservations.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        reservation: deleted,
+        message: "Reservation permanently deleted from database.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
  * Approve recurring series (all occurrences)
  */
 router.post(

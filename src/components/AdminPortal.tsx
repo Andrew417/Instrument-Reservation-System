@@ -727,8 +727,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Trigger loads on tab switch
+  // Trigger loads on tab switch or filter changes
   useEffect(() => {
+    setSelectedReservationIds([]);
     fetchStats();
     if (activeTab === "dashboard") {
       fetchTodaysReservations();
@@ -754,7 +755,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } else if (activeTab === "messaging") {
       fetchReservations();
     }
-  }, [activeTab, filterQuickTab, filterStatus, filterInstrument]);
+  }, [
+    activeTab,
+    filterQuickTab,
+    filterStatus,
+    filterInstrument,
+    filterSearch,
+    filterStartDate,
+    filterEndDate,
+  ]);
 
   // Refetch approvals when filters or search query change
   useEffect(() => {
@@ -762,6 +771,129 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       fetchApprovals();
     }
   }, [approvalFilterStatus, approvalSearch]);
+
+  // Selection handlers for bulk reservation actions
+  const handleToggleSelectReservation = (id: string) => {
+    setSelectedReservationIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const handleToggleSelectAllReservations = () => {
+    if (reservations.length === 0) return;
+    const allVisibleSelected = reservations.every((r) =>
+      selectedReservationIds.includes(r.id),
+    );
+    if (allVisibleSelected) {
+      const visibleIds = new Set(reservations.map((r) => r.id));
+      setSelectedReservationIds((prev) =>
+        prev.filter((id) => !visibleIds.has(id)),
+      );
+    } else {
+      const combined = new Set([
+        ...selectedReservationIds,
+        ...reservations.map((r) => r.id),
+      ]);
+      setSelectedReservationIds(Array.from(combined));
+    }
+  };
+
+  // Bulk Cancel: Available to all admins, skips terminal states gracefully
+  const handleTriggerBulkCancel = () => {
+    if (selectedReservationIds.length === 0) return;
+    const count = selectedReservationIds.length;
+    setConfirmModal({
+      isOpen: true,
+      title: `Cancel ${count} Selected Reservation${count > 1 ? "s" : ""}?`,
+      description: `Are you sure you want to cancel ${count} selected reservation${count > 1 ? "s" : ""}? Active and pending bookings will be marked as cancelled and members will be notified. Reservations already completed or cancelled will be skipped.`,
+      confirmLabel: `Cancel ${count} Reservation${count > 1 ? "s" : ""}`,
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          const res = await adminFetch("/reservations/bulk-cancel", {
+            method: "POST",
+            body: JSON.stringify({ ids: selectedReservationIds }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            const cancelledCount =
+              data.cancelledCount ?? data.cancelled?.length ?? 0;
+            const skippedCount = data.skippedCount ?? data.skipped?.length ?? 0;
+            let msg = `Successfully cancelled ${cancelledCount} reservation${cancelledCount === 1 ? "" : "s"}.`;
+            if (skippedCount > 0) {
+              msg += ` (${skippedCount} already completed/cancelled skipped)`;
+            }
+            showNotice(msg, "success");
+            setSelectedReservationIds([]);
+            await fetchReservations();
+            await fetchStats();
+          } else {
+            showNotice(
+              data.error || "Failed to cancel selected reservations.",
+              "error",
+            );
+          }
+        } catch (err: any) {
+          showNotice(
+            err.message || "Network error during bulk cancellation.",
+            "error",
+          );
+        }
+      },
+    });
+  };
+
+  // Bulk Delete: Super Admin ONLY, hard delete with cascading cleanup
+  const handleTriggerBulkDelete = () => {
+    if (selectedReservationIds.length === 0) return;
+    if (!isSuperAdmin) {
+      showNotice(
+        "Super Administrator privileges required to permanently delete reservations.",
+        "error",
+      );
+      return;
+    }
+    const count = selectedReservationIds.length;
+    setConfirmModal({
+      isOpen: true,
+      title: `Permanently Delete ${count} Reservation${count > 1 ? "s" : ""}?`,
+      description: `This action will permanently delete ${count} selected reservation${count > 1 ? "s" : ""}, including all associated chat messages and notifications, from the database. This action CANNOT be undone.`,
+      confirmLabel: `Delete ${count} Permanently`,
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          const res = await adminFetch("/reservations/bulk-delete", {
+            method: "POST",
+            body: JSON.stringify({ ids: selectedReservationIds }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            const deletedCount =
+              data.deletedCount ?? data.deleted?.length ?? 0;
+            showNotice(
+              `Permanently deleted ${deletedCount} reservation${deletedCount === 1 ? "" : "s"} from the database.`,
+              "success",
+            );
+            setSelectedReservationIds([]);
+            await fetchReservations();
+            await fetchStats();
+          } else {
+            showNotice(
+              data.error || "Failed to delete selected reservations.",
+              "error",
+            );
+          }
+        } catch (err: any) {
+          showNotice(
+            err.message || "Network error during bulk deletion.",
+            "error",
+          );
+        }
+      },
+    });
+  };
 
   // Actions: Approve / Reject Reservation
   const handleApprove = async (reservationId: string) => {
@@ -1893,6 +2025,81 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               </div>
 
+              {/* Contextual Bulk Actions Bar */}
+              {selectedReservationIds.length > 0 && (
+                <div
+                  id="bulk-actions-bar"
+                  className="bg-stone-900 text-white rounded-2xl p-3 px-4 shadow-md flex flex-wrap items-center justify-between gap-3 border border-stone-800 animate-in fade-in slide-in-from-top-2 duration-150"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                    <span className="text-xs font-bold">
+                      {selectedReservationIds.length}{" "}
+                      {selectedReservationIds.length === 1
+                        ? "reservation"
+                        : "reservations"}{" "}
+                      selected
+                    </span>
+                    {selectedReservationIds.length < reservations.length && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allIds = Array.from(
+                            new Set([
+                              ...selectedReservationIds,
+                              ...reservations.map((r) => r.id),
+                            ]),
+                          );
+                          setSelectedReservationIds(allIds);
+                        }}
+                        className="text-[11px] text-amber-300 hover:text-amber-200 underline cursor-pointer ml-1"
+                      >
+                        Select all {reservations.length} visible
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Cancel Selected — Available to all admins */}
+                    <button
+                      id="btn-bulk-cancel-selected"
+                      type="button"
+                      onClick={handleTriggerBulkCancel}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Cancel selected reservations"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>Cancel Selected</span>
+                    </button>
+
+                    {/* Delete Selected — Super Admin ONLY */}
+                    {isSuperAdmin && (
+                      <button
+                        id="btn-bulk-delete-selected"
+                        type="button"
+                        onClick={handleTriggerBulkDelete}
+                        className="px-3 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Permanently delete selected reservations from database"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Selected</span>
+                      </button>
+                    )}
+
+                    {/* Clear Selection */}
+                    <button
+                      id="btn-clear-selection"
+                      type="button"
+                      onClick={() => setSelectedReservationIds([])}
+                      className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium transition cursor-pointer border border-stone-700"
+                      title="Clear selection"
+                    >
+                      <span>Clear</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Table */}
               <div className="overflow-x-auto mt-2">
                 {loadingReservations ? (
@@ -1907,6 +2114,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                        <th className="py-2.5 px-3 w-10 text-center">
+                          <input
+                            id="select-all-reservations-checkbox"
+                            type="checkbox"
+                            aria-label="Select all visible reservations"
+                            checked={
+                              reservations.length > 0 &&
+                              reservations.every((r) =>
+                                selectedReservationIds.includes(r.id),
+                              )
+                            }
+                            ref={(el) => {
+                              if (el) {
+                                const someSelected =
+                                  reservations.some((r) =>
+                                    selectedReservationIds.includes(r.id),
+                                  ) &&
+                                  !reservations.every((r) =>
+                                    selectedReservationIds.includes(r.id),
+                                  );
+                                el.indeterminate = someSelected;
+                              }
+                            }}
+                            onChange={handleToggleSelectAllReservations}
+                            className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                          />
+                        </th>
                         <th className="py-2.5 px-3">Date & Slot</th>
                         <th className="py-2.5 px-3">Instrument</th>
                         <th className="py-2.5 px-3">Member & Service</th>
@@ -1918,11 +2152,34 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <tbody className="divide-y divide-stone-100">
                       {reservations.map((r) => {
                         const isPending = r.status === "pending";
+                        const isSelected = selectedReservationIds.includes(
+                          r.id,
+                        );
                         return (
                           <tr
                             key={r.id}
-                            className="hover:bg-stone-50/60 transition"
+                            className={`transition ${
+                              isSelected
+                                ? "bg-amber-50/60 hover:bg-amber-50/80"
+                                : "hover:bg-stone-50/60"
+                            }`}
                           >
+                            <td
+                              className="py-3 px-3 w-10 text-center"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                id={`select-reservation-${r.id}`}
+                                type="checkbox"
+                                aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
+                                checked={isSelected}
+                                onChange={() =>
+                                  handleToggleSelectReservation(r.id)
+                                }
+                                className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                              />
+                            </td>
+
                             <td className="py-3 px-3">
                               <div className="font-semibold text-stone-900">
                                 {new Date(r.start_time).toLocaleDateString(

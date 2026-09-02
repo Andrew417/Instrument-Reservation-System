@@ -1177,6 +1177,11 @@ export async function cancelReservation(
     throw new Error("You are not authorized to cancel this reservation.");
   }
 
+  // Terminal state check: gracefully skip reservations already completed or cancelled
+  if (target.status === "completed" || target.status === "cancelled") {
+    return { mode: "single", reservation: target, skipped: true };
+  }
+
   if (options.cancelMode === "series" && target.seriesId) {
     // Cancel all active/pending/approved occurrences in this series
     const cancelled = await db
@@ -1503,6 +1508,7 @@ export async function adminBulkCancel(
 
   const cleanAdminId = toNullableString(adminId);
   const cancelled: any[] = [];
+  const skipped: any[] = [];
   const errors: { id: string; error: string }[] = [];
 
   for (const id of reservationIds) {
@@ -1512,7 +1518,11 @@ export async function adminBulkCancel(
         { cancelMode: "single" },
         { adminId: cleanAdminId || undefined },
       );
-      cancelled.push(result.reservation || result);
+      if ((result as any)?.skipped) {
+        skipped.push(result.reservation);
+      } else {
+        cancelled.push(result.reservation || result);
+      }
     } catch (err: any) {
       errors.push({ id, error: err.message });
     }
@@ -1522,7 +1532,9 @@ export async function adminBulkCancel(
     success: true,
     totalRequested: reservationIds.length,
     cancelledCount: cancelled.length,
+    skippedCount: skipped.length,
     cancelled,
+    skipped,
     errors,
   };
 }
