@@ -661,6 +661,18 @@ export async function createReservation(input: ReservationSubmissionInput) {
         ],
       ).catch(() => {});
     }
+    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    for (const adm of allAdmins) {
+      await db
+        .insert(notifications)
+        .values({
+          adminId: adm.id,
+          reservationId: newReservation.id,
+          type: "reservation_submitted",
+          message: `New reservation request from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} on ${input.date}.`,
+        })
+        .catch(() => {});
+    }
   }
 
   return {

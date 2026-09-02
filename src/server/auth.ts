@@ -10,6 +10,7 @@ import {
   failedLoginAttempts,
   passwordResetOtps,
   sessions,
+  notifications,
 } from "../db/schema.js";
 import { eq, and, gt, desc } from "drizzle-orm";
 import {
@@ -222,6 +223,18 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       ).catch(() => {});
     }
 
+    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    for (const adm of allAdmins) {
+      await db
+        .insert(notifications)
+        .values({
+          adminId: adm.id,
+          type: "account_approval_submitted",
+          message: `New member registration from ${newUser.name} awaiting approval.`,
+        })
+        .catch(() => {});
+    }
+
     // Clear any stale failed attempts for this email
     await db
       .delete(failedLoginAttempts)
@@ -252,6 +265,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: "Failed to create user account" });
   }
 });
+
 /**
  * 3. Member & Admin Login
  * Uses email as unique identifier

@@ -167,9 +167,10 @@ export const messages = pgTable("messages", {
 // 7. Notifications Table
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  adminId: uuid("admin_id").references(() => admins.id, {
+    onDelete: "cascade",
+  }),
   reservationId: uuid("reservation_id").references(() => reservations.id, {
     onDelete: "cascade",
   }),
@@ -180,7 +181,6 @@ export const notifications = pgTable("notifications", {
     .defaultNow()
     .notNull(),
 });
-
 // 8. Hard Limits Table (Single row, editable by super admin only)
 export const hardLimits = pgTable("hard_limits", {
   id: uuid("id").primaryKey().defaultRandom(),
