@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
+import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
   Bell,
   CheckCircle2,
@@ -655,9 +656,23 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           >
                             {rejectingId === notif.id ? (
                               <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200 animate-in fade-in">
-                                <label className="block text-[11px] font-bold text-stone-800">
-                                  Reason for Rejection (Required):
-                                </label>
+                                <div className="space-y-1">
+                                  <label className="block text-[11px] font-bold text-stone-800">
+                                    Reason for Rejection (Required):
+                                  </label>
+                                  <div className="flex flex-wrap gap-1 pt-0.5">
+                                    {REJECTION_REASON_PRESETS.map((preset) => (
+                                      <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => setRejectReason(preset)}
+                                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 text-stone-700 font-medium transition cursor-pointer text-left"
+                                      >
+                                        {preset}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                                 <textarea
                                   value={rejectReason}
                                   onChange={(e) =>

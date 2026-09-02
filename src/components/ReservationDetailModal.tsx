@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
+import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
   formatDisplayDate,
   formatHhmmTo12Hour,
@@ -15,6 +16,7 @@ import {
   DollarSign,
   Shield,
   CheckCircle2,
+  XCircle,
   AlertCircle,
   AlertTriangle,
   X,
@@ -60,6 +62,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   onNavigateToReservation,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const isAdminViewer = Boolean(
+    profile?.role === "admin" ||
+      profile?.role === "super_admin" ||
+      profile?.isSuperAdmin,
+  );
+
   const [reservation, setReservation] = useState<any | null>(null);
   const [seriesOccurrences, setSeriesOccurrences] = useState<any[]>([]);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
@@ -70,6 +78,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
+
+  // Admin inline approval & rejection state
+  const [isApproving, setIsApproving] = useState<boolean>(false);
+  const [approvingMode, setApprovingMode] = useState<
+    "single" | "series" | null
+  >(null);
+  const [isRejectOpen, setIsRejectOpen] = useState<boolean>(false);
+  const [rejectMode, setRejectMode] = useState<"single" | "series">("single");
+  const [rejectReason, setRejectReason] = useState<string>("");
+  const [rejectError, setRejectError] = useState<string | null>(null);
+  const [isRejecting, setIsRejecting] = useState<boolean>(false);
 
   // Instapay copy feedback
   const [copiedNumber, setCopiedNumber] = useState<boolean>(false);
@@ -272,6 +295,139 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     }
   };
 
+  const handleAdminApprove = async (mode: "single" | "series" = "single") => {
+    if (!isAdminViewer || isApproving) return;
+    setIsApproving(true);
+    setApprovingMode(mode);
+    setErrorMsg(null);
+    try {
+      let url = `/api/reservations/admin/${reservationId}/approve`;
+      if (mode === "series" && reservation?.series_id) {
+        url = `/api/reservations/admin/series/${reservation.series_id}/approve-all`;
+      }
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken || ""}`,
+        },
+        body: JSON.stringify({
+          adminId: profile?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || "Failed to approve reservation.");
+        setIsApproving(false);
+        setApprovingMode(null);
+        return;
+      }
+
+      // Update in-place
+      setReservation((prev: any) => ({
+        ...prev,
+        status: "approved",
+      }));
+
+      if (mode === "series" && reservation?.series_id) {
+        setSeriesOccurrences((prev) =>
+          prev.map((occ) => ({ ...occ, status: "approved" })),
+        );
+      }
+
+      setActionNotice({
+        message:
+          mode === "series"
+            ? "All occurrences in recurring series approved successfully."
+            : "Reservation request approved successfully.",
+        type: "success",
+      });
+
+      setIsRejectOpen(false);
+      onCancelled(); // Refresh parent view / master calendar
+    } catch (err: any) {
+      setErrorMsg(err.message || "Network error approving reservation.");
+    } finally {
+      setIsApproving(false);
+      setApprovingMode(null);
+    }
+  };
+
+  const handleAdminReject = async () => {
+    if (!isAdminViewer || isRejecting) return;
+    if (!rejectReason.trim()) {
+      setRejectError(
+        "Please provide an explanation for the member before submitting.",
+      );
+      return;
+    }
+
+    setRejectError(null);
+    setIsRejecting(true);
+    setErrorMsg(null);
+
+    try {
+      let url = `/api/reservations/admin/${reservationId}/reject`;
+      if (rejectMode === "series" && reservation?.series_id) {
+        url = `/api/reservations/admin/series/${reservation.series_id}/reject-all`;
+      }
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken || ""}`,
+        },
+        body: JSON.stringify({
+          reason: rejectReason.trim(),
+          adminId: profile?.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || "Failed to reject reservation.");
+        setIsRejecting(false);
+        return;
+      }
+
+      // Update in-place
+      setReservation((prev: any) => ({
+        ...prev,
+        status: "rejected",
+        rejection_reason: rejectReason.trim(),
+      }));
+
+      if (rejectMode === "series" && reservation?.series_id) {
+        setSeriesOccurrences((prev) =>
+          prev.map((occ) => ({
+            ...occ,
+            status: "rejected",
+            rejection_reason: rejectReason.trim(),
+          })),
+        );
+      }
+
+      setIsRejectOpen(false);
+      setRejectReason("");
+      setActionNotice({
+        message:
+          rejectMode === "series"
+            ? "All occurrences in recurring series rejected."
+            : "Reservation request rejected.",
+        type: "success",
+      });
+
+      onCancelled(); // Refresh parent view / master calendar
+    } catch (err: any) {
+      setErrorMsg(err.message || "Network error rejecting reservation.");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div
@@ -405,12 +561,298 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
         {/* Scrollable Content */}
         <div className="p-6 sm:p-7 overflow-y-auto space-y-6 flex-1">
+          {actionNotice && (
+            <div
+              id="admin-action-notice"
+              className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center justify-between animate-in fade-in ${
+                actionNotice.type === "success"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-red-50 border-red-200 text-red-900"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {actionNotice.type === "success" ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                )}
+                <span>{actionNotice.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionNotice(null)}
+                className="text-stone-400 hover:text-stone-600 p-1 cursor-pointer transition"
+                aria-label="Dismiss notice"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-900 flex items-start gap-3 animate-in fade-in">
               <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div className="text-xs space-y-1">
                 <div className="font-bold text-red-950">Notice</div>
                 <div className="text-red-800">{errorMsg}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Admin Pending Review Action Banner */}
+          {isAdminViewer && isPending && !isRejectOpen && (
+            <div
+              id="admin-pending-review-banner"
+              className="bg-amber-500/10 border-2 border-amber-300/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-stone-950 flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-stone-900">
+                    Administrator Review Required
+                  </h4>
+                  <p className="text-[11px] text-stone-600">
+                    This reservation request is pending administrative decision.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectOpen(true);
+                    setRejectError(null);
+                  }}
+                  disabled={isApproving}
+                  className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-red-50 text-stone-700 hover:text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-red-600" />
+                  <span>Reject</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleAdminApprove(
+                      reservation.series_id ? "series" : "single",
+                    )
+                  }
+                  disabled={isApproving}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  {isApproving ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Approving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>
+                        Approve
+                        {reservation.series_id ? " Series" : ""}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Inline Reject Panel for Admin */}
+          {isAdminViewer && isPending && isRejectOpen && (
+            <div
+              id="admin-inline-reject-panel"
+              className="bg-red-50/70 border-2 border-red-300 rounded-3xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150"
+            >
+              <div className="flex items-start justify-between gap-2 border-b border-red-200/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center font-bold shadow-xs">
+                    <XCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-red-950">
+                      Reject Reservation Request
+                    </h3>
+                    <p className="text-xs text-red-700">
+                      Provide an explanation for the member
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectOpen(false);
+                    setRejectError(null);
+                  }}
+                  className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-200/50 transition cursor-pointer"
+                  aria-label="Cancel reject panel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Summary recap reusing loaded data */}
+              <div className="bg-white border border-red-200 rounded-2xl p-3.5 text-xs space-y-2.5">
+                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                  Request Summary Recap
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <span className="text-stone-500 text-[11px] block">
+                      Member
+                    </span>
+                    <span className="font-bold text-stone-900">
+                      {reservation.user_name || "Church Member"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-stone-500 text-[11px] block">
+                      Instrument
+                    </span>
+                    <span className="font-bold text-stone-900">
+                      {reservation.instrument_name || "Instrument"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-stone-500 text-[11px] block">
+                      Slot Time
+                    </span>
+                    <span className="font-bold text-stone-900">
+                      {dateStr} • {timeStr}
+                    </span>
+                  </div>
+                </div>
+
+                {reservation.series_id && (
+                  <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-stone-600 font-medium">
+                      Rejection Scope:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setRejectMode("single")}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          rejectMode === "single"
+                            ? "bg-red-700 text-white shadow-2xs"
+                            : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                        }`}
+                      >
+                        This Occurrence Only
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRejectMode("series")}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          rejectMode === "series"
+                            ? "bg-red-700 text-white shadow-2xs"
+                            : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                        }`}
+                      >
+                        Entire Recurring Series (
+                        {seriesOccurrences.length || "All"})
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Reason Presets */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-stone-800">
+                  Quick Reason Presets:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {REJECTION_REASON_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => {
+                        setRejectReason(preset);
+                        setRejectError(null);
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-xl transition cursor-pointer border text-left ${
+                        rejectReason === preset
+                          ? "bg-red-700 text-white border-red-700 font-bold shadow-2xs"
+                          : "bg-white hover:bg-red-100/60 text-stone-700 border-red-200 hover:border-red-300 font-medium"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Message to Member Textarea */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-stone-800">
+                  Message to Member <span className="text-red-600">*</span>:
+                </label>
+                <textarea
+                  id="admin-reject-reason-textarea"
+                  value={rejectReason}
+                  onChange={(e) => {
+                    setRejectReason(e.target.value);
+                    if (e.target.value.trim()) setRejectError(null);
+                  }}
+                  placeholder="Provide an explanation to the member regarding why this request cannot be fulfilled..."
+                  rows={3}
+                  className={`w-full text-xs p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-white text-stone-900 resize-none ${
+                    rejectError
+                      ? "border-red-500 bg-red-50/30"
+                      : "border-stone-300 focus:border-red-600"
+                  }`}
+                  autoFocus
+                />
+                {rejectError && (
+                  <p className="text-[11px] font-bold text-red-700 flex items-center gap-1 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{rejectError}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Confirm / Cancel Controls */}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectOpen(false);
+                    setRejectError(null);
+                  }}
+                  disabled={isRejecting}
+                  className="px-3.5 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-xl text-xs font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  id="btn-confirm-admin-reject"
+                  type="button"
+                  onClick={handleAdminReject}
+                  disabled={isRejecting}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  {isRejecting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Processing Rejection...</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>
+                        Confirm Reject
+                        {rejectMode === "series" ? " Entire Series" : ""}
+                      </span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}
@@ -457,6 +899,58 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </span>
             </div>
           </div>
+
+          {/* Member / Requester Identity Card */}
+          {(isAdminViewer || reservation.user_name) && (
+            <div
+              id="requester-identity-card"
+              className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-2.5"
+            >
+              <div className="flex items-center justify-between text-xs font-bold text-stone-800">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-amber-800" />
+                  <span>Requester (Member Identity)</span>
+                </div>
+                {reservation.user_is_trusted ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    <Shield className="w-3 h-3 text-amber-800" />
+                    Trusted Member
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-500 font-normal">
+                    Standard Member
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-0.5">
+                <div>
+                  <div className="font-bold text-stone-900 text-sm">
+                    {reservation.user_name || "Church Member"}
+                  </div>
+                  {reservation.user_phone && (
+                    <div className="flex items-center gap-1.5 text-stone-600 text-xs mt-0.5 font-mono">
+                      <Phone className="w-3 h-3 text-stone-400" />
+                      <span>{reservation.user_phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-right text-[11px] text-stone-500">
+                  <div>Request Submitted</div>
+                  <div className="font-mono text-stone-700">
+                    {new Date(
+                      reservation.created_at || Date.now(),
+                    ).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Rejection Reason notice if rejected */}
           {reservation.rejection_reason && (
@@ -911,52 +1405,129 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
+            className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
           >
             Close
           </button>
 
-          {!isPast && !isCancelled && !cancelPrompt && (
-            <div className="flex items-center gap-2">
-              {/* Edit Single */}
+          {/* Admin Pending Action Controls */}
+          {isAdminViewer && isPending && !cancelPrompt ? (
+            <div className="flex flex-wrap items-center gap-2">
               <button
+                id="btn-footer-admin-reject"
                 type="button"
                 onClick={() => {
-                  onClose();
-                  onEdit(reservation);
+                  setIsRejectOpen(!isRejectOpen);
+                  setRejectError(null);
                 }}
-                className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                disabled={isApproving || isRejecting}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                  isRejectOpen
+                    ? "bg-stone-200 text-stone-800 border-stone-300"
+                    : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                }`}
               >
-                <Edit className="w-3.5 h-3.5" />
-                <span>Edit Slot</span>
+                <XCircle className="w-3.5 h-3.5 text-red-600" />
+                <span>{isRejectOpen ? "Close Reject Form" : "Reject"}</span>
               </button>
 
-              {/* Single Cancel */}
-              <button
-                type="button"
-                onClick={() => setCancelPrompt("single")}
-                className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>
-                  {reservation.series_id
-                    ? "Cancel This Occurrence"
-                    : "Cancel Reservation"}
-                </span>
-              </button>
+              {reservation.series_id ? (
+                <>
+                  <button
+                    id="btn-footer-admin-approve-single"
+                    type="button"
+                    onClick={() => handleAdminApprove("single")}
+                    disabled={isApproving || isRejecting}
+                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+                  >
+                    {isApproving && approvingMode === "single" ? (
+                      <div className="w-3.5 h-3.5 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                    )}
+                    <span>Approve Occurrence</span>
+                  </button>
 
-              {/* Series Cancel if applicable */}
-              {reservation.series_id && (
+                  <button
+                    id="btn-footer-admin-approve-series"
+                    type="button"
+                    onClick={() => handleAdminApprove("series")}
+                    disabled={isApproving || isRejecting}
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {isApproving && approvingMode === "series" ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      Approve Entire Series (
+                      {seriesOccurrences.length || "All"})
+                    </span>
+                  </button>
+                </>
+              ) : (
                 <button
+                  id="btn-footer-admin-approve-single"
                   type="button"
-                  onClick={() => setCancelPrompt("series")}
-                  className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  onClick={() => handleAdminApprove("single")}
+                  disabled={isApproving || isRejecting}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
                 >
-                  <Repeat className="w-3.5 h-3.5" />
-                  <span>Cancel Entire Series</span>
+                  {isApproving ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Approve Reservation</span>
                 </button>
               )}
             </div>
+          ) : (
+            !isPast &&
+            !isCancelled &&
+            !cancelPrompt && (
+              <div className="flex items-center gap-2">
+                {/* Edit Single */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onEdit(reservation);
+                  }}
+                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Edit Slot</span>
+                </button>
+
+                {/* Single Cancel */}
+                <button
+                  type="button"
+                  onClick={() => setCancelPrompt("single")}
+                  className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>
+                    {reservation.series_id
+                      ? "Cancel This Occurrence"
+                      : "Cancel Reservation"}
+                  </span>
+                </button>
+
+                {/* Series Cancel if applicable */}
+                {reservation.series_id && (
+                  <button
+                    type="button"
+                    onClick={() => setCancelPrompt("series")}
+                    className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Repeat className="w-3.5 h-3.5" />
+                    <span>Cancel Entire Series</span>
+                  </button>
+                )}
+              </div>
+            )
           )}
         </div>
       </div>
