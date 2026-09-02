@@ -141,30 +141,30 @@ const UserPortalMain: React.FC = () => {
     >
       {/* Top Application Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 lg:gap-1.5">
+          <div className="flex items-center gap-3 min-w-0 shrink-0">
             <img
               src="/logo.png"
               alt="Church logo"
-              className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-amber-900/30"
+              className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-amber-900/30 shrink-0"
             />
             <div className="min-w-0">
-              <div className="font-bold text-stone-900 text-sm sm:text-base leading-tight whitespace-nowrap">
+              <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight whitespace-nowrap">
                 Church Instrument Schedule
               </div>
-              <div className="text-[11px] text-stone-500 font-medium whitespace-nowrap">
+              <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap hidden lg:block">
                 St. Mark Instrument Reservations
               </div>
             </div>
           </div>
 
           {/* Navigation View Switcher (Screen 2 vs Screen 5 vs Admin) */}
-          <div className="hidden sm:flex items-center bg-stone-100 p-1 rounded-2xl border border-stone-200">
+          <div className="hidden lg:flex items-center bg-stone-100 p-1 rounded-2xl border border-stone-200 shrink-0">
             <button
               id="nav-btn-calendar"
               type="button"
               onClick={() => setCurrentView("calendar")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-2.5 lg:px-2 xl:px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 lg:gap-1 xl:gap-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "calendar"
                   ? "bg-white text-stone-900 shadow-2xs"
                   : "text-stone-600 hover:text-stone-900"
@@ -229,33 +229,14 @@ const UserPortalMain: React.FC = () => {
                   </span>
                 )}
               </div>
-              <span className="hidden md:inline">
+              <span className="hidden xl:inline">
                 {unreadCount > 0
                   ? `${unreadCount} Alert${unreadCount === 1 ? "" : "s"}`
                   : "Alerts"}
               </span>
             </button>
 
-            {/* Quick New Reservation Button */}
-            {allInstruments.length > 0 && currentView !== "admin_portal" && (
-              <button
-                id="btn-quick-new-reservation"
-                onClick={() => {
-                  setSelectedSlot({
-                    instrument: allInstruments[0],
-                    date: getTodayDateString(),
-                    timeHhmm: "10:00",
-                    duration: 2,
-                  });
-                }}
-                className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition shadow-xs cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Reserve</span>
-              </button>
-            )}
-
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs">
+            <div className="hidden sm:flex items-center gap-1.5 lg:gap-1.5 xl:gap-2 px-2.5 lg:px-2 xl:px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs shrink-0">
               <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs">
                 {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
               </div>
@@ -296,9 +277,9 @@ const UserPortalMain: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile View Switcher Tabs */}
+        {/* Mobile/Tablet View Switcher Tabs */}
         <div
-          className={`sm:hidden grid ${isAdminOrSuperAdmin ? "grid-cols-3" : "grid-cols-2"} border-t border-stone-200 bg-stone-50`}
+          className={`lg:hidden grid ${isAdminOrSuperAdmin ? "grid-cols-3" : "grid-cols-2"} border-t border-stone-200 bg-stone-50`}
         >
           <button
             type="button"

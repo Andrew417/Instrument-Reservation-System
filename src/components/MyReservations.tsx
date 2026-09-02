@@ -339,7 +339,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-upcoming-reservations"
             onClick={() => setActiveTab("upcoming")}
-            className={`h-12 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "upcoming"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
@@ -364,7 +364,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-pending-reservations"
             onClick={() => setActiveTab("pending")}
-            className={`h-12 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-9 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "pending"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
@@ -389,7 +389,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-past-reservations"
             onClick={() => setActiveTab("past")}
-            className={`h-12 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "past"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
@@ -529,7 +529,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               const timeStr =
                 res.start_hhmm && res.end_hhmm
                   ? `${formatHhmmTo12Hour(res.start_hhmm)} – ${formatHhmmTo12Hour(res.end_hhmm)}`
-                  : `${getCairoTimeString(startUtc)} – ${getCairoTimeString(endUtc)}`;
+                  : `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
               const isApproved =
                 res.status === "approved" || res.status === "ongoing";
               const isPending = res.status === "pending";
@@ -552,15 +552,15 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     </div>
 
                     <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition">
+                      <div className="flex items-center justify-between gap-1.5 flex-nowrap">
+                        <span className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate">
                           {res.service_name ||
                             res.serviceName ||
                             "Church Service"}
                         </span>
 
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${
                             isApproved
                               ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
                               : isPending
@@ -604,17 +604,21 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   </div>
 
                   {/* Right: Actions (Edit, Cancel, Details) */}
-                  <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
+                  <div
+                    className={`grid gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100 ${
+                      !isPast && !isCancelled ? "grid-cols-3" : "grid-cols-1"
+                    }`}
+                  >
                     {!isPast && !isCancelled && (
                       <>
                         <button
                           type="button"
                           onClick={() => onEditReservation(res)}
-                          className="px-3 py-1.5 bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
                           title="Edit this reservation"
                         >
-                          <Edit className="w-3.5 h-3.5 text-stone-500" />
-                          <span>Edit</span>
+                          <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                          <span className="truncate">Edit</span>
                         </button>
 
                         <button
@@ -626,11 +630,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               title: `${res.instrument_name} on ${dateStr}`,
                             })
                           }
-                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
                           title="Cancel reservation"
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                          <span>Cancel</span>
+                          <Trash2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                          <span className="truncate">Cancel</span>
                         </button>
                       </>
                     )}
@@ -638,9 +642,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     <button
                       type="button"
                       onClick={() => onSelectReservationDetail(res.id)}
-                      className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                      className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap overflow-hidden"
                     >
-                      View Details
+                      <span className="truncate block">View Details</span>
                     </button>
                   </div>
                 </div>
