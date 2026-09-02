@@ -364,7 +364,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[10px] text-stone-500">
-                  Off-premises borrow with daily fee.
+                  For external events, outside performances, and conferences
                 </p>
               </button>
             </div>
