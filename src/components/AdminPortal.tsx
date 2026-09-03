@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
-import { getTodayDateString } from "../lib/date-utils";
+import { getTodayDateString, formatHhmmTo12Hour } from "../lib/date-utils";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
   buildHardLimitsPayload,
@@ -962,9 +962,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     const timeRange = `${new Date(r.start_time).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     })} - ${new Date(r.end_time).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     })}`;
 
     setRejectModal({
@@ -2558,7 +2560,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <td className="py-3 px-3 text-stone-500 text-[11px]">
                               {new Date(
                                 u.createdAt || u.created_at,
-                              ).toLocaleString()}
+                              ).toLocaleString([], { hour12: true })}
                             </td>
 
                             <td className="py-3 px-3">
@@ -3413,7 +3415,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className="hover:bg-stone-50/60 transition"
                         >
                           <td className="py-3 px-3 text-stone-600 font-mono text-[11px]">
-                            {new Date(log.created_at).toLocaleString()}
+                            {new Date(log.created_at).toLocaleString([], {
+                              hour12: true,
+                            })}{" "}
                           </td>
                           <td className="py-3 px-3">
                             <span
@@ -4487,7 +4491,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       "21:00",
                     ].map((t) => (
                       <option key={t} value={t}>
-                        {t}
+                        {formatHhmmTo12Hour(t)}
                       </option>
                     ))}
                   </select>

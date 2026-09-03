@@ -7,7 +7,9 @@ import {
   getCairoDateString,
   getCairoParts,
   getCairoTimeString,
+  formatHhmmTo12Hour,
 } from "../lib/date-utils";
+
 import {
   Calendar,
   Clock,
@@ -27,6 +29,35 @@ import {
   Layers,
   Info,
 } from "lucide-react";
+
+const TIME_SLOTS = [
+  "09:00",
+  "09:30",
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "14:00",
+  "14:30",
+  "15:00",
+  "15:30",
+  "16:00",
+  "16:30",
+  "17:00",
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
+];
 
 export interface OccurrenceItem {
   id: string;
@@ -222,7 +253,6 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     maxSeriesLimit,
   ]);
 
-  // 5. Real-Time Multi-Check Conflict Detection
   const conflicts: ConflictDetail[] = useMemo(() => {
     const list: ConflictDetail[] = [];
 
@@ -246,8 +276,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           type: "working_hours",
           occurrenceIndex: occ.index,
           occurrenceDate: occ.date,
-          occurrenceTime: `${occ.startTime} - ${calculateEndTime(occ.startTime, occ.duration)}`,
-          message: `Occurrence #${occ.index} (${occ.date} ${occ.startTime}) falls outside church hours (09:00 - 22:00).`,
+          occurrenceTime: `${formatHhmmTo12Hour(occ.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(occ.startTime, occ.duration))}`,
+          message: `Occurrence #${occ.index} (${occ.date} ${formatHhmmTo12Hour(occ.startTime)}) falls outside church hours (9:00 AM - 10:00 PM).`,
         });
       }
     });
@@ -263,8 +293,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             type: "self_overlap",
             occurrenceIndex: a.index,
             occurrenceDate: a.date,
-            occurrenceTime: `${a.startTime} - ${calculateEndTime(a.startTime, a.duration)}`,
-            message: `Occurrence #${a.index} (${a.date} ${a.startTime}) self-overlaps with Occurrence #${b.index} (${b.date} ${b.startTime}).`,
+            occurrenceTime: `${formatHhmmTo12Hour(a.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(a.startTime, a.duration))}`,
+            message: `Occurrence #${a.index} (${a.date} ${formatHhmmTo12Hour(a.startTime)}) self-overlaps with Occurrence #${b.index} (${b.date} ${formatHhmmTo12Hour(b.startTime)}).`,
           });
         }
       }
@@ -283,8 +313,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             type: "existing_reservation",
             occurrenceIndex: occ.index,
             occurrenceDate: occ.date,
-            occurrenceTime: `${occ.startTime} - ${calculateEndTime(occ.startTime, occ.duration)}`,
-            message: `Occurrence #${occ.index} (${occ.date} ${occ.startTime}) conflicts with existing reservation (${resStartHhmm} - ${resEndHhmm}).`,
+            occurrenceTime: `${formatHhmmTo12Hour(occ.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(occ.startTime, occ.duration))}`,
+            message: `Occurrence #${occ.index} (${occ.date} ${formatHhmmTo12Hour(occ.startTime)}) conflicts with existing reservation (${formatHhmmTo12Hour(resStartHhmm)} - ${formatHhmmTo12Hour(resEndHhmm)}).`,
           });
         }
       }
@@ -534,7 +564,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   const startUtc = new Date(item.evaluation.startTimeUtc);
                   const endUtc = new Date(item.evaluation.endTimeUtc);
                   const dateStr = getCairoDateString(startUtc);
-                  const timeStr = `${getCairoTimeString(startUtc)} – ${getCairoTimeString(endUtc)}`;
+                  const timeStr = `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
 
                   return (
                     <div
@@ -763,18 +793,27 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   <label className="block text-[11px] font-bold text-stone-600 mb-1">
                     Start Time
                   </label>
-                  <input
-                    type="time"
+                  <select
                     value={baseStartTime}
                     onChange={(e) => setBaseStartTime(e.target.value)}
-                    className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
-                  />
+                    className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
+                  >
+                    {TIME_SLOTS.map((slot) => (
+                      <option key={slot} value={slot}>
+                        {formatHhmmTo12Hour(slot)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Duration */}
                 <div>
                   <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                    Duration ({calculateEndTime(baseStartTime, baseDuration)} )
+                    Duration (
+                    {formatHhmmTo12Hour(
+                      calculateEndTime(baseStartTime, baseDuration),
+                    )}
+                    )
                   </label>
                   <select
                     value={baseDuration}
@@ -926,11 +965,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             <div className="space-y-2">
               <div className="text-xs font-bold text-stone-800 flex items-center justify-between">
                 <span>Calculated Occurrence Schedule:</span>
-                <span className="text-[11px] text-stone-500 font-normal">
-                  All sessions: {baseStartTime} –{" "}
-                  {calculateEndTime(baseStartTime, baseDuration)} (
-                  {baseDuration}h)
-                </span>
+                All sessions: {formatHhmmTo12Hour(baseStartTime)} –{" "}
+                {formatHhmmTo12Hour(
+                  calculateEndTime(baseStartTime, baseDuration),
+                )}{" "}
+                ({baseDuration}h)
               </div>
 
               {!hasConflicts && (
@@ -958,8 +997,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                       </span>
                     </div>
                     <span className="text-stone-500 text-[11px]">
-                      {occ.startTime} –{" "}
-                      {calculateEndTime(occ.startTime, occ.duration)}
+                      {formatHhmmTo12Hour(occ.startTime)} –{" "}
+                      {formatHhmmTo12Hour(
+                        calculateEndTime(occ.startTime, occ.duration),
+                      )}
                     </span>
                   </div>
                 ))}

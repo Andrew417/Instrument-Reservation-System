@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
-import { getCairoDateString, getCairoTimeString } from "../lib/date-utils";
+import {
+  getCairoDateString,
+  getCairoTimeString,
+  formatHhmmTo12Hour,
+} from "../lib/date-utils";
 import {
   Calendar,
   Clock,
@@ -312,7 +316,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 >
                   {TIME_SLOTS.map((t) => (
                     <option key={t} value={t}>
-                      {t}
+                      {formatHhmmTo12Hour(t)}
                     </option>
                   ))}
                 </select>
@@ -320,7 +324,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                  Duration (until {calculateEndTime()})
+                  Duration (until {formatHhmmTo12Hour(calculateEndTime())}){" "}
                 </label>
                 <select
                   value={duration}

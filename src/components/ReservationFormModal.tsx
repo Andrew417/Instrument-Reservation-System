@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
+import { formatHhmmTo12Hour } from "../lib/date-utils";
 import {
   Calendar,
   Clock,
@@ -413,7 +414,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </span>
                   <span className="font-semibold text-stone-900">{date}</span>
                   <span className="text-[11px] text-stone-600 block">
-                    {startTime} – {endTimeStr} ({duration}h)
+                    {formatHhmmTo12Hour(startTime)} –{" "}
+                    {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
                   </span>
                 </div>
                 <div>
@@ -589,7 +591,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   >
                     {TIME_SLOTS.map((slot) => (
                       <option key={slot} value={slot}>
-                        {slot}
+                        {formatHhmmTo12Hour(slot)}
                       </option>
                     ))}
                   </select>
@@ -607,7 +609,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   Duration
                 </label>
                 <span className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg">
-                  {startTime} → {endTimeStr} ({duration}h)
+                  {formatHhmmTo12Hour(startTime)} →{" "}
+                  {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2">

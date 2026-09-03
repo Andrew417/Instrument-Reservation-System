@@ -389,6 +389,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         timeZone: "Africa/Cairo",
         dateStyle: "short",
         timeStyle: "short",
+        hour12: true,
       });
     } catch {
       return dateString;

@@ -767,7 +767,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           const occTimeStr =
                             occ.start_hhmm && occ.end_hhmm
                               ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
-                              : `${getCairoTimeString(occStart)} – ${getCairoTimeString(occEnd)}`;
+                              : `${formatHhmmTo12Hour(getCairoTimeString(occStart))} – ${formatHhmmTo12Hour(getCairoTimeString(occEnd))}`;
                           const isOccApproved =
                             occ.status === "approved" ||
                             occ.status === "ongoing";
