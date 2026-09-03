@@ -440,7 +440,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               <p className="text-xs text-stone-400">
                 {seriesResult
                   ? "Multi-date recurring schedule submitted"
-                  : "Build and validate multi-session series"}
+                  : "Book the same time slot across multiple dates"}
               </p>
             </div>
           </div>
@@ -932,6 +932,16 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   {baseDuration}h)
                 </span>
               </div>
+
+              {!hasConflicts && (
+                <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Automatically checked for overlaps and conflicts as you
+                    build this.
+                  </span>
+                </div>
+              )}
 
               <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 max-h-40 overflow-y-auto">
                 {generatedOccurrences.map((occ, idx) => (

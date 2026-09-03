@@ -595,7 +595,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         <span className="font-semibold text-stone-800">
                           {res.instrument_name}
                         </span>
-                        <span>•</span>
                         <span className="text-stone-500 font-medium">
                           {dateStr} ({timeStr})
                         </span>
@@ -698,7 +697,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           <span className="font-semibold text-stone-800">
                             {sg.instrumentName}
                           </span>
-                          <span>•</span>
                           <span className="text-stone-500">
                             {approvedCount} Approved, {pendingCount} Pending
                             Review

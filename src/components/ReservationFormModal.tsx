@@ -253,7 +253,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               <p className="text-xs text-stone-400">
                 {submissionResult
                   ? "Your reservation request has been processed"
-                  : "St. Mark Church Sanctuary & Music Ministry"}
+                  : "Fill in the details to submit your request"}
               </p>
             </div>
           </div>
@@ -305,61 +305,53 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-900 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                  <Clock className="w-6 h-6" />
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-900 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <Clock className="w-5 h-5" />
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-base text-amber-950">
-                      Reservation Submitted (Pending Review)
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-bold text-sm text-amber-950">
+                      Pending Review
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-200 text-amber-900 uppercase tracking-wide">
-                      Pending Admin
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase tracking-wide">
+                      Pending
                     </span>
                   </div>
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    This reservation has been queued for admin approval. You
-                    will receive an update once a church administrator reviews
-                    it.
+                    Queued for admin approval — you'll get an update once
+                    reviewed.
                   </p>
 
-                  {/* Outside church WhatsApp notification message */}
                   {(submissionResult.reservation?.reservation_type ===
                     "outside_church" ||
                     submissionResult.reservation?.reservationType ===
                       "outside_church" ||
                     reservationType === "outside_church") && (
-                    <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2.5">
-                      <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                    <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-2.5 text-[11px] text-amber-950 font-medium flex items-start gap-2 mt-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[9px] font-bold">
                         WA
                       </div>
-                      <p className="leading-relaxed">
-                        If your reservation is approved, the admin will contact
-                        you on WhatsApp for confirmation and payment.
+                      <p className="leading-snug">
+                        If approved, admin will contact you on WhatsApp for
+                        confirmation and payment.
                       </p>
                     </div>
                   )}
 
-                  {/* Specific Downgrade Reasons List */}
                   {submissionResult.evaluation.reasons.length > 0 && (
-                    <div className="pt-2.5 border-t border-amber-200/80 mt-2">
-                      <div className="text-[11px] font-bold text-amber-950 mb-1">
-                        Reason(s) for Manual Review:
-                      </div>
-                      <div className="space-y-1">
-                        {submissionResult.evaluation.reasons.map(
-                          (reason, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-start gap-1.5 text-xs text-amber-900"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 shrink-0" />
-                              <span>{reason}</span>
-                            </div>
-                          ),
-                        )}
-                      </div>
+                    <div className="pt-2 border-t border-amber-200/80 mt-1.5 space-y-1">
+                      {submissionResult.evaluation.reasons.map(
+                        (reason, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-start gap-1.5 text-[11px] text-amber-900"
+                          >
+                            <span className="w-1 h-1 rounded-full bg-amber-600 mt-1.5 shrink-0" />
+                            <span className="leading-snug">{reason}</span>
+                          </div>
+                        ),
+                      )}
                     </div>
                   )}
                 </div>
@@ -737,20 +729,15 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             </div>
 
             {/* 5. Recurring Series Toggle */}
-            <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4">
+            <div className="bg-stone-50 border border-stone-200 rounded-2xl p-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-                    <Repeat className="w-4 h-4" />
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                    <Repeat className="w-3.5 h-3.5" />
                   </div>
-                  <div>
-                    <span className="text-xs font-bold text-stone-900 block">
-                      Make this a recurring reservation
-                    </span>
-                    <span className="text-[11px] text-stone-500 block">
-                      Set up a recurring reservation with multi-date scheduling
-                    </span>
-                  </div>
+                  <span className="text-xs font-bold text-stone-900">
+                    Recurring reservation
+                  </span>
                 </div>
 
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -766,14 +753,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
 
               {isRecurring && (
-                <div className="mt-3 pt-3 border-t border-stone-200 text-xs text-amber-900 bg-amber-50/50 p-2.5 rounded-xl flex items-center justify-between">
-                  <span>
-                    Ready to build recurring schedule with live conflict
-                    checking.
-                  </span>
-                  <span className="font-bold text-amber-800 flex items-center gap-1">
-                    Series Builder <ArrowRight className="w-3 h-3" />
-                  </span>
+                <div className="mt-2 pt-2 border-t border-stone-200 text-xs text-amber-900 bg-amber-50/50 p-2 rounded-lg flex items-center justify-between">
+                  <span>You'll set up the dates in the next step.</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </div>
               )}
             </div>

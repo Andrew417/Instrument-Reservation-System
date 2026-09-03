@@ -974,7 +974,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       instrumentName: r.instrument_name || "Instrument",
       dateFormatted: startDate,
       timeFormatted: timeRange,
-      reason: "Slot unavailable due to scheduling conflict",
+      reason: "Time slot already booked",
       submitting: false,
     });
   };
@@ -4793,7 +4793,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  "Slot unavailable due to scheduling conflict",
+                  "Time slot already booked",
                   "Church liturgy / official service priority",
                   "Instrument maintenance / repair required",
                   "Exceeds allowed reservation duration / limits",

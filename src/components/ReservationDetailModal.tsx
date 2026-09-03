@@ -1049,7 +1049,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
             ) : (
               <p className="text-xs text-stone-500">
-                In-church liturgical and choir reservations are free of charge.
+                In-church usage, choir reservations and prayer meetings are free
+                of charge.
               </p>
             )}
           </div>

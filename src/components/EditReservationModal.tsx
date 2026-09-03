@@ -114,6 +114,16 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     allInstruments[0];
   const feeNumber = Number(currentInstrument?.outsideFeePerDay || 0);
 
+  const isTrustedOrAdmin =
+    profile?.isTrusted ||
+    profile?.role === "admin" ||
+    profile?.role === "super_admin";
+
+  const willResetToPending =
+    reservation.status === "approved" &&
+    currentInstrument?.bookingMode === "manual" &&
+    !isTrustedOrAdmin;
+
   const calculateEndTime = () => {
     try {
       const [h, m] = startTime.split(":").map(Number);
@@ -243,6 +253,16 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 </option>
               ))}
             </select>
+            {willResetToPending && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <span>
+                  This instrument requires manual approval. Saving will reset
+                  your reservation to <strong>Pending</strong> until an admin
+                  reviews it again.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Purpose */}
