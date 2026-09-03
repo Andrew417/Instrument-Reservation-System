@@ -1,6 +1,6 @@
 export const REJECTION_REASON_PRESETS = [
-  "Time slot already booked",
-  "Church liturgy / official service priority",
-  "Instrument maintenance / repair required",
+  "Time slot already booked by someone else first",
+  "official service priority",
+  "Instrument is under maintenance",
   "Exceeds allowed reservation duration / limits",
 ] as const;

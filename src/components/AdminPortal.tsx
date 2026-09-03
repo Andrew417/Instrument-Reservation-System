@@ -52,6 +52,19 @@ import {
   EyeOff,
 } from "lucide-react";
 
+// Add this after the imports and before the component definition
+const sortInstrumentsByStatus = (instruments: any[]) => {
+  return [...instruments].sort((a, b) => {
+    // Check if instruments are active/available
+    const aActive = !(a.isRemoved ?? a.is_removed);
+    const bActive = !(b.isRemoved ?? b.is_removed);
+
+    // Active instruments come first (true before false)
+    if (aActive === bActive) return 0;
+    return aActive ? -1 : 1;
+  });
+};
+
 interface AdminPortalProps {
   onBackToMemberView?: () => void;
   onOpenReservationDetail?: (reservationId: string) => void;
@@ -497,18 +510,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Fetch Instruments
   const fetchInstruments = async () => {
     setLoadingInstruments(true);
     try {
       const res = await adminFetch("/instruments?includeRemoved=true");
       const data = await res.json();
       if (data.success) {
-        setInstrumentsList(data.instruments);
-        if (data.instruments.length > 0 && !behalfForm.instrumentId) {
+        // Sort: Active first, Retired last
+        const sortedInstruments = [...data.instruments].sort((a, b) => {
+          const aActive = !(a.isRemoved ?? a.is_removed);
+          const bActive = !(b.isRemoved ?? b.is_removed);
+          if (aActive === bActive) return 0;
+          return aActive ? -1 : 1;
+        });
+
+        setInstrumentsList(sortedInstruments);
+        if (sortedInstruments.length > 0 && !behalfForm.instrumentId) {
           setBehalfForm((prev) => ({
             ...prev,
-            instrumentId: data.instruments[0].id,
+            instrumentId: sortedInstruments[0].id,
           }));
         }
       }
@@ -2790,7 +2810,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             : "bg-white border-stone-200 hover:border-amber-300"
                         }`}
                       >
+                        {/* Top row: instrument info on left, status badge on right */}
                         <div className="flex items-start justify-between gap-3 flex-wrap">
+                          {/* Left side: Photo and instrument details */}
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
                               {instPhoto ? (
@@ -2807,11 +2829,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <div className="min-w-0">
                               <div className="font-bold text-stone-900 text-sm flex items-center gap-2 flex-wrap">
                                 <span className="truncate">{inst.name}</span>
-                                {isDecommissioned && (
-                                  <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.2 rounded font-semibold shrink-0">
-                                    Not Available
-                                  </span>
-                                )}
                               </div>
                               <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 flex-wrap">
                                 <span>{inst.type}</span>
@@ -2825,7 +2842,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </div>
                             </div>
                           </div>
+
+                          {/* Right side: Status Badge (matches booking mode style) */}
+                          <div className="shrink-0">
+                            {isDecommissioned ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-200">
+                                Retired
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-200">
+                                Active
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Booking mode and fee badges */}
                         <div className="flex items-center justify-between mt-2 gap-2">
                           <span
                             id={`admin-instrument-mode-badge-${inst.id}`}
@@ -2846,16 +2878,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               "0.00"}
                             /day
                           </span>
-                        </div>{" "}
+                        </div>
+
+                        {/* Description */}
                         <p className="text-xs text-stone-600 my-3 line-clamp-2">
                           {inst.description ||
                             "No specific description provided."}
                         </p>
+
+                        {/* Action buttons */}
                         <div className="pt-3 border-t border-stone-100 text-xs">
                           <div
                             className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
                           >
-                            {" "}
                             {!isDecommissioned ? (
                               <>
                                 <button
@@ -2935,13 +2970,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 </button>
                               </>
                             )}
-                          </div>
-                        </div>
-                        <div className="pt-3 border-t border-stone-100 text-xs">
-                          <div
-                            className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
-                          >
-                            {/* ...existing Edit / Retire / Delete or Restore / Delete buttons, unchanged... */}
                           </div>
 
                           {!isDecommissioned && (
