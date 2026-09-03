@@ -5062,7 +5062,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() =>
                   setPromoteModal({ ...promoteModal, role: "admin" })
                 }
-                className={`w-full text-left p-3.5 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                className={`w-full text-left p-3.5 rounded-xl border cursor-pointer flex items-start gap-3 ${
                   promoteModal.role === "admin"
                     ? "border-amber-400 bg-amber-50 shadow-2xs"
                     : "border-stone-200 hover:border-amber-300 hover:bg-amber-50/50"
@@ -5097,7 +5097,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() =>
                   setPromoteModal({ ...promoteModal, role: "super_admin" })
                 }
-                className={`w-full text-left p-3.5 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                className={`w-full text-left p-3.5 rounded-xl border cursor-pointer flex items-start gap-3 ${
                   promoteModal.role === "super_admin"
                     ? "border-amber-400 bg-amber-50 shadow-2xs"
                     : "border-amber-200 hover:border-amber-400 hover:bg-amber-50"
