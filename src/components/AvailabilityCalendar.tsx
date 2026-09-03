@@ -499,15 +499,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             </h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mr-1 inline-block" />
-              Live
+              Updated now
             </span>
             <button
               type="button"
               onClick={() => setShowHelperText(!showHelperText)}
-              className="shrink-0 p-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition"
+              className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition text-[10px] font-semibold"
               title="Toggle timeline help and reference info"
             >
               <Info className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">How this works</span>
             </button>
           </div>
 

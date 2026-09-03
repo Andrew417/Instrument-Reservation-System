@@ -1230,7 +1230,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-stone-400" />
             <span>
-              Strict privacy: Booking details & reserved users are hidden.
+              {isAdminOrSuperAdmin
+                ? "Admin view: reservant names & services are visible."
+                : "Strict privacy: Booking details & reserved users are hidden."}
             </span>
           </div>
 

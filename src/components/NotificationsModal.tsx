@@ -50,8 +50,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const isAdminViewer = Boolean(
     profile?.role === "admin" ||
-      profile?.role === "super_admin" ||
-      profile?.isSuperAdmin,
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
   );
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -518,7 +518,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              Rejections & Conflicts
+              Rejections & Cancellations
             </button>
             <button
               type="button"

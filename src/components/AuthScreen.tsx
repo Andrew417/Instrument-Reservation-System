@@ -272,7 +272,7 @@ export const AuthScreen: React.FC = () => {
             St. Mark Music & Instruments
           </h2>
           <p className="text-xs text-stone-600 font-medium">
-            Instrument Reservation Portal
+            Reserve instruments for church use
           </p>
         </div>
       </div>
@@ -498,6 +498,11 @@ export const AuthScreen: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
               />
+              {mode === "register" && (
+                <p className="text-[11px] text-stone-400 mt-1.5">
+                  Minimum 6 characters.
+                </p>
+              )}
               <button
                 type="button"
                 id="btn-toggle-auth-password"
@@ -564,7 +569,7 @@ export const AuthScreen: React.FC = () => {
                     Reset Account Password
                   </h3>
                   <p className="text-xs text-stone-500">
-                    Email Verification Code (Resend)
+                    Verify your email to continue
                   </p>
                 </div>
               </div>

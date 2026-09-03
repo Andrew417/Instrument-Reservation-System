@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { getTodayDateString } from "../lib/date-utils";
+import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
   buildHardLimitsPayload,
   normalizeHardLimitsState,
@@ -974,7 +975,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       instrumentName: r.instrument_name || "Instrument",
       dateFormatted: startDate,
       timeFormatted: timeRange,
-      reason: "Time slot already booked",
+      reason: "Someone else booked this time slot first",
       submitting: false,
     });
   };
@@ -2879,6 +2880,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </>
                             )}
                           </div>
+                        </div>
+                        <div className="pt-3 border-t border-stone-100 text-xs">
+                          <div
+                            className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
+                          >
+                            {/* ...existing Edit / Retire / Delete or Restore / Delete buttons, unchanged... */}
+                          </div>
+
+                          {!isDecommissioned && (
+                            <p className="text-[10px] text-stone-400 mt-1.5 text-center">
+                              Retire = temporarily hide (reversible) · Delete =
+                              permanent, for mistaken entries only
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
@@ -4792,12 +4807,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 Quick Reason Presets
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  "Time slot already booked",
-                  "Church liturgy / official service priority",
-                  "Instrument maintenance / repair required",
-                  "Exceeds allowed reservation duration / limits",
-                ].map((preset) => (
+                {REJECTION_REASON_PRESETS.map((preset) => (
                   <button
                     key={preset}
                     type="button"
