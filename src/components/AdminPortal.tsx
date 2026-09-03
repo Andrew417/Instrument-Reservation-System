@@ -384,6 +384,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [promoteModal, setPromoteModal] = useState<{
     userId: string;
     userName: string;
+    role: "admin" | "super_admin";
   } | null>(null);
 
   // Feedback banner
@@ -1292,7 +1293,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleOpenPromoteModal = (userId: string, userName: string) => {
-    setPromoteModal({ userId, userName });
+    setPromoteModal({ userId, userName, role: "admin" });
   };
 
   const executePromoteUser = async (role: "admin" | "super_admin") => {
@@ -5057,41 +5058,89 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             <div className="space-y-2.5">
               <button
-                onClick={() => executePromoteUser("admin")}
-                className="w-full text-left p-3.5 rounded-xl border border-stone-200 hover:border-amber-300 hover:bg-amber-50/50 transition cursor-pointer"
+                type="button"
+                onClick={() =>
+                  setPromoteModal({ ...promoteModal, role: "admin" })
+                }
+                className={`w-full text-left p-3.5 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                  promoteModal.role === "admin"
+                    ? "border-amber-400 bg-amber-50 shadow-2xs"
+                    : "border-stone-200 hover:border-amber-300 hover:bg-amber-50/50"
+                }`}
               >
-                <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-amber-800" />
-                  <span>Administrator</span>
+                <span
+                  className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                    promoteModal.role === "admin"
+                      ? "border-amber-700"
+                      : "border-stone-300"
+                  }`}
+                >
+                  {promoteModal.role === "admin" && (
+                    <span className="w-2 h-2 rounded-full bg-amber-700" />
+                  )}
+                </span>
+                <div>
+                  <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-800" />
+                    <span>Administrator</span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Manages instruments, reviews reservations, and messages
+                    members. Cannot manage other admins, hard limits, or payment
+                    settings.
+                  </p>
                 </div>
-                <p className="text-[11px] text-stone-500 mt-1">
-                  Manages instruments, reviews reservations, and messages
-                  members. Cannot manage other admins, hard limits, or payment
-                  settings.
-                </p>
               </button>
 
               <button
-                onClick={() => executePromoteUser("super_admin")}
-                className="w-full text-left p-3.5 rounded-xl border border-amber-200 hover:border-amber-400 hover:bg-amber-50 transition cursor-pointer"
+                type="button"
+                onClick={() =>
+                  setPromoteModal({ ...promoteModal, role: "super_admin" })
+                }
+                className={`w-full text-left p-3.5 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                  promoteModal.role === "super_admin"
+                    ? "border-amber-400 bg-amber-50 shadow-2xs"
+                    : "border-amber-200 hover:border-amber-400 hover:bg-amber-50"
+                }`}
               >
-                <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-700" />
-                  <span>Super Administrator</span>
+                <span
+                  className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                    promoteModal.role === "super_admin"
+                      ? "border-amber-700"
+                      : "border-stone-300"
+                  }`}
+                >
+                  {promoteModal.role === "super_admin" && (
+                    <span className="w-2 h-2 rounded-full bg-amber-700" />
+                  )}
+                </span>
+                <div>
+                  <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-700" />
+                    <span>Super Administrator</span>
+                  </div>
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    Full Administrator access, plus managing other admins,
+                    Trusted status, system hard limits, and payment settings.
+                  </p>
                 </div>
-                <p className="text-[11px] text-stone-500 mt-1">
-                  Full Administrator access, plus managing other admins, Trusted
-                  status, system hard limits, and payment settings.
-                </p>
               </button>
             </div>
 
-            <div className="pt-1 flex justify-end">
+            <div className="pt-1 flex items-center justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setPromoteModal(null)}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200 text-xs"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => executePromoteUser(promoteModal.role)}
+                className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold cursor-pointer shadow-xs text-xs"
+              >
+                Confirm
               </button>
             </div>
           </div>
