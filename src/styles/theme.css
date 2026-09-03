@@ -1,28 +1,43 @@
 /* src/styles/theme.css */
 @theme {
-  /* Neutral scale — Tailwind default "stone" values, edit each below */
+  /* Neutral scale — calm warm gray */
   --color-stone-50: #fafaf9;
-  --color-stone-100: #f5f5f4;
-  --color-stone-200: #e7e5e4;
-  --color-stone-300: #d6d3d1;
-  --color-stone-400: #a8a29e;
-  --color-stone-500: #78716c;
-  --color-stone-600: #57534e;
-  --color-stone-700: #44403c;
-  --color-stone-800: #292524;
-  --color-stone-900: #1c1917;
-  --color-stone-950: #0c0a09;
+  --color-stone-100: #f3f2f1;
+  --color-stone-200: #e5e4e2;
+  --color-stone-300: #d0cecb;
+  --color-stone-400: #a9a7a3;
+  --color-stone-500: #827f7b;
+  --color-stone-600: #656260;
+  --color-stone-700: #504e4c;
+  --color-stone-800: #3a3937;
+  --color-stone-900: #26241d;
+  --color-stone-950: #181716;
 
-  /* Accent scale — Tailwind default "amber" values, edit each below */
-  --color-amber-50: #fffbeb;
-  --color-amber-100: #fef3c7;
-  --color-amber-200: #fde68a;
-  --color-amber-300: #fcd34d;
-  --color-amber-400: #fbbf24;
-  --color-amber-500: #f59e0b;
-  --color-amber-600: #d97706;
-  --color-amber-700: #b45309;
-  --color-amber-800: #92400e;
-  --color-amber-900: #78350f;
-  --color-amber-950: #451a03;
+  /* amber: no override — stays Tailwind's real yellow/orange (Manual Mode, Pending, warnings) */
+
+  /* New scale — brand blue, for header/icons/primary actions previously misusing amber */
+  --color-brand-50: #f3f9fe;
+  --color-brand-100: #e3f1fc;
+  --color-brand-200: #c7e3f9;
+  --color-brand-300: #9fd0f5;
+  --color-brand-400: #6cc3f4; /* logo baby blue */
+  --color-brand-500: #4fa6de;
+  --color-brand-600: #3d84bc;
+  --color-brand-700: #2f6797;
+  --color-brand-800: #234c72;
+  --color-brand-900: #1a3a58;
+  --color-brand-950: #12283f;
+
+  /* purple: replaces default, logo pink — Outside-Church badge stays here */
+  --color-purple-50: #fdf3fa;
+  --color-purple-100: #fae2f3;
+  --color-purple-200: #f4c4e7;
+  --color-purple-300: #ea9bd5;
+  --color-purple-400: #d641ba;
+  --color-purple-500: #b8329e;
+  --color-purple-600: #96277f;
+  --color-purple-700: #751e62;
+  --color-purple-800: #571647;
+  --color-purple-900: #3d0f31;
+  --color-purple-950: #26081f;
 }
