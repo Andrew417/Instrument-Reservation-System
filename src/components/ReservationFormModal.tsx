@@ -78,6 +78,87 @@ const DURATION_OPTIONS = [
   { label: "5 hours", value: 5 },
 ];
 
+interface LimitMessage {
+  title: string;
+  description: string;
+  nextStep: string;
+}
+
+const getLimitMessage = (reason: string): LimitMessage | null => {
+  const activeReservationsMatch = reason.match(
+    /active reservations limit \((\d+)\/(\d+)\)/i,
+  );
+  if (activeReservationsMatch) {
+    return {
+      title: "Active reservations limit",
+      description: `You have ${activeReservationsMatch[1]} of ${activeReservationsMatch[2]} allowed Pending or Approved reservations.`,
+      nextStep:
+        "Your request was submitted for admin approval. Please wait for the decision.",
+    };
+  }
+
+  const dailyReservationsMatch = reason.match(
+    /daily reservation limit for .*? \((\d+)\/(\d+)\)/i,
+  );
+  if (dailyReservationsMatch) {
+    return {
+      title: "Daily reservations limit",
+      description: `You have submitted ${dailyReservationsMatch[1]} of ${dailyReservationsMatch[2]} allowed reservations today.`,
+      nextStep:
+        "Your request was submitted for admin approval. Please wait for the decision.",
+    };
+  }
+
+  const durationMatch = reason.match(
+    /This booking \(([^)]+)\) is longer than the ([^ ]+) limit/i,
+  );
+  if (durationMatch) {
+    return {
+      title: "Booking duration limit",
+      description: `This booking is ${durationMatch[1]} long; the limit for one reservation is ${durationMatch[2]}.`,
+      nextStep:
+        "Your request was submitted for admin approval. Please wait for the decision.",
+    };
+  }
+
+  const categoryMatch = reason.match(
+    /already have (\d+)\/(\d+) active (.+?) reservations/i,
+  );
+  if (categoryMatch) {
+    return {
+      title: "Same-category instrument limit",
+      description: `You have ${categoryMatch[1]} of ${categoryMatch[2]} allowed active ${categoryMatch[3]} reservations.`,
+      nextStep:
+        "Your request was submitted for admin approval. Please wait for the decision.",
+    };
+  }
+
+  const seriesMatch = reason.match(
+    /at most (\d+) occurrences.*selected (\d+)/i,
+  );
+  if (seriesMatch) {
+    return {
+      title: "Recurring series limit",
+      description: `This series includes ${seriesMatch[2]} dates; the limit is ${seriesMatch[1]} occurrences.`,
+      nextStep:
+        "Please reduce the dates and submit the series again for admin approval.",
+    };
+  }
+
+  const submissionRateMatch = reason.match(
+    /limit of (\d+) submissions per hour/i,
+  );
+  if (submissionRateMatch) {
+    return {
+      title: "Submission rate limit",
+      description: `You have reached the limit of ${submissionRateMatch[1]} reservation submissions per hour.`,
+      nextStep: "Please wait before submitting another reservation request.",
+    };
+  }
+
+  return null;
+};
+
 export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   initialInstrument,
   allInstruments,
@@ -359,15 +440,33 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </button>
                         </div>
                         {submissionResult.evaluation.reasons.map(
-                          (reason, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-start gap-1.5 text-[11px] text-amber-900"
-                            >
-                              <span className="w-1 h-1 rounded-full bg-amber-600 mt-1.5 shrink-0" />
-                              <span className="leading-snug">{reason}</span>
-                            </div>
-                          ),
+                          (reason, idx) => {
+                            const limitMessage = getLimitMessage(reason);
+
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-1.5 text-[11px] text-amber-900"
+                              >
+                                <span className="w-1 h-1 rounded-full bg-amber-600 mt-1.5 shrink-0" />
+                                <span className="leading-snug">
+                                  {limitMessage ? (
+                                    <>
+                                      <span className="font-bold">
+                                        {limitMessage.title}:
+                                      </span>{" "}
+                                      {limitMessage.description}{" "}
+                                      <span className="font-semibold">
+                                        {limitMessage.nextStep}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    reason
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          },
                         )}
                       </div>
                     )}
@@ -470,11 +569,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <div className="space-y-1 text-xs">
                     <div className="font-bold text-red-950">
-                      Submission Blocked
+                      {getLimitMessage(errorMsg)?.title || "Submission Blocked"}
                     </div>
                     <div className="text-red-800 leading-relaxed">
-                      {errorMsg}
+                      {getLimitMessage(errorMsg)?.description || errorMsg}
                     </div>
+                    {getLimitMessage(errorMsg) && (
+                      <div className="text-red-700 leading-relaxed">
+                        <span className="font-semibold">What to do:</span>{" "}
+                        {getLimitMessage(errorMsg)?.nextStep}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
