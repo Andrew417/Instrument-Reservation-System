@@ -437,6 +437,12 @@ export const AuthScreen: React.FC = () => {
                 className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
               />
             </div>
+            {mode === "register" && (
+              <p className="text-[11px] text-stone-400 mt-1.5">
+                You'll receive emails for reservation approvals at this
+                address.{" "}
+              </p>
+            )}
           </div>
 
           {/* Phone Number Field (Required for Registration) */}
@@ -446,7 +452,7 @@ export const AuthScreen: React.FC = () => {
                 htmlFor="register-phone-input"
                 className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
               >
-                Phone Number
+                Phone Number <span className="normal-case">(WhatsApp)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
@@ -498,11 +504,6 @@ export const AuthScreen: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
               />
-              {mode === "register" && (
-                <p className="text-[11px] text-stone-400 mt-1.5">
-                  Minimum 6 characters.
-                </p>
-              )}
               <button
                 type="button"
                 id="btn-toggle-auth-password"
@@ -519,6 +520,11 @@ export const AuthScreen: React.FC = () => {
                 )}
               </button>
             </div>
+            {mode === "register" && (
+              <p className="text-[11px] text-stone-400 mt-1.5">
+                Minimum 6 characters.
+              </p>
+            )}
           </div>
 
           {/* Submit Button */}
