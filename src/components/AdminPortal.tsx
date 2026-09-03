@@ -72,6 +72,33 @@ type AdminTab =
   | "payment_settings"
   | "notification_settings";
 
+const HARD_LIMIT_HELP = {
+  activeReservations: {
+    title: "Active reservations",
+    text: "Keeps one member from holding too many Pending or Approved bookings at once. When reached, a new request needs admin approval.",
+  },
+  reservationsPerDay: {
+    title: "Reservations per day",
+    text: "Spreads new booking requests across members each day. When reached, reserve on another day or review the request manually.",
+  },
+  durationHours: {
+    title: "Booking duration",
+    text: "Keeps individual sessions reasonably short so others can use the instrument. Longer requests need to be shortened or reviewed.",
+  },
+  concurrentPerType: {
+    title: "Same-category bookings",
+    text: "Prevents one member from holding too many instruments in the same category at the same time. A different category or admin review may help.",
+  },
+  seriesOccurrences: {
+    title: "Recurring occurrences",
+    text: "Keeps one recurring series from reserving too many dates. Reduce the dates or create another series later.",
+  },
+  submissionsPerHour: {
+    title: "Submission rate",
+    text: "Prevents rapid repeat submissions and accidental overbooking. This limit blocks submission temporarily; wait and try again later.",
+  },
+} as const;
+
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   onBackToMemberView,
   onOpenReservationDetail,
@@ -310,6 +337,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     bypassHardLimits: false,
   });
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
+  const [openLimitHelp, setOpenLimitHelp] = useState<string | null>(null);
 
   // Super Admin: Notification Settings
   const [notificationSettingsState, setNotificationSettingsState] = useState<{
@@ -1549,6 +1577,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setSavingPayment(false);
     }
   };
+
+  const renderLimitHelp = (key: keyof typeof HARD_LIMIT_HELP) => {
+    const help = HARD_LIMIT_HELP[key];
+    if (openLimitHelp !== key) return null;
+
+    return (
+      <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-950 leading-relaxed">
+        {help.text}
+      </div>
+    );
+  };
+
+  const renderLimitHelpToggle = (key: keyof typeof HARD_LIMIT_HELP) => (
+    <button
+      type="button"
+      aria-label={`Explain ${HARD_LIMIT_HELP[key].title}`}
+      aria-expanded={openLimitHelp === key}
+      onClick={() =>
+        setOpenLimitHelp((current) => (current === key ? null : key))
+      }
+      className="inline-flex w-4 h-4 items-center justify-center rounded-full border border-stone-300 text-[10px] font-bold text-stone-500 hover:border-amber-700 hover:text-amber-800 transition cursor-pointer"
+    >
+      ?
+    </button>
+  );
 
   return (
     <div id="admin-portal-root" className="space-y-6">
@@ -3502,12 +3555,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div>
-                    <label
-                      htmlFor="input-max-active-reservations"
-                      className="block font-bold text-stone-700 mb-1"
-                    >
-                      Max Active Reservations Per User
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-active-reservations"
+                        className="font-bold text-stone-700"
+                      >
+                        Max Active Reservations Per User
+                      </label>
+                      {renderLimitHelpToggle("activeReservations")}
+                    </div>
                     <input
                       id="input-max-active-reservations"
                       type="number"
@@ -3525,15 +3581,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
                     />
+                    {renderLimitHelp("activeReservations")}
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="input-max-reservations-per-day"
-                      className="block font-bold text-stone-700 mb-1"
-                    >
-                      Max Reservations Per Day
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-reservations-per-day"
+                        className="font-bold text-stone-700"
+                      >
+                        Max Reservations Per Day
+                      </label>
+                      {renderLimitHelpToggle("reservationsPerDay")}
+                    </div>
                     <input
                       id="input-max-reservations-per-day"
                       type="number"
@@ -3551,15 +3611,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
                     />
+                    {renderLimitHelp("reservationsPerDay")}
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="input-max-duration-hours"
-                      className="block font-bold text-stone-700 mb-1"
-                    >
-                      Max Single Booking Duration (Hours)
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-duration-hours"
+                        className="font-bold text-stone-700"
+                      >
+                        Max Single Booking Duration (Hours)
+                      </label>
+                      {renderLimitHelpToggle("durationHours")}
+                    </div>
                     <input
                       id="input-max-duration-hours"
                       type="number"
@@ -3577,15 +3641,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
                     />
+                    {renderLimitHelp("durationHours")}
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="input-max-concurrent-per-type"
-                      className="block font-bold text-stone-700 mb-1"
-                    >
-                      Max Concurrent Slots in Same Category
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-concurrent-per-type"
+                        className="font-bold text-stone-700"
+                      >
+                        Max Concurrent Slots in Same Category
+                      </label>
+                      {renderLimitHelpToggle("concurrentPerType")}
+                    </div>
                     <input
                       id="input-max-concurrent-per-type"
                       type="number"
@@ -3603,15 +3671,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
                     />
+                    {renderLimitHelp("concurrentPerType")}
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="input-max-series-occurrences"
-                      className="block font-bold text-stone-700 mb-1"
-                    >
-                      Max Recurring Occurrences Per Series
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-series-occurrences"
+                        className="font-bold text-stone-700"
+                      >
+                        Max Recurring Occurrences Per Series
+                      </label>
+                      {renderLimitHelpToggle("seriesOccurrences")}
+                    </div>
                     <input
                       id="input-max-series-occurrences"
                       type="number"
@@ -3629,15 +3701,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
                     />
+                    {renderLimitHelp("seriesOccurrences")}
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="input-max-submissions-per-hour"
-                      className="block font-bold text-stone-700 mb-1"
-                    >
-                      Rate Limit (Requests / Hour)
-                    </label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-submissions-per-hour"
+                        className="font-bold text-stone-700"
+                      >
+                        Rate Limit (Requests / Hour)
+                      </label>
+                      {renderLimitHelpToggle("submissionsPerHour")}
+                    </div>
                     <input
                       id="input-max-submissions-per-hour"
                       type="number"
@@ -3655,6 +3731,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       }
                       className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
                     />
+                    {renderLimitHelp("submissionsPerHour")}
                   </div>
                 </div>
 

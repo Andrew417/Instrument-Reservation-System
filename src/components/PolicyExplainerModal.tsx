@@ -13,15 +13,16 @@ import {
   Gauge,
   Phone,
   DollarSign,
-  Upload,
   ShieldCheck,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 
 interface HardLimitExplainer {
   icon: React.ReactNode;
   title: string;
   description: string;
+  nextStep: string;
 }
 
 const HARD_LIMIT_EXPLAINERS: HardLimitExplainer[] = [
@@ -29,31 +30,46 @@ const HARD_LIMIT_EXPLAINERS: HardLimitExplainer[] = [
     icon: <Layers className="w-4 h-4 text-amber-800" />,
     title: "Active Reservations",
     description:
-      "There's a cap on how many Pending + Approved reservations you can hold at once. A recurring series counts as a single reservation toward this cap, no matter how many dates it covers.",
+      "Limits how many Pending and Approved reservations a member can have at one time.",
+    nextStep:
+      "You can still submit a request. It will be sent for admin approval.",
   },
   {
     icon: <CalendarDays className="w-4 h-4 text-amber-800" />,
     title: "Reservations per Day",
     description:
-      "There's a cap on how many new reservations you can submit in a single day.",
+      "Limits how many reservations a member can submit in one day to keep access fair.",
+    nextStep: "You can still submit a request. Please wait for admin approval.",
   },
   {
     icon: <Timer className="w-4 h-4 text-amber-800" />,
     title: "Duration per Reservation",
     description:
-      "Each individual reservation has a maximum length. Longer sessions need to be split into multiple bookings.",
+      "Limits the length of each reservation so other members can use the instrument.",
+    nextStep:
+      "You can still submit the booking. It will be changed to manual review.",
   },
   {
     icon: <Repeat className="w-4 h-4 text-amber-800" />,
     title: "Same-Type Instrument Limit",
     description:
-      "There's a cap on how many instruments of the same type (e.g. Drums) you can hold at the same time. Unlike the active-reservations cap, a recurring series counts every date individually here.",
+      "Limits how many instruments from the same category a member can reserve at once.",
+    nextStep: "You can still submit a request. Please wait for admin approval.",
+  },
+  {
+    icon: <Repeat className="w-4 h-4 text-amber-800" />,
+    title: "Occurrences per Series",
+    description:
+      "Limits how many dates can be included in one recurring reservation series.",
+    nextStep:
+      "You can still submit the series. It will require admin approval.",
   },
   {
     icon: <Gauge className="w-4 h-4 text-amber-800" />,
     title: "Submission Rate",
     description:
-      "There's a cap on how many reservation submissions you can make within a short rolling window, to prevent spam. Going over this blocks the submission outright.",
+      "Limits repeated booking submissions within a short period to prevent spam.",
+    nextStep: "Please wait before submitting another request.",
   },
 ];
 
@@ -66,6 +82,9 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const [showLimitExplainer, setShowLimitExplainer] =
+    React.useState<boolean>(false);
+
   if (!isOpen) return null;
 
   return (
@@ -204,6 +223,73 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+          {/* 4. Hard Limit Explainer — collapsed, opt-in detail */}
+          <div className="border border-stone-200 rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              id="btn-toggle-hardlimit-explainer"
+              onClick={() => setShowLimitExplainer((v) => !v)}
+              className="w-full flex items-center justify-between gap-3 p-4 bg-stone-50 hover:bg-stone-100 transition cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-stone-200 text-stone-700 flex items-center justify-center shrink-0">
+                  <Gauge className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-stone-900">
+                    Hard limits explained
+                  </div>
+                  <div className="text-[11px] text-stone-500">
+                    Why they exist and what to do when one is reached.
+                  </div>
+                </div>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-stone-500 shrink-0 transition-transform ${
+                  showLimitExplainer ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {showLimitExplainer && (
+              <div className="p-4 pt-3 border-t border-stone-200 bg-white space-y-2.5 animate-in fade-in">
+                {HARD_LIMIT_EXPLAINERS.map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex items-start gap-2.5 p-2.5 rounded-xl bg-stone-50 border border-stone-100"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-amber-100/70 border border-amber-200 flex items-center justify-center shrink-0">
+                      {item.icon}
+                    </div>
+                    <div className="text-xs space-y-0.5">
+                      <div className="font-bold text-stone-900">
+                        {item.title}
+                      </div>
+                      <div className="text-stone-600 leading-snug">
+                        {item.description}
+                      </div>
+                      <div className="text-stone-500 leading-snug">
+                        <span className="font-semibold text-stone-700">
+                          Next:
+                        </span>{" "}
+                        {item.nextStep}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="pt-2 border-t border-stone-100 flex items-start gap-2 text-[11px] text-stone-500">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                  <span>
+                    To ensure fair usage among all users, these limits only
+                    apply to instant bookings. Exceeding any limit means your
+                    reservation will require admin approval instead of being
+                    automatically confirmed.
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
