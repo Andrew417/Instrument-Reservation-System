@@ -349,7 +349,7 @@ export async function evaluateReservationSubmission(
     const submissionCount = Number(recentSubmissions[0]?.count || 0);
     if (submissionCount >= limits.maxSubmissionsPerHour) {
       throw new Error(
-        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`,
+        `You've hit the limit of ${limits.maxSubmissionsPerHour} submissions per hour. Please wait a bit and try again.`,
       );
     }
   }
@@ -423,8 +423,9 @@ export async function evaluateReservationSubmission(
         const activeCount = Number(activeRes[0]?.activeCount || 0);
         if (activeCount >= limits.maxActiveReservations) {
           limitExceeded = true;
+          // 5a: max_active_reservations
           reasons.push(
-            `Active reservations limit reached (${activeCount}/${limits.maxActiveReservations} active slots). Forced to Pending.`,
+            `You've reached your active reservations limit (${activeCount}/${limits.maxActiveReservations}). This request will wait for admin review instead of auto-approving.`,
           );
         }
       }
@@ -444,8 +445,9 @@ export async function evaluateReservationSubmission(
         const dayCount = Number(dayRes[0]?.count || 0);
         if (dayCount >= limits.maxReservationsPerDay) {
           limitExceeded = true;
+          // 5b: max_reservations_per_day
           reasons.push(
-            `Daily reservation limit reached for ${dateStr} (${dayCount}/${limits.maxReservationsPerDay}). Forced to Pending.`,
+            `You've reached your daily reservation limit for ${dateStr} (${dayCount}/${limits.maxReservationsPerDay}). This request will wait for admin review instead of auto-approving.`,
           );
         }
       }
@@ -453,8 +455,9 @@ export async function evaluateReservationSubmission(
       // Check 5c: max_duration_hours
       if (duration > limits.maxDurationHours) {
         limitExceeded = true;
+        // 5c: max_duration_hours
         reasons.push(
-          `Duration (${duration}h) exceeds maximum allowed duration (${limits.maxDurationHours}h). Forced to Pending.`,
+          `This booking (${duration}h) is longer than the ${limits.maxDurationHours}h limit for a single reservation. It will wait for admin review instead of auto-approving.`,
         );
       }
 
@@ -475,8 +478,9 @@ export async function evaluateReservationSubmission(
         const concurrentCount = Number(concurrentRes[0]?.count || 0);
         if (concurrentCount >= limits.maxConcurrentPerType) {
           limitExceeded = true;
+          // 5d: max_concurrent_per_type
           reasons.push(
-            `Concurrent active reservations limit for instrument type '${instrument.type}' reached (${concurrentCount}/${limits.maxConcurrentPerType}). Forced to Pending.`,
+            `You already have ${concurrentCount}/${limits.maxConcurrentPerType} active ${instrument.type} reservations. This request will wait for admin review instead of auto-approving.`,
           );
         }
       }
@@ -489,6 +493,7 @@ export async function evaluateReservationSubmission(
     } else {
       calculatedStatus = "pending";
       if (instrument.bookingMode === "manual") {
+        // 5e: manual_approval
         reasons.push("Instrument is set to Manual Approval mode");
       }
     }
@@ -757,7 +762,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     occurrences.length > limits.maxSeriesOccurrences
   ) {
     throw new Error(
-      `Series exceeds maximum allowed occurrences of ${limits.maxSeriesOccurrences} (provided ${occurrences.length}).`,
+      `A recurring series can have at most ${limits.maxSeriesOccurrences} occurrences. Please reduce the number of dates and try again (you selected ${occurrences.length}).`,
     );
   }
 
@@ -843,7 +848,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     const submissionCount = Number(recentSubmissions[0]?.count || 0);
     if (submissionCount >= limits.maxSubmissionsPerHour) {
       throw new Error(
-        `Submission rate limit exceeded (maximum ${limits.maxSubmissionsPerHour} submissions per hour). Please try again later.`,
+        `You've hit the limit of ${limits.maxSubmissionsPerHour} submissions per hour. Please wait a bit and try again.`,
       );
     }
   }

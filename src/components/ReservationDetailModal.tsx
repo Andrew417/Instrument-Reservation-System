@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
+import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
 import {
   formatDisplayDate,
   formatHhmmTo12Hour,
@@ -69,6 +70,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   );
 
   const [reservation, setReservation] = useState<any | null>(null);
+  const [showPolicyExplainer, setShowPolicyExplainer] =
+    useState<boolean>(false);
   const [seriesOccurrences, setSeriesOccurrences] = useState<any[]>([]);
   const [adminMessages, setAdminMessages] = useState<any[]>([]);
   const [paymentSettings, setPaymentSettings] = useState<{
@@ -850,6 +853,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     <>
                       <Clock className="w-3.5 h-3.5 text-amber-700" />
                       Pending Review
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowPolicyExplainer(true);
+                        }}
+                        className="ml-0.5 text-amber-700 hover:text-amber-900 transition cursor-pointer"
+                        title="Learn more about booking limits"
+                      >
+                        <Info className="w-3 h-3" />
+                      </button>
                     </>
                   ) : (
                     <>

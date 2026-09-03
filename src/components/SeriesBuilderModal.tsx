@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Instrument } from "./AvailabilityCalendar.tsx";
+import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import {
   addDaysToDateString,
@@ -108,7 +109,9 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     "in_church" | "outside_church"
   >(initialReservationType);
   const [feeAcknowledged, setFeeAcknowledged] = useState<boolean>(false);
-
+  const [showPolicyExplainer, setShowPolicyExplainer] =
+    useState<boolean>(false);
+    
   // Pattern Selection: 'weekly' | 'custom'
   const [patternType, setPatternType] = useState<"weekly" | "custom">("weekly");
 
@@ -541,7 +544,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             {/* Per-Occurrence Status Table */}
             <div className="space-y-2">
               <div className="text-xs font-bold text-stone-800 flex items-center justify-between">
-                <span>Per-Occurrence Status Breakdown:</span>
+                <span className="flex items-center gap-1.5">
+                  Per-Occurrence Status Breakdown:
+                  <button
+                    type="button"
+                    onClick={() => setShowPolicyExplainer(true)}
+                    className="text-stone-500 hover:text-amber-800 transition cursor-pointer"
+                    title="Learn more about booking limits"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </span>
                 <span className="text-[11px] font-normal text-stone-500">
                   {
                     seriesResult.occurrences.filter(
