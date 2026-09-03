@@ -348,10 +348,6 @@ export const AuthScreen: React.FC = () => {
               <p className="text-xs text-amber-800 mt-1 leading-relaxed">
                 {registrationNotice}
               </p>
-              <div className="text-[11px] text-amber-700 mt-1.5 font-medium">
-                Church leadership has been notified. Once approved, you can sign
-                in directly with your email and password.
-              </div>
             </div>
           </div>
         )}
