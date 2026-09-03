@@ -272,7 +272,7 @@ export const AuthScreen: React.FC = () => {
             St. Mark Music & Instruments
           </h2>
           <p className="text-xs text-stone-600 font-medium">
-            Church Reservation Portal
+            Instrument Reservation Portal
           </p>
         </div>
       </div>
