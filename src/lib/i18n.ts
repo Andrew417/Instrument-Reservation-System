@@ -1,7 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import en from "../locales/en.json";
-import ar from "../locales/ar.json";
+import en from "../locales/en.json" assert { type: "json" };
+import ar from "../locales/ar.json" assert { type: "json" };
 
 export const LANGUAGE_STORAGE_KEY = "church_app_language_v1";
 
