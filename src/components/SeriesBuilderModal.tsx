@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
@@ -99,6 +100,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   onSuccess,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const { t } = useTranslation();
 
   // Core Series State
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
@@ -335,7 +337,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     }
     if (customDates.length >= maxSeriesLimit) {
       setSubmitError(
-        `Maximum series occurrences limit of ${maxSeriesLimit} reached.`,
+        t("seriesBuilder.reachedMax", { max: maxSeriesLimit }),
       );
       return;
     }
@@ -376,7 +378,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
 
     if (generatedOccurrences.length > maxSeriesLimit) {
       setSubmitError(
-        `Series exceeds maximum allowed occurrences of ${maxSeriesLimit}.`,
+        t("seriesBuilder.reachedMax", { max: maxSeriesLimit }),
       );
       return;
     }
@@ -874,7 +876,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
 
                   <div>
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      Total Occurrences (Max {maxSeriesLimit})
+                      {t("seriesBuilder.totalOccurrences", { max: maxSeriesLimit })}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -902,8 +904,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   <div className="text-[11px] text-amber-900 bg-amber-100/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
                     <Info className="w-3.5 h-3.5 shrink-0" />
                     <span>
-                      Reached maximum limit of {maxSeriesLimit} series
-                      occurrences.
+                      {t("seriesBuilder.reachedMax", { max: maxSeriesLimit })}
                     </span>
                   </div>
                 )}
@@ -916,7 +917,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     Custom Dates List
                   </div>
                   <span className="text-[11px] text-stone-500">
-                    {customDates.length} of {maxSeriesLimit} allowed
+                    {t("seriesBuilder.allowedDates", { count: customDates.length, max: maxSeriesLimit })}
                   </span>
                 </div>
 
@@ -944,8 +945,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   <div className="text-[11px] text-amber-900 bg-amber-100/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     <span>
-                      Maximum occurrence limit ({maxSeriesLimit}) reached.
-                      Remove a date to add another.
+                      {t("seriesBuilder.reachedMax", { max: maxSeriesLimit })}
                     </span>
                   </div>
                 )}

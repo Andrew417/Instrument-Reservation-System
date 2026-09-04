@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
+import { LanguageProfileDropdown } from "./components/LanguageProfileDropdown.tsx";
 import { AuthScreen } from "./components/AuthScreen.tsx";
 import {
   AvailabilityCalendar,
@@ -53,6 +55,7 @@ interface SeriesPrefillInfo {
 
 const UserPortalMain: React.FC = () => {
   const { profile, logout, sessionToken } = useAuth();
+  const { t } = useTranslation();
   const isAdminOrSuperAdmin =
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
@@ -174,10 +177,10 @@ const UserPortalMain: React.FC = () => {
             />
             <div className="min-w-0">
               <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight whitespace-nowrap">
-                Church Instruments Schedule
+                {t("header.title")}
               </div>
               <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap hidden lg:block">
-                St. Mark Instrument Reservations
+                {t("header.subtitle")}
               </div>
             </div>
           </div>
@@ -195,7 +198,7 @@ const UserPortalMain: React.FC = () => {
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
-              <span>Availability Calendar</span>
+              <span>{t("nav.calendar")}</span>
             </button>
 
             <button
@@ -209,7 +212,7 @@ const UserPortalMain: React.FC = () => {
               }`}
             >
               <BookmarkCheck className="w-3.5 h-3.5 text-amber-800" />
-              <span>My Reservations</span>
+              <span>{t("nav.myReservations")}</span>
             </button>
 
             {isAdminOrSuperAdmin && (
@@ -224,7 +227,7 @@ const UserPortalMain: React.FC = () => {
                 }`}
               >
                 <Shield className="w-3.5 h-3.5 text-amber-800" />
-                <span>Admin Management</span>
+                <span>{t("nav.adminPortal")}</span>
               </button>
             )}
           </div>
@@ -237,10 +240,10 @@ const UserPortalMain: React.FC = () => {
                 type="button"
                 onClick={() => setIsPolicyModalOpen(true)}
                 className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer"
-                title="How booking works"
+                title={t("nav.howBookingWorks")}
               >
                 <HelpCircle className="w-4 h-4 text-stone-600" />
-                <span className="hidden xl:inline">How Booking Works</span>
+                <span className="hidden xl:inline">{t("nav.howBookingWorks")}</span>
               </button>
             )}
             {/* Screen 7: Notifications Bell Button */}
@@ -253,7 +256,7 @@ const UserPortalMain: React.FC = () => {
                   ? "bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100"
                   : "border-stone-200 text-stone-700 hover:bg-stone-50"
               }`}
-              title="Notifications"
+              title={t("nav.alerts")}
             >
               <div className="relative">
                 <Bell
@@ -267,49 +270,13 @@ const UserPortalMain: React.FC = () => {
               </div>
               <span className="hidden xl:inline">
                 {unreadCount > 0
-                  ? `${unreadCount} Alert${unreadCount === 1 ? "" : "s"}`
-                  : "Alerts"}
+                  ? `${unreadCount} ${t("nav.alerts")}`
+                  : t("nav.alerts")}
               </span>
             </button>
 
-            <div className="hidden sm:flex items-center gap-1.5 lg:gap-1.5 xl:gap-2 px-2.5 lg:px-2 xl:px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs shrink-0">
-              <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs">
-                {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
-              </div>
-              <div className="flex flex-col text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-stone-900 leading-none">
-                    {profile?.name}
-                  </span>
-                  {profile?.role === "super_admin" || profile?.isSuperAdmin ? (
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-900 border border-amber-200">
-                      Super Admin
-                    </span>
-                  ) : profile?.role === "admin" ? (
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-stone-200 text-stone-800">
-                      Admin
-                    </span>
-                  ) : profile?.isTrusted ? (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      Trusted
-                    </span>
-                  ) : null}
-                </div>
-                <span className="text-[10px] text-stone-500">
-                  {profile?.email || profile?.phoneNumber}
-                </span>
-              </div>
-            </div>
-
-            <button
-              id="header-signout-btn"
-              onClick={logout}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-semibold hover:bg-stone-50 active:bg-stone-100 transition cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
+            {/* Profile Dropdown with Arabic / English Language Toggle */}
+            <LanguageProfileDropdown />
           </div>
         </div>
 
@@ -327,7 +294,7 @@ const UserPortalMain: React.FC = () => {
             }`}
           >
             <CalendarDays className="w-3.5 h-3.5" />
-            <span>Calendar</span>
+            <span>{t("nav.calendar")}</span>
           </button>
           <button
             type="button"
@@ -339,7 +306,7 @@ const UserPortalMain: React.FC = () => {
             }`}
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
-            <span>Bookings</span>
+            <span>{t("nav.myReservations")}</span>
           </button>
           {isAdminOrSuperAdmin && (
             <button
@@ -352,7 +319,7 @@ const UserPortalMain: React.FC = () => {
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>Admin</span>
+              <span>{t("nav.admin")}</span>
             </button>
           )}
         </div>

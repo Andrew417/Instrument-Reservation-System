@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import {
@@ -125,6 +126,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onInstrumentsChanged,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
 
   // Active Tab
@@ -1673,7 +1676,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-lg sm:text-xl font-bold text-stone-900 leading-tight whitespace-nowrap">
-              {isSuperAdmin ? "Super Admin Console" : "Administration"}
+              {isSuperAdmin ? t("admin.consoleTitle") : t("admin.adminTitle")}
             </h1>
             <span
               className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
@@ -1682,12 +1685,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   : "bg-stone-100 text-stone-700 border border-stone-200"
               }`}
             >
-              {isSuperAdmin ? "Super Admin" : "Admin"}
+              {isSuperAdmin ? t("common.superAdmin") : t("common.admin")}
             </span>
           </div>
           <p className="text-xs text-stone-500 mt-1">
-            Manage church instruments, review requests, oversee members, and
-            configure scheduling.
+            {t("admin.consoleSubtitle")}
           </p>
         </div>
 
@@ -1705,7 +1707,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             title="Export confirmed bookings handover sheet for key-holder (XLSX or CSV)"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export Handover Sheet</span>
+            <span>{t("admin.exportHandover")}</span>
           </button>
 
           {onBackToMemberView && (
@@ -1716,7 +1718,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition flex items-center gap-2 cursor-pointer shadow-2xs"
             >
               <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
-              <span>Return to Availability Calendar</span>
+              <span>{t("admin.returnToCalendar")}</span>
             </button>
           )}
         </div>
@@ -1726,14 +1728,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
           <div className="text-stone-500 text-xs font-semibold mb-1">
-            Pending Requests
+            {t("admin.pendingRequests")}
           </div>
           <div className="text-2xl font-extrabold text-amber-900 flex items-center justify-between">
             <span>{stats.pendingRequests}</span>
             <Clock className="w-5 h-5 text-amber-600/40" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            Requires booking review
+            {isAr ? "يتطلب مراجعة الحجز" : "Requires booking review"}
           </div>
         </div>
 
@@ -1744,7 +1746,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
         >
           <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-amber-900 flex items-center justify-between">
-            <span>Account Approvals</span>
+            <span>{t("admin.accountApprovals")}</span>
             {Number(stats.pendingUserApprovals || 0) > 0 && (
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
             )}
@@ -1755,47 +1757,47 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
           <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
             {Number(stats.pendingUserApprovals || 0) > 0
-              ? "Pending admin approval"
-              : "All accounts approved"}
+              ? isAr ? "بانتظار اعتماد المشرف" : "Pending admin approval"
+              : isAr ? "تم اعتماد جميع الحسابات" : "All accounts approved"}
           </div>
         </button>
 
         <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
           <div className="text-stone-500 text-xs font-semibold mb-1">
-            Today's Bookings
+            {t("admin.todaysBookings")}
           </div>
           <div className="text-2xl font-extrabold text-emerald-900 flex items-center justify-between">
             <span>{stats.todayReservations}</span>
             <CalendarCheck className="w-5 h-5 text-emerald-600/40" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            Approved & active today
+            {isAr ? "معتمد ونشط اليوم" : "Approved & active today"}
           </div>
         </div>
 
         <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
           <div className="text-stone-500 text-xs font-semibold mb-1">
-            Total Instruments
+            {t("admin.totalInstruments")}
           </div>
           <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
             <span>{stats.totalInstruments}</span>
             <Music2 className="w-5 h-5 text-stone-400" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            In church inventory
+            {isAr ? "في عهدة الكنيسة" : "In church inventory"}
           </div>
         </div>
 
         <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs col-span-2 sm:col-span-1">
           <div className="text-stone-500 text-xs font-semibold mb-1">
-            Active Church Users
+            {t("admin.activeUsers")}
           </div>
           <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
             <span>{stats.activeUsers}</span>
             <Users className="w-5 h-5 text-stone-400" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            Approved accounts
+            {isAr ? "حسابات معتمدة" : "Approved accounts"}
           </div>
         </div>
       </div>
@@ -1806,7 +1808,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <aside className="w-full md:w-64 shrink-0 space-y-4">
           <div className="bg-white border border-stone-200 rounded-2xl p-3 shadow-2xs">
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-              Operations & Management
+              {isAr ? "العمليات والإدارة" : "Operations & Management"}
             </div>
             <nav className="space-y-1 mt-1">
               <button
@@ -1820,7 +1822,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <LayoutDashboard className="w-4 h-4 text-amber-800" />
-                  <span>Dashboard Overview</span>
+                  <span>{t("admin.tabDashboard")}</span>
                 </div>
                 {stats.pendingRequests > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-200">
@@ -1840,7 +1842,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <CalendarCheck className="w-4 h-4 text-amber-800" />
-                  <span>Review Requests</span>
+                  <span>{t("admin.tabReview")}</span>
                 </div>
               </button>
 
@@ -1855,7 +1857,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <UserCheck className="w-4 h-4 text-amber-800" />
-                  <span>Account Approvals</span>
+                  <span>{t("admin.tabApprovals")}</span>
                 </div>
                 {Number(stats.pendingUserApprovals || 0) > 0 && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-300">
@@ -1875,7 +1877,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <Music2 className="w-4 h-4 text-amber-800" />
-                  <span>Instruments Inventory</span>
+                  <span>{t("admin.tabInstruments")}</span>
                 </div>
                 <span className="text-[10px] text-stone-400 font-semibold">
                   {stats.totalInstruments}
@@ -1893,7 +1895,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <Users className="w-4 h-4 text-amber-800" />
-                  <span>User Directory</span>
+                  <span>{t("admin.tabUsers")}</span>
                 </div>
                 <span className="text-[10px] text-stone-400 font-semibold">
                   {stats.activeUsers}
@@ -1911,7 +1913,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <MessageSquare className="w-4 h-4 text-amber-800" />
-                  <span>Reservation Chat</span>
+                  <span>{isAr ? "المحادثات والملاحظات" : "Reservation Chat"}</span>
                 </div>
               </button>
             </nav>
@@ -1921,7 +1923,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="mt-4 pt-4 border-t border-stone-200">
                 <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3 text-amber-700" />
-                  <span>Super Admin Tools</span>
+                  <span>{isAr ? "أدوات المشرف العام" : "Super Admin Tools"}</span>
                 </div>
                 <nav className="space-y-1 mt-1">
                   <button
@@ -1935,7 +1937,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <div className="flex items-center gap-2.5">
                       <ShieldCheck className="w-4 h-4 text-amber-800" />
-                      <span>Admin Accounts</span>
+                      <span>{isAr ? "حسابات المشرفين" : "Admin Accounts"}</span>
                     </div>
                     <span className="text-[10px] bg-amber-200/60 text-amber-950 px-1.5 py-0.5 rounded font-mono">
                       {adminAccountsList.length}
@@ -1952,7 +1954,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <UserCheck className="w-4 h-4 text-amber-800" />
-                    <span>Trusted & Audit Trail</span>
+                    <span>{isAr ? "الأعضاء الموثوقين وسجل التدقيق" : "Trusted & Audit Trail"}</span>
                   </button>
 
                   <button
@@ -1965,7 +1967,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <Sliders className="w-4 h-4 text-amber-800" />
-                    <span>Hard Limits Config</span>
+                    <span>{t("admin.tabHardLimits")}</span>
                   </button>
 
                   <button
@@ -1978,7 +1980,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <CreditCard className="w-4 h-4 text-amber-800" />
-                    <span>Payment Settings</span>
+                    <span>{t("admin.tabPaymentSettings")}</span>
                   </button>
                   <button
                     id="admin-tab-notification-settings"
@@ -1990,7 +1992,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <Bell className="w-4 h-4 text-amber-800" />
-                    <span>Notification Settings</span>
+                    <span>{isAr ? "إعدادات الإشعارات" : "Notification Settings"}</span>
                   </button>
                 </nav>
               </div>

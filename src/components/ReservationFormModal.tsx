@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../lib/i18n";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
@@ -90,10 +92,12 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   );
   if (activeReservationsMatch) {
     return {
-      title: "Active reservations limit",
-      description: `You have ${activeReservationsMatch[1]} of ${activeReservationsMatch[2]} allowed Pending or Approved reservations.`,
-      nextStep:
-        "Your request was submitted for admin approval. Please wait for the decision.",
+      title: i18n.t("reservationForm.activeLimitTitle"),
+      description: i18n.t("reservationForm.activeLimitDesc", {
+        current: activeReservationsMatch[1],
+        max: activeReservationsMatch[2],
+      }),
+      nextStep: i18n.t("reservationForm.activeLimitNext"),
     };
   }
 
@@ -102,10 +106,12 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   );
   if (dailyReservationsMatch) {
     return {
-      title: "Daily reservations limit",
-      description: `You have submitted ${dailyReservationsMatch[1]} of ${dailyReservationsMatch[2]} allowed reservations today.`,
-      nextStep:
-        "Your request was submitted for admin approval. Please wait for the decision.",
+      title: i18n.t("reservationForm.dailyLimitTitle"),
+      description: i18n.t("reservationForm.dailyLimitDesc", {
+        current: dailyReservationsMatch[1],
+        max: dailyReservationsMatch[2],
+      }),
+      nextStep: i18n.t("reservationForm.dailyLimitNext"),
     };
   }
 
@@ -114,10 +120,12 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   );
   if (durationMatch) {
     return {
-      title: "Booking duration limit",
-      description: `This booking is ${durationMatch[1]} long; the limit for one reservation is ${durationMatch[2]}.`,
-      nextStep:
-        "Your request was submitted for admin approval. Please wait for the decision.",
+      title: i18n.t("reservationForm.durationLimitTitle"),
+      description: i18n.t("reservationForm.durationLimitDesc", {
+        actual: durationMatch[1],
+        max: durationMatch[2],
+      }),
+      nextStep: i18n.t("reservationForm.durationLimitNext"),
     };
   }
 
@@ -126,10 +134,12 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   );
   if (categoryMatch) {
     return {
-      title: "Same-category instrument limit",
-      description: `You have ${categoryMatch[1]} of ${categoryMatch[2]} allowed active ${categoryMatch[3]} reservations.`,
-      nextStep:
-        "Your request was submitted for admin approval. Please wait for the decision.",
+      title: i18n.t("reservationForm.categoryLimitTitle"),
+      description: i18n.t("reservationForm.categoryLimitDesc", {
+        current: categoryMatch[1],
+        max: categoryMatch[2],
+      }),
+      nextStep: i18n.t("reservationForm.categoryLimitNext"),
     };
   }
 
@@ -138,10 +148,12 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   );
   if (seriesMatch) {
     return {
-      title: "Recurring series limit",
-      description: `This series includes ${seriesMatch[2]} dates; the limit is ${seriesMatch[1]} occurrences.`,
-      nextStep:
-        "Please reduce the dates and submit the series again for admin approval.",
+      title: i18n.t("reservationForm.seriesLimitTitle"),
+      description: i18n.t("reservationForm.seriesLimitDesc", {
+        actual: seriesMatch[2],
+        max: seriesMatch[1],
+      }),
+      nextStep: i18n.t("reservationForm.seriesLimitNext"),
     };
   }
 
@@ -150,9 +162,11 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   );
   if (submissionRateMatch) {
     return {
-      title: "Submission rate limit",
-      description: `You have reached the limit of ${submissionRateMatch[1]} reservation submissions per hour.`,
-      nextStep: "Please wait before submitting another reservation request.",
+      title: i18n.t("reservationForm.rateLimitTitle"),
+      description: i18n.t("reservationForm.rateLimitDesc", {
+        max: submissionRateMatch[1],
+      }),
+      nextStep: i18n.t("reservationForm.rateLimitNext"),
     };
   }
 
@@ -170,6 +184,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   onOpenSeriesBuilder,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const { t } = useTranslation();
 
   // Form State
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
