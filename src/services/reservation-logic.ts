@@ -13,6 +13,7 @@ import {
   notificationSettings,
   notifications,
   hardLimits,
+  messages,
 } from "../db/schema.js";
 import { eq, and, sql, inArray, gte, lte, desc } from "drizzle-orm";
 import {
@@ -1483,6 +1484,29 @@ export async function adminRejectReservation(
       message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
     });
 
+    // Also record the rejection reason as an admin message in the conversation thread
+    try {
+      let adminName = "Church Administrator";
+      if (cleanAdminId) {
+        const [adm] = await db
+          .select({ name: admins.name })
+          .from(admins)
+          .where(eq(admins.id, cleanAdminId))
+          .limit(1);
+        if (adm?.name) adminName = adm.name;
+      }
+      await db.insert(messages).values({
+        reservationId: res.id,
+        adminId: cleanAdminId,
+        senderRole: "admin",
+        senderName: adminName,
+        content: `Rejection notice: ${reason.trim()}`,
+        isRead: false,
+      });
+    } catch (msgErr: any) {
+      console.warn("[Rejection message thread err]:", msgErr.message);
+    }
+
     // Send rejection email (non-blocking)
     if (!options?.skipEmail) {
       (async () => {
@@ -1663,6 +1687,31 @@ export async function adminRejectSeries(
       type: "series_rejected",
       message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
     });
+
+    // Also record the rejection reason as an admin message in the conversation thread for each occurrence
+    try {
+      let adminName = "Church Administrator";
+      if (cleanAdminId) {
+        const [adm] = await db
+          .select({ name: admins.name })
+          .from(admins)
+          .where(eq(admins.id, cleanAdminId))
+          .limit(1);
+        if (adm?.name) adminName = adm.name;
+      }
+      for (const occ of rejectedList) {
+        await db.insert(messages).values({
+          reservationId: occ.id,
+          adminId: cleanAdminId,
+          senderRole: "admin",
+          senderName: adminName,
+          content: `Series rejection notice: ${reason.trim()}`,
+          isRead: false,
+        });
+      }
+    } catch (msgErr: any) {
+      console.warn("[Series rejection message thread err]:", msgErr.message);
+    }
 
     // Send ONE consolidated rejection email for the series
     (async () => {

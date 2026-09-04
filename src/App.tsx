@@ -77,6 +77,8 @@ const UserPortalMain: React.FC = () => {
   // Screen 6 (Reservation Detail Modal) and Edit Modal
   const [selectedReservationDetailId, setSelectedReservationDetailId] =
     useState<string | null>(null);
+  const [reservationDetailInitialTab, setReservationDetailInitialTab] =
+    useState<"details" | "chat">("details");
   const [
     reservationDetailFromNotifications,
     setReservationDetailFromNotifications,
@@ -482,14 +484,17 @@ const UserPortalMain: React.FC = () => {
         <ReservationDetailModal
           reservationId={selectedReservationDetailId}
           allInstruments={allInstruments}
+          initialTab={reservationDetailInitialTab}
           onClose={() => {
             setSelectedReservationDetailId(null);
+            setReservationDetailInitialTab("details");
             setReservationDetailFromNotifications(false);
           }}
           onBack={
             reservationDetailFromNotifications
               ? () => {
                   setSelectedReservationDetailId(null);
+                  setReservationDetailInitialTab("details");
                   setReservationDetailFromNotifications(false);
                   setIsNotificationsOpen(true);
                 }
@@ -497,6 +502,7 @@ const UserPortalMain: React.FC = () => {
           }
           onEdit={(res) => {
             setSelectedReservationDetailId(null);
+            setReservationDetailInitialTab("details");
             setReservationDetailFromNotifications(false);
             setEditingReservation(res);
           }}
@@ -532,9 +538,10 @@ const UserPortalMain: React.FC = () => {
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
-        onSelectReservation={(reservationId) => {
+        onSelectReservation={(reservationId, initialTab) => {
           setIsNotificationsOpen(false);
           setSelectedReservationDetailId(reservationId);
+          setReservationDetailInitialTab(initialTab || "details");
           setReservationDetailFromNotifications(true);
         }}
       />

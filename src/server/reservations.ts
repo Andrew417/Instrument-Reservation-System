@@ -387,12 +387,18 @@ router.get(
         m.id,
         m.reservation_id,
         m.admin_id,
+        m.user_id,
+        m.sender_role,
+        m.sender_name,
         m.content,
         m.is_read,
         m.created_at,
-        a.name as admin_name
+        COALESCE(m.sender_name, a.name, u.name, CASE WHEN m.sender_role = 'admin' THEN 'Church Administrator' ELSE 'Member' END) as author_name,
+        a.name as admin_name,
+        u.name as user_name
       FROM messages m
       LEFT JOIN admins a ON m.admin_id = a.id
+      LEFT JOIN users u ON m.user_id = u.id
       WHERE m.reservation_id = ${id}
       ORDER BY m.created_at ASC
     `);
@@ -444,14 +450,15 @@ router.post(
 );
 
 /**
- * 15. Post message to reservation (by admin or test)
+ * 15. Post message or reply to reservation (by user or admin)
  */
 router.post(
   "/:id/messages",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { adminId, content } = req.body;
+      const { content, senderRole: bodyRole, senderName: bodyName } = req.body;
+      let { adminId, userId } = req.body;
 
       if (!content || !content.trim()) {
         res
@@ -460,56 +467,140 @@ router.post(
         return;
       }
 
-      // Lookup first admin if adminId not provided
-      let effectiveAdminId = adminId;
-      if (!effectiveAdminId) {
-        const adminRes = await db.execute(sql`SELECT id FROM admins LIMIT 1`);
-        const adminsList = (adminRes as any).rows || [];
-        if (adminsList.length > 0) {
-          effectiveAdminId = adminsList[0].id;
+      // Check session identity from bearer token
+      const sessionIdentity = await extractSessionIdentity(req);
+      let senderRole = bodyRole;
+      let senderName = bodyName || null;
+
+      if (sessionIdentity) {
+        if (sessionIdentity.adminId) {
+          adminId = sessionIdentity.adminId;
+          senderRole = "admin";
+          const adm = await db.execute(
+            sql`SELECT name FROM admins WHERE id = ${adminId}`,
+          );
+          if ((adm as any).rows?.length > 0) {
+            senderName = (adm as any).rows[0].name;
+          }
+        } else if (sessionIdentity.userId) {
+          userId = sessionIdentity.userId;
+          senderRole = "user";
+          const usr = await db.execute(
+            sql`SELECT name FROM users WHERE id = ${userId}`,
+          );
+          if ((usr as any).rows?.length > 0) {
+            senderName = (usr as any).rows[0].name;
+          }
         }
       }
 
-      if (!effectiveAdminId) {
-        res
-          .status(400)
-          .json({ success: false, error: "No admin found to author message" });
-        return;
+      // Fetch reservation record
+      const resInfo = await db.execute(
+        sql`SELECT r.user_id, r.service_name, u.name as user_name FROM reservations r LEFT JOIN users u ON r.user_id = u.id WHERE r.id = ${id}`,
+      );
+      const resRows = (resInfo as any).rows || [];
+      const resRecord = resRows[0];
+
+      if (!senderRole) {
+        if (userId || (!adminId && resRecord?.user_id)) {
+          senderRole = "user";
+        } else {
+          senderRole = "admin";
+        }
+      }
+
+      if (senderRole === "user") {
+        if (!userId && resRecord?.user_id) {
+          userId = resRecord.user_id;
+        }
+        if (!senderName) {
+          senderName = resRecord?.user_name || "Member";
+        }
+      } else {
+        if (!adminId) {
+          const adminRes = await db.execute(
+            sql`SELECT id, name FROM admins LIMIT 1`,
+          );
+          const adminsList = (adminRes as any).rows || [];
+          if (adminsList.length > 0) {
+            adminId = adminsList[0].id;
+            if (!senderName) senderName = adminsList[0].name;
+          }
+        }
       }
 
       const inserted = await db.execute(sql`
-      INSERT INTO messages (reservation_id, admin_id, content, is_read, created_at)
-      VALUES (${id}, ${effectiveAdminId}, ${content.trim()}, false, NOW())
+      INSERT INTO messages (reservation_id, admin_id, user_id, sender_role, sender_name, content, is_read, created_at)
+      VALUES (
+        ${id}, 
+        ${adminId || null}, 
+        ${userId || null}, 
+        ${senderRole}, 
+        ${senderName}, 
+        ${content.trim()}, 
+        false, 
+        NOW()
+      )
       RETURNING *
     `);
 
-      // Create notification for user
+      const createdMessage = (inserted as any).rows?.[0];
+
+      // Create notifications
       try {
-        const resInfo = await db.execute(
-          sql`SELECT user_id, service_name FROM reservations WHERE id = ${id}`,
-        );
-        const userRows = (resInfo as any).rows || [];
-        if (userRows.length > 0 && userRows[0].user_id) {
-          await db.execute(sql`
-          INSERT INTO notifications (user_id, type, message, is_read, reservation_id, created_at)
-          VALUES (
-            ${userRows[0].user_id}, 
-            'admin_message', 
-            ${`New message from administration regarding "${userRows[0].service_name || "Reservation"}": "${content.trim()}"`}, 
-            false, 
-            ${id}, 
-            NOW()
-          )
-        `);
+        if (senderRole === "user") {
+          // Notify approved admins of user reply
+          const adminList = await db.execute(
+            sql`SELECT id FROM admins WHERE approval_status = 'approved'`,
+          );
+          const allAdmins = (adminList as any).rows || [];
+          for (const adm of allAdmins) {
+            await db.execute(sql`
+            INSERT INTO notifications (admin_id, type, message, is_read, reservation_id, created_at)
+            VALUES (
+              ${adm.id},
+              'user_reply',
+              ${`${senderName || "Member"} replied on reservation "${resRecord?.service_name || "Reservation"}": "${content.trim()}"`},
+              false,
+              ${id},
+              NOW()
+            )
+          `);
+          }
+        } else {
+          // Notify user of admin message
+          if (resRecord?.user_id) {
+            await db.execute(sql`
+            INSERT INTO notifications (user_id, type, message, is_read, reservation_id, created_at)
+            VALUES (
+              ${resRecord.user_id}, 
+              'admin_message', 
+              ${`New message from administration regarding "${resRecord.service_name || "Reservation"}": "${content.trim()}"`}, 
+              false, 
+              ${id}, 
+              NOW()
+            )
+          `);
+          }
         }
       } catch (notifErr: any) {
         console.warn(
-          "Could not insert admin message notification:",
+          "Could not insert chat message notification:",
           notifErr.message,
         );
       }
 
-      res.json({ success: true, message: (inserted as any).rows[0] });
+      res.json({
+        success: true,
+        message: {
+          ...createdMessage,
+          author_name:
+            senderName ||
+            (senderRole === "admin" ? "Church Administrator" : "Member"),
+          admin_name: senderRole === "admin" ? senderName : null,
+          user_name: senderRole === "user" ? senderName : null,
+        },
+      });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

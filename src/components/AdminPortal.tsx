@@ -2403,10 +2403,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     onClick={() =>
                                       onOpenReservationDetail(r.id)
                                     }
-                                    className="p-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                                    title="View full details"
+                                    className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-stone-700 hover:text-amber-900 border border-stone-200 hover:border-amber-300 transition cursor-pointer text-xs font-semibold flex items-center gap-1.5"
+                                    title="View conversation, details, and replies"
                                   >
-                                    <Info className="w-3.5 h-3.5" />
+                                    <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
+                                    <span>Details & Chat</span>
                                   </button>
                                 )}
                               </div>

@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -24,7 +25,7 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    email: text("email").notNull().unique("users_email_key"),
+    email: text("email").notNull(),
     phoneNumber: text("phone_number").notNull(),
     passwordHash: text("password_hash").notNull(),
     isTrusted: boolean("is_trusted").default(false).notNull(),
@@ -35,6 +36,7 @@ export const users = pgTable(
       .notNull(),
   },
   (table) => [
+    unique("users_email_key").on(table.email),
     check(
       "user_approval_status_check",
       sql`${table.approvalStatus} IN ('pending', 'approved', 'rejected')`,
@@ -43,19 +45,23 @@ export const users = pgTable(
 );
 
 // 2. Admins Table
-export const admins = pgTable("admins", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique("admins_email_key"),
-  phoneNumber: text("phone_number").notNull(),
-  passwordHash: text("password_hash").notNull(),
-  isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
-  role: text("role").default("admin").notNull(),
-  approvalStatus: text("approval_status").default("approved").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const admins = pgTable(
+  "admins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phoneNumber: text("phone_number").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+    role: text("role").default("admin").notNull(),
+    approvalStatus: text("approval_status").default("approved").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [unique("admins_email_key").on(table.email)],
+);
 
 // 3. Instruments Table
 export const instruments = pgTable(
@@ -155,9 +161,14 @@ export const messages = pgTable("messages", {
   reservationId: uuid("reservation_id")
     .references(() => reservations.id, { onDelete: "cascade" })
     .notNull(),
-  adminId: uuid("admin_id")
-    .references(() => admins.id, { onDelete: "cascade" })
-    .notNull(),
+  adminId: uuid("admin_id").references(() => admins.id, {
+    onDelete: "cascade",
+  }),
+  userId: uuid("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
+  senderRole: text("sender_role").default("admin").notNull(), // 'admin' | 'user'
+  senderName: text("sender_name"),
   content: text("content").notNull(),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -263,7 +274,7 @@ export const failedLoginAttempts = pgTable("failed_login_attempts", {
 // 12. Sessions Table (Custom Server-Side Session Store with Inactivity Expiry)
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  token: text("token").notNull().unique(),
+  token: text("token").notNull(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   adminId: uuid("admin_id").references(() => admins.id, {
     onDelete: "cascade",
@@ -279,25 +290,29 @@ export const sessions = pgTable("sessions", {
 });
 
 // 13. Password Reset OTPs Table (Email OTP Reset Flow via Gmail SMTP)
-export const passwordResetOtps = pgTable("password_reset_otps", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique("password_reset_otps_email_key"),
-  otpHash: text("otp_hash").notNull(),
-  attempts: integer("attempts").default(0).notNull(),
-  verified: boolean("verified").default(false).notNull(),
-  lockedUntil: timestamp("locked_until", { withTimezone: true }),
-  requestCount: integer("request_count").default(1).notNull(),
-  windowStartAt: timestamp("window_start_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  lastRequestedAt: timestamp("last_requested_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const passwordResetOtps = pgTable(
+  "password_reset_otps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    otpHash: text("otp_hash").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    verified: boolean("verified").default(false).notNull(),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    requestCount: integer("request_count").default(1).notNull(),
+    windowStartAt: timestamp("window_start_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastRequestedAt: timestamp("last_requested_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [unique("password_reset_otps_email_key").on(table.email)],
+);
 
 // 14. Role Audit Log Table (For tracking Super Admin promote/demote/delete actions)
 export const roleAuditLog = pgTable("role_audit_log", {
@@ -321,6 +336,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   series: many(reservationSeries),
   notifications: many(notifications),
   auditLogs: many(trustedStatusAuditLog),
+  messages: many(messages),
 }));
 
 export const adminsRelations = relations(admins, ({ many }) => ({
@@ -380,6 +396,7 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [reservations.id],
   }),
   admin: one(admins, { fields: [messages.adminId], references: [admins.id] }),
+  user: one(users, { fields: [messages.userId], references: [users.id] }),
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({

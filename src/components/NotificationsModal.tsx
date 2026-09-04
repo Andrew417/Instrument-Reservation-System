@@ -37,7 +37,10 @@ export interface AppNotification {
 export interface NotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectReservation: (reservationId: string) => void;
+  onSelectReservation: (
+    reservationId: string,
+    initialTab?: "details" | "chat",
+  ) => void;
   onUnreadCountChange?: (count: number) => void;
 }
 
@@ -160,13 +163,19 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
   };
 
-  const handleNotificationClick = (notif: AppNotification) => {
+  const handleNotificationClick = (
+    notif: AppNotification,
+    preferredTab?: "details" | "chat",
+  ) => {
     if (!notif.is_read) {
       handleMarkAsRead(notif.id);
     }
     if (notif.reservation_id) {
       onClose();
-      onSelectReservation(notif.reservation_id);
+      const tab =
+        preferredTab ||
+        (notif.type === "reservation_message" ? "chat" : "details");
+      onSelectReservation(notif.reservation_id, tab);
     }
   };
 
@@ -641,7 +650,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1 text-amber-900 font-bold text-[11px] shrink-0">
-                            <span>View Details</span>
+                            <span>
+                              {notif.type === "reservation_message"
+                                ? "Open Chat"
+                                : "View Details"}
+                            </span>
                             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>
