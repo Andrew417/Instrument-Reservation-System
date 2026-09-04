@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import {
@@ -64,6 +65,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   refreshTrigger = 0,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
 
   // Tab: 'upcoming' | 'pending' | 'past'
   const [activeTab, setActiveTab] = useState<"upcoming" | "pending" | "past">(
@@ -291,10 +294,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-stone-900 leading-tight">
-                My Reservations
+                {t("myReservations.title")}
               </h1>
               <p className="text-xs text-stone-500">
-                Track your active, pending, and recurring church bookings
+                {t("myReservations.subtitle")}
               </p>
             </div>
           </div>
@@ -303,7 +306,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             onClick={fetchMyReservations}
             className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50 transition cursor-pointer"
-            title="Refresh list"
+            title={t("common.refresh")}
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
@@ -318,7 +321,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             className="flex-1 h-9 rounded-lg border border-amber-800/30 bg-amber-50 hover:bg-amber-100/80 text-amber-950 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-            <span>Recurring Series</span>
+            <span>{t("myReservations.recurringSeries")}</span>
           </button>
 
           <button
@@ -327,7 +330,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             className="flex-1 h-9 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span>New Reservation</span>
+            <span>{t("myReservations.newReservation")}</span>
           </button>
         </div>
       </div>
@@ -348,7 +351,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <CheckCircle2
               className={`w-3.5 h-3.5 ${activeTab === "upcoming" ? "text-white" : "text-emerald-600"}`}
             />
-            <span className="text-[11px] font-bold">Upcoming</span>
+            <span className="text-[11px] font-bold">{t("myReservations.upcomingTab")}</span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === "upcoming"
@@ -373,7 +376,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <Clock
               className={`w-3.5 h-3.5 ${activeTab === "pending" ? "text-white" : "text-amber-600"}`}
             />
-            <span className="text-[11px] font-bold">Pending</span>
+            <span className="text-[11px] font-bold">{t("common.pending")}</span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === "pending"
@@ -398,7 +401,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <CalendarRange
               className={`w-3.5 h-3.5 ${activeTab === "past" ? "text-white" : "text-stone-400"}`}
             />
-            <span className="text-[11px] font-bold">Past</span>
+            <span className="text-[11px] font-bold">{t("myReservations.pastTab")}</span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === "past"
@@ -423,8 +426,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               <div>
                 <h3 className="font-bold text-sm text-stone-900">
                   {cancellingItem.mode === "series"
-                    ? "Cancel Entire Recurring Series?"
-                    : "Cancel Reservation?"}
+                    ? isAr
+                      ? "إلغاء كامل السلسلة الدورية؟"
+                      : "Cancel Entire Recurring Series?"
+                    : isAr
+                      ? "إلغاء هذا الحجز؟"
+                      : "Cancel Reservation?"}
                 </h3>
                 <p className="text-xs text-stone-500">{cancellingItem.title}</p>
               </div>
@@ -438,8 +445,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
             <p className="text-xs text-stone-600 leading-relaxed">
               {cancellingItem.mode === "series"
-                ? "This will cancel all upcoming occurrences of this recurring series. This action cannot be undone."
-                : "This time slot will immediately become available for other church services in the master calendar."}
+                ? isAr
+                  ? "سيؤدي هذا إلى إلغاء جميع المواعيد القادمة في هذه السلسلة الدورية. لا يمكن التراجع عن هذا الإجراء."
+                  : "This will cancel all upcoming occurrences of this recurring series. This action cannot be undone."
+                : isAr
+                  ? "ستصبح هذه الفترة الزمنية متاحة فوراً لخدمات كنسية أخرى في الجدول الرئيسي."
+                  : "This time slot will immediately become available for other church services in the master calendar."}
             </p>
 
             <div className="flex items-center gap-3 pt-2">
@@ -451,7 +462,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 }}
                 className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
               >
-                Keep Booking
+                {isAr ? "الاحتفاظ بالحجز" : "Keep Booking"}
               </button>
 
               <button
@@ -460,7 +471,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 onClick={executeCancellation}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
               >
-                {isCancelling ? "Cancelling..." : "Yes, Cancel"}
+                {isCancelling
+                  ? isAr
+                    ? "جارٍ الإلغاء..."
+                    : "Cancelling..."
+                  : isAr
+                    ? "نعم، إلغاء الحجز"
+                    : "Yes, Cancel"}
               </button>
             </div>
           </div>
@@ -472,18 +489,18 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         <div className="bg-white rounded-3xl p-12 text-center border border-stone-200 shadow-2xs space-y-3">
           <div className="w-8 h-8 border-3 border-amber-800 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs font-bold text-stone-600">
-            Loading your reservations...
+            {t("common.loading")}
           </p>
         </div>
       ) : fetchError ? (
         <div className="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-900 space-y-2">
-          <div className="font-bold text-sm">Failed to Load Reservations</div>
+          <div className="font-bold text-sm">{t("common.error")}</div>
           <p className="text-xs">{fetchError}</p>
           <button
             onClick={fetchMyReservations}
-            className="px-4 py-2 bg-red-800 text-white rounded-xl text-xs font-bold"
+            className="px-4 py-2 bg-red-800 text-white rounded-xl text-xs font-bold cursor-pointer"
           >
-            Retry
+            {t("calendar.tryAgain")}
           </button>
         </div>
       ) : currentList.length === 0 ? (
@@ -492,14 +509,20 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <Calendar className="w-6 h-6" />
           </div>
           <div className="text-sm font-bold text-stone-800">
-            No {activeTab} reservations found
+            {t("myReservations.noReservations")}
           </div>
           <p className="text-xs text-stone-500 max-w-sm mx-auto">
             {activeTab === "upcoming"
-              ? "You do not have any upcoming church instrument reservations scheduled."
+              ? isAr
+                ? "ليس لديك أي حجوزات آلات موسيقية كنسية قادمة."
+                : "You do not have any upcoming church instrument reservations scheduled."
               : activeTab === "pending"
-                ? "You do not have any reservations pending administrative review."
-                : "No past reservation history."}
+                ? isAr
+                  ? "ليس لديك أي حجوزات قيد المراجعة الإدارية."
+                  : "You do not have any reservations pending administrative review."
+                : isAr
+                  ? "لا يوجد سجل حجوزات سابقة."
+                  : "No past reservation history."}
           </p>
           {activeTab !== "past" && (
             <div className="pt-2 flex items-center justify-center gap-2">
@@ -508,7 +531,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 onClick={onOpenNewReservation}
                 className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold rounded-xl transition cursor-pointer"
               >
-                Create Reservation
+                {t("myReservations.newReservation")}
               </button>
             </div>
           )}
@@ -571,12 +594,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           {isApproved ? (
                             <>
                               <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                              Approved
+                              {t("common.approved")}
                             </>
                           ) : isPending ? (
                             <>
                               <Clock className="w-3 h-3 text-amber-700" />
-                              Pending Review
+                              {t("common.pending")}
                             </>
                           ) : (
                             res.status
@@ -586,7 +609,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         {res.reservation_type === "outside_church" && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
                             <DollarSign className="w-3 h-3" />
-                            Outside Use
+                            {t("common.outsideChurch")}
                           </span>
                         )}
                       </div>
@@ -614,10 +637,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           type="button"
                           onClick={() => onEditReservation(res)}
                           className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
-                          title="Edit this reservation"
+                          title={t("common.edit")}
                         >
                           <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                          <span className="truncate">Edit</span>
+                          <span className="truncate">{t("common.edit")}</span>
                         </button>
 
                         <button
@@ -630,10 +653,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             })
                           }
                           className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
-                          title="Cancel reservation"
+                          title={t("common.cancel")}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                          <span className="truncate">Cancel</span>
+                          <span className="truncate">{t("common.cancel")}</span>
                         </button>
                       </>
                     )}
@@ -643,7 +666,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       onClick={() => onSelectReservationDetail(res.id)}
                       className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap overflow-hidden"
                     >
-                      <span className="truncate block">View Details</span>
+                      <span className="truncate block">{t("myReservations.viewDetails")}</span>
                     </button>
                   </div>
                 </div>
@@ -721,7 +744,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         title="Cancel entire series"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        <span>Cancel Entire Series</span>
+                        <span>{isAr ? "إلغاء كامل السلسلة" : "Cancel Entire Series"}</span>
                       </button>
 
                       {/* Expand / Collapse Button */}
@@ -731,7 +754,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <span>
-                          {isExpanded ? "Collapse" : "View Occurrences"}
+                          {isExpanded
+                            ? isAr ? "طي" : "Collapse"
+                            : isAr ? "عرض المواعيد" : "View Occurrences"}
                         </span>
                         {isExpanded ? (
                           <ChevronUp className="w-3.5 h-3.5" />
@@ -826,7 +851,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                     className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-bold rounded-lg transition cursor-pointer"
                                     title="Cancel this single occurrence"
                                   >
-                                    Cancel Slot
+                                    {isAr ? "إلغاء الموعد" : "Cancel Slot"}
                                   </button>
                                 )}
 
