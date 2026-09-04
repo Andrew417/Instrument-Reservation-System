@@ -1,4 +1,4 @@
-import i18n from "./i18n.ts";
+import i18n from "./i18n.js";
 
 /**
  * Date and Time utilities for consistent date/time handling across the app.
@@ -131,10 +131,9 @@ export function formatHhmmTo12Hour(hhmm: string, locale?: string): string {
   const isPM = h >= 12;
   if (h === 0) h = 12;
   else if (h > 12) h -= 12;
-  
+
   const activeLang = locale || i18n.language;
   const isAr = activeLang === "ar";
   const ampm = isAr ? (isPM ? "م" : "ص") : isPM ? "PM" : "AM";
   return `${h}:${mStr} ${ampm}`;
 }
-
