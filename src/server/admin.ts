@@ -324,6 +324,73 @@ router.get(
 );
 
 /**
+ * Get approved reservations for the key-holder handover sheet within a date range (Day or Week)
+ * Only 'approved' reservations are included.
+ * Recurring series occurrences are expanded into independent rows.
+ * Sorted chronologically: date ascending, then start time ascending.
+ */
+router.get(
+  "/reservations/handover-sheet",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      await ensureCurrentReservationStatuses().catch(() => {});
+
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate || typeof startDate !== "string" || typeof endDate !== "string") {
+        res.status(400).json({
+          success: false,
+          error: "Valid startDate and endDate query parameters (YYYY-MM-DD) are required.",
+        });
+        return;
+      }
+
+      const querySql = sql`
+        SELECT 
+          r.id,
+          r.series_id,
+          r.user_id,
+          r.instrument_id,
+          r.service_name,
+          r.reservation_type,
+          r.status,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as reservation_date,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+          to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+          i.name as instrument_name,
+          i.type as instrument_type,
+          COALESCE(u.name, 'Unknown Member') as user_name,
+          COALESCE(u.phone_number, 'N/A') as user_phone
+        FROM reservations r
+        JOIN instruments i ON r.instrument_id = i.id
+        LEFT JOIN users u ON r.user_id = u.id
+        WHERE r.status = 'approved'
+          AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${startDate}::date
+          AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${endDate}::date
+        ORDER BY 
+          (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date ASC,
+          lower(r.time_range) ASC
+      `;
+
+      const result = await db.execute(querySql);
+      const rows = (result as any).rows || [];
+
+      res.json({
+        success: true,
+        startDate,
+        endDate,
+        count: rows.length,
+        reservations: rows,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
  * Approve single reservation
  * (Force auto-rejects overlapping pending requests on the same slot)
  */

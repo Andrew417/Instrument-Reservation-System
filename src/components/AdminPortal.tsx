@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
-import { getTodayDateString, formatHhmmTo12Hour } from "../lib/date-utils";
+import {
+  getTodayDateString,
+  formatHhmmTo12Hour,
+  addDaysToDateString,
+  formatDisplayDate,
+} from "../lib/date-utils";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
   buildHardLimitsPayload,
@@ -28,7 +33,6 @@ import {
   Edit,
   AlertTriangle,
   Sparkles,
-  ChevronRight,
   UserCheck,
   UserX,
   UserPlus,
@@ -50,7 +54,10 @@ import {
   Archive,
   Eye,
   EyeOff,
+  Download,
 } from "lucide-react";
+import { HandoverSheetModal } from "./HandoverSheetModal";
+import { HandoverExportFormat } from "../lib/handover-export";
 
 // Add this after the imports and before the component definition
 const sortInstrumentsByStatus = (instruments: any[]) => {
@@ -154,6 +161,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [filterSearch, setFilterSearch] = useState<string>("");
   const [filterStartDate, setFilterStartDate] = useState<string>("");
   const [filterEndDate, setFilterEndDate] = useState<string>("");
+
+  // Handover Sheet Export (CSV & XLSX) modal state
+  const [showHandoverModal, setShowHandoverModal] = useState<boolean>(false);
+  const [handoverDefaultDate, setHandoverDefaultDate] = useState<string>(getTodayDateString());
+  const [handoverDefaultMode, setHandoverDefaultMode] = useState<"day" | "week">("day");
+  const [handoverDefaultFormat, setHandoverDefaultFormat] = useState<HandoverExportFormat>("xlsx");
 
   // Instruments
   const [instrumentsList, setInstrumentsList] = useState<any[]>([]);
@@ -1678,17 +1691,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </p>
         </div>
 
-        {onBackToMemberView && (
+        <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
           <button
-            id="btn-return-member-view"
+            id="btn-admin-export-handover"
             type="button"
-            onClick={onBackToMemberView}
-            className="self-start md:self-auto px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition flex items-center gap-2 cursor-pointer shadow-2xs"
+            onClick={() => {
+              setHandoverDefaultMode("day");
+              setHandoverDefaultDate(getTodayDateString());
+              setHandoverDefaultFormat("xlsx");
+              setShowHandoverModal(true);
+            }}
+            className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs"
+            title="Export confirmed bookings handover sheet for key-holder (XLSX or CSV)"
           >
-            <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
-            <span>Return to Availability Calendar</span>
+            <Download className="w-3.5 h-3.5" />
+            <span>Export Handover Sheet</span>
           </button>
-        )}
+
+          {onBackToMemberView && (
+            <button
+              id="btn-return-member-view"
+              type="button"
+              onClick={onBackToMemberView}
+              className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition flex items-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
+              <span>Return to Availability Calendar</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Overview Stat Cards */}
@@ -1973,73 +2004,76 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               TAB 1: DASHBOARD OVERVIEW (read-only)
              ============================================================= */}
           {activeTab === "dashboard" && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                <div>
-                  <h2 className="font-bold text-stone-900 text-sm">
-                    Today's Schedule
-                  </h2>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Read-only glance at today's bookings. Use Review Requests to
-                    take action.
-                  </p>
+            <div className="space-y-6">
+              {/* Today's Schedule Card */}
+              <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                  <div>
+                    <h2 className="font-bold text-stone-900 text-sm">
+                      Today's Schedule
+                    </h2>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      Read-only glance at today's bookings. Use Review Requests to
+                      take action.
+                    </p>
+                  </div>
+                  <button
+                    onClick={fetchTodaysReservations}
+                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                    title="Refresh today's schedule"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={fetchTodaysReservations}
-                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                  title="Refresh today's schedule"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
 
-              {loadingTodaysReservations ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  Loading today's schedule...
-                </div>
-              ) : todaysReservations.length === 0 ? (
-                <div className="py-12 text-center text-stone-400 text-xs">
-                  No reservations scheduled for today.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {todaysReservations.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-stone-900 text-xs truncate">
-                          {r.instrument_name} — {r.service_name}
-                        </div>
-                        <div className="text-[11px] text-stone-500">
-                          {r.user_name || "Member"} ·{" "}
-                          {new Date(r.start_time).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {new Date(r.end_time).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                      </div>
-                      <span
-                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          r.status === "approved"
-                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                            : r.status === "pending"
-                              ? "bg-amber-50 text-amber-800 border border-amber-200"
-                              : "bg-stone-100 text-stone-700"
-                        }`}
+                {loadingTodaysReservations ? (
+                  <div className="py-12 text-center text-stone-500 text-xs">
+                    Loading today's schedule...
+                  </div>
+                ) : todaysReservations.length === 0 ? (
+                  <div className="py-12 text-center text-stone-400 text-xs">
+                    No reservations scheduled for today.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {todaysReservations.map((r) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50"
                       >
-                        {r.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                        <div className="min-w-0">
+                          <div className="font-semibold text-stone-900 text-xs truncate">
+                            {r.instrument_name} — {r.service_name}
+                          </div>
+                          <div className="text-[11px] text-stone-500">
+                            {r.user_name || "Member"} ·{" "}
+                            {new Date(r.start_time).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
+                            -{" "}
+                            {new Date(r.end_time).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            r.status === "approved"
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : r.status === "pending"
+                                ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                : "bg-stone-100 text-stone-700"
+                          }`}
+                        >
+                          {r.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -2072,13 +2106,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </button>
                 </div>
 
-                <button
-                  onClick={fetchReservations}
-                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                  title="Refresh reservations"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    id="btn-review-export-handover"
+                    type="button"
+                    onClick={() => {
+                      setHandoverDefaultMode("day");
+                      setHandoverDefaultDate(getTodayDateString());
+                      setHandoverDefaultFormat("xlsx");
+                      setShowHandoverModal(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs border border-stone-200 transition cursor-pointer flex items-center gap-1.5"
+                    title="Export Key-Holder Handover Sheet (XLSX or CSV)"
+                  >
+                    <Download className="w-3.5 h-3.5 text-amber-800" />
+                    <span>Export Handover Sheet</span>
+                  </button>
+
+                  <button
+                    onClick={fetchReservations}
+                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                    title="Refresh reservations"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Filters */}
@@ -5256,6 +5308,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Key-Holder Handover Sheet Export Modal (Dual Format CSV / XLSX) */}
+      <HandoverSheetModal
+        isOpen={showHandoverModal}
+        onClose={() => setShowHandoverModal(false)}
+        defaultDate={handoverDefaultDate}
+        defaultMode={handoverDefaultMode}
+        defaultFormat={handoverDefaultFormat}
+      />
     </div>
   );
 };
