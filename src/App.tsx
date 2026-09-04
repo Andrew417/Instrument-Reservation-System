@@ -177,10 +177,10 @@ const UserPortalMain: React.FC = () => {
             />
             <div className="min-w-0">
               <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight whitespace-nowrap">
-                {t("header.title")}
+                {t("common.appName")}
               </div>
               <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap hidden lg:block">
-                {t("header.subtitle")}
+                {t("common.appSubtitle")}
               </div>
             </div>
           </div>
@@ -198,7 +198,7 @@ const UserPortalMain: React.FC = () => {
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
-              <span>{t("nav.calendar")}</span>
+              <span>{t("nav.availabilityCalendar")}</span>
             </button>
 
             <button
@@ -243,7 +243,9 @@ const UserPortalMain: React.FC = () => {
                 title={t("nav.howBookingWorks")}
               >
                 <HelpCircle className="w-4 h-4 text-stone-600" />
-                <span className="hidden xl:inline">{t("nav.howBookingWorks")}</span>
+                <span className="hidden xl:inline">
+                  {t("nav.howBookingWorks")}
+                </span>
               </button>
             )}
             {/* Screen 7: Notifications Bell Button */}
@@ -294,7 +296,7 @@ const UserPortalMain: React.FC = () => {
             }`}
           >
             <CalendarDays className="w-3.5 h-3.5" />
-            <span>{t("nav.calendar")}</span>
+            <span>{t("nav.calendarShort")}</span>
           </button>
           <button
             type="button"
@@ -306,7 +308,7 @@ const UserPortalMain: React.FC = () => {
             }`}
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
-            <span>{t("nav.myReservations")}</span>
+            <span>{t("nav.bookingsShort")}</span>
           </button>
           {isAdminOrSuperAdmin && (
             <button
@@ -319,7 +321,7 @@ const UserPortalMain: React.FC = () => {
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>{t("nav.admin")}</span>
+              <span>{t("nav.adminShort")}</span>
             </button>
           )}
         </div>

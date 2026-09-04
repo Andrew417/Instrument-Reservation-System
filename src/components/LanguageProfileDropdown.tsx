@@ -94,14 +94,14 @@ export const LanguageProfileDropdown: React.FC<
         <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
           {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
         </div>
-        <div className="hidden sm:flex flex-col text-start">
+        <div className="hidden sm:flex flex-col text-start min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-stone-900 leading-none truncate max-w-[120px] lg:max-w-[160px]">
+            <span className="font-semibold text-stone-900 leading-none truncate max-w-[110px] lg:max-w-[180px]">
               {profile?.name || t("common.member")}
             </span>
-            {getRoleBadge()}
+            <span className="shrink-0">{getRoleBadge()}</span>
           </div>
-          <span className="text-[10px] text-stone-500 truncate max-w-[120px] lg:max-w-[160px]">
+          <span className="text-[10px] text-stone-500 truncate max-w-[140px] lg:max-w-[220px] mt-0.5">
             {profile?.email || profile?.phoneNumber || ""}
           </span>
         </div>
@@ -160,9 +160,7 @@ export const LanguageProfileDropdown: React.FC<
                   <span className="text-base leading-none">🇺🇸</span>
                   <span>English</span>
                 </div>
-                {!isAr && (
-                  <Check className="w-4 h-4 text-amber-800 shrink-0" />
-                )}
+                {!isAr && <Check className="w-4 h-4 text-amber-800 shrink-0" />}
               </button>
 
               {/* Arabic Option */}
@@ -180,9 +178,7 @@ export const LanguageProfileDropdown: React.FC<
                   <span className="text-base leading-none">🇪🇬</span>
                   <span className="font-bold">العربية</span>
                 </div>
-                {isAr && (
-                  <Check className="w-4 h-4 text-amber-800 shrink-0" />
-                )}
+                {isAr && <Check className="w-4 h-4 text-amber-800 shrink-0" />}
               </button>
             </div>
           </div>

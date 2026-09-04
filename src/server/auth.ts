@@ -230,7 +230,10 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
         .values({
           adminId: adm.id,
           type: "account_approval_submitted",
-          message: `New member registration from ${newUser.name} awaiting approval.`,
+          message: JSON.stringify({
+            key: "notifications.msgAccountApproval",
+            params: { name: newUser.name },
+          }),
         })
         .catch(() => {});
     }

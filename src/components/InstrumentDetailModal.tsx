@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { getReservantColorTheme } from "../lib/reservant-colors";
@@ -66,6 +67,20 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   onInstrumentUpdated,
 }) => {
   const { profile, sessionToken } = useAuth();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
+  const localeTag = isAr ? "ar-EG" : "en-US";
+
+  const DAY_SHORT_KEYS = [
+    "daySun",
+    "dayMon",
+    "dayTue",
+    "dayWed",
+    "dayThu",
+    "dayFri",
+    "daySat",
+  ];
+
   const isAdminOrSuperAdmin =
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
@@ -85,7 +100,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     const nextMode: "manual" | "instant" =
       currentInstrument.bookingMode === "instant" ? "manual" : "instant";
     const nextLabel =
-      nextMode === "instant" ? "Instant Booking" : "Manual Approval";
+      nextMode === "instant"
+        ? t("instrumentDetail.instantBookingLabel")
+        : t("instrumentDetail.manualApprovalLabel");
 
     setIsUpdatingMode(true);
     const updated: Instrument = { ...currentInstrument, bookingMode: nextMode };
@@ -119,7 +136,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         throw new Error(data.error || "Failed to update mode");
       }
 
-      setModeNotice(`Switched to ${nextLabel}`);
+      setModeNotice(
+        t("instrumentDetail.modeSwitchedNotice", { mode: nextLabel }),
+      );
       setTimeout(() => setModeNotice(null), 3000);
 
       if (onInstrumentUpdated) {
@@ -128,7 +147,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     } catch (err: any) {
       console.error("Failed to toggle mode:", err);
       setCurrentInstrument(instrument);
-      setModeNotice(`Error: ${err.message || "Failed to update"}`);
+      setModeNotice(
+        t("instrumentDetail.modeUpdateError", {
+          error: err.message || t("instrumentDetail.photoUpdateFailed"),
+        }),
+      );
       setTimeout(() => setModeNotice(null), 3500);
     } finally {
       setIsUpdatingMode(false);
@@ -194,7 +217,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     if (!file.type.startsWith("image/")) {
-      setModeNotice("Please select an image file (PNG, JPG, WEBP).");
+      setModeNotice(t("instrumentDetail.photoFileTypeError"));
       setTimeout(() => setModeNotice(null), 3000);
       return;
     }
@@ -245,14 +268,16 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             const updated = { ...currentInstrument, photoUrl: dataUrl };
             setCurrentInstrument(updated);
             onInstrumentUpdated?.(updated);
-            setModeNotice("Photo attached to instrument successfully.");
+            setModeNotice(t("instrumentDetail.photoAttachedSuccess"));
             setTimeout(() => setModeNotice(null), 3000);
           } else {
-            setModeNotice(data.error || "Failed to update photo");
+            setModeNotice(
+              data.error || t("instrumentDetail.photoUpdateFailed"),
+            );
             setTimeout(() => setModeNotice(null), 3000);
           }
         } catch (err: any) {
-          setModeNotice(err.message || "Network error updating photo");
+          setModeNotice(err.message || t("instrumentDetail.photoNetworkError"));
           setTimeout(() => setModeNotice(null), 3000);
         } finally {
           setIsUploadingPhoto(false);
@@ -284,9 +309,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         const updated = { ...currentInstrument, photoUrl: "" };
         setCurrentInstrument(updated);
         onInstrumentUpdated?.(updated);
-        setModeNotice(
-          "Instrument photo removed. The default image is now shown.",
-        );
+        setModeNotice(t("instrumentDetail.photoRemovedNotice"));
         setTimeout(() => setModeNotice(null), 3000);
       }
     } catch (err: any) {
@@ -356,13 +379,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
       const dateStr = getLocalDateString(dayDate);
       days.push({
         dateStr,
-        dayName: dayDate.toLocaleDateString("en-US", { weekday: "short" }),
+        dayName: t(`instrumentDetail.${DAY_SHORT_KEYS[dayDate.getDay()]}`),
         dayNum: dayDate.getDate(),
         isSelected: dateStr === selectedDate,
       });
     }
     return days;
-  }, [selectedDate]);
+  }, [selectedDate, i18n.language]);
 
   // -------------------------------------------------------------
   // MONTHLY VIEW CALCULATIONS (Month grid with density indicators)
@@ -470,6 +493,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
       <div
         id="instrument-detail-modal"
         className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-4xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col"
+        dir={isAr ? "rtl" : "ltr"}
       >
         {/* ========================================================= */}
         {/* MODAL TOP BAR & CLOSE */}
@@ -484,7 +508,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 {instrument.name}
               </h2>
               <p className="text-[11px] text-stone-400">
-                Instrument details and dedicated availability
+                {t("instrumentDetail.headerSubtitle")}
               </p>
             </div>
           </div>
@@ -493,7 +517,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             id="btn-close-instrument-detail"
             onClick={onClose}
             className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer"
-            aria-label="Close modal"
+            aria-label={t("common.close")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -537,7 +561,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     >
                       <Upload className="w-3 h-3" />
                       <span>
-                        {isUploadingPhoto ? "Uploading..." : "Change Photo"}
+                        {isUploadingPhoto
+                          ? t("instrumentDetail.uploading")
+                          : t("instrumentDetail.changePhoto")}
                       </span>
                     </button>
                     <button
@@ -547,7 +573,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       className="px-2.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer"
                     >
                       <Trash2 className="w-3 h-3" />
-                      <span>Remove</span>
+                      <span>{t("instrumentDetail.removePhoto")}</span>
                     </button>
                   </div>
                 )}
@@ -558,10 +584,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   <Music2 className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-bold text-stone-700">
-                  No Photo
+                  {t("instrumentDetail.noPhotoTitle")}
                 </span>
                 <span className="text-[10px] text-stone-400">
-                  No photo uploaded yet
+                  {t("instrumentDetail.noPhotoDesc")}
                 </span>
                 {isAdminOrSuperAdmin && (
                   <button
@@ -572,7 +598,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   >
                     <Upload className="w-3 h-3" />
                     <span>
-                      {isUploadingPhoto ? "Uploading..." : "Upload Photo"}
+                      {isUploadingPhoto
+                        ? t("instrumentDetail.uploading")
+                        : t("instrumentDetail.uploadPhoto")}
                     </span>
                   </button>
                 )}
@@ -597,11 +625,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       id={`modal-toggle-mode-btn-${currentInstrument.id}`}
                       onClick={handleToggleMode}
                       disabled={isUpdatingMode}
-                      title={`Admin: Click to switch to ${
-                        currentInstrument.bookingMode === "instant"
-                          ? "Manual Approval"
-                          : "Instant Booking"
-                      }`}
+                      title={t("instrumentDetail.toggleModeTooltip", {
+                        mode:
+                          currentInstrument.bookingMode === "instant"
+                            ? t("instrumentDetail.manualApprovalLabel")
+                            : t("instrumentDetail.instantBookingLabel"),
+                      })}
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
                         currentInstrument.bookingMode === "instant"
                           ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300"
@@ -611,11 +640,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       <Shield className="w-3 h-3" />
                       <span>
                         {currentInstrument.bookingMode === "instant"
-                          ? "Instant Booking"
-                          : "Manual Approval"}
+                          ? t("instrumentDetail.instantBookingLabel")
+                          : t("instrumentDetail.manualApprovalLabel")}
                       </span>
                       <span className="text-[9px] lowercase font-normal opacity-75">
-                        (click to toggle)
+                        {t("instrumentDetail.clickToToggle")}
                       </span>
                     </button>
                   ) : (
@@ -628,15 +657,17 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     >
                       <Shield className="w-3 h-3" />
                       {currentInstrument.bookingMode === "instant"
-                        ? "Instant Booking"
-                        : "Manual Approval"}
+                        ? t("instrumentDetail.instantBookingLabel")
+                        : t("instrumentDetail.manualApprovalLabel")}
                     </span>
                   )}
 
                   {feeNumber > 0 && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
                       <DollarSign className="w-3 h-3" />
-                      Outside Fee: EGP {feeNumber} / day
+                      {t("instrumentDetail.outsideFeeBadge", {
+                        fee: feeNumber,
+                      })}
                     </span>
                   )}
 
@@ -649,7 +680,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                 <p className="text-xs text-stone-600 leading-relaxed">
                   {instrument.description ||
-                    "An instrument dedicated to church rehearsals, events, and prayer meetings."}
+                    t("instrumentDetail.defaultDescription")}
                 </p>
               </div>
 
@@ -657,11 +688,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
               <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center gap-4 text-xs text-stone-500">
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-stone-400" />
-                  <span>Hours: 09:00 AM – 10:00 PM</span>
+                  <span>{t("instrumentDetail.hoursLabel")}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CalendarIcon className="w-3.5 h-3.5 text-stone-400" />
-                  <span>30-min booking intervals</span>
+                  <span>{t("instrumentDetail.intervalLabel")}</span>
                 </div>
               </div>
             </div>
@@ -684,7 +715,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>Daily</span>
+                <span>{t("instrumentDetail.dailyView")}</span>
               </button>
 
               <button
@@ -698,7 +729,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 }`}
               >
                 <CalendarRange className="w-3.5 h-3.5" />
-                <span>Weekly</span>
+                <span>{t("instrumentDetail.weeklyView")}</span>
               </button>
 
               <button
@@ -712,7 +743,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 }`}
               >
                 <CalendarDays className="w-3.5 h-3.5" />
-                <span>Monthly</span>
+                <span>{t("instrumentDetail.monthlyView")}</span>
               </button>
             </div>
 
@@ -724,9 +755,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="button"
                     onClick={handlePrevDay}
                     className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-                    title="Previous Day"
+                    title={t("instrumentDetail.prevDay")}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    {isAr ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronLeft className="w-4 h-4" />
+                    )}
                   </button>
                   <input
                     type="date"
@@ -738,9 +773,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="button"
                     onClick={handleNextDay}
                     className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-                    title="Next Day"
+                    title={t("instrumentDetail.nextDay")}
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    {isAr ? (
+                      <ChevronLeft className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               )}
@@ -751,20 +790,30 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="button"
                     onClick={handlePrevWeek}
                     className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-                    title="Previous Week"
+                    title={t("instrumentDetail.prevWeek")}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    {isAr ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronLeft className="w-4 h-4" />
+                    )}
                   </button>
                   <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200">
-                    Week of {weekDays[0]?.dateStr}
+                    {t("instrumentDetail.weekOfLabel", {
+                      date: weekDays[0]?.dateStr,
+                    })}
                   </span>
                   <button
                     type="button"
                     onClick={handleNextWeek}
                     className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-                    title="Next Week"
+                    title={t("instrumentDetail.nextWeek")}
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    {isAr ? (
+                      <ChevronLeft className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               )}
@@ -775,12 +824,16 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="button"
                     onClick={handlePrevMonth}
                     className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-                    title="Previous Month"
+                    title={t("instrumentDetail.prevMonth")}
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    {isAr ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronLeft className="w-4 h-4" />
+                    )}
                   </button>
                   <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200">
-                    {currentMonthDate.toLocaleDateString("en-US", {
+                    {currentMonthDate.toLocaleDateString(localeTag, {
                       month: "long",
                       year: "numeric",
                     })}
@@ -789,9 +842,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="button"
                     onClick={handleNextMonth}
                     className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
-                    title="Next Month"
+                    title={t("instrumentDetail.nextMonth")}
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    {isAr ? (
+                      <ChevronLeft className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               )}
@@ -805,23 +862,23 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
-                  Schedule for {selectedDate}
+                  {t("instrumentDetail.scheduleForLabel", {
+                    date: selectedDate,
+                  })}
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="inline-block w-2.5 h-2.5 rounded-sm bg-stone-200 border border-stone-300" />
-                  <span>Free</span>
+                  <span>{t("instrumentDetail.freeLegend")}</span>
                   {isAdminOrSuperAdmin ? (
                     <>
                       <span className="inline-block w-2.5 h-2.5 rounded-sm bg-indigo-950 border border-indigo-600" />
-                      <span>
-                        Assigned Color per Reservant (Name &amp; Service)
-                      </span>
+                      <span>{t("instrumentDetail.assignedColorLegend")}</span>
                     </>
                   ) : (
                     <>
                       <span className="inline-block w-2.5 h-2.5 rounded-sm bg-black" />
                       <span className="font-semibold text-stone-900">
-                        Booked
+                        {t("instrumentDetail.bookedLegend")}
                       </span>
                     </>
                   )}
@@ -854,7 +911,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                           key={slotHhmm}
                           type="button"
                           disabled={true}
-                          title={`Reserved by: ${reservantName} | Service: ${serviceName}`}
+                          title={t("instrumentDetail.reservedByTooltip", {
+                            name: reservantName,
+                            service: serviceName,
+                          })}
                           className="p-2.5 rounded-xl border text-left transition relative flex flex-col justify-between min-h-[72px] select-none cursor-not-allowed shadow-2xs"
                           style={{
                             backgroundColor: colorTheme.bgHex,
@@ -900,7 +960,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                         key={slotHhmm}
                         type="button"
                         disabled={true}
-                        title="Booked"
+                        title={t("instrumentDetail.bookedLegend")}
                         className="p-2.5 rounded-xl border border-black bg-black text-white cursor-not-allowed select-none flex flex-col justify-between min-h-[72px] shadow-2xs"
                       >
                         <div className="flex items-center justify-between w-full">
@@ -912,7 +972,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                         <div className="text-[10px] font-bold w-full overflow-hidden text-center py-1">
                           <span className="text-white uppercase tracking-wider text-[10px]">
-                            Booked
+                            {t("instrumentDetail.bookedLegend")}
                           </span>
                         </div>
                       </button>
@@ -938,7 +998,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                       <div className="text-[10px] font-medium w-full overflow-hidden">
                         <span className="text-stone-400 group-hover:text-amber-800">
-                          Available • Tap
+                          {t("instrumentDetail.availableTap")}
                         </span>
                       </div>
                     </button>
@@ -955,10 +1015,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
-                  7-Day Availability Grid
+                  {t("instrumentDetail.sevenDayGridTitle")}
                 </span>
                 <span className="text-[11px] text-stone-400">
-                  Tap any available slot to create reservation
+                  {t("instrumentDetail.tapAnySlotNote")}
                 </span>
               </div>
 
@@ -967,7 +1027,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   {/* Day Headers */}
                   <div className="grid grid-cols-8 border-b border-stone-200 bg-stone-50 text-center text-xs font-bold text-stone-800">
                     <div className="p-2.5 text-stone-400 border-r border-stone-200 text-[11px]">
-                      Time
+                      {t("instrumentDetail.timeColumnLabel")}
                     </div>
                     {weekDays.map((d) => (
                       <div
@@ -1032,7 +1092,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                   key={d.dateStr}
                                   type="button"
                                   disabled={true}
-                                  title={`Reserved by: ${reservantName} | Service: ${serviceName}`}
+                                  title={t(
+                                    "instrumentDetail.reservedByTooltip",
+                                    {
+                                      name: reservantName,
+                                      service: serviceName,
+                                    },
+                                  )}
                                   style={{
                                     backgroundColor: colorTheme.bgHex,
                                     borderColor: colorTheme.borderHex,
@@ -1066,11 +1132,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                 key={d.dateStr}
                                 type="button"
                                 disabled={true}
-                                title="Booked"
+                                title={t("instrumentDetail.bookedLegend")}
                                 className="p-1 border-r last:border-r-0 border-stone-900 bg-black text-white cursor-not-allowed flex items-center justify-center select-none h-11"
                               >
                                 <span className="text-[9px] font-bold tracking-wider uppercase text-white">
-                                  Booked
+                                  {t("instrumentDetail.bookedLegend")}
                                 </span>
                               </button>
                             );
@@ -1083,7 +1149,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                               onClick={() =>
                                 onSelectSlot(instrument, d.dateStr, slotHhmm, 2)
                               }
-                              title={`Available • Tap to reserve at ${formatHhmmTo12Hour(slotHhmm)}`}
+                              title={t(
+                                "instrumentDetail.availableSlotTooltip",
+                                {
+                                  time: formatHhmmTo12Hour(slotHhmm),
+                                },
+                              )}
                               className="p-1 border-r last:border-r-0 border-stone-100 transition h-11 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 text-stone-300 hover:text-amber-900 cursor-pointer"
                             >
                               <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">
@@ -1107,27 +1178,23 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
-                  Month Overview (
-                  {currentMonthDate.toLocaleDateString("en-US", {
-                    month: "long",
+                  {t("instrumentDetail.monthOverviewTitle", {
+                    month: currentMonthDate.toLocaleDateString(localeTag, {
+                      month: "long",
+                    }),
                   })}
-                  )
                 </span>
                 <span className="text-[11px] text-stone-400">
-                  Select a day to jump into its daily time slot schedule
+                  {t("instrumentDetail.selectDayNote")}
                 </span>
               </div>
 
               <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
                 {/* Day of week headers */}
                 <div className="grid grid-cols-7 border-b border-stone-200 bg-stone-50 text-center text-[11px] font-bold text-stone-600 py-2">
-                  <div>Sun</div>
-                  <div>Mon</div>
-                  <div>Tue</div>
-                  <div>Wed</div>
-                  <div>Thu</div>
-                  <div>Fri</div>
-                  <div>Sat</div>
+                  {DAY_SHORT_KEYS.map((key) => (
+                    <div key={key}>{t(`instrumentDetail.${key}`)}</div>
+                  ))}
                 </div>
 
                 {/* Month Grid Cells */}
@@ -1173,7 +1240,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                   : "bg-amber-800 text-amber-100"
                               }`}
                             >
-                              {cell.approvedCount} booked
+                              {t("instrumentDetail.bookedCountBadge", {
+                                count: cell.approvedCount,
+                              })}
                             </span>
                           )}
                         </div>
@@ -1212,7 +1281,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                   : "text-emerald-600"
                               }`}
                             >
-                              Available
+                              {t("instrumentDetail.availableLabel")}
                             </span>
                           ) : null}
                         </div>
@@ -1231,8 +1300,8 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             <Info className="w-4 h-4 text-stone-400" />
             <span>
               {isAdminOrSuperAdmin
-                ? "Admin view: reservant names & services are visible."
-                : "Strict privacy: Booking details & reserved users are hidden."}
+                ? t("instrumentDetail.adminFooterNote")
+                : t("instrumentDetail.userFooterNote")}
             </span>
           </div>
 
@@ -1241,7 +1310,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             onClick={onClose}
             className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl transition cursor-pointer shadow-xs"
           >
-            Close
+            {t("instrumentDetail.closeButton")}
           </button>
         </div>
       </div>

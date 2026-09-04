@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
@@ -50,6 +51,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onSelectReservation,
   onUnreadCountChange,
 }) => {
+  const { t } = useTranslation();
   const { profile, sessionToken } = useAuth();
   const isAdminViewer = Boolean(
     profile?.role === "admin" ||
@@ -64,7 +66,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   >("all");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  // Inline action state for Admins
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState<string>("");
@@ -97,7 +98,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
   }, [isOpen]);
 
-  // Polling unread count periodically
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -156,7 +156,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       if (onUnreadCountChange) {
         onUnreadCountChange(0);
       }
-      setActionNotice("All notifications marked as read");
+      setActionNotice(t("notifications.allCaughtUp"));
       setTimeout(() => setActionNotice(null), 3000);
     } catch (e: any) {
       console.warn("Could not mark all as read:", e.message);
@@ -211,7 +211,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         return;
       }
 
-      // Mark local state as approved
       setNotifications((prev) =>
         prev.map((n) =>
           n.id === notif.id ||
@@ -268,7 +267,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         return;
       }
 
-      // Mark local state as rejected
       setNotifications((prev) =>
         prev.map((n) =>
           n.id === notif.id ||
@@ -329,60 +327,288 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
           typeLabel:
             notif.type === "series_submitted" || notif.series_id
-              ? "Series Request"
-              : "Reservation Request",
+              ? t("notifications.typeSeriesRequest")
+              : t("notifications.typeReservationRequest"),
           accentBorder: "border-amber-500",
         };
       case "reservation_approved":
         return {
           icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
           badgeBg: "bg-emerald-50 border-emerald-200 text-emerald-900",
-          typeLabel: "Reservation Approved",
+          typeLabel: t("notifications.typeReservationApproved"),
           accentBorder: "border-emerald-500",
         };
       case "reservation_rejected":
         return {
           icon: <XCircle className="w-5 h-5 text-red-600 shrink-0" />,
           badgeBg: "bg-red-50 border-red-200 text-red-900",
-          typeLabel: "Reservation Rejected",
+          typeLabel: t("notifications.typeReservationRejected"),
           accentBorder: "border-red-500",
         };
       case "reservation_auto_rejected":
         return {
           icon: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
           badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
-          typeLabel: "Auto-Rejected (Conflict)",
+          typeLabel: t("notifications.typeAutoRejected"),
           accentBorder: "border-amber-500",
         };
       case "series_rejected":
         return {
           icon: <XCircle className="w-5 h-5 text-red-600 shrink-0" />,
           badgeBg: "bg-red-50 border-red-200 text-red-900",
-          typeLabel: "Series Rejected",
+          typeLabel: t("notifications.typeSeriesRejected"),
           accentBorder: "border-red-500",
         };
       case "instrument_removed_cancellation":
         return {
           icon: <Wrench className="w-5 h-5 text-stone-600 shrink-0" />,
           badgeBg: "bg-stone-100 border-stone-300 text-stone-900",
-          typeLabel: "Instrument Removed",
+          typeLabel: t("notifications.typeInstrumentRemoved"),
           accentBorder: "border-stone-500",
         };
       case "admin_message":
         return {
           icon: <MessageSquare className="w-5 h-5 text-indigo-600 shrink-0" />,
           badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
-          typeLabel: "Admin Message",
+          typeLabel: t("notifications.typeAdminMessage"),
           accentBorder: "border-indigo-500",
+        };
+      case "user_reply":
+        return {
+          icon: <MessageSquare className="w-5 h-5 text-indigo-600 shrink-0" />,
+          badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
+          typeLabel: t("notifications.typeUserReply"),
+          accentBorder: "border-indigo-500",
+        };
+      case "account_approval_submitted":
+        return {
+          icon: <Info className="w-5 h-5 text-indigo-600 shrink-0" />,
+          badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
+          typeLabel: t("notifications.typeAccountApproval"),
+          accentBorder: "border-indigo-500",
+        };
+      case "trusted_status_granted":
+        return {
+          icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
+          badgeBg: "bg-emerald-50 border-emerald-200 text-emerald-900",
+          typeLabel: t("notifications.typeTrustedGranted"),
+          accentBorder: "border-emerald-500",
+        };
+      case "trusted_status_revoked":
+        return {
+          icon: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
+          badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
+          typeLabel: t("notifications.typeTrustedRevoked"),
+          accentBorder: "border-amber-500",
+        };
+      case "reservation_cancelled":
+        return {
+          icon: <XCircle className="w-5 h-5 text-stone-600 shrink-0" />,
+          badgeBg: "bg-stone-100 border-stone-300 text-stone-900",
+          typeLabel: t("notifications.typeCancelled"),
+          accentBorder: "border-stone-500",
         };
       default:
         return {
           icon: <Info className="w-5 h-5 text-stone-600 shrink-0" />,
           badgeBg: "bg-stone-50 border-stone-200 text-stone-900",
-          typeLabel: "Notification",
+          typeLabel: t("notifications.typeGeneric"),
           accentBorder: "border-stone-300",
         };
     }
+  };
+
+  const LEGACY_MESSAGE_PATTERNS: Record<string, RegExp> = {
+    account_approval_submitted:
+      /^New member registration from (.+) awaiting approval\.$/,
+  };
+
+  const LEGACY_MESSAGE_RULES: Array<{
+    type: string;
+    pattern: RegExp;
+    translate: (m: RegExpMatchArray) => string;
+  }> = [
+    {
+      type: "account_approval_submitted",
+      pattern: /^New member registration from (.+) awaiting approval\.$/,
+      translate: (m) =>
+        t("notifications.msgAccountApproval", { name: m[1] }) as string,
+    },
+    {
+      type: "user_reply",
+      pattern: /^(.+?) replied on reservation "(.+)": "([\s\S]*)"$/,
+      translate: (m) =>
+        t("notifications.msgUserReply", {
+          name: m[1],
+          service: m[2],
+          content: m[3],
+        }) as string,
+    },
+    {
+      type: "admin_message",
+      pattern:
+        /^New message from administration regarding "(.+)": "([\s\S]*)"$/,
+      translate: (m) =>
+        t("notifications.msgAdminMessage", {
+          service: m[1],
+          content: m[2],
+        }) as string,
+    },
+    {
+      type: "reservation_approved",
+      pattern:
+        /^Church Administration created and approved an instrument reservation for you: "(.+)" on (.+) at (.+)\.$/,
+      translate: (m) =>
+        t("notifications.msgBookOnBehalf", {
+          service: m[1],
+          date: m[2],
+          time: m[3],
+        }) as string,
+    },
+    {
+      type: "trusted_status_granted",
+      pattern:
+        /^Congratulations! You have been granted "Trusted Member" status by church administration\. Your reservations are now automatically approved\.$/,
+      translate: () => t("notifications.msgTrustedGranted") as string,
+    },
+    {
+      type: "trusted_status_revoked",
+      pattern:
+        /^Notice: Your "Trusted Member" status has been adjusted by church administration\.$/,
+      translate: () => t("notifications.msgTrustedRevoked") as string,
+    },
+    {
+      type: "reservation_approved",
+      pattern: /^Your reservation on (.+) \((.+) - (.+)\) has been approved\.$/,
+      translate: (m) =>
+        t("notifications.msgReservationApproved", {
+          date: m[1],
+          startTime: m[2],
+          endTime: m[3],
+        }) as string,
+    },
+    {
+      type: "reservation_approved",
+      pattern: /^Your reservation has been approved by an administrator\.$/,
+      translate: () =>
+        t("notifications.msgReservationApprovedByAdmin") as string,
+    },
+    {
+      type: "reservation_submitted",
+      pattern:
+        /^Your outside-church reservation request has been submitted\. If approved, an administrator will contact you on WhatsApp to confirm details and arrange payment\.$/,
+      translate: () => t("notifications.msgOutsideSubmitted") as string,
+    },
+    {
+      type: "reservation_submitted",
+      pattern:
+        /^Your reservation request on (.+) \((.+)\) has been submitted and is pending administrator review\.$/,
+      translate: (m) =>
+        t("notifications.msgReservationSubmittedUser", {
+          date: m[1],
+          startTime: m[2],
+        }) as string,
+    },
+    {
+      type: "reservation_submitted",
+      pattern: /^New reservation request from (.+) for (.+) on (.+)\.$/,
+      translate: (m) =>
+        t("notifications.msgReservationSubmittedAdmin", {
+          name: m[1],
+          instrument: m[2],
+          date: m[3],
+        }) as string,
+    },
+    {
+      type: "reservation_submitted",
+      pattern:
+        /^New recurring series request \((\d+) occurrences\) from (.+) for (.+) starting (.+)\.$/,
+      translate: (m) =>
+        t("notifications.msgSeriesSubmittedAdmin", {
+          count: m[1],
+          name: m[2],
+          instrument: m[3],
+          date: m[4],
+        }) as string,
+    },
+    {
+      type: "series_submitted",
+      pattern:
+        /^Your recurring series \((\d+) occurrences\) has been created \((\d+) approved, (\d+) pending review\)\.$/,
+      translate: (m) =>
+        t("notifications.msgSeriesSubmittedUser", {
+          count: m[1],
+          approved: m[2],
+          pending: m[3],
+        }) as string,
+    },
+    {
+      type: "reservation_rejected",
+      pattern:
+        /^Your reservation request was rejected by an administrator\. Reason: ([\s\S]+)$/,
+      translate: (m) =>
+        t("notifications.msgReservationRejectedSingle", {
+          reason: m[1],
+        }) as string,
+    },
+    {
+      type: "reservation_rejected",
+      pattern:
+        /^Your reservation request\(s\) were rejected by an administrator\. Reason: ([\s\S]+)$/,
+      translate: (m) =>
+        t("notifications.msgReservationRejectedBulk", {
+          reason: m[1],
+        }) as string,
+    },
+    {
+      type: "series_rejected",
+      pattern:
+        /^Your recurring series was rejected by an administrator\. Reason: ([\s\S]+)$/,
+      translate: (m) =>
+        t("notifications.msgSeriesRejected", { reason: m[1] }) as string,
+    },
+    {
+      type: "reservation_cancelled",
+      pattern: /^Reservation cancelled — ([\s\S]+)$/,
+      translate: (m) =>
+        t("notifications.msgCancelledWithReason", { reason: m[1] }) as string,
+    },
+    {
+      type: "reservation_cancelled",
+      pattern: /^Reservation cancelled$/,
+      translate: () => t("notifications.msgCancelledPlain") as string,
+    },
+    {
+      type: "instrument_removed_cancellation",
+      pattern:
+        /^Your reservation was cancelled because the instrument was removed from the inventory by administration\.$/,
+      translate: () => t("notifications.msgInstrumentRemoved") as string,
+    },
+    {
+      type: "reservation_auto_rejected",
+      pattern:
+        /^Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot\.$/,
+      translate: () => t("notifications.msgAutoRejected") as string,
+    },
+  ];
+
+  const getNotificationMessage = (notif: AppNotification): string => {
+    try {
+      const parsed = JSON.parse(notif.message);
+      if (parsed && typeof parsed === "object" && parsed.key) {
+        return t(parsed.key, parsed.params || {}) as string;
+      }
+    } catch {
+      // not JSON — fall through to legacy pattern matching
+    }
+
+    for (const rule of LEGACY_MESSAGE_RULES) {
+      if (rule.type !== notif.type) continue;
+      const match = notif.message.match(rule.pattern);
+      if (match) return rule.translate(match);
+    }
+
+    return notif.message;
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -391,9 +617,15 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       const now = new Date();
       const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
 
-      if (diffSec < 60) return "Just now";
-      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
-      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+      if (diffSec < 60) return t("notifications.justNow");
+      if (diffSec < 3600)
+        return t("notifications.minutesAgo", {
+          count: Math.floor(diffSec / 60),
+        });
+      if (diffSec < 86400)
+        return t("notifications.hoursAgo", {
+          count: Math.floor(diffSec / 3600),
+        });
       return d.toLocaleString("en-GB", {
         timeZone: "Africa/Cairo",
         dateStyle: "short",
@@ -430,13 +662,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-white">
-                  Notifications
+                  {t("notifications.title")}
                 </h2>
               </div>
               <p className="text-xs text-stone-400">
                 {unreadCount > 0
-                  ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
-                  : "All caught up"}
+                  ? t("notifications.unreadCount", { count: unreadCount })
+                  : t("notifications.allCaughtUp")}
               </p>
             </div>
           </div>
@@ -447,10 +679,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 type="button"
                 onClick={handleMarkAllAsRead}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold transition cursor-pointer"
-                title="Mark all as read"
+                title={t("notifications.markAllReadTooltip")}
               >
                 <CheckCheck className="w-3.5 h-3.5" />
-                <span>Mark All Read</span>
+                <span>{t("notifications.markAllRead")}</span>
               </button>
             )}
 
@@ -484,7 +716,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              All ({notifications.length})
+              {t("notifications.tabAll")} ({notifications.length})
             </button>
             <button
               type="button"
@@ -495,7 +727,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              Unread ({unreadCount})
+              {t("notifications.tabUnread")} ({unreadCount})
             </button>
             <button
               type="button"
@@ -506,7 +738,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              Requests
+              {t("notifications.tabRequests")}
             </button>
             <button
               type="button"
@@ -517,7 +749,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              Approvals
+              {t("notifications.tabApprovals")}
             </button>
             <button
               type="button"
@@ -528,7 +760,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              Rejections & Cancellations
+              {t("notifications.tabRejections")}
             </button>
             <button
               type="button"
@@ -539,7 +771,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
               }`}
             >
-              Admin Messages
+              {t("notifications.tabMessages")}
             </button>
           </div>
 
@@ -548,7 +780,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               type="button"
               onClick={fetchNotifications}
               className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
-              title="Refresh"
+              title={t("notifications.refreshTooltip")}
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
@@ -562,7 +794,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           {loading && notifications.length === 0 ? (
             <div className="py-12 text-center text-xs text-stone-500 flex flex-col items-center justify-center gap-2">
               <div className="w-6 h-6 border-2 border-stone-400 border-t-amber-800 rounded-full animate-spin" />
-              <span>Loading notifications...</span>
+              <span>{t("notifications.loading")}</span>
             </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center space-y-3 shadow-2xs">
@@ -572,13 +804,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-stone-900">
                   {filter === "unread"
-                    ? "No unread notifications"
-                    : "No notifications found"}
+                    ? t("notifications.emptyUnreadTitle")
+                    : t("notifications.emptyAllTitle")}
                 </h3>
                 <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
                   {filter === "unread"
-                    ? "You've read all your notifications. Switch filter to 'All' to review past updates."
-                    : "System alerts for approved requests, rejections, admin notes, and changes will appear here."}
+                    ? t("notifications.emptyUnreadDesc")
+                    : t("notifications.emptyAllDesc")}
                 </p>
               </div>
             </div>
@@ -599,10 +831,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   }`}
                 >
                   <div className="flex items-start gap-3.5">
-                    {/* Visual Icon */}
                     <div className="mt-0.5">{visuals.icon}</div>
 
-                    {/* Notification Content */}
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <div className="flex items-center gap-2">
@@ -623,7 +853,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                         </span>
                       </div>
 
-                      {/* Primary Message */}
                       <p
                         className={`text-xs leading-relaxed ${
                           notif.is_read
@@ -631,16 +860,16 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                             : "text-stone-900 font-medium"
                         }`}
                       >
-                        {notif.message}
+                        {getNotificationMessage(notif)}
                       </p>
 
-                      {/* Associated Reservation Card Preview if available */}
                       {notif.reservation_id && (
                         <div className="mt-2 bg-stone-50 group-hover:bg-amber-50/60 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 text-xs transition">
                           <div className="flex items-center gap-2 min-w-0">
                             <Music2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                             <span className="font-semibold text-stone-900 truncate">
-                              {notif.service_name || "Reservation"}
+                              {notif.service_name ||
+                                t("notifications.reservationFallback")}
                             </span>
                             {notif.instrument_name && (
                               <span className="text-stone-500 text-[11px] truncate hidden sm:inline">
@@ -652,15 +881,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           <div className="flex items-center gap-1 text-amber-900 font-bold text-[11px] shrink-0">
                             <span>
                               {notif.type === "reservation_message"
-                                ? "Open Chat"
-                                : "View Details"}
+                                ? t("notifications.openChat")
+                                : t("myReservations.viewDetails")}
                             </span>
                             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>
                       )}
 
-                      {/* Admin Inline Actions for Pending Requests */}
                       {isAdminViewer &&
                         notif.type === "reservation_submitted" &&
                         notif.reservation_status === "pending" && (
@@ -672,7 +900,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                               <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200 animate-in fade-in">
                                 <div className="space-y-1">
                                   <label className="block text-[11px] font-bold text-stone-800">
-                                    Reason for Rejection (Required):
+                                    {t("notifications.rejectReasonRequired")}
                                   </label>
                                   <div className="flex flex-wrap gap-1 pt-0.5">
                                     {REJECTION_REASON_PRESETS.map((preset) => (
@@ -680,9 +908,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                         key={preset}
                                         type="button"
                                         onClick={() => setRejectReason(preset)}
-                                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 text-stone-700 font-medium transition cursor-pointer text-left"
+                                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 text-stone-700 font-medium transition cursor-pointer text-start"
                                       >
-                                        {preset}
+                                        {t(
+                                          `presets.rejection.${preset}`,
+                                          preset,
+                                        )}
                                       </button>
                                     ))}
                                   </div>
@@ -692,7 +923,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                   onChange={(e) =>
                                     setRejectReason(e.target.value)
                                   }
-                                  placeholder="e.g. Schedule conflict with choir rehearsal"
+                                  placeholder={t(
+                                    "notifications.rejectReasonPlaceholder",
+                                  )}
                                   rows={2}
                                   className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 bg-white text-stone-900 resize-none"
                                   autoFocus
@@ -708,7 +941,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                     disabled={actioningId === notif.id}
                                     className="px-2.5 py-1 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-200 transition cursor-pointer"
                                   >
-                                    Cancel
+                                    {t("common.cancel")}
                                   </button>
                                   <button
                                     type="button"
@@ -724,12 +957,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                     {actioningId === notif.id ? (
                                       <>
                                         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        <span>Rejecting...</span>
+                                        <span>
+                                          {t("notifications.rejecting")}
+                                        </span>
                                       </>
                                     ) : (
                                       <span>
-                                        Confirm Reject
-                                        {notif.series_id ? " Series" : ""}
+                                        {notif.series_id
+                                          ? t(
+                                              "notifications.confirmRejectSeries",
+                                            )
+                                          : t("notifications.confirmReject")}
                                       </span>
                                     )}
                                   </button>
@@ -748,14 +986,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                   {actioningId === notif.id ? (
                                     <>
                                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                      <span>Approving...</span>
+                                      <span>
+                                        {t("notifications.approving")}
+                                      </span>
                                     </>
                                   ) : (
                                     <>
                                       <CheckCircle2 className="w-3.5 h-3.5" />
                                       <span>
-                                        Approve
-                                        {notif.series_id ? " Series" : ""}
+                                        {notif.series_id
+                                          ? t("notifications.approveSeries")
+                                          : t("notifications.approve")}
                                       </span>
                                     </>
                                   )}
@@ -772,7 +1013,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                 >
                                   <XCircle className="w-3.5 h-3.5" />
                                   <span>
-                                    Reject{notif.series_id ? " Series" : ""}
+                                    {notif.series_id
+                                      ? t("notifications.rejectSeries")
+                                      : t("notifications.reject")}
                                   </span>
                                 </button>
                               </div>
@@ -780,7 +1023,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           </div>
                         )}
 
-                      {/* Status indicator if already resolved */}
                       {isAdminViewer &&
                         notif.type === "reservation_submitted" &&
                         notif.reservation_status &&
@@ -789,16 +1031,20 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                             {notif.reservation_status === "approved" ? (
                               <div className="flex items-center gap-1 text-emerald-700 font-semibold">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Approved</span>
+                                <span>{t("common.approved")}</span>
                               </div>
                             ) : (
                               <div className="flex items-center gap-1 text-red-700 font-semibold">
                                 <XCircle className="w-3.5 h-3.5" />
                                 <span>
-                                  Rejected
                                   {notif.rejection_reason
-                                    ? `: ${notif.rejection_reason}`
-                                    : ""}
+                                    ? t(
+                                        "notifications.statusRejectedWithReason",
+                                        {
+                                          reason: notif.rejection_reason,
+                                        },
+                                      )
+                                    : t("common.rejected")}
                                 </span>
                               </div>
                             )}
@@ -806,13 +1052,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                         )}
                     </div>
 
-                    {/* Mark As Read Button */}
                     {!notif.is_read && (
                       <button
                         type="button"
                         onClick={(e) => handleMarkAsRead(notif.id, e)}
                         className="p-1.5 text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition cursor-pointer"
-                        title="Mark as read"
+                        title={t("notifications.markAsReadTooltip")}
                       >
                         <Check className="w-4 h-4" />
                       </button>
@@ -828,7 +1073,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         <div className="p-4 bg-white border-t border-stone-200 flex items-center justify-between text-xs text-stone-500 shrink-0">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Real-time On-site Alerts Active</span>
+            <span>{t("notifications.realtimeActive")}</span>
           </div>
 
           <button
@@ -836,7 +1081,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs transition cursor-pointer"
           >
-            Done
+            {t("notifications.done")}
           </button>
         </div>
       </div>

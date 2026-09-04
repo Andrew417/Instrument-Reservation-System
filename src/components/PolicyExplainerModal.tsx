@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Info,
   X,
@@ -20,56 +21,47 @@ import {
 
 interface HardLimitExplainer {
   icon: React.ReactNode;
-  title: string;
-  description: string;
-  nextStep: string;
+  titleKey: string;
+  descKey: string;
+  nextKey: string;
 }
 
 const HARD_LIMIT_EXPLAINERS: HardLimitExplainer[] = [
   {
     icon: <Layers className="w-4 h-4 text-amber-800" />,
-    title: "Active Reservations",
-    description:
-      "Limits how many Pending and Approved reservations a member can have at one time.",
-    nextStep:
-      "You can still submit a request. It will be sent for admin approval.",
+    titleKey: "policyExplainer.activeReservations",
+    descKey: "policyExplainer.activeReservationsDesc",
+    nextKey: "policyExplainer.activeReservationsNext",
   },
   {
     icon: <CalendarDays className="w-4 h-4 text-amber-800" />,
-    title: "Reservations per Day",
-    description:
-      "Limits how many reservations a member can submit in one day to keep access fair.",
-    nextStep: "You can still submit a request. Please wait for admin approval.",
+    titleKey: "policyExplainer.reservationsPerDay",
+    descKey: "policyExplainer.reservationsPerDayDesc",
+    nextKey: "policyExplainer.reservationsPerDayNext",
   },
   {
     icon: <Timer className="w-4 h-4 text-amber-800" />,
-    title: "Duration per Reservation",
-    description:
-      "Limits the length of each reservation so other members can use the instrument.",
-    nextStep:
-      "You can still submit the booking. It will be changed to manual review.",
+    titleKey: "policyExplainer.durationPerReservation",
+    descKey: "policyExplainer.durationPerReservationDesc",
+    nextKey: "policyExplainer.durationPerReservationNext",
   },
   {
     icon: <Repeat className="w-4 h-4 text-amber-800" />,
-    title: "Same-Type Instrument Limit",
-    description:
-      "Limits how many instruments from the same category a member can reserve at once.",
-    nextStep: "You can still submit a request. Please wait for admin approval.",
+    titleKey: "policyExplainer.sameTypeLimit",
+    descKey: "policyExplainer.sameTypeLimitDesc",
+    nextKey: "policyExplainer.sameTypeLimitNext",
   },
   {
     icon: <Repeat className="w-4 h-4 text-amber-800" />,
-    title: "Occurrences per Series",
-    description:
-      "Limits how many dates can be included in one recurring reservation series.",
-    nextStep:
-      "You can still submit the series. It will require admin approval.",
+    titleKey: "policyExplainer.occurrencesPerSeries",
+    descKey: "policyExplainer.occurrencesPerSeriesDesc",
+    nextKey: "policyExplainer.occurrencesPerSeriesNext",
   },
   {
     icon: <Gauge className="w-4 h-4 text-amber-800" />,
-    title: "Submission Rate",
-    description:
-      "Limits repeated booking submissions within a short period to prevent spam.",
-    nextStep: "Please wait before submitting another request.",
+    titleKey: "policyExplainer.submissionRate",
+    descKey: "policyExplainer.submissionRateDesc",
+    nextKey: "policyExplainer.submissionRateNext",
   },
 ];
 
@@ -82,6 +74,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [showLimitExplainer, setShowLimitExplainer] =
     React.useState<boolean>(false);
 
@@ -104,10 +97,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white leading-tight">
-                Booking Policy Guide
+                {t("policyExplainer.modalTitle")}
               </h2>
               <p className="text-xs text-stone-400">
-                How reservations get approved
+                {t("policyExplainer.modalSubtitle")}
               </p>
             </div>
           </div>
@@ -128,33 +121,33 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
               <ClipboardCheck className="w-4 h-4 text-amber-800" />
-              <span>Booking Modes</span>
+              <span>{t("policyExplainer.bookingModes")}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-900">
                   <Zap className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Instant Mode</span>
+                  <span>{t("policyExplainer.instantMode")}</span>
                 </div>
                 <p className="text-[11px] text-emerald-900/80 leading-snug">
-                  Free slot + within your limits = confirmed instantly.
+                  {t("policyExplainer.instantModeDesc")}
                 </p>
               </div>
 
               <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900">
                   <Clock className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Manual Mode</span>
+                  <span>{t("policyExplainer.manualMode")}</span>
                 </div>
                 <p className="text-[11px] text-amber-900/80 leading-snug">
-                  Always needs admin approval, regardless of limits.
+                  {t("policyExplainer.manualModeDesc")}
                 </p>
               </div>
             </div>
 
             <p className="text-[11px] text-stone-500 leading-relaxed pt-0.5">
-              Set per instrument — check the badge before booking.
+              {t("policyExplainer.perInstrumentNote")}
             </p>
           </div>
 
@@ -163,21 +156,16 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             <div className="space-y-2.5">
               <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
                 <ShieldCheck className="w-4 h-4 text-amber-800" />
-                <span>Fair Usage Limits</span>
+                <span>{t("policyExplainer.fairUsageLimits")}</span>
               </div>
               <p className="text-xs text-stone-600 leading-relaxed">
-                A few limits apply per member to keep instruments available for
-                everyone. If you go over one, your request isn't blocked — it
-                just needs admin approval instead of being confirmed
-                automatically. Only one limit (spam prevention) blocks
-                submission outright.
+                {t("policyExplainer.fairUsageDesc")}
               </p>
 
               <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-red-800 leading-relaxed">
-                  Approved slots are never bookable by anyone else, no
-                  exceptions.
+                  {t("policyExplainer.noExceptions")}
                 </p>
               </div>
             </div>
@@ -187,11 +175,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center gap-2 text-xs font-bold text-stone-800">
               <DollarSign className="w-4 h-4 text-amber-800" />
-              <span>Outside-Church Fee & Payment</span>
+              <span>{t("policyExplainer.outsideFeeTitle")}</span>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Free in-church. Outside performances cost a per-day fee, shown on
-              the calendar before you book.
+              {t("policyExplainer.outsideFeeDesc")}
             </p>
 
             <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 bg-stone-50/50">
@@ -200,10 +187,11 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                   <CheckCircle2 className="w-4 h-4 text-amber-800" />
                 </div>
                 <div className="text-xs space-y-0.5">
-                  <div className="font-bold text-stone-900">1. Confirm Fee</div>
+                  <div className="font-bold text-stone-900">
+                    {t("policyExplainer.step1Title")}
+                  </div>
                   <div className="text-stone-600 leading-relaxed">
-                    Mark the reservation as outside-church and agree to pay the
-                    shown fee.
+                    {t("policyExplainer.step1Desc")}
                   </div>
                 </div>
               </div>
@@ -214,11 +202,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 </div>
                 <div className="text-xs space-y-0.5">
                   <div className="font-bold text-stone-900">
-                    2. WhatsApp Call
+                    {t("policyExplainer.step2Title")}
                   </div>
                   <div className="text-stone-600 leading-relaxed">
-                    After admin review, you'll get a WhatsApp message to arrange
-                    payment & approval.
+                    {t("policyExplainer.step2Desc")}
                   </div>
                 </div>
               </div>
@@ -230,7 +217,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               type="button"
               id="btn-toggle-hardlimit-explainer"
               onClick={() => setShowLimitExplainer((v) => !v)}
-              className="w-full flex items-center justify-between gap-3 p-4 bg-stone-50 hover:bg-stone-100 transition cursor-pointer text-left"
+              className="w-full flex items-center justify-between gap-3 p-4 bg-stone-50 hover:bg-stone-100 transition cursor-pointer text-start"
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-stone-200 text-stone-700 flex items-center justify-center shrink-0">
@@ -238,10 +225,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 </div>
                 <div>
                   <div className="text-xs font-bold text-stone-900">
-                    Hard limits explained
+                    {t("policyExplainer.hardLimitsExplained")}
                   </div>
                   <div className="text-[11px] text-stone-500">
-                    Why they exist and what to do when one is reached.
+                    {t("policyExplainer.hardLimitsSubtitle")}
                   </div>
                 </div>
               </div>
@@ -256,7 +243,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               <div className="p-4 pt-3 border-t border-stone-200 bg-white space-y-2.5 animate-in fade-in">
                 {HARD_LIMIT_EXPLAINERS.map((item) => (
                   <div
-                    key={item.title}
+                    key={item.titleKey}
                     className="flex items-start gap-2.5 p-2.5 rounded-xl bg-stone-50 border border-stone-100"
                   >
                     <div className="w-7 h-7 rounded-lg bg-amber-100/70 border border-amber-200 flex items-center justify-center shrink-0">
@@ -264,16 +251,16 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                     </div>
                     <div className="text-xs space-y-0.5">
                       <div className="font-bold text-stone-900">
-                        {item.title}
+                        {t(item.titleKey)}
                       </div>
                       <div className="text-stone-600 leading-snug">
-                        {item.description}
+                        {t(item.descKey)}
                       </div>
                       <div className="text-stone-500 leading-snug">
                         <span className="font-semibold text-stone-700">
-                          Next:
+                          {t("common.next", "Next:")}
                         </span>{" "}
-                        {item.nextStep}
+                        {t(item.nextKey)}
                       </div>
                     </div>
                   </div>
@@ -281,12 +268,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
 
                 <div className="pt-2 border-t border-stone-100 flex items-start gap-2 text-[11px] text-stone-500">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
-                  <span>
-                    To ensure fair usage among all users, these limits only
-                    apply to instant bookings. Exceeding any limit means your
-                    reservation will require admin approval instead of being
-                    automatically confirmed.
-                  </span>
+                  <span>{t("policyExplainer.fairUsageFooter")}</span>
                 </div>
               </div>
             )}
@@ -300,7 +282,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition cursor-pointer"
           >
-            Got It
+            {t("policyExplainer.gotIt")}
           </button>
         </div>
       </div>

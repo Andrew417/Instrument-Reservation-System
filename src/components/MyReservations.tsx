@@ -65,8 +65,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   refreshTrigger = 0,
 }) => {
   const { profile, sessionToken } = useAuth();
-  const { t, i18n } = useTranslation();
-  const isAr = i18n.language === "ar";
+  const { t } = useTranslation();
 
   // Tab: 'upcoming' | 'pending' | 'past'
   const [activeTab, setActiveTab] = useState<"upcoming" | "pending" | "past">(
@@ -107,13 +106,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       );
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setFetchError(data.error || "Failed to fetch reservations.");
+        setFetchError(data.error || t("myReservations.fetchError"));
         setLoading(false);
         return;
       }
       setReservations(data.reservations || []);
     } catch (err: any) {
-      setFetchError(err.message || "Network error fetching reservations.");
+      setFetchError(err.message || t("myReservations.networkError"));
     } finally {
       setLoading(false);
     }
@@ -157,7 +156,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setCancelError(data.error || "Cancellation failed.");
+        setCancelError(data.error || t("myReservations.cancelFailed"));
         setIsCancelling(false);
         return;
       }
@@ -166,9 +165,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       setCancellingItem(null);
       fetchMyReservations();
     } catch (err: any) {
-      setCancelError(
-        err.message || "Error occurred while processing cancellation.",
-      );
+      setCancelError(err.message || t("myReservations.cancelProcessError"));
       setIsCancelling(false);
     }
   };
@@ -211,7 +208,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           instrumentName: first.instrument_name || "Instrument",
           instrumentType: first.instrument_type || "General",
           bookingMode: first.booking_mode || "manual",
-          serviceName: first.service_name || "Recurring Service",
+          serviceName:
+            first.service_name || t("myReservations.churchServiceFallback"),
           patternType: first.series_pattern_type || "weekly",
           reservationType: first.reservation_type || "in_church",
           feeSnapshot: first.fee_snapshot,
@@ -274,7 +272,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     pastList.sort((a, b) => b.time.getTime() - a.time.getTime()); // reverse for past
 
     return { upcomingList, pendingList, pastList };
-  }, [reservations]);
+  }, [reservations, t]);
 
   const currentList =
     activeTab === "upcoming"
@@ -351,7 +349,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <CheckCircle2
               className={`w-3.5 h-3.5 ${activeTab === "upcoming" ? "text-white" : "text-emerald-600"}`}
             />
-            <span className="text-[11px] font-bold">{t("myReservations.upcomingTab")}</span>
+            <span className="text-[11px] font-bold">
+              {t("myReservations.upcomingTab")}
+            </span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === "upcoming"
@@ -401,7 +401,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <CalendarRange
               className={`w-3.5 h-3.5 ${activeTab === "past" ? "text-white" : "text-stone-400"}`}
             />
-            <span className="text-[11px] font-bold">{t("myReservations.pastTab")}</span>
+            <span className="text-[11px] font-bold">
+              {t("myReservations.pastTab")}
+            </span>
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
                 activeTab === "past"
@@ -426,12 +428,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               <div>
                 <h3 className="font-bold text-sm text-stone-900">
                   {cancellingItem.mode === "series"
-                    ? isAr
-                      ? "إلغاء كامل السلسلة الدورية؟"
-                      : "Cancel Entire Recurring Series?"
-                    : isAr
-                      ? "إلغاء هذا الحجز؟"
-                      : "Cancel Reservation?"}
+                    ? t("myReservations.cancelSeriesTitle")
+                    : t("myReservations.cancelSingleTitle")}
                 </h3>
                 <p className="text-xs text-stone-500">{cancellingItem.title}</p>
               </div>
@@ -445,12 +443,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
             <p className="text-xs text-stone-600 leading-relaxed">
               {cancellingItem.mode === "series"
-                ? isAr
-                  ? "سيؤدي هذا إلى إلغاء جميع المواعيد القادمة في هذه السلسلة الدورية. لا يمكن التراجع عن هذا الإجراء."
-                  : "This will cancel all upcoming occurrences of this recurring series. This action cannot be undone."
-                : isAr
-                  ? "ستصبح هذه الفترة الزمنية متاحة فوراً لخدمات كنسية أخرى في الجدول الرئيسي."
-                  : "This time slot will immediately become available for other church services in the master calendar."}
+                ? t("myReservations.cancelSeriesDesc")
+                : t("myReservations.cancelSingleDesc")}
             </p>
 
             <div className="flex items-center gap-3 pt-2">
@@ -462,7 +456,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 }}
                 className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
               >
-                {isAr ? "الاحتفاظ بالحجز" : "Keep Booking"}
+                {t("myReservations.keepBooking")}
               </button>
 
               <button
@@ -472,12 +466,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
               >
                 {isCancelling
-                  ? isAr
-                    ? "جارٍ الإلغاء..."
-                    : "Cancelling..."
-                  : isAr
-                    ? "نعم، إلغاء الحجز"
-                    : "Yes, Cancel"}
+                  ? t("myReservations.cancelling")
+                  : t("myReservations.yesCancel")}
               </button>
             </div>
           </div>
@@ -513,16 +503,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           </div>
           <p className="text-xs text-stone-500 max-w-sm mx-auto">
             {activeTab === "upcoming"
-              ? isAr
-                ? "ليس لديك أي حجوزات آلات موسيقية كنسية قادمة."
-                : "You do not have any upcoming church instrument reservations scheduled."
+              ? t("myReservations.noUpcomingDesc")
               : activeTab === "pending"
-                ? isAr
-                  ? "ليس لديك أي حجوزات قيد المراجعة الإدارية."
-                  : "You do not have any reservations pending administrative review."
-                : isAr
-                  ? "لا يوجد سجل حجوزات سابقة."
-                  : "No past reservation history."}
+                ? t("myReservations.noPendingDesc")
+                : t("myReservations.noPastDesc")}
           </p>
           {activeTab !== "past" && (
             <div className="pt-2 flex items-center justify-center gap-2">
@@ -579,7 +563,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         <span className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate">
                           {res.service_name ||
                             res.serviceName ||
-                            "Church Service"}
+                            t("myReservations.churchServiceFallback")}
                         </span>
 
                         <span
@@ -649,7 +633,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             setCancellingItem({
                               id: res.id,
                               mode: "single",
-                              title: `${res.instrument_name} on ${dateStr}`,
+                              title: t("myReservations.cancelSingleItemTitle", {
+                                instrument: res.instrument_name,
+                                date: dateStr,
+                              }),
                             })
                           }
                           className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
@@ -666,7 +653,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       onClick={() => onSelectReservationDetail(res.id)}
                       className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap overflow-hidden"
                     >
-                      <span className="truncate block">{t("myReservations.viewDetails")}</span>
+                      <span className="truncate block">
+                        {t("myReservations.viewDetails")}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -708,11 +697,15 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 uppercase tracking-wider">
                             <Layers className="w-3 h-3" />
-                            {sg.occurrences.length} Sessions Series
+                            {t("myReservations.sessionsSeriesBadge", {
+                              count: sg.occurrences.length,
+                            })}
                           </span>
 
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-700 capitalize">
-                            {sg.patternType} pattern
+                            {t("myReservations.patternSuffix", {
+                              pattern: sg.patternType,
+                            })}
                           </span>
                         </div>
 
@@ -721,8 +714,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             {sg.instrumentName}
                           </span>
                           <span className="text-stone-500">
-                            {approvedCount} Approved, {pendingCount} Pending
-                            Review
+                            {t("myReservations.approvedPendingCount", {
+                              approved: approvedCount,
+                              pending: pendingCount,
+                            })}
                           </span>
                         </div>
                       </div>
@@ -737,14 +732,17 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           setCancellingItem({
                             id: firstOcc?.id,
                             mode: "series",
-                            title: `Entire Recurring Series: ${sg.serviceName} (${sg.occurrences.length} occurrences)`,
+                            title: t("myReservations.cancelSeriesFullTitle", {
+                              name: sg.serviceName,
+                              count: sg.occurrences.length,
+                            }),
                           })
                         }
                         className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                        title="Cancel entire series"
+                        title={t("myReservations.cancelEntireSeries")}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        <span>{isAr ? "إلغاء كامل السلسلة" : "Cancel Entire Series"}</span>
+                        <span>{t("myReservations.cancelEntireSeries")}</span>
                       </button>
 
                       {/* Expand / Collapse Button */}
@@ -755,8 +753,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       >
                         <span>
                           {isExpanded
-                            ? isAr ? "طي" : "Collapse"
-                            : isAr ? "عرض المواعيد" : "View Occurrences"}
+                            ? t("myReservations.collapse")
+                            : t("myReservations.viewOccurrences")}
                         </span>
                         {isExpanded ? (
                           <ChevronUp className="w-3.5 h-3.5" />
@@ -771,9 +769,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   {isExpanded && (
                     <div className="border-t border-stone-200 bg-stone-50/50 p-4 space-y-2 animate-in fade-in duration-150">
                       <div className="text-[11px] font-bold text-stone-600 px-1 flex items-center justify-between">
-                        <span>Individual Sessions in this Series:</span>
+                        <span>
+                          {t("myReservations.individualSessionsTitle")}
+                        </span>
                         <span className="text-stone-400">
-                          Select a session to view details
+                          {t("myReservations.selectSessionNote")}
                         </span>
                       </div>
 
@@ -845,13 +845,19 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                       setCancellingItem({
                                         id: occ.id,
                                         mode: "single",
-                                        title: `Session #${occIdx + 1} on ${occDateStr}`,
+                                        title: t(
+                                          "myReservations.cancelOccurrenceTitle",
+                                          {
+                                            index: occIdx + 1,
+                                            date: occDateStr,
+                                          },
+                                        ),
                                       })
                                     }
                                     className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-bold rounded-lg transition cursor-pointer"
-                                    title="Cancel this single occurrence"
+                                    title={t("myReservations.cancelSlot")}
                                   >
-                                    {isAr ? "إلغاء الموعد" : "Cancel Slot"}
+                                    {t("myReservations.cancelSlot")}
                                   </button>
                                 )}
 
@@ -862,7 +868,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                   }
                                   className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 text-[11px] font-bold rounded-lg transition cursor-pointer"
                                 >
-                                  Details
+                                  {t("common.details")}
                                 </button>
                               </div>
                             </div>

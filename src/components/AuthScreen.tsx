@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import {
   Lock,
@@ -90,6 +90,33 @@ export const AuthScreen: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  // Countdown timer for OTP resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Force LTR while the auth screen is mounted; restore prior direction on unmount
+  useEffect(() => {
+    const root = document.documentElement;
+    const prevDir = root.getAttribute("dir");
+    const prevLang = root.getAttribute("lang");
+    const wasRtl = root.classList.contains("rtl");
+
+    root.setAttribute("dir", "ltr");
+    root.setAttribute("lang", "en");
+    root.classList.remove("rtl");
+
+    return () => {
+      if (prevDir) root.setAttribute("dir", prevDir);
+      if (prevLang) root.setAttribute("lang", prevLang);
+      if (wasRtl) root.classList.add("rtl");
+    };
+  }, []);
 
   const openForgotPassword = () => {
     setResetEmail(email || "");

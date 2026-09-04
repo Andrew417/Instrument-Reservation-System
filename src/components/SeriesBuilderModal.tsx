@@ -102,6 +102,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t } = useTranslation();
 
+  const DURATION_OPTIONS = [
+    { label: t("reservationForm.duration30m"), value: 0.5 },
+    { label: t("reservationForm.duration1h"), value: 1 },
+    { label: t("reservationForm.duration1h30"), value: 1.5 },
+    { label: t("reservationForm.duration2h"), value: 2 },
+    { label: t("reservationForm.duration2h30"), value: 2.5 },
+    { label: t("reservationForm.duration3h"), value: 3 },
+    { label: t("reservationForm.duration4h"), value: 4 },
+    { label: t("reservationForm.duration5h"), value: 5 },
+  ];
+
   // Core Series State
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
     initialInstrument.id,
@@ -113,7 +124,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   const [feeAcknowledged, setFeeAcknowledged] = useState<boolean>(false);
   const [showPolicyExplainer, setShowPolicyExplainer] =
     useState<boolean>(false);
-    
+
   // Pattern Selection: 'weekly' | 'custom'
   const [patternType, setPatternType] = useState<"weekly" | "custom">("weekly");
 
@@ -282,7 +293,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           occurrenceIndex: occ.index,
           occurrenceDate: occ.date,
           occurrenceTime: `${formatHhmmTo12Hour(occ.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(occ.startTime, occ.duration))}`,
-          message: `Occurrence #${occ.index} (${occ.date} ${formatHhmmTo12Hour(occ.startTime)}) falls outside church hours (9:00 AM - 10:00 PM).`,
+          message: t("seriesBuilder.occurrenceWorkingHoursMsg", {
+            index: occ.index,
+            date: occ.date,
+            time: formatHhmmTo12Hour(occ.startTime),
+          }),
         });
       }
     });
@@ -299,7 +314,14 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             occurrenceIndex: a.index,
             occurrenceDate: a.date,
             occurrenceTime: `${formatHhmmTo12Hour(a.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(a.startTime, a.duration))}`,
-            message: `Occurrence #${a.index} (${a.date} ${formatHhmmTo12Hour(a.startTime)}) self-overlaps with Occurrence #${b.index} (${b.date} ${formatHhmmTo12Hour(b.startTime)}).`,
+            message: t("seriesBuilder.occurrenceSelfOverlapMsg", {
+              indexA: a.index,
+              dateA: a.date,
+              timeA: formatHhmmTo12Hour(a.startTime),
+              indexB: b.index,
+              dateB: b.date,
+              timeB: formatHhmmTo12Hour(b.startTime),
+            }),
           });
         }
       }
@@ -319,26 +341,30 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             occurrenceIndex: occ.index,
             occurrenceDate: occ.date,
             occurrenceTime: `${formatHhmmTo12Hour(occ.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(occ.startTime, occ.duration))}`,
-            message: `Occurrence #${occ.index} (${occ.date} ${formatHhmmTo12Hour(occ.startTime)}) conflicts with existing reservation (${formatHhmmTo12Hour(resStartHhmm)} - ${formatHhmmTo12Hour(resEndHhmm)}).`,
+            message: t("seriesBuilder.occurrenceConflictMsg", {
+              index: occ.index,
+              date: occ.date,
+              time: formatHhmmTo12Hour(occ.startTime),
+              resStart: formatHhmmTo12Hour(resStartHhmm),
+              resEnd: formatHhmmTo12Hour(resEndHhmm),
+            }),
           });
         }
       }
     });
 
     return list;
-  }, [generatedOccurrences, approvedReservations]);
+  }, [generatedOccurrences, approvedReservations, t]);
 
   // Handle Custom Date Add
   const handleAddCustomDate = () => {
     if (!newCustomDateInput) return;
     if (customDates.includes(newCustomDateInput)) {
-      setSubmitError("This date is already in your custom list.");
+      setSubmitError(t("seriesBuilder.dateAlreadyAdded"));
       return;
     }
     if (customDates.length >= maxSeriesLimit) {
-      setSubmitError(
-        t("seriesBuilder.reachedMax", { max: maxSeriesLimit }),
-      );
+      setSubmitError(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
       return;
     }
     setSubmitError(null);
@@ -348,7 +374,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
 
   const handleRemoveCustomDate = (dateToRemove: string) => {
     if (customDates.length <= 1) {
-      setSubmitError("Series must have at least one occurrence.");
+      setSubmitError(t("seriesBuilder.mustHaveOneOccurrence"));
       return;
     }
     setSubmitError(null);
@@ -360,38 +386,32 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     e.preventDefault();
 
     if (!profile) {
-      setSubmitError("You must be signed in to create a series.");
+      setSubmitError(t("seriesBuilder.errSignIn"));
       return;
     }
 
     if (!serviceName.trim()) {
-      setSubmitError(
-        "Please enter what this series is for (e.g. Sunday Morning Worship, Choir Rehearsals).",
-      );
+      setSubmitError(t("seriesBuilder.errSpecifyPurpose"));
       return;
     }
 
     if (generatedOccurrences.length === 0) {
-      setSubmitError("Please configure at least one occurrence.");
+      setSubmitError(t("seriesBuilder.errNoOccurrences"));
       return;
     }
 
     if (generatedOccurrences.length > maxSeriesLimit) {
-      setSubmitError(
-        t("seriesBuilder.reachedMax", { max: maxSeriesLimit }),
-      );
+      setSubmitError(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
       return;
     }
 
     if (conflicts.length > 0) {
-      setSubmitError("Cannot submit: Please resolve all conflicts first.");
+      setSubmitError(t("seriesBuilder.errResolveConflicts"));
       return;
     }
 
     if (reservationType === "outside_church" && !feeAcknowledged) {
-      setSubmitError(
-        "Please acknowledge the outside-church fee agreement before proceeding.",
-      );
+      setSubmitError(t("seriesBuilder.errAcknowledgeFee"));
       return;
     }
 
@@ -429,7 +449,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setSubmitError(data.error || "Failed to create recurring series.");
+        setSubmitError(data.error || t("seriesBuilder.errCreateFailed"));
         setIsSubmitting(false);
         return;
       }
@@ -441,9 +461,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
       setIsSubmitting(false);
       onSuccess(data);
     } catch (err: any) {
-      setSubmitError(
-        err.message || "Network error occurred while creating series.",
-      );
+      setSubmitError(err.message || t("seriesBuilder.errNetwork"));
       setIsSubmitting(false);
     }
   };
@@ -469,13 +487,13 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             <div>
               <h2 className="text-base font-bold text-white leading-tight">
                 {seriesResult
-                  ? "Series Confirmation"
-                  : "Recurring Series Builder"}
+                  ? t("seriesBuilder.confirmationTitle")
+                  : t("seriesBuilder.title")}
               </h2>
               <p className="text-xs text-stone-400">
                 {seriesResult
-                  ? "Multi-date recurring schedule submitted"
-                  : "Book the same time slot across multiple dates"}
+                  ? t("seriesBuilder.confirmationSubtitle")
+                  : t("seriesBuilder.builderSubtitle")}
               </p>
             </div>
           </div>
@@ -484,7 +502,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             id="btn-close-series-modal"
             onClick={onClose}
             className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer"
-            aria-label="Close modal"
+            aria-label={t("common.close")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -500,7 +518,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs text-stone-500 font-medium block">
-                    What this series is for:
+                    {t("seriesBuilder.whatForLabel")}
                   </span>
                   <span className="font-bold text-stone-900 text-sm">
                     {serviceName}
@@ -508,7 +526,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-stone-500 font-medium block">
-                    Instrument:
+                    {t("seriesBuilder.instrumentColonLabel")}
                   </span>
                   <span className="font-bold text-amber-900 text-xs">
                     {currentInstrument.name}
@@ -518,14 +536,20 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
 
               <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center justify-between text-xs text-stone-600 gap-2">
                 <div>
-                  <span>Pattern: </span>
+                  <span>{t("seriesBuilder.patternLabel")} </span>
                   <strong className="capitalize text-stone-900">
                     {seriesResult.series.patternType}
                   </strong>
-                  <span> ({seriesResult.occurrences.length} occurrences)</span>
+                  <span>
+                    {" "}
+                    {t("seriesBuilder.occurrencesCountSuffix", {
+                      count: seriesResult.occurrences.length,
+                    })}
+                  </span>
                 </div>
                 <div className="font-mono text-[11px] text-stone-500">
-                  Series ID: {seriesResult.series.id.substring(0, 13)}...
+                  {t("seriesBuilder.seriesIdLabel")}{" "}
+                  {seriesResult.series.id.substring(0, 13)}...
                 </div>
               </div>
 
@@ -536,8 +560,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     WA
                   </div>
                   <p className="leading-relaxed">
-                    If your reservation is approved, the admin will contact you
-                    on WhatsApp for confirmation and payment.
+                    {t("seriesBuilder.whatsappNotice")}
                   </p>
                 </div>
               )}
@@ -547,29 +570,25 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             <div className="space-y-2">
               <div className="text-xs font-bold text-stone-800 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  Per-Occurrence Status Breakdown:
+                  {t("seriesBuilder.perOccurrenceBreakdown")}
                   <button
                     type="button"
                     onClick={() => setShowPolicyExplainer(true)}
                     className="text-stone-500 hover:text-amber-800 transition cursor-pointer"
-                    title="Learn more about booking limits"
+                    title={t("seriesBuilder.learnMoreLimitsTooltip")}
                   >
                     <Info className="w-3.5 h-3.5" />
                   </button>
                 </span>
                 <span className="text-[11px] font-normal text-stone-500">
-                  {
-                    seriesResult.occurrences.filter(
+                  {t("seriesBuilder.approvedPendingSummary", {
+                    approved: seriesResult.occurrences.filter(
                       (o) => o.evaluation.status === "approved",
-                    ).length
-                  }{" "}
-                  Approved,{" "}
-                  {
-                    seriesResult.occurrences.filter(
+                    ).length,
+                    pending: seriesResult.occurrences.filter(
                       (o) => o.evaluation.status === "pending",
-                    ).length
-                  }{" "}
-                  Pending Review
+                    ).length,
+                  })}
                 </span>
               </div>
 
@@ -617,12 +636,12 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                           {isApproved ? (
                             <>
                               <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                              Approved
+                              {t("common.approved")}
                             </>
                           ) : (
                             <>
                               <Clock className="w-3 h-3 text-amber-700" />
-                              Pending Review
+                              {t("seriesBuilder.pendingReviewBadge")}
                             </>
                           )}
                         </span>
@@ -649,7 +668,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 onClick={onClose}
                 className="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-2xl transition cursor-pointer shadow-md"
               >
-                Done (Return to Calendar)
+                {t("seriesBuilder.doneReturnToCalendar")}
               </button>
             </div>
           </div>
@@ -667,7 +686,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                 <div className="space-y-1 text-xs">
                   <div className="font-bold text-red-950">
-                    Submission Blocked
+                    {t("seriesBuilder.submissionBlockedTitle")}
                   </div>
                   <div className="text-red-800 leading-relaxed">
                     {submitError}
@@ -687,8 +706,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     {currentInstrument.name}
                   </span>
                   <span className="text-[11px] text-stone-500 block capitalize">
-                    {currentInstrument.type} • {currentInstrument.bookingMode}{" "}
-                    mode
+                    {t("seriesBuilder.instrumentModeSuffix", {
+                      type: currentInstrument.type,
+                      mode: currentInstrument.bookingMode,
+                    })}
                   </span>
                 </div>
               </div>
@@ -704,7 +725,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 >
                   <Layers className="w-3.5 h-3.5 text-stone-500" />
                   <span>
-                    {generatedOccurrences.length} / {maxSeriesLimit} Occurrences
+                    {t("seriesBuilder.occurrenceCounter", {
+                      count: generatedOccurrences.length,
+                      max: maxSeriesLimit,
+                    })}
                   </span>
                 </div>
               </div>
@@ -716,7 +740,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 htmlFor="series-service-name"
                 className="block text-xs font-bold text-stone-700"
               >
-                What is this recurring series for?{" "}
+                {t("seriesBuilder.serviceNameQuestion")}{" "}
                 <span className="text-amber-800 font-bold">*</span>
               </label>
               <input
@@ -724,7 +748,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 type="text"
                 value={serviceName}
                 onChange={(e) => setServiceName(e.target.value)}
-                placeholder="e.g. Sunday Worship, Youth Choir Rehersals"
+                placeholder={t("seriesBuilder.serviceNamePlaceholder")}
                 className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                 required
               />
@@ -733,7 +757,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             {/* 2. Pattern Choice (Weekly vs Custom) */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-stone-700">
-                Recurrence Pattern
+                {t("seriesBuilder.recurrencePatternLabel")}
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -748,12 +772,12 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs text-stone-900">
-                      Weekly Cadence
+                      {t("seriesBuilder.weeklyCadenceTitle")}
                     </span>
                     <Repeat className="w-4 h-4 text-amber-800" />
                   </div>
-                  <p className="text-[11px] text-stone-500 leading-tight">
-                    Repeats every X weeks on the same day-of-week & time.
+                  <p className="text-[11px] text-stone-500 leading-tight text-start">
+                    {t("seriesBuilder.weeklyCadenceDesc")}
                   </p>
                 </button>
 
@@ -769,13 +793,12 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs text-stone-900">
-                      Custom Dates
+                      {t("seriesBuilder.customDatesTitle")}
                     </span>
                     <Calendar className="w-4 h-4 text-amber-800" />
                   </div>
-                  <p className="text-[11px] text-stone-500 leading-tight">
-                    Manually pick specific dates sharing the same time &
-                    duration.
+                  <p className="text-[11px] text-stone-500 leading-tight text-start">
+                    {t("seriesBuilder.customDatesDesc")}
                   </p>
                 </button>
               </div>
@@ -784,7 +807,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             {/* 3. Base Time Slot Settings (Applies to all occurrences) */}
             <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
               <div className="text-xs font-bold text-stone-900">
-                Base Time & Duration (All Occurrences)
+                {t("seriesBuilder.baseTimeTitle")}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -792,8 +815,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 <div>
                   <label className="block text-[11px] font-bold text-stone-600 mb-1">
                     {patternType === "weekly"
-                      ? "First Session Date"
-                      : "Reference Date"}
+                      ? t("seriesBuilder.firstSessionDateLabel")
+                      : t("seriesBuilder.referenceDateLabel")}
                   </label>
                   <input
                     type="date"
@@ -806,7 +829,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 {/* Start Time */}
                 <div>
                   <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                    Start Time
+                    {t("reservationForm.startTimeLabel")}
                   </label>
                   <select
                     value={baseStartTime}
@@ -824,25 +847,22 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 {/* Duration */}
                 <div>
                   <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                    Duration (
-                    {formatHhmmTo12Hour(
-                      calculateEndTime(baseStartTime, baseDuration),
-                    )}
-                    )
+                    {t("seriesBuilder.durationUntilLabel", {
+                      end: formatHhmmTo12Hour(
+                        calculateEndTime(baseStartTime, baseDuration),
+                      ),
+                    })}
                   </label>
                   <select
                     value={baseDuration}
                     onChange={(e) => setBaseDuration(Number(e.target.value))}
                     className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
                   >
-                    <option value={0.5}>30 min</option>
-                    <option value={1}>1 hour</option>
-                    <option value={1.5}>1.5 hours</option>
-                    <option value={2}>2 hours</option>
-                    <option value={2.5}>2.5 hours</option>
-                    <option value={3}>3 hours</option>
-                    <option value={4}>4 hours</option>
-                    <option value={5}>5 hours</option>
+                    {DURATION_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -852,13 +872,13 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             {patternType === "weekly" ? (
               <div className="p-4 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-4">
                 <div className="text-xs font-bold text-amber-950">
-                  Weekly Repeat Configuration
+                  {t("seriesBuilder.weeklyRepeatConfigTitle")}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      Repeat Cadence
+                      {t("seriesBuilder.repeatCadenceLabel")}
                     </label>
                     <select
                       value={weeklyInterval}
@@ -867,16 +887,24 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                       }
                       className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
                     >
-                      <option value={1}>Every week (1 week)</option>
-                      <option value={2}>Every 2 weeks (Bi-weekly)</option>
-                      <option value={3}>Every 3 weeks</option>
-                      <option value={4}>Every 4 weeks (Monthly)</option>
+                      <option value={1}>{t("seriesBuilder.everyWeek")}</option>
+                      <option value={2}>
+                        {t("seriesBuilder.everyTwoWeeks")}
+                      </option>
+                      <option value={3}>
+                        {t("seriesBuilder.everyThreeWeeks")}
+                      </option>
+                      <option value={4}>
+                        {t("seriesBuilder.everyFourWeeks")}
+                      </option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      {t("seriesBuilder.totalOccurrences", { max: maxSeriesLimit })}
+                      {t("seriesBuilder.totalOccurrences", {
+                        max: maxSeriesLimit,
+                      })}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
@@ -894,7 +922,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                         className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
                       />
                       <span className="text-xs text-stone-500 font-medium shrink-0">
-                        sessions
+                        {t("seriesBuilder.sessionsUnit")}
                       </span>
                     </div>
                   </div>
@@ -914,10 +942,13 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-bold text-stone-900">
-                    Custom Dates List
+                    {t("seriesBuilder.customDatesListTitle")}
                   </div>
                   <span className="text-[11px] text-stone-500">
-                    {t("seriesBuilder.allowedDates", { count: customDates.length, max: maxSeriesLimit })}
+                    {t("seriesBuilder.allowedDates", {
+                      count: customDates.length,
+                      max: maxSeriesLimit,
+                    })}
                   </span>
                 </div>
 
@@ -937,7 +968,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add Date</span>
+                    <span>{t("seriesBuilder.addCustomDate")}</span>
                   </button>
                 </div>
 
@@ -964,7 +995,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                         type="button"
                         onClick={() => handleRemoveCustomDate(d)}
                         className="text-stone-400 hover:text-red-600 transition cursor-pointer"
-                        title="Remove date"
+                        title={t("seriesBuilder.removeDate")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -977,21 +1008,20 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             {/* 5. In-Progress Occurrences Preview List */}
             <div className="space-y-2">
               <div className="text-xs font-bold text-stone-800 flex items-center justify-between">
-                <span>Calculated Occurrence Schedule:</span>
-                All sessions: {formatHhmmTo12Hour(baseStartTime)} –{" "}
-                {formatHhmmTo12Hour(
-                  calculateEndTime(baseStartTime, baseDuration),
-                )}{" "}
-                ({baseDuration}h)
+                <span>{t("seriesBuilder.calculatedScheduleTitle")}</span>
+                {t("seriesBuilder.allSessionsLabel", {
+                  start: formatHhmmTo12Hour(baseStartTime),
+                  end: formatHhmmTo12Hour(
+                    calculateEndTime(baseStartTime, baseDuration),
+                  ),
+                  duration: baseDuration,
+                })}
               </div>
 
               {!hasConflicts && (
                 <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    Automatically checked for overlaps and conflicts as you
-                    build this.
-                  </span>
+                  <span>{t("seriesBuilder.autoCheckedNotice")}</span>
                 </div>
               )}
 
@@ -1029,8 +1059,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 <div className="flex items-center gap-2 text-red-950 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>
-                    Conflicts Detected ({conflicts.length} issue
-                    {conflicts.length > 1 ? "s" : ""}) — Submission Disabled
+                    {t("seriesBuilder.conflictsDetectedTitle", {
+                      count: conflicts.length,
+                    })}{" "}
+                    {t("seriesBuilder.submissionDisabledSuffix")}
                   </span>
                 </div>
                 <div className="space-y-1.5 pt-1">
@@ -1050,7 +1082,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             {/* 7. Reservation Usage Type & Fee Agreement */}
             <div className="space-y-2.5">
               <label className="block text-xs font-bold text-stone-700">
-                Usage Type
+                {t("reservationForm.usageTypeLabel")}
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -1067,15 +1099,14 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 >
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="font-bold text-xs text-stone-900">
-                      In-Church Use
+                      {t("reservationForm.inChurchUseLabel")}
                     </span>
                     <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                      Free
+                      {t("reservationForm.freeBadge")}
                     </span>
                   </div>
-                  <p className="text-[10px] text-stone-500">
-                    Dedicated for prayer services and hymns, choir practice, and
-                    concerts inside the church.
+                  <p className="text-[10px] text-stone-500 text-start">
+                    {t("reservationForm.inChurchDesc")}
                   </p>
                 </button>
 
@@ -1090,14 +1121,14 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 >
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="font-bold text-xs text-stone-900">
-                      Outside Church
+                      {t("reservationForm.outsideChurchLabel")}
                     </span>
                     <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800">
-                      EGP {feeNumber}/day
+                      {t("reservationForm.egpPerDayBadge", { fee: feeNumber })}
                     </span>
                   </div>
-                  <p className="text-[10px] text-stone-500">
-                    For external events, outside performances, and conferences
+                  <p className="text-[10px] text-stone-500 text-start">
+                    {t("reservationForm.outsideChurchDesc")}
                   </p>
                 </button>
               </div>
@@ -1111,8 +1142,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer"
                   />
                   <span className="text-xs font-semibold text-purple-950">
-                    I acknowledge outside usage fee of EGP {feeNumber}/day per
-                    occurrence in this series.
+                    {t("seriesBuilder.feeAckPerOccurrence", { fee: feeNumber })}
                   </span>
                 </label>
               )}
@@ -1125,7 +1155,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 onClick={onClose}
                 className="py-3 px-5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-2xl transition cursor-pointer"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
 
               <button
@@ -1152,14 +1182,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>
-                      Creating {generatedOccurrences.length}-Part Series...
+                      {t("seriesBuilder.creatingSessions", {
+                        count: generatedOccurrences.length,
+                      })}
                     </span>
                   </>
                 ) : (
                   <>
                     <span>
-                      Submit Recurring Series ({generatedOccurrences.length}{" "}
-                      Sessions)
+                      {t("seriesBuilder.submitSeriesButton", {
+                        count: generatedOccurrences.length,
+                      })}
                     </span>
                     <ArrowRight className="w-4 h-4" />
                   </>

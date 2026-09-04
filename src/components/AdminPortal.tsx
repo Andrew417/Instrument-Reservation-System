@@ -1643,6 +1643,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     </button>
   );
 
+  const STATUS_LABEL_KEYS: Record<string, string> = {
+    pending: "common.pending",
+    approved: "common.approved",
+    rejected: "common.rejected",
+    cancelled: "common.cancelled",
+    ongoing: "common.ongoing",
+    completed: "common.completed",
+  };
+
+  const translateStatus = (status: string) =>
+    t(STATUS_LABEL_KEYS[status] || status);
   return (
     <div id="admin-portal-root" className="space-y-6">
       {/* Feedback Banner */}
@@ -1697,7 +1708,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
+        <div className="flex items-center gap-2.5 flex-wrap justify-end w-full md:w-auto md:justify-start">
           <button
             id="btn-admin-export-handover"
             type="button"
@@ -1713,18 +1724,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <Download className="w-3.5 h-3.5" />
             <span>{t("admin.exportHandover")}</span>
           </button>
-
-          {onBackToMemberView && (
-            <button
-              id="btn-return-member-view"
-              type="button"
-              onClick={onBackToMemberView}
-              className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold border border-stone-200 transition flex items-center gap-2 cursor-pointer shadow-2xs"
-            >
-              <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
-              <span>{t("admin.returnToCalendar")}</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -1739,7 +1738,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <Clock className="w-5 h-5 text-amber-600/40" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            {isAr ? "يتطلب مراجعة الحجز" : "Requires booking review"}
+            {t("admin.dashboard.pendingReviewNote")}
           </div>
         </div>
 
@@ -1761,12 +1760,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
           <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
             {Number(stats.pendingUserApprovals || 0) > 0
-              ? isAr
-                ? "بانتظار اعتماد المشرف"
-                : "Pending admin approval"
-              : isAr
-                ? "تم اعتماد جميع الحسابات"
-                : "All accounts approved"}
+              ? t("admin.dashboard.approvalsPendingNote")
+              : t("admin.dashboard.approvalsAllDoneNote")}
           </div>
         </button>
 
@@ -1779,7 +1774,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <CalendarCheck className="w-5 h-5 text-emerald-600/40" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            {isAr ? "معتمد ونشط اليوم" : "Approved & active today"}
+            {t("admin.dashboard.todaysBookingsNote")}
           </div>
         </div>
 
@@ -1792,7 +1787,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <Music2 className="w-5 h-5 text-stone-400" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            {isAr ? "في عهدة الكنيسة" : "In church inventory"}
+            {t("admin.dashboard.totalInstrumentsNote")}
           </div>
         </div>
 
@@ -1805,7 +1800,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <Users className="w-5 h-5 text-stone-400" />
           </div>
           <div className="text-[11px] text-stone-400 mt-2">
-            {isAr ? "حسابات معتمدة" : "Approved accounts"}
+            {t("admin.dashboard.activeUsersNote")}
           </div>
         </div>
       </div>
@@ -1816,7 +1811,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <aside className="w-full md:w-64 shrink-0 space-y-4">
           <div className="bg-white border border-stone-200 rounded-2xl p-3 shadow-2xs">
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-              {isAr ? "العمليات والإدارة" : "Operations & Management"}
+              {t("admin.sidebar.operationsSection")}
             </div>
             <nav className="space-y-1 mt-1">
               <button
@@ -1921,9 +1916,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <MessageSquare className="w-4 h-4 text-amber-800" />
-                  <span>
-                    {isAr ? "المحادثات والملاحظات" : "Reservation Chat"}
-                  </span>
+                  <span>{t("admin.tabMessaging")}</span>
                 </div>
               </button>
             </nav>
@@ -1933,9 +1926,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="mt-4 pt-4 border-t border-stone-200">
                 <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3 text-amber-700" />
-                  <span>
-                    {isAr ? "أدوات المشرف العام" : "Super Admin Tools"}
-                  </span>
+                  <span>{t("admin.sidebar.superAdminSection")}</span>
                 </div>
                 <nav className="space-y-1 mt-1">
                   <button
@@ -1949,7 +1940,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   >
                     <div className="flex items-center gap-2.5">
                       <ShieldCheck className="w-4 h-4 text-amber-800" />
-                      <span>{isAr ? "حسابات المشرفين" : "Admin Accounts"}</span>
+                      <span>{t("admin.tabAdminAccounts")}</span>{" "}
                     </div>
                     <span className="text-[10px] bg-amber-200/60 text-amber-950 px-1.5 py-0.5 rounded font-mono">
                       {adminAccountsList.length}
@@ -1966,11 +1957,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <UserCheck className="w-4 h-4 text-amber-800" />
-                    <span>
-                      {isAr
-                        ? "الأعضاء الموثوقين وسجل التدقيق"
-                        : "Trusted & Audit Trail"}
-                    </span>
+                    <span>{t("admin.tabTrustedStatus")}</span>
                   </button>
 
                   <button
@@ -2008,9 +1995,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }`}
                   >
                     <Bell className="w-4 h-4 text-amber-800" />
-                    <span>
-                      {isAr ? "إعدادات الإشعارات" : "Notification Settings"}
-                    </span>
+                    <span>{t("admin.tabNotificationSettings")}</span>
                   </button>
                 </nav>
               </div>
@@ -2030,17 +2015,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                   <div>
                     <h2 className="font-bold text-stone-900 text-sm">
-                      Today's Schedule
+                      {t("admin.dashboard.todaysScheduleTitle")}
                     </h2>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      Read-only glance at today's bookings. Use Review Requests
-                      to take action.
+                      {t("admin.dashboard.todaysScheduleDesc")}
                     </p>
                   </div>
                   <button
                     onClick={fetchTodaysReservations}
                     className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                    title="Refresh today's schedule"
+                    title={t("admin.dashboard.refreshTooltip")}
                   >
                     <RefreshCw className="w-4 h-4" />
                   </button>
@@ -2048,11 +2032,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 {loadingTodaysReservations ? (
                   <div className="py-12 text-center text-stone-500 text-xs">
-                    Loading today's schedule...
+                    {t("admin.dashboard.loading")}
                   </div>
                 ) : todaysReservations.length === 0 ? (
                   <div className="py-12 text-center text-stone-400 text-xs">
-                    No reservations scheduled for today.
+                    {t("admin.dashboard.empty")}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -2112,7 +2096,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         : "bg-stone-100 text-stone-600 hover:text-stone-900"
                     }`}
                   >
-                    Pending ({stats.pendingRequests})
+                    {t("admin.review.pendingTab", {
+                      count: stats.pendingRequests,
+                    })}
                   </button>
                   <button
                     onClick={() => setFilterQuickTab("all")}
@@ -2122,7 +2108,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         : "bg-stone-100 text-stone-600 hover:text-stone-900"
                     }`}
                   >
-                    All
+                    {t("common.all")}
                   </button>
                 </div>
 
@@ -2130,7 +2116,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <button
                     onClick={fetchReservations}
                     className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                    title="Refresh reservations"
+                    title={t("admin.review.refreshTooltip")}
                   >
                     <RefreshCw className="w-4 h-4" />
                   </button>
@@ -2141,13 +2127,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Search Member / Service
+                    {t("admin.review.searchLabel")}
                   </label>
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
-                      placeholder="Search name or service..."
+                      placeholder={t("admin.review.searchPlaceholder")}
                       value={filterSearch}
                       onChange={(e) => setFilterSearch(e.target.value)}
                       className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700"
@@ -2157,14 +2143,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Instrument
+                    {t("admin.review.instrumentLabel")}
                   </label>
                   <select
                     value={filterInstrument}
                     onChange={(e) => setFilterInstrument(e.target.value)}
                     className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                   >
-                    <option value="all">All Instruments</option>
+                    <option value="all">
+                      {t("admin.review.allInstruments")}
+                    </option>
                     {instrumentsList.map((i) => (
                       <option key={i.id} value={i.id}>
                         {i.name}
@@ -2175,20 +2163,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    Status
+                    {t("common.status")}
                   </label>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
                     className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                   >
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="cancelled">Cancelled</option>
+                    <option value="all">{t("admin.review.allStatuses")}</option>
+                    <option value="pending">{t("common.pending")}</option>
+                    <option value="approved">{t("common.approved")}</option>
+                    <option value="ongoing">{t("common.ongoing")}</option>
+                    <option value="completed">{t("common.completed")}</option>
+                    <option value="rejected">{t("common.rejected")}</option>
+                    <option value="cancelled">{t("common.cancelled")}</option>
                   </select>
                 </div>
               </div>
@@ -2203,10 +2191,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
                     <span className="text-xs font-bold">
                       {selectedReservationIds.length}{" "}
-                      {selectedReservationIds.length === 1
-                        ? "reservation"
-                        : "reservations"}{" "}
-                      selected
+                      {t(
+                        selectedReservationIds.length === 1
+                          ? "admin.review.reservationSingular"
+                          : "admin.review.reservationPlural",
+                      )}{" "}
+                      {t("admin.review.selectedSuffix")}
                     </span>
                     {selectedReservationIds.length < reservations.length && (
                       <button
@@ -2222,7 +2212,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         }}
                         className="text-[11px] text-amber-300 hover:text-amber-200 underline cursor-pointer ml-1"
                       >
-                        Select all {reservations.length} visible
+                        {t("admin.review.selectAllVisible", {
+                          count: reservations.length,
+                        })}{" "}
                       </button>
                     )}
                   </div>
@@ -2237,7 +2229,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       title="Cancel selected reservations"
                     >
                       <XCircle className="w-3.5 h-3.5" />
-                      <span>Cancel Selected</span>
+                      <span>{t("admin.review.cancelSelected")}</span>
                     </button>
 
                     {/* Delete Selected — Super Admin ONLY */}
@@ -2250,7 +2242,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         title="Permanently delete selected reservations from database"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Delete Selected</span>
+                        <span>{t("admin.review.deleteSelected")}</span>
                       </button>
                     )}
 
@@ -2262,7 +2254,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium transition cursor-pointer border border-stone-700"
                       title="Clear selection"
                     >
-                      <span>Clear</span>
+                      <span>{t("admin.review.clearSelection")}</span>
                     </button>
                   </div>
                 </div>
@@ -2272,11 +2264,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="overflow-x-auto mt-2">
                 {loadingReservations ? (
                   <div className="py-12 text-center text-stone-500 text-xs">
-                    Loading reservations...
+                    {t("admin.review.loading")}
                   </div>
                 ) : reservations.length === 0 ? (
                   <div className="py-12 text-center text-stone-400 text-xs">
-                    No reservations match your filters.
+                    {t("admin.review.empty")}
                   </div>
                 ) : (
                   <table className="w-full text-left text-xs border-collapse">
@@ -2309,12 +2301,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
                           />
                         </th>
-                        <th className="py-2.5 px-3">Date & Slot</th>
-                        <th className="py-2.5 px-3">Instrument</th>
-                        <th className="py-2.5 px-3">Member & Service</th>
-                        <th className="py-2.5 px-3">Type / Mode</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3 text-right">Actions</th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.review.colDateSlot")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.review.instrumentLabel")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.review.colMemberService")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.review.colTypeMode")}
+                        </th>
+                        <th className="py-2.5 px-3">{t("common.status")}</th>
+                        <th className="py-2.5 px-3 text-right">
+                          {t("common.actions")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -2405,12 +2407,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 }`}
                               >
                                 {r.reservation_type === "outside_church"
-                                  ? "Outside"
-                                  : "In Church"}
+                                  ? t("admin.review.outsideBadge")
+                                  : t("admin.review.inChurchBadge")}
                               </span>
                               {r.series_id && (
                                 <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                  <Repeat className="w-2.5 h-2.5" /> Series
+                                  <Repeat className="w-2.5 h-2.5" />{" "}
+                                  {t("admin.review.seriesBadge")}
                                 </span>
                               )}
                             </td>
@@ -2427,7 +2430,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                         : "bg-stone-100 text-stone-700"
                                 }`}
                               >
-                                {r.status}
+                                {translateStatus(r.status)}
                               </span>
                             </td>
 
@@ -2441,7 +2444,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       title="Approve request"
                                     >
                                       <Check className="w-3 h-3" />
-                                      <span>Approve</span>
+                                      <span>
+                                        {t("admin.review.approveBtn")}
+                                      </span>
                                     </button>
                                     <button
                                       onClick={() => openRejectModal(r)}
@@ -2449,7 +2454,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       title="Reject request"
                                     >
                                       <X className="w-3 h-3" />
-                                      <span>Reject</span>
+                                      <span>{t("admin.review.rejectBtn")}</span>
                                     </button>
                                   </>
                                 )}
@@ -2463,7 +2468,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     title="View conversation, details, and replies"
                                   >
                                     <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
-                                    <span>Details & Chat</span>
+                                    <span>
+                                      {t("admin.review.detailsChatBtn")}
+                                    </span>
                                   </button>
                                 )}
                               </div>
@@ -2490,17 +2497,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
-                      Account Approvals
+                      {t("admin.accountApprovals")}
                     </h2>
                     {approvalCounts.pending > 0 && (
                       <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
-                        {approvalCounts.pending} Pending
+                        {t("admin.approvals.pendingBadge", {
+                          count: approvalCounts.pending,
+                        })}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-stone-500 mt-1">
-                    Review new member registrations. Approved accounts can log
-                    in; rejected accounts stay in the audit log.
+                    {t("admin.approvals.description")}
                   </p>
                 </div>
 
@@ -2510,7 +2518,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <input
                       id="approvals-search-input"
                       type="text"
-                      placeholder="Search name, email, phone..."
+                      placeholder={t("admin.approvals.searchPlaceholder")}
                       value={approvalSearch}
                       onChange={(e) => setApprovalSearch(e.target.value)}
                       className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
@@ -2521,7 +2529,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     type="button"
                     onClick={fetchApprovals}
                     className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                    title="Refresh registrations"
+                    title={t("admin.approvals.refreshTooltip")}
                   >
                     <RefreshCw className="w-4 h-4" />
                   </button>
@@ -2541,7 +2549,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Pending</span>
+                  <span>{t("common.pending")}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === "pending"
@@ -2564,7 +2572,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }`}
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Approved</span>
+                  <span>{t("common.approved")}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === "approved"
@@ -2587,7 +2595,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   }`}
                 >
                   <X className="w-3.5 h-3.5" />
-                  <span>Rejected</span>
+                  <span>{t("common.rejected")}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === "rejected"
@@ -2609,7 +2617,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       : "bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70"
                   }`}
                 >
-                  <span>All</span>
+                  <span>{t("common.all")}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] ${
                       approvalFilterStatus === "all"
@@ -2625,20 +2633,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {/* Table / List */}
               {loadingApprovals ? (
                 <div className="py-12 text-center text-stone-500 text-xs">
-                  Loading registration approvals...
+                  {t("admin.approvals.loading")}
                 </div>
               ) : approvalsList.length === 0 ? (
                 <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
                   <UserCheck className="w-8 h-8 text-stone-300 mx-auto mb-2" />
                   <div className="font-bold text-stone-700 text-xs">
                     {approvalFilterStatus === "pending"
-                      ? "No registrations awaiting approval"
-                      : "No registrations match the selected filter"}
+                      ? t("admin.approvals.emptyPendingTitle")
+                      : t("admin.approvals.emptyFilteredTitle")}
                   </div>
                   <p className="text-[11px] text-stone-400 mt-1 max-w-sm mx-auto">
                     {approvalFilterStatus === "pending"
-                      ? "All member registration requests have been reviewed."
-                      : "Try switching filters or adjusting your search keyword."}
+                      ? t("admin.approvals.emptyPendingDesc")
+                      : t("admin.approvals.emptyFilteredDesc")}
                   </p>
                 </div>
               ) : (
@@ -2646,12 +2654,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3">Applicant Name</th>
-                        <th className="py-2.5 px-3">Email</th>
-                        <th className="py-2.5 px-3">Phone Number</th>
-                        <th className="py-2.5 px-3">Registration Date</th>
-                        <th className="py-2.5 px-3">Approval Status</th>
-                        <th className="py-2.5 px-3 text-right">Actions</th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.approvals.colApplicantName")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.approvals.colEmail")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.approvals.colPhoneNumber")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.approvals.colRegistrationDate")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.approvals.colApprovalStatus")}
+                        </th>
+                        <th className="py-2.5 px-3 text-right">
+                          {t("common.actions")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -2673,7 +2693,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 {u.isTrusted && (
                                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
                                     <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                    Trusted
+                                    {t("common.trusted")}
                                   </span>
                                 )}
                               </div>
@@ -2697,19 +2717,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               {status === "pending" && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                                   <Clock className="w-3 h-3 text-amber-700" />
-                                  Awaiting Admin Approval
+                                  {t("admin.approvals.statusAwaiting")}
                                 </span>
                               )}
                               {status === "approved" && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                                   <Check className="w-3 h-3 text-emerald-700" />
-                                  Approved & Active
+                                  {t("admin.approvals.statusApprovedActive")}
                                 </span>
                               )}
                               {status === "rejected" && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                                   <X className="w-3 h-3 text-rose-700" />
-                                  Rejected (Preserved in Audit)
+                                  {t("admin.approvals.statusRejectedAudit")}
                                 </span>
                               )}
                             </td>
@@ -2729,7 +2749,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       title="Approve registration and allow member to log in"
                                     >
                                       <Check className="w-3.5 h-3.5" />
-                                      <span>Approve</span>
+                                      <span>
+                                        {t("admin.approvals.approveBtn")}
+                                      </span>
                                     </button>
 
                                     <button
@@ -2741,7 +2763,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       title="Reject registration (account preserved in audit database)"
                                     >
                                       <X className="w-3.5 h-3.5" />
-                                      <span>Reject</span>
+                                      <span>
+                                        {t("admin.approvals.rejectBtn")}
+                                      </span>
                                     </button>
                                   </>
                                 )}
@@ -2759,7 +2783,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       title="Re-approve this rejected registration"
                                     >
                                       <Check className="w-3 h-3 text-emerald-700" />
-                                      <span>Re-Approve</span>
+                                      <span>
+                                        {t("admin.approvals.reApproveBtn")}
+                                      </span>
                                     </button>
 
                                     <button
@@ -2789,7 +2815,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       title="View member in church directory"
                                     >
                                       <Users className="w-3 h-3 text-amber-800" />
-                                      <span>View in Directory</span>
+                                      <span>
+                                        {t(
+                                          "admin.approvals.viewInDirectoryBtn",
+                                        )}
+                                      </span>
                                     </button>
                                   </div>
                                 )}
@@ -2813,12 +2843,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-100 pb-4">
                 <div className="min-w-0">
                   <h2 className="font-bold text-stone-900 text-sm">
-                    Church Instruments Inventory
+                    {t("admin.instruments.title")}
                   </h2>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Add, edit specifications, change booking mode, mark retired
-                    instruments unavailable, or delete accidental mistaken
-                    entries.
+                    {t("admin.instruments.subtitle")}
                   </p>
                 </div>
                 <button
@@ -2840,12 +2868,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5 shrink-0" />
-                  <span>Add Instrument</span>
+                  <span>{t("admin.instruments.addButton")}</span>
                 </button>
               </div>
               {loadingInstruments ? (
                 <div className="py-12 text-center text-stone-500 text-xs">
-                  Loading instruments...
+                  {t("admin.instruments.loading")}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2867,9 +2895,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             : "bg-white border-stone-200 hover:border-amber-300"
                         }`}
                       >
-                        {/* Top row: instrument info on left, status badge on right */}
                         <div className="flex items-start justify-between gap-3 flex-wrap">
-                          {/* Left side: Photo and instrument details */}
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
                               {instPhoto ? (
@@ -2891,30 +2917,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <span>{inst.type}</span>
                                 <span className="text-stone-300">•</span>
                                 <span>
-                                  {inst.totalReservations ??
-                                    inst.total_reservations ??
-                                    0}{" "}
-                                  bookings
+                                  {t("admin.instruments.bookingsCount", {
+                                    count:
+                                      inst.totalReservations ??
+                                      inst.total_reservations ??
+                                      0,
+                                  })}
                                 </span>
                               </div>
                             </div>
                           </div>
 
-                          {/* Right side: Status Badge (matches booking mode style) */}
                           <div className="shrink-0">
                             {isDecommissioned ? (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-200">
-                                Retired
+                                {t("admin.instruments.retiredBadge")}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-200">
-                                Active
+                                {t("admin.instruments.activeBadge")}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Booking mode and fee badges */}
                         <div className="flex items-center justify-between mt-2 gap-2">
                           <span
                             id={`admin-instrument-mode-badge-${inst.id}`}
@@ -2925,8 +2951,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             }`}
                           >
                             {isInstant
-                              ? "⚡ Instant Booking"
-                              : "🛡️ Manual Review"}
+                              ? t("admin.instruments.instantBooking")
+                              : t("admin.instruments.manualReview")}
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-purple-50 text-purple-800 border border-purple-200">
                             $
@@ -2937,13 +2963,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </span>
                         </div>
 
-                        {/* Description */}
                         <p className="text-xs text-stone-600 my-3 line-clamp-2">
                           {inst.description ||
-                            "No specific description provided."}
+                            t("admin.instruments.noDescription")}
                         </p>
 
-                        {/* Action buttons */}
                         <div className="pt-3 border-t border-stone-100 text-xs">
                           <div
                             className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
@@ -2972,10 +2996,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setShowInstrumentModal(true);
                                   }}
                                   className="px-2 py-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title="Edit instrument details"
+                                  title={t("admin.instruments.editTooltip")}
                                 >
                                   <Edit className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">Edit</span>
+                                  <span className="truncate">
+                                    {t("admin.instruments.edit")}
+                                  </span>
                                 </button>
                                 <button
                                   id={`btn-mark-unavailable-instrument-${inst.id}`}
@@ -2984,10 +3010,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setRemoveConfirmForce(false);
                                   }}
                                   className="px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title="Retire instrument from service (preserves past history)"
+                                  title={t("admin.instruments.retireTooltip")}
                                 >
                                   <Archive className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">Retire</span>
+                                  <span className="truncate">
+                                    {t("admin.instruments.retire")}
+                                  </span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -2996,10 +3024,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setDeleteConfirmChecked(false);
                                   }}
                                   className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title="Delete mistaken entry permanently from database"
+                                  title={t("admin.instruments.deleteTooltip")}
                                 >
                                   <Trash2 className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">Delete</span>
+                                  <span className="truncate">
+                                    {t("admin.instruments.delete")}
+                                  </span>
                                 </button>
                               </>
                             ) : (
@@ -3008,10 +3038,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   id={`btn-restore-instrument-${inst.id}`}
                                   onClick={() => triggerRestoreInstrument(inst)}
                                   className="px-2 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title="Restore instrument to available status"
+                                  title={t("admin.instruments.restoreTooltip")}
                                 >
                                   <RefreshCw className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">Restore</span>
+                                  <span className="truncate">
+                                    {t("admin.instruments.restore")}
+                                  </span>
                                 </button>
                                 <button
                                   id={`btn-delete-instrument-${inst.id}`}
@@ -3020,10 +3052,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     setDeleteConfirmChecked(false);
                                   }}
                                   className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title="Delete mistaken entry permanently from database"
+                                  title={t("admin.instruments.deleteTooltip")}
                                 >
                                   <Trash2 className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">Delete</span>
+                                  <span className="truncate">
+                                    {t("admin.instruments.delete")}
+                                  </span>
                                 </button>
                               </>
                             )}
@@ -3031,8 +3065,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                           {!isDecommissioned && (
                             <p className="text-[10px] text-stone-400 mt-1.5 text-center">
-                              Retire = temporarily hide (reversible) · Delete =
-                              permanent, for mistaken entries only
+                              {t("admin.instruments.footerNote")}
                             </p>
                           )}
                         </div>
@@ -3052,11 +3085,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="flex flex-col gap-2 pb-3">
                 <div className="min-w-0">
                   <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
-                    Member Directory
+                    {t("admin.users.title")}
                   </h2>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Search members, toggle account status, grant Trusted status,
-                    or book on their behalf.
+                    {t("admin.users.subtitle")}
                   </p>
                 </div>
 
@@ -3065,7 +3097,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
-                      placeholder="Search name, email, phone..."
+                      placeholder={t("admin.users.searchPlaceholder")}
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
                       className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
@@ -3082,7 +3114,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               {loadingUsers ? (
                 <div className="py-12 text-center text-stone-500 text-xs">
-                  Loading members...
+                  {t("admin.users.loading")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -3090,18 +3122,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                         <th className="py-2.5 px-3 whitespace-nowrap">
-                          Member
-                        </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Email</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">Phone</th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">
-                          Status
+                          {t("admin.users.colMember")}
                         </th>
                         <th className="py-2.5 px-3 whitespace-nowrap">
-                          Trusted
+                          {t("admin.users.colEmail")}
+                        </th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">
+                          {t("admin.users.colPhone")}
+                        </th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">
+                          {t("admin.users.colStatus")}
+                        </th>
+                        <th className="py-2.5 px-3 whitespace-nowrap">
+                          {t("admin.users.colTrusted")}
                         </th>
                         <th className="py-2.5 px-3 text-right whitespace-nowrap">
-                          Actions
+                          {t("admin.users.colActions")}
                         </th>
                       </tr>
                     </thead>
@@ -3116,8 +3152,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               {u.name}
                             </div>
                             <div className="text-[10px] text-stone-400">
-                              Joined{" "}
-                              {new Date(u.createdAt).toLocaleDateString()}
+                              {t("admin.users.joined", {
+                                date: new Date(
+                                  u.createdAt,
+                                ).toLocaleDateString(),
+                              })}
                             </div>
                           </td>
 
@@ -3134,13 +3173,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             u.approvalStatus === "pending" ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                                 <Clock className="w-2.5 h-2.5 text-amber-700" />
-                                Pending Approval
+                                {t("admin.users.pendingApproval")}
                               </span>
                             ) : u.approval_status === "rejected" ||
                               u.approvalStatus === "rejected" ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                                 <X className="w-2.5 h-2.5 text-rose-700" />
-                                Rejected
+                                {t("admin.users.rejected")}
                               </span>
                             ) : (
                               <span
@@ -3150,7 +3189,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     : "bg-stone-100 text-stone-600 border border-stone-200"
                                 }`}
                               >
-                                {u.isActive ? "Active" : "Deactivated"}
+                                {u.isActive
+                                  ? t("admin.users.active")
+                                  : t("admin.users.deactivated")}
                               </span>
                             )}
                           </td>
@@ -3159,18 +3200,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             {u.isTrusted ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
                                 <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                Trusted Member
+                                {t("admin.users.trustedMember")}
                               </span>
                             ) : (
                               <span className="text-[10px] text-stone-400 font-medium">
-                                Standard
+                                {t("admin.users.standard")}
                               </span>
                             )}
                           </td>
 
                           <td className="py-3 px-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* Quick Approve if pending */}
                               {(u.approval_status === "pending" ||
                                 u.approvalStatus === "pending") && (
                                 <button
@@ -3179,21 +3219,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     handleApproveRegistration(u.id, u.name)
                                   }
                                   className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                                  title="Approve registration"
+                                  title={t("admin.users.approveTooltip")}
                                 >
                                   <Check className="w-3 h-3" />
-                                  <span>Approve</span>
+                                  <span>{t("admin.users.approve")}</span>
                                 </button>
                               )}
 
-                              {/* Book on Behalf */}
                               <button
                                 onClick={() => setBookOnBehalfUser(u)}
                                 className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                                title="Book on behalf"
+                                title={t("admin.users.bookForTooltip")}
                               >
                                 <Plus className="w-3 h-3 text-amber-800" />
-                                <span>Book For</span>
+                                <span>{t("admin.users.bookFor")}</span>
                               </button>
                               {isSuperAdmin && (
                                 <button
@@ -3201,13 +3240,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     handleOpenPromoteModal(u.id, u.name)
                                   }
                                   className="px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer bg-stone-50 hover:bg-amber-50 text-amber-900 border-stone-200"
-                                  title="Promote to Administrator"
+                                  title={t("admin.users.promoteTooltip")}
                                 >
-                                  Promote To...
+                                  {t("admin.users.promoteTo")}
                                 </button>
                               )}
 
-                              {/* Super Admin Trusted Status Toggle */}
                               {isSuperAdmin && (
                                 <button
                                   onClick={() =>
@@ -3224,17 +3262,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   }`}
                                   title={
                                     u.isTrusted
-                                      ? "Revoke trusted status"
-                                      : "Grant trusted status"
+                                      ? t("admin.users.revokeTrustTooltip")
+                                      : t("admin.users.makeTrustedTooltip")
                                   }
                                 >
                                   {u.isTrusted
-                                    ? "Revoke Trust"
-                                    : "Make Trusted"}
+                                    ? t("admin.users.revokeTrust")
+                                    : t("admin.users.makeTrusted")}
                                 </button>
                               )}
 
-                              {/* Toggle Active Status */}
                               <button
                                 onClick={() =>
                                   handleToggleUserActive(
@@ -3246,8 +3283,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 className="p-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
                                 title={
                                   u.isActive
-                                    ? "Deactivate account"
-                                    : "Reactivate account"
+                                    ? t("admin.users.deactivateTooltip")
+                                    : t("admin.users.reactivateTooltip")
                                 }
                               >
                                 {u.isActive ? (
@@ -3257,12 +3294,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 )}
                               </button>
 
-                              {/* Super Admin: Permanently Delete Account */}
                               {isSuperAdmin && (
                                 <button
                                   onClick={() => handleDeleteUser(u.id, u.name)}
                                   className="p-1.5 rounded-lg bg-stone-50 hover:bg-red-50 text-red-600 border border-stone-200 hover:border-red-200 transition cursor-pointer"
-                                  title="Permanently delete account"
+                                  title={t("admin.users.deleteTooltip")}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -3285,18 +3321,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="border-b border-stone-100 pb-3">
                 <h2 className="font-bold text-stone-900 text-sm">
-                  Direct Reservation Messaging
+                  {t("admin.messaging.title")}
                 </h2>
                 <p className="text-xs text-stone-500">
-                  Send official notifications and notes to members regarding
-                  their pending or active bookings.
+                  {t("admin.messaging.subtitle")}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-2 max-h-96 overflow-y-auto">
                   <div className="text-[11px] font-bold uppercase text-stone-500">
-                    Select Reservation
+                    {t("admin.messaging.selectReservation")}
                   </div>
                   {reservations.slice(0, 15).map((r) => (
                     <button
@@ -3323,25 +3358,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <form onSubmit={handleSendMessage} className="space-y-3">
                       <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1">
                         <div className="font-bold text-stone-900">
-                          Recipient: {selectedMsgReservation.user_name} (
-                          {selectedMsgReservation.user_phone})
+                          {t("admin.messaging.recipientLabel", {
+                            name: selectedMsgReservation.user_name,
+                            phone: selectedMsgReservation.user_phone,
+                          })}
                         </div>
                         <div className="text-stone-500">
-                          Booking: {selectedMsgReservation.service_name} (
-                          {selectedMsgReservation.instrument_name})
+                          {t("admin.messaging.bookingLabel", {
+                            service: selectedMsgReservation.service_name,
+                            instrument: selectedMsgReservation.instrument_name,
+                          })}
                         </div>
                       </div>
 
                       <div>
                         <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                          Message Content
+                          {t("admin.messaging.messageContentLabel")}
                         </label>
                         <textarea
                           rows={4}
                           required
                           value={messageText}
                           onChange={(e) => setMessageText(e.target.value)}
-                          placeholder="Type your message or special instruction for the member..."
+                          placeholder={t("admin.messaging.messagePlaceholder")}
                           className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
                         />
                       </div>
@@ -3352,13 +3391,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
                       >
                         <Send className="w-3.5 h-3.5" />
-                        <span>Send Official Notice</span>
+                        <span>{t("admin.messaging.sendButton")}</span>
                       </button>
                     </form>
                   ) : (
                     <div className="py-16 text-center text-stone-400 text-xs">
-                      Select a reservation on the left to write and dispatch a
-                      message.
+                      {t("admin.messaging.emptyState")}
                     </div>
                   )}
                 </div>
@@ -3375,15 +3413,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
-                      Admin Accounts
+                      {t("admin.adminAccounts.title")}
                     </h2>
                     <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200 whitespace-nowrap">
-                      Super Admin Only
+                      {t("admin.adminAccounts.badge")}
                     </span>
                   </div>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Provision new administrative staff accounts or remove
-                    administrative credentials.
+                    {t("admin.adminAccounts.subtitle")}
                   </p>
                 </div>
 
@@ -3402,25 +3439,37 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   className="self-start sm:self-auto shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
                 >
                   <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                  <span>Add Administrator</span>
+                  <span>{t("admin.adminAccounts.addButton")}</span>
                 </button>
               </div>
 
               {loadingAdmins ? (
                 <div className="py-12 text-center text-stone-500 text-xs">
-                  Loading administrators...
+                  {t("admin.adminAccounts.loading")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3">Administrator</th>
-                        <th className="py-2.5 px-3">Email</th>
-                        <th className="py-2.5 px-3">Phone Number</th>
-                        <th className="py-2.5 px-3">Role Authority</th>
-                        <th className="py-2.5 px-3">Created</th>
-                        <th className="py-2.5 px-3 text-right">Actions</th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.adminAccounts.colAdministrator")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.adminAccounts.colEmail")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.adminAccounts.colPhone")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.adminAccounts.colRole")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.adminAccounts.colCreated")}
+                        </th>
+                        <th className="py-2.5 px-3 text-right">
+                          {t("admin.adminAccounts.colActions")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -3446,15 +3495,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <span>{adm.name}</span>
                               </div>
                             </td>
-
                             <td className="py-3 px-3 font-mono text-stone-800">
                               {adm.email || "—"}
                             </td>
-
                             <td className="py-3 px-3 font-mono text-stone-600">
                               {adm.phoneNumber || adm.phone_number || "—"}
                             </td>
-
                             <td className="py-3 px-3">
                               <span
                                 className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
@@ -3464,15 +3510,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 }`}
                               >
                                 {adm.isSuperAdmin
-                                  ? "👑 Super Admin"
-                                  : "🛡️ Admin"}
+                                  ? t("admin.adminAccounts.superAdminBadge")
+                                  : t("admin.adminAccounts.adminBadge")}
                               </span>
                             </td>
-
                             <td className="py-3 px-3 text-stone-500">
                               {new Date(adm.createdAt).toLocaleDateString()}
                             </td>
-
                             <td className="py-3 px-3 text-right">
                               {!isCurrentAdmin && !isHardcodedSuperAdmin ? (
                                 <div className="flex items-center justify-end gap-1.5">
@@ -3482,7 +3526,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     }
                                     className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold cursor-pointer"
                                   >
-                                    Demote
+                                    {t("admin.adminAccounts.demote")}
                                   </button>
                                   <button
                                     onClick={() =>
@@ -3490,14 +3534,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     }
                                     className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold cursor-pointer"
                                   >
-                                    Delete
+                                    {t("admin.adminAccounts.delete")}
                                   </button>
                                 </div>
                               ) : (
                                 <span className="text-[10px] text-stone-400 italic">
                                   {isHardcodedSuperAdmin
-                                    ? "Protected Account"
-                                    : "Current Session"}
+                                    ? t("admin.adminAccounts.protectedAccount")
+                                    : t("admin.adminAccounts.currentSession")}
                                 </span>
                               )}
                             </td>
@@ -3511,39 +3555,45 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           )}
 
-          {/* =============================================================
-              SUPER ADMIN TAB 7: TRUSTED STATUS AUDIT LOG
-             ============================================================= */}
           {activeTab === "trusted_status" && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="border-b border-stone-100 pb-3">
                 <h2 className="font-bold text-stone-900 text-sm">
-                  Trusted Member Status & Audit Trail
+                  {t("admin.trustedStatus.title")}
                 </h2>
                 <p className="text-xs text-stone-500">
-                  Full immutable history of trusted member grants and
-                  revocations with administrator timestamps.
+                  {t("admin.trustedStatus.subtitle")}
                 </p>
               </div>
 
               {loadingAuditLogs ? (
                 <div className="py-12 text-center text-stone-500 text-xs">
-                  Loading audit logs...
+                  {t("admin.trustedStatus.loading")}
                 </div>
               ) : trustedAuditLogs.length === 0 ? (
                 <div className="py-12 text-center text-stone-400 text-xs">
-                  No trusted status changes recorded yet.
+                  {t("admin.trustedStatus.empty")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3">Date & Time</th>
-                        <th className="py-2.5 px-3">Action</th>
-                        <th className="py-2.5 px-3">Target Member</th>
-                        <th className="py-2.5 px-3">Authorized By Admin</th>
-                        <th className="py-2.5 px-3">Note / Reason</th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.trustedStatus.colDateTime")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.trustedStatus.colAction")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.trustedStatus.colTargetMember")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.trustedStatus.colAuthorizedBy")}
+                        </th>
+                        <th className="py-2.5 px-3">
+                          {t("admin.trustedStatus.colNote")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -3565,7 +3615,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   : "bg-red-50 text-red-800 border border-red-200"
                               }`}
                             >
-                              {log.action.toUpperCase()}
+                              {log.action === "granted"
+                                ? t("admin.trustedStatus.granted")
+                                : t("admin.trustedStatus.revoked")}
                             </span>
                           </td>
                           <td className="py-3 px-3 font-medium text-stone-900">
@@ -3575,7 +3627,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             {log.granted_by_admin_name || "Administrator"}
                           </td>
                           <td className="py-3 px-3 text-stone-500">
-                            {log.reason || "Manual Super Admin Action"}
+                            {log.reason ||
+                              t("admin.trustedStatus.defaultReason")}
                           </td>
                         </tr>
                       ))}
@@ -3586,18 +3639,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           )}
 
-          {/* =============================================================
-              SUPER ADMIN TAB 8: HARD LIMITS CONFIG
-             ============================================================= */}
           {activeTab === "hard_limits" && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="border-b border-stone-100 pb-3">
                 <h2 className="font-bold text-stone-900 text-sm">
-                  System Hard Limits & Abuse Prevention
+                  {t("admin.hardLimits.title")}
                 </h2>
                 <p className="text-xs text-stone-500">
-                  Global quota thresholds enforced automatically across all
-                  booking requests.
+                  {t("admin.hardLimits.subtitle")}
                 </p>
               </div>
 
@@ -3605,12 +3654,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
                   <div>
                     <div className="font-bold text-stone-800 text-xs">
-                      Hard Limit Bypass
+                      {t("admin.hardLimits.bypassTitle")}
                     </div>
                     <div className="text-[11px] text-stone-500">
                       {hardLimitsState.bypassHardLimits
-                        ? "OFF: hard limits are bypassed"
-                        : "ON: configured limits are active"}
+                        ? t("admin.hardLimits.bypassOffDesc")
+                        : t("admin.hardLimits.bypassOnDesc")}
                     </div>
                   </div>
                   <button
@@ -3645,7 +3694,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         htmlFor="input-max-active-reservations"
                         className="font-bold text-stone-700"
                       >
-                        Max Active Reservations Per User
+                        {t("admin.hardLimits.maxActiveReservations")}
                       </label>
                       {renderLimitHelpToggle("activeReservations")}
                     </div>
@@ -3675,7 +3724,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         htmlFor="input-max-reservations-per-day"
                         className="font-bold text-stone-700"
                       >
-                        Max Reservations Per Day
+                        {t("admin.hardLimits.maxReservationsPerDay")}
                       </label>
                       {renderLimitHelpToggle("reservationsPerDay")}
                     </div>
@@ -3705,7 +3754,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         htmlFor="input-max-duration-hours"
                         className="font-bold text-stone-700"
                       >
-                        Max Single Booking Duration (Hours)
+                        {t("admin.hardLimits.maxDurationHours")}
                       </label>
                       {renderLimitHelpToggle("durationHours")}
                     </div>
@@ -3735,7 +3784,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         htmlFor="input-max-concurrent-per-type"
                         className="font-bold text-stone-700"
                       >
-                        Max Concurrent Slots in Same Category
+                        {t("admin.hardLimits.maxConcurrentPerType")}
                       </label>
                       {renderLimitHelpToggle("concurrentPerType")}
                     </div>
@@ -3765,7 +3814,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         htmlFor="input-max-series-occurrences"
                         className="font-bold text-stone-700"
                       >
-                        Max Recurring Occurrences Per Series
+                        {t("admin.hardLimits.maxSeriesOccurrences")}
                       </label>
                       {renderLimitHelpToggle("seriesOccurrences")}
                     </div>
@@ -3795,7 +3844,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         htmlFor="input-max-submissions-per-hour"
                         className="font-bold text-stone-700"
                       >
-                        Rate Limit (Requests / Hour)
+                        {t("admin.hardLimits.maxSubmissionsPerHour")}
                       </label>
                       {renderLimitHelpToggle("submissionsPerHour")}
                     </div>
@@ -3826,25 +3875,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     disabled={savingLimits}
                     className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
                   >
-                    {savingLimits ? "Saving..." : "Save Hard Limits"}
+                    {savingLimits
+                      ? t("admin.hardLimits.saving")
+                      : t("admin.hardLimits.saveButton")}
                   </button>
                 </div>
               </form>
             </div>
           )}
 
-          {/* =============================================================
-              SUPER ADMIN TAB 9: PAYMENT SETTINGS
-             ============================================================= */}
           {activeTab === "payment_settings" && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="border-b border-stone-100 pb-3">
                 <h2 className="font-bold text-stone-900 text-sm">
-                  Payment & Instapay Configuration
+                  {t("admin.paymentSettings.title")}
                 </h2>
                 <p className="text-xs text-stone-500">
-                  Configure official church Instapay mobile number and payment
-                  link shown for outside reservations.
+                  {t("admin.paymentSettings.subtitle")}
                 </p>
               </div>
 
@@ -3854,12 +3901,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               >
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Instapay Phone Number / Alias
+                    {t("admin.paymentSettings.numberLabel")}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 01012345678 or church@instapay"
+                    placeholder={t("admin.paymentSettings.numberPlaceholder")}
                     value={paymentSettingsState.instapayNumber}
                     onChange={(e) =>
                       setPaymentSettingsState({
@@ -3873,11 +3920,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Instapay Direct Web Link (Optional)
+                    {t("admin.paymentSettings.linkLabel")}
                   </label>
                   <input
                     type="url"
-                    placeholder="https://instapay.eg/..."
+                    placeholder={t("admin.paymentSettings.linkPlaceholder")}
                     value={paymentSettingsState.instapayLink}
                     onChange={(e) =>
                       setPaymentSettingsState({
@@ -3895,25 +3942,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     disabled={savingPayment}
                     className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
                   >
-                    {savingPayment ? "Saving..." : "Save Payment Settings"}
+                    {savingPayment
+                      ? t("admin.paymentSettings.saving")
+                      : t("admin.paymentSettings.saveButton")}
                   </button>
                 </div>
               </form>
             </div>
           )}
-          {/* =============================================================
-    SUPER ADMIN TAB 10: NOTIFICATION SETTINGS
-   ============================================================= */}
+
           {activeTab === "notification_settings" && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="border-b border-stone-100 pb-3">
                 <h2 className="font-bold text-stone-900 text-sm">
-                  Admin Email Notification Settings
+                  {t("admin.notificationSettings.title")}
                 </h2>
                 <p className="text-xs text-stone-500">
-                  Control which automated emails are sent to the Super Admin
-                  inbox. Muting an email does not affect on-site bell
-                  notifications.
+                  {t("admin.notificationSettings.subtitle")}
                 </p>
               </div>
 
@@ -3924,10 +3969,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
                   <div className="pr-4">
                     <div className="font-bold text-stone-800 text-xs">
-                      Account Approval Emails
+                      {t("admin.notificationSettings.approvalEmailsTitle")}
                     </div>
                     <div className="text-[11px] text-stone-500 mt-0.5">
-                      Email sent when a new member registers and needs approval.
+                      {t("admin.notificationSettings.approvalEmailsDesc")}
                     </div>
                   </div>
                   <button
@@ -3959,11 +4004,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
                   <div className="pr-4">
                     <div className="font-bold text-stone-800 text-xs">
-                      Reservation Request Emails
+                      {t("admin.notificationSettings.requestEmailsTitle")}
                     </div>
                     <div className="text-[11px] text-stone-500 mt-0.5">
-                      Email sent when a reservation is submitted and requires
-                      manual review.
+                      {t("admin.notificationSettings.requestEmailsDesc")}
                     </div>
                   </div>
                   <button
@@ -3999,8 +4043,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
                   >
                     {savingNotificationSettings
-                      ? "Saving..."
-                      : "Save Notification Settings"}
+                      ? t("admin.notificationSettings.saving")
+                      : t("admin.notificationSettings.saveButton")}
                   </button>
                 </div>
               </form>
@@ -4011,13 +4055,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* =============================================================
           MODAL 1: Add / Edit Instrument
-         ============================================================= */}
+          ============================================================= */}
       {showInstrumentModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="font-bold text-stone-900 text-sm">
-                {editingInstrument ? "Edit Instrument" : "Add New Instrument"}
+                {editingInstrument
+                  ? t("admin.modals.instrumentForm.editTitle")
+                  : t("admin.modals.instrumentForm.addTitle")}
               </h3>
               <button
                 onClick={() => setShowInstrumentModal(false)}
@@ -4030,12 +4076,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <form onSubmit={handleSaveInstrument} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Instrument Name
+                  {t("admin.modals.instrumentForm.nameLabel")}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Yamaha Motif XF8"
+                  placeholder={t("admin.modals.instrumentForm.namePlaceholder")}
                   value={instrumentForm.name}
                   onChange={(e) =>
                     setInstrumentForm({
@@ -4050,7 +4096,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Category / Type
+                    {t("admin.modals.instrumentForm.categoryLabel")}
                   </label>
                   <select
                     value={instrumentForm.type}
@@ -4075,7 +4121,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Booking Mode
+                    {t("admin.modals.instrumentForm.bookingModeLabel")}
                   </label>
                   <select
                     value={instrumentForm.bookingMode}
@@ -4087,15 +4133,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }
                     className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                   >
-                    <option value="instant">⚡ Instant Booking</option>
-                    <option value="manual">🛡️ Manual Review</option>
+                    <option value="instant">
+                      {t("admin.modals.instrumentForm.instantOption")}
+                    </option>
+                    <option value="manual">
+                      {t("admin.modals.instrumentForm.manualOption")}
+                    </option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Outside Fee / Day ($)
+                  {t("admin.modals.instrumentForm.feeLabel")}
                 </label>
                 <input
                   type="number"
@@ -4114,11 +4164,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Description
+                  {t("admin.modals.instrumentForm.descriptionLabel")}
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Notes on usage, accessories included..."
+                  placeholder={t(
+                    "admin.modals.instrumentForm.descriptionPlaceholder",
+                  )}
                   value={instrumentForm.description}
                   onChange={(e) =>
                     setInstrumentForm({
@@ -4130,11 +4182,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 />
               </div>
 
-              {/* Instrument Photo Upload (Drag & Drop + File Selection) */}
               <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between">
                   <label className="block font-bold text-stone-700">
-                    Instrument Photo
+                    {t("admin.modals.instrumentForm.photoLabel")}
                   </label>
                   {instrumentForm.photoUrl ? (
                     <button
@@ -4143,7 +4194,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="text-[11px] font-semibold text-red-600 hover:text-red-800 transition flex items-center gap-1 cursor-pointer"
                     >
                       <Trash2 className="w-3 h-3" />
-                      <span>Remove photo</span>
+                      <span>
+                        {t("admin.modals.instrumentForm.removePhoto")}
+                      </span>
                     </button>
                   ) : (
                     <button
@@ -4152,13 +4205,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="text-[11px] font-semibold text-amber-800 hover:text-amber-900 transition cursor-pointer"
                     >
                       {showUrlInput
-                        ? "Switch to file upload"
-                        : "Or paste web URL"}
+                        ? t("admin.modals.instrumentForm.switchToUpload")
+                        : t("admin.modals.instrumentForm.pasteUrl")}
                     </button>
                   )}
                 </div>
 
-                {/* Hidden native file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -4169,7 +4221,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 />
 
                 {instrumentForm.photoUrl ? (
-                  /* Photo Attached Preview */
                   <div className="relative rounded-2xl overflow-hidden border border-stone-300 bg-stone-900 group shadow-2xs">
                     <div className="h-44 w-full flex items-center justify-center bg-stone-950/20">
                       <img
@@ -4186,7 +4237,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className="px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5" />
-                        <span>Change Photo</span>
+                        <span>
+                          {t("admin.modals.instrumentForm.changePhoto")}
+                        </span>
                       </button>
                       <button
                         type="button"
@@ -4194,20 +4247,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Remove</span>
+                        <span>{t("admin.modals.instrumentForm.remove")}</span>
                       </button>
                     </div>
                     <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-lg bg-stone-900/80 text-white text-[10px] font-semibold flex items-center gap-1.5 backdrop-blur-xs">
                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      <span>Photo Attached</span>
+                      <span>
+                        {t("admin.modals.instrumentForm.photoAttached")}
+                      </span>
                     </div>
                   </div>
                 ) : showUrlInput ? (
-                  /* Web Image URL Alternative */
                   <div className="space-y-1.5">
                     <input
                       type="url"
-                      placeholder="https://images.unsplash.com/... or image web address"
+                      placeholder={t(
+                        "admin.modals.instrumentForm.urlPlaceholder",
+                      )}
                       value={instrumentForm.photoUrl}
                       onChange={(e) =>
                         setInstrumentForm({
@@ -4218,12 +4274,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                     />
                     <p className="text-[10px] text-stone-400">
-                      Paste a direct image web link or switch to uploading a
-                      photo file from your device.
+                      {t("admin.modals.instrumentForm.urlHint")}
                     </p>
                   </div>
                 ) : (
-                  /* Drag & Drop Zone */
                   <div
                     id="instrument-photo-dropzone"
                     onClick={() => fileInputRef.current?.click()}
@@ -4253,13 +4307,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <div>
                       <p className="font-bold text-stone-800 text-xs">
                         {isDraggingPhoto
-                          ? "Drop photo to upload"
+                          ? t("admin.modals.instrumentForm.dropzoneDrop")
                           : isProcessingPhoto
-                            ? "Processing photo..."
-                            : "Click to choose file or drag & drop here"}
+                            ? t(
+                                "admin.modals.instrumentForm.dropzoneProcessing",
+                              )
+                            : t("admin.modals.instrumentForm.dropzoneClick")}
                       </p>
                       <p className="text-[10px] text-stone-400 mt-0.5">
-                        Supports PNG, JPG, WEBP or GIF (automatically optimized)
+                        {t("admin.modals.instrumentForm.dropzoneSupports")}
                       </p>
                     </div>
                   </div>
@@ -4279,15 +4335,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   onClick={() => setShowInstrumentModal(false)}
                   className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200"
                 >
-                  Cancel
+                  {t("admin.modals.instrumentForm.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold cursor-pointer shadow-xs"
                 >
                   {editingInstrument
-                    ? "Update Instrument"
-                    : "Create Instrument"}
+                    ? t("admin.modals.instrumentForm.update")
+                    : t("admin.modals.instrumentForm.create")}
                 </button>
               </div>
             </form>
@@ -4297,7 +4353,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* =============================================================
           MODAL 2: Mark Unavailable Confirmation (Retire from Service)
-         ============================================================= */}
+          ============================================================= */}
       {removingInstrument && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
@@ -4308,10 +4364,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-stone-900 text-sm">
-                    Mark "{removingInstrument.name}" as Not Available?
+                    {t("admin.modals.retireInstrument.title", {
+                      name: removingInstrument.name,
+                    })}
                   </h3>
                   <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    Retire from Active Service
+                    {t("admin.modals.retireInstrument.badge")}
                   </span>
                 </div>
               </div>
@@ -4325,20 +4383,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <p className="text-xs text-stone-600 leading-relaxed">
-              Marking this instrument as Not Available cancels upcoming active
-              reservations automatically. Past reservation history and audit
-              records remain <strong>preserved</strong> in the database.
+              {t("admin.modals.retireInstrument.description")}
             </p>
 
             <div className="p-2.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-600 text-[11px] leading-normal flex items-start gap-2">
               <Info className="w-4 h-4 text-stone-500 shrink-0 mt-0.5" />
-              <div>
-                <strong>
-                  Need to remove a mistaken or typo entry instead?
-                </strong>{" "}
-                Close this modal and click <strong>Delete</strong> instead to
-                completely erase the row from the database.
-              </div>
+              <div>{t("admin.modals.retireInstrument.deleteHint")}</div>
             </div>
 
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs flex items-center gap-2 text-amber-900">
@@ -4353,7 +4403,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 htmlFor="check-force-remove"
                 className="cursor-pointer font-semibold select-none"
               >
-                I understand and confirm marking this instrument Not Available.
+                {t("admin.modals.retireInstrument.confirmCheckbox")}
               </label>
             </div>
 
@@ -4363,7 +4413,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() => setRemovingInstrument(null)}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200"
               >
-                Cancel
+                {t("admin.modals.retireInstrument.cancel")}
               </button>
               <button
                 type="button"
@@ -4372,7 +4422,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={handleExecuteRemoveInstrument}
                 className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold cursor-pointer shadow-xs"
               >
-                Confirm Mark Unavailable
+                {t("admin.modals.retireInstrument.confirm")}
               </button>
             </div>
           </div>
@@ -4392,10 +4442,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-stone-900 text-sm">
-                    Delete Instrument from Database
+                    {t("admin.modals.deleteInstrument.title")}
                   </h3>
                   <span className="text-[10px] uppercase tracking-wider font-extrabold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
-                    For Correcting Mistaken Entries Only
+                    {t("admin.modals.deleteInstrument.badge")}
                   </span>
                 </div>
               </div>
@@ -4414,33 +4464,35 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-stone-500 font-medium">
-                  Instrument Name:
+                  {t("admin.modals.deleteInstrument.nameLabel")}
                 </span>
                 <span className="font-bold text-stone-900">
                   {deletingInstrument.name}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-stone-500 font-medium">Category:</span>
+                <span className="text-stone-500 font-medium">
+                  {t("admin.modals.deleteInstrument.categoryLabel")}
+                </span>
                 <span className="font-semibold text-stone-800">
                   {deletingInstrument.type}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500 font-medium">
-                  Current Status:
+                  {t("admin.modals.deleteInstrument.statusLabel")}
                 </span>
                 <span className="font-semibold text-stone-800">
                   {deletingInstrument.isRemoved || deletingInstrument.is_removed
-                    ? "Not Available"
-                    : "Available"}
+                    ? t("admin.modals.deleteInstrument.notAvailableStatus")
+                    : t("admin.modals.deleteInstrument.availableStatus")}
                 </span>
               </div>
               {(deletingInstrument.totalReservations !== undefined ||
                 deletingInstrument.total_reservations !== undefined) && (
                 <div className="flex justify-between">
                   <span className="text-stone-500 font-medium">
-                    Associated Bookings:
+                    {t("admin.modals.deleteInstrument.bookingsLabel")}
                   </span>
                   <span className="font-bold text-stone-900">
                     {deletingInstrument.totalReservations ??
@@ -4452,22 +4504,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <div className="space-y-2 text-xs text-stone-600 leading-relaxed">
-              <p>
-                This action will{" "}
-                <strong className="text-red-700">
-                  permanently remove this row from the database
-                </strong>
-                . Use this strictly to correct accidental additions, typos, or
-                duplicate records.
-              </p>
+              <p>{t("admin.modals.deleteInstrument.description")}</p>
               <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-normal flex items-start gap-2">
                 <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Need to retire a legitimate instrument?</strong> Do
-                  not delete it. Use <strong>Mark Unavailable</strong> instead
-                  to preserve member reservation histories and financial
-                  records.{" "}
-                </div>
+                <div>{t("admin.modals.deleteInstrument.retireHint")}</div>
               </div>
               {Number(
                 deletingInstrument.totalReservations ??
@@ -4477,11 +4517,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-900 text-[11px] leading-normal flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
                   <div>
-                    <strong>Warning:</strong> This row has{" "}
-                    {deletingInstrument.totalReservations ??
-                      deletingInstrument.total_reservations}{" "}
-                    associated booking(s). Removing the row will also remove all
-                    associated reservations.
+                    {t("admin.modals.deleteInstrument.warningBookings", {
+                      count:
+                        deletingInstrument.totalReservations ??
+                        deletingInstrument.total_reservations,
+                    })}
                   </div>
                 </div>
               )}
@@ -4499,8 +4539,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 htmlFor="check-permanent-delete-instrument"
                 className="cursor-pointer font-medium select-none"
               >
-                I confirm this is an accidental or mistaken entry and want to
-                permanently remove this row from the database.
+                {t("admin.modals.deleteInstrument.confirmCheckbox")}
               </label>
             </div>
 
@@ -4514,7 +4553,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 disabled={isDeletingInstrument}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
               >
-                Cancel
+                {t("admin.modals.deleteInstrument.cancel")}
               </button>
               <button
                 type="button"
@@ -4526,12 +4565,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 {isDeletingInstrument ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Deleting Row...</span>
+                    <span>{t("admin.modals.deleteInstrument.deleting")}</span>
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Permanently Remove from Database</span>
+                    <span>
+                      {t("admin.modals.deleteInstrument.confirmButton")}
+                    </span>
                   </>
                 )}
               </button>
@@ -4542,17 +4583,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* =============================================================
           MODAL 3: Book on Behalf of User
-         ============================================================= */}
+          ============================================================= */}
       {bookOnBehalfUser && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
                 <h3 className="font-bold text-stone-900 text-sm">
-                  Book on Behalf of {bookOnBehalfUser.name}
+                  {t("admin.modals.bookOnBehalf.title", {
+                    name: bookOnBehalfUser.name,
+                  })}
                 </h3>
                 <p className="text-xs text-amber-800 font-semibold">
-                  Auto-Approved via Administrator Privilege
+                  {t("admin.modals.bookOnBehalf.subtitle")}
                 </p>
               </div>
               <button
@@ -4566,7 +4609,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <form onSubmit={handleBookOnBehalf} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Instrument
+                  {t("admin.modals.bookOnBehalf.instrumentLabel")}
                 </label>
                 <select
                   value={behalfForm.instrumentId}
@@ -4590,12 +4633,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Service / Event Name
+                  {t("admin.modals.bookOnBehalf.serviceLabel")}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Special Feast Rehearsal"
+                  placeholder={t(
+                    "admin.modals.bookOnBehalf.servicePlaceholder",
+                  )}
                   value={behalfForm.serviceName}
                   onChange={(e) =>
                     setBehalfForm({
@@ -4610,7 +4655,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Date
+                    {t("admin.modals.bookOnBehalf.dateLabel")}
                   </label>
                   <input
                     type="date"
@@ -4625,7 +4670,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Start Time
+                    {t("admin.modals.bookOnBehalf.startTimeLabel")}
                   </label>
                   <select
                     value={behalfForm.startTime}
@@ -4651,9 +4696,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       "19:00",
                       "20:00",
                       "21:00",
-                    ].map((t) => (
-                      <option key={t} value={t}>
-                        {formatHhmmTo12Hour(t)}
+                    ].map((tm) => (
+                      <option key={tm} value={tm}>
+                        {formatHhmmTo12Hour(tm)}
                       </option>
                     ))}
                   </select>
@@ -4663,7 +4708,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Duration (Hours)
+                    {t("admin.modals.bookOnBehalf.durationLabel")}
                   </label>
                   <input
                     type="number"
@@ -4682,7 +4727,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">
-                    Type
+                    {t("admin.modals.bookOnBehalf.typeLabel")}
                   </label>
                   <select
                     value={behalfForm.reservationType}
@@ -4694,8 +4739,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     }
                     className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
                   >
-                    <option value="in_church">In Church</option>
-                    <option value="outside_church">Outside Church</option>
+                    <option value="in_church">
+                      {t("admin.modals.bookOnBehalf.inChurch")}
+                    </option>
+                    <option value="outside_church">
+                      {t("admin.modals.bookOnBehalf.outsideChurch")}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -4706,13 +4755,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   onClick={() => setBookOnBehalfUser(null)}
                   className="px-3 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200"
                 >
-                  Cancel
+                  {t("admin.modals.bookOnBehalf.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold cursor-pointer shadow-xs"
                 >
-                  Create & Auto-Approve
+                  {t("admin.modals.bookOnBehalf.submit")}
                 </button>
               </div>
             </form>
@@ -4722,17 +4771,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* =============================================================
           MODAL 4: Provision Administrator Account (Super Admin)
-         ============================================================= */}
+          ============================================================= */}
       {showNewAdminModal && isSuperAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
                 <h3 className="font-bold text-stone-900 text-sm">
-                  Provision Administrator Account
+                  {t("admin.modals.provisionAdmin.title")}
                 </h3>
                 <p className="text-xs text-stone-500">
-                  Create new login credentials for church leadership
+                  {t("admin.modals.provisionAdmin.subtitle")}
                 </p>
               </div>
               <button
@@ -4746,12 +4795,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <form onSubmit={handleCreateAdmin} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Full Name
+                  {t("admin.modals.provisionAdmin.fullNameLabel")}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Deacon Mark"
+                  placeholder={t("admin.modals.provisionAdmin.namePlaceholder")}
                   value={newAdminForm.name}
                   onChange={(e) =>
                     setNewAdminForm({ ...newAdminForm, name: e.target.value })
@@ -4762,12 +4811,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Email Address
+                  {t("admin.modals.provisionAdmin.emailLabel")}
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="e.g. deacon@church.org"
+                  placeholder={t(
+                    "admin.modals.provisionAdmin.emailPlaceholder",
+                  )}
                   value={newAdminForm.email}
                   onChange={(e) =>
                     setNewAdminForm({ ...newAdminForm, email: e.target.value })
@@ -4778,11 +4829,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Phone Number (Optional)
+                  {t("admin.modals.provisionAdmin.phoneLabel")}
                 </label>
                 <input
                   type="tel"
-                  placeholder="e.g. 01012345678"
+                  placeholder={t(
+                    "admin.modals.provisionAdmin.phonePlaceholder",
+                  )}
                   value={newAdminForm.phoneNumber}
                   onChange={(e) =>
                     setNewAdminForm({
@@ -4796,7 +4849,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
               <div>
                 <label className="block font-bold text-stone-700 mb-1">
-                  Password (Minimum 6 Characters)
+                  {t("admin.modals.provisionAdmin.passwordLabel")}
                 </label>
                 <div className="relative">
                   <input
@@ -4851,8 +4904,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   htmlFor="check-is-super-admin"
                   className="text-amber-950 cursor-pointer text-xs"
                 >
-                  Grant <strong>Super Admin</strong> role (System hard limits &
-                  admin team management)
+                  {t("admin.modals.provisionAdmin.superAdminCheckbox")}
                 </label>
               </div>
 
@@ -4862,13 +4914,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   onClick={() => setShowNewAdminModal(false)}
                   className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200"
                 >
-                  Cancel
+                  {t("admin.modals.provisionAdmin.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold cursor-pointer shadow-xs"
                 >
-                  Create Administrator
+                  {t("admin.modals.provisionAdmin.create")}
                 </button>
               </div>
             </form>
@@ -4878,7 +4930,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* =============================================================
           MODAL 5: In-App Rejection Dialog (Reliable, Beautiful, No iframe prompt blocks)
-         ============================================================= */}
+          ============================================================= */}
       {rejectModal && rejectModal.isOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
@@ -4890,11 +4942,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div>
                   <h3 className="font-bold text-stone-900 text-sm">
                     {rejectModal.isSeriesReject
-                      ? "Reject Recurring Series"
-                      : "Reject Reservation Request"}
+                      ? t("admin.modals.reject.titleSeries")
+                      : t("admin.modals.reject.titleSingle")}
                   </h3>
                   <p className="text-xs text-stone-500">
-                    Provide an explanation for the member
+                    {t("admin.modals.reject.subtitle")}
                   </p>
                 </div>
               </div>
@@ -4908,34 +4960,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
             </div>
 
-            {/* Target Reservation Summary */}
             <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3.5 space-y-1.5 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-stone-500 font-medium">Member:</span>
+                <span className="text-stone-500 font-medium">
+                  {t("admin.modals.reject.memberLabel")}
+                </span>
                 <span className="font-bold text-stone-900">
                   {rejectModal.memberName}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-stone-500 font-medium">Instrument:</span>
+                <span className="text-stone-500 font-medium">
+                  {t("admin.modals.reject.instrumentLabel")}
+                </span>
                 <span className="font-bold text-amber-900">
                   {rejectModal.instrumentName}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-stone-500 font-medium">Slot:</span>
+                <span className="text-stone-500 font-medium">
+                  {t("admin.modals.reject.slotLabel")}
+                </span>
                 <span className="text-stone-800 font-medium">
                   {rejectModal.dateFormatted} ({rejectModal.timeFormatted})
                 </span>
               </div>
             </div>
 
-            {/* Series rejection scope option if recurring */}
             {rejectModal.seriesId && (
               <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl space-y-2 text-xs">
                 <div className="font-bold text-amber-950 flex items-center gap-1.5">
                   <Repeat className="w-3.5 h-3.5 text-amber-800" />
-                  <span>This reservation is part of a recurring series</span>
+                  <span>{t("admin.modals.reject.seriesNotice")}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
@@ -4949,7 +5005,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
                     }`}
                   >
-                    Reject this occurrence only
+                    {t("admin.modals.reject.occurrenceOnly")}
                   </button>
                   <button
                     type="button"
@@ -4962,16 +5018,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
                     }`}
                   >
-                    Reject all future occurrences
+                    {t("admin.modals.reject.allFuture")}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Reason Presets */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold uppercase text-stone-500">
-                Quick Reason Presets
+                {t("admin.modals.reject.presetsLabel")}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {REJECTION_REASON_PRESETS.map((preset) => (
@@ -4993,10 +5048,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             </div>
 
-            {/* Editable Rejection Reason */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-stone-700">
-                Message to Member <span className="text-red-600">*</span>
+                {t("admin.modals.reject.messageLabel")}{" "}
+                <span className="text-red-600">*</span>
               </label>
               <textarea
                 rows={3}
@@ -5005,7 +5060,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onChange={(e) =>
                   setRejectModal({ ...rejectModal, reason: e.target.value })
                 }
-                placeholder="Explain why this request is being rejected..."
+                placeholder={t("admin.modals.reject.messagePlaceholder")}
                 className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
               />
             </div>
@@ -5017,7 +5072,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() => setRejectModal(null)}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
               >
-                Cancel
+                {t("admin.modals.reject.cancel")}
               </button>
               <button
                 type="button"
@@ -5028,12 +5083,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 {rejectModal.submitting ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Rejecting...</span>
+                    <span>{t("admin.modals.reject.rejecting")}</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="w-3.5 h-3.5" />
-                    <span>Confirm Rejection</span>
+                    <span>{t("admin.modals.reject.confirm")}</span>
                   </>
                 )}
               </button>
@@ -5055,11 +5110,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-stone-900 text-sm">
-                    Cancel {cancelReasonModal.ids.length} Reservation
-                    {cancelReasonModal.ids.length > 1 ? "s" : ""}
+                    {t(
+                      cancelReasonModal.ids.length > 1
+                        ? "admin.modals.cancelReason.title_plural"
+                        : "admin.modals.cancelReason.title",
+                      { count: cancelReasonModal.ids.length },
+                    )}
                   </h3>
                   <p className="text-xs text-stone-500">
-                    Reason is optional but shown to affected members
+                    {t("admin.modals.cancelReason.subtitle")}
                   </p>
                 </div>
               </div>
@@ -5075,7 +5134,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold uppercase text-stone-500">
-                Reason
+                {t("admin.modals.cancelReason.reasonLabel")}
               </label>
               <select
                 value={cancelReasonModal.preset}
@@ -5098,7 +5157,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {cancelReasonModal.preset === "Other" && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-stone-700">
-                  Custom Reason
+                  {t("admin.modals.cancelReason.customLabel")}
                 </label>
                 <textarea
                   rows={2}
@@ -5109,7 +5168,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       customText: e.target.value,
                     })
                   }
-                  placeholder="Describe the reason for cancelling..."
+                  placeholder={t("admin.modals.cancelReason.customPlaceholder")}
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
                 />
               </div>
@@ -5122,7 +5181,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() => setCancelReasonModal(null)}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold cursor-pointer border border-stone-200 disabled:opacity-50"
               >
-                Back
+                {t("admin.modals.cancelReason.back")}
               </button>
               <button
                 type="button"
@@ -5133,14 +5192,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 {cancelReasonModal.submitting ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Cancelling...</span>
+                    <span>{t("admin.modals.cancelReason.cancelling")}</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="w-3.5 h-3.5" />
                     <span>
-                      Cancel {cancelReasonModal.ids.length} Reservation
-                      {cancelReasonModal.ids.length > 1 ? "s" : ""}
+                      {t(
+                        cancelReasonModal.ids.length > 1
+                          ? "admin.modals.cancelReason.confirm_plural"
+                          : "admin.modals.cancelReason.confirm",
+                        { count: cancelReasonModal.ids.length },
+                      )}
                     </span>
                   </>
                 )}
@@ -5200,18 +5263,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
       )}
       {/* =============================================================
-    MODAL: Promote User — Choose Role
-   ============================================================= */}
+          MODAL: Promote User — Choose Role
+          ============================================================= */}
       {promoteModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
                 <h3 className="font-bold text-stone-900 text-sm">
-                  Promote {promoteModal.userName}
+                  {t("admin.modals.promote.title", {
+                    name: promoteModal.userName,
+                  })}
                 </h3>
                 <p className="text-xs text-stone-500">
-                  Choose the role to grant this member
+                  {t("admin.modals.promote.subtitle")}
                 </p>
               </div>
               <button
@@ -5248,12 +5313,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div>
                   <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-amber-800" />
-                    <span>Administrator</span>
+                    <span>{t("admin.modals.promote.adminTitle")}</span>
                   </div>
                   <p className="text-[11px] text-stone-500 mt-1">
-                    Manages instruments, reviews reservations, and messages
-                    members. Cannot manage other admins, hard limits, or payment
-                    settings.
+                    {t("admin.modals.promote.adminDesc")}
                   </p>
                 </div>
               </button>
@@ -5283,11 +5346,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <div>
                   <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-700" />
-                    <span>Super Administrator</span>
+                    <span>{t("admin.modals.promote.superAdminTitle")}</span>
                   </div>
                   <p className="text-[11px] text-stone-500 mt-1">
-                    Full Administrator access, plus managing other admins,
-                    Trusted status, system hard limits, and payment settings.
+                    {t("admin.modals.promote.superAdminDesc")}
                   </p>
                 </div>
               </button>
@@ -5299,14 +5361,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 onClick={() => setPromoteModal(null)}
                 className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 font-semibold cursor-pointer border border-stone-200 text-xs"
               >
-                Cancel
+                {t("admin.modals.promote.cancel")}
               </button>
               <button
                 type="button"
                 onClick={() => executePromoteUser(promoteModal.role)}
                 className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold cursor-pointer shadow-xs text-xs"
               >
-                Confirm
+                {t("admin.modals.promote.confirm")}
               </button>
             </div>
           </div>
