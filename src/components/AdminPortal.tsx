@@ -164,9 +164,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Handover Sheet Export (CSV & XLSX) modal state
   const [showHandoverModal, setShowHandoverModal] = useState<boolean>(false);
-  const [handoverDefaultDate, setHandoverDefaultDate] = useState<string>(getTodayDateString());
-  const [handoverDefaultMode, setHandoverDefaultMode] = useState<"day" | "week">("day");
-  const [handoverDefaultFormat, setHandoverDefaultFormat] = useState<HandoverExportFormat>("xlsx");
+  const [handoverDefaultDate, setHandoverDefaultDate] =
+    useState<string>(getTodayDateString());
+  const [handoverDefaultMode, setHandoverDefaultMode] = useState<
+    "day" | "week"
+  >("day");
+  const [handoverDefaultFormat, setHandoverDefaultFormat] =
+    useState<HandoverExportFormat>("xlsx");
 
   // Instruments
   const [instrumentsList, setInstrumentsList] = useState<any[]>([]);
@@ -1705,7 +1709,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             title="Export confirmed bookings handover sheet for key-holder (XLSX or CSV)"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export Handover Sheet</span>
+            <span>Export Sheet</span>
           </button>
 
           {onBackToMemberView && (
@@ -2013,8 +2017,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       Today's Schedule
                     </h2>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      Read-only glance at today's bookings. Use Review Requests to
-                      take action.
+                      Read-only glance at today's bookings. Use Review Requests
+                      to take action.
                     </p>
                   </div>
                   <button
@@ -2107,22 +2111,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    id="btn-review-export-handover"
-                    type="button"
-                    onClick={() => {
-                      setHandoverDefaultMode("day");
-                      setHandoverDefaultDate(getTodayDateString());
-                      setHandoverDefaultFormat("xlsx");
-                      setShowHandoverModal(true);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs border border-stone-200 transition cursor-pointer flex items-center gap-1.5"
-                    title="Export Key-Holder Handover Sheet (XLSX or CSV)"
-                  >
-                    <Download className="w-3.5 h-3.5 text-amber-800" />
-                    <span>Export Handover Sheet</span>
-                  </button>
-
                   <button
                     onClick={fetchReservations}
                     className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
