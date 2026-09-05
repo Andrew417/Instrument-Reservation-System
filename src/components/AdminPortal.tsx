@@ -520,11 +520,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     try {
       const res = await adminFetch("/reservations?quickTab=today");
       const data = await res.json();
-      if (data.success) {
-        setTodaysReservations(data.reservations);
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to load today's schedule");
       }
-    } catch {
-      showNotice("Failed to load today's schedule", "error");
+      setTodaysReservations(data.reservations || []);
+    } catch (err: any) {
+      showNotice(err.message || "Failed to load today's schedule", "error");
     } finally {
       setLoadingTodaysReservations(false);
     }
@@ -726,18 +727,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     try {
       const res = await adminFetch("/admins");
       const data = await res.json();
-      if (data.success) {
-        setAdminAccountsList(
-          data.admins.map((a: any) => ({
-            ...a,
-            isSuperAdmin: a.is_super_admin,
-            phoneNumber: a.phone_number,
-            createdAt: a.created_at,
-          })),
-        );
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to load administrators");
       }
-    } catch {
-      // silent
+      setAdminAccountsList(
+        (data.admins || []).map((a: any) => ({
+          ...a,
+          isSuperAdmin: a.is_super_admin,
+          phoneNumber: a.phone_number,
+          createdAt: a.created_at,
+        })),
+      );
+    } catch (err: any) {
+      showNotice(err.message || "Failed to load administrators", "error");
     } finally {
       setLoadingAdmins(false);
     }

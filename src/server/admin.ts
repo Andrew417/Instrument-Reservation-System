@@ -324,70 +324,6 @@ router.get(
 );
 
 /**
- * Get reservations list with rich filters (instrument, status, date range, user name, quick tab)
- */
-router.get(
-  "/reservations/:id",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-
-      const result = await db.execute(sql`
-        SELECT 
-          r.id,
-          r.series_id,
-          r.user_id,
-          r.admin_id,
-          r.instrument_id,
-          r.service_name,
-          r.reservation_type,
-          r.fee_snapshot,
-          r.status,
-          r.rejection_reason,
-          r.payment_screenshot_url,
-          r.created_at,
-          lower(r.time_range) as start_time,
-          upper(r.time_range) as end_time,
-          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as reservation_date,
-          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
-          to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
-          i.name as instrument_name,
-          i.type as instrument_type,
-          i.booking_mode,
-          i.photo_url as instrument_photo_url,
-          i.description as instrument_description,
-          u.name as user_name,
-          u.phone_number as user_phone,
-          u.is_trusted as user_is_trusted,
-          a.name as admin_name,
-          a.phone_number as admin_phone
-        FROM reservations r
-        JOIN instruments i ON r.instrument_id = i.id
-        LEFT JOIN users u ON r.user_id = u.id
-        LEFT JOIN admins a ON r.admin_id = a.id
-        WHERE r.id = ${id}
-      `);
-
-      const rows = (result as any).rows || [];
-      if (rows.length === 0) {
-        res.status(404).json({
-          success: false,
-          error: "Reservation not found.",
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        reservation: rows[0],
-      });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
  * Get approved reservations for the key-holder handover sheet within a date range (Day or Week)
  * Only 'approved' reservations are included.
  * Recurring series occurrences are expanded into independent rows.
@@ -456,6 +392,72 @@ router.get(
         endDate,
         count: rows.length,
         reservations: rows,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Get a single reservation by ID.
+ * Keep this after the handover-sheet route so the literal path is not treated
+ * as a reservation ID by Express.
+ */
+router.get(
+  "/reservations/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      const result = await db.execute(sql`
+        SELECT 
+          r.id,
+          r.series_id,
+          r.user_id,
+          r.admin_id,
+          r.instrument_id,
+          r.service_name,
+          r.reservation_type,
+          r.fee_snapshot,
+          r.status,
+          r.rejection_reason,
+          r.payment_screenshot_url,
+          r.created_at,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as reservation_date,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+          to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+          i.name as instrument_name,
+          i.type as instrument_type,
+          i.booking_mode,
+          i.photo_url as instrument_photo_url,
+          i.description as instrument_description,
+          u.name as user_name,
+          u.phone_number as user_phone,
+          u.is_trusted as user_is_trusted,
+          a.name as admin_name,
+          a.phone_number as admin_phone
+        FROM reservations r
+        JOIN instruments i ON r.instrument_id = i.id
+        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN admins a ON r.admin_id = a.id
+        WHERE r.id = ${id}
+      `);
+
+      const rows = (result as any).rows || [];
+      if (rows.length === 0) {
+        res.status(404).json({
+          success: false,
+          error: "Reservation not found.",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        reservation: rows[0],
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -1811,6 +1813,27 @@ router.post(
 /**
  * 6.1 Admin Account Management: List All Admin Accounts
  */
+router.get(
+  "/admins",
+  requireSuperAdminAuth,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, name, email, phone_number, is_super_admin, role, approval_status, created_at
+        FROM admins
+        ORDER BY created_at ASC, name ASC
+      `);
+
+      res.json({
+        success: true,
+        admins: (result as any).rows || [],
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
 /**
  * Get a single admin by ID
  */
