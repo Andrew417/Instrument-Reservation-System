@@ -337,10 +337,16 @@ router.get(
 
       const { startDate, endDate } = req.query;
 
-      if (!startDate || !endDate || typeof startDate !== "string" || typeof endDate !== "string") {
+      if (
+        !startDate ||
+        !endDate ||
+        typeof startDate !== "string" ||
+        typeof endDate !== "string"
+      ) {
         res.status(400).json({
           success: false,
-          error: "Valid startDate and endDate query parameters (YYYY-MM-DD) are required.",
+          error:
+            "Valid startDate and endDate query parameters (YYYY-MM-DD) are required.",
         });
         return;
       }
@@ -361,11 +367,14 @@ router.get(
           to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
           i.name as instrument_name,
           i.type as instrument_type,
-          COALESCE(u.name, 'Unknown Member') as user_name,
-          COALESCE(u.phone_number, 'N/A') as user_phone
+           -- ✅ FIX: Get user name from users table, fallback to admin name, then 'Unknown Member'
+          COALESCE(u.name, a.name, 'Unknown Member') as user_name,
+          -- ✅ FIX: Get user phone from users table, fallback to admin phone, then 'N/A'
+          COALESCE(u.phone_number, a.phone_number, 'N/A') as user_phone
         FROM reservations r
         JOIN instruments i ON r.instrument_id = i.id
         LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN admins a ON r.admin_id = a.id
         WHERE r.status = 'approved'
           AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${startDate}::date
           AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${endDate}::date
