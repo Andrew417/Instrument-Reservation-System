@@ -1114,6 +1114,49 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // No-Show accountability actions
+  const handleMarkNoShow = async (reservationId: string) => {
+    try {
+      const res = await adminFetch(
+        `/reservations/${reservationId}/mark-no-show`,
+        {
+          method: "POST",
+        },
+      );
+      const data = await res.json();
+      if (data.success) {
+        showNotice("Reservation marked as No-Show.");
+        fetchReservations();
+        fetchStats();
+      } else {
+        showNotice(data.error || "Failed to mark as no-show", "error");
+      }
+    } catch (err: any) {
+      showNotice(err.message || "Error marking no-show", "error");
+    }
+  };
+
+  const handleUnmarkNoShow = async (reservationId: string) => {
+    try {
+      const res = await adminFetch(
+        `/reservations/${reservationId}/unmark-no-show`,
+        {
+          method: "POST",
+        },
+      );
+      const data = await res.json();
+      if (data.success) {
+        showNotice("No-Show status removed.");
+        fetchReservations();
+        fetchStats();
+      } else {
+        showNotice(data.error || "Failed to unmark no-show", "error");
+      }
+    } catch (err: any) {
+      showNotice(err.message || "Error unmarking no-show", "error");
+    }
+  };
+
   // Series Approve / Reject All
   const handleApproveSeries = (seriesId: string) => {
     setConfirmModal({
@@ -1659,6 +1702,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     cancelled: "common.cancelled",
     ongoing: "common.ongoing",
     completed: "common.completed",
+    expired: "common.expired",
   };
 
   const translateStatus = (status: string) =>
@@ -2184,6 +2228,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <option value="approved">{t("common.approved")}</option>
                     <option value="ongoing">{t("common.ongoing")}</option>
                     <option value="completed">{t("common.completed")}</option>
+                    <option value="expired">{t("common.expired")}</option>
                     <option value="rejected">{t("common.rejected")}</option>
                     <option value="cancelled">{t("common.cancelled")}</option>
                   </select>
@@ -2436,11 +2481,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       ? "bg-amber-50 text-amber-800 border border-amber-200"
                                       : r.status === "rejected"
                                         ? "bg-red-50 text-red-800 border border-red-200"
-                                        : "bg-stone-100 text-stone-700"
+                                        : r.status === "expired"
+                                          ? "bg-stone-100 text-stone-500 border border-stone-300"
+                                          : "bg-stone-100 text-stone-700"
                                 }`}
                               >
                                 {translateStatus(r.status)}
                               </span>
+                              {r.is_no_show && (
+                                <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                  {t("common.noShow")}
+                                </span>
+                              )}
                             </td>
 
                             <td className="py-3 px-3 text-right">
@@ -2466,6 +2518,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       <span>{t("admin.review.rejectBtn")}</span>
                                     </button>
                                   </>
+                                )}
+
+                                {r.status === "completed" && (
+                                  r.is_no_show ? (
+                                    <button
+                                      onClick={() => handleUnmarkNoShow(r.id)}
+                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                      title={t("common.unmarkNoShow")}
+                                    >
+                                      <span>{t("common.unmarkNoShow")}</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleMarkNoShow(r.id)}
+                                      className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                      title={t("common.markNoShow")}
+                                    >
+                                      <span>{t("common.markNoShow")}</span>
+                                    </button>
+                                  )
                                 )}
 
                                 {onOpenReservationDetail && (
@@ -3206,16 +3278,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </td>
 
                           <td className="py-3 px-3">
-                            {u.isTrusted ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                {t("admin.users.trustedMember")}
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-stone-400 font-medium">
-                                {t("admin.users.standard")}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {u.isTrusted ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                  <Sparkles className="w-2.5 h-2.5 text-amber-700" />
+                                  {t("admin.users.trustedMember")}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-stone-400 font-medium">
+                                  {t("admin.users.standard")}
+                                </span>
+                              )}
+                              {Number(u.noShowCount || 0) > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200"
+                                  title={`${u.noShowCount} no-show reservation(s)`}
+                                >
+                                  {u.noShowCount} {t("common.noShow")}
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="py-3 px-3 text-right">

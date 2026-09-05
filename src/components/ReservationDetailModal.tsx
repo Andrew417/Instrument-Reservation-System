@@ -129,6 +129,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   // Instapay copy feedback
   const [copiedNumber, setCopiedNumber] = useState<boolean>(false);
 
+  // No-Show action state
+  const [isNoShowProcessing, setIsNoShowProcessing] = useState<boolean>(false);
+
   // Payment Screenshot Upload State
   const [uploadingScreenshot, setUploadingScreenshot] =
     useState<boolean>(false);
@@ -564,6 +567,86 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     }
   };
 
+  const handleMarkNoShow = async () => {
+    if (!isAdminViewer || isNoShowProcessing) return;
+    setIsNoShowProcessing(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/reservations/${reservationId}/mark-no-show`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken || ""}`,
+          },
+        },
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to mark as no-show.");
+      }
+      setReservation((prev: any) => ({
+        ...prev,
+        is_no_show: true,
+        no_show_marked_at:
+          data.reservation?.noShowMarkedAt || new Date().toISOString(),
+        no_show_admin_name:
+          data.reservation?.noShowAdminName ||
+          profile?.name ||
+          "Administrator",
+      }));
+      setActionNotice({
+        message:
+          t("common.markNoShowSuccess") || "Reservation marked as No-Show.",
+        type: "success",
+      });
+      onCancelled();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to mark as no-show.");
+    } finally {
+      setIsNoShowProcessing(false);
+    }
+  };
+
+  const handleUnmarkNoShow = async () => {
+    if (!isAdminViewer || isNoShowProcessing) return;
+    setIsNoShowProcessing(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(
+        `/api/admin/reservations/${reservationId}/unmark-no-show`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken || ""}`,
+          },
+        },
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to unmark no-show.");
+      }
+      setReservation((prev: any) => ({
+        ...prev,
+        is_no_show: false,
+        no_show_marked_at: null,
+        no_show_admin_id: null,
+        no_show_admin_name: null,
+      }));
+      setActionNotice({
+        message: t("common.unmarkNoShowSuccess") || "No-Show status removed.",
+        type: "success",
+      });
+      onCancelled();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to unmark no-show.");
+    } finally {
+      setIsNoShowProcessing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div
@@ -646,6 +729,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     reservation.status === "ongoing" ||
     reservation.status === "completed";
   const isPending = reservation.status === "pending";
+  const isCompleted = reservation.status === "completed";
+  const isExpired = reservation.status === "expired";
+  const isNoShow = Boolean(reservation.is_no_show);
+  const hoursSinceEnd =
+    (new Date().getTime() - endUtc.getTime()) / (3600 * 1000);
+  const canMarkNoShow =
+    isAdminViewer &&
+    isCompleted &&
+    !isNoShow &&
+    hoursSinceEnd >= 0 &&
+    hoursSinceEnd <= 48;
+  const canUnmarkNoShow = isAdminViewer && isNoShow;
   const isOutsideChurch = reservation.reservation_type === "outside_church";
   const isApprovedOutsideChurch = isApproved && isOutsideChurch;
 
@@ -780,7 +875,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800"
                   : isPending
                     ? "bg-amber-950/80 text-amber-300 border border-amber-800"
-                    : "bg-stone-800 text-stone-300 border border-stone-700"
+                    : isExpired
+                      ? "bg-stone-800 text-stone-400 border border-stone-700"
+                      : "bg-stone-800 text-stone-300 border border-stone-700"
               }`}
             >
               {reservation.status === "approved" &&
@@ -795,7 +892,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 t("reservationDetail.ongoing")}
               {reservation.status === "completed" &&
                 t("reservationDetail.completed")}
+              {reservation.status === "expired" &&
+                (t("reservationDetail.expired") || "Expired")}
             </span>
+            {isNoShow && (
+              <span className="hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-950/80 text-rose-300 border border-rose-800">
+                {t("common.noShow")}
+              </span>
+            )}
           </div>
         </div>
 
@@ -1106,6 +1210,13 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           t("reservationDetail.ongoing")}
                         {reservation.status === "completed" &&
                           t("reservationDetail.completed")}
+                        {reservation.status === "expired" &&
+                          (t("reservationDetail.expired") || "Expired")}
+                        {isNoShow && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                            {t("common.noShow")}
+                          </span>
+                        )}
                       </>
                     )}
                   </span>
@@ -1213,6 +1324,54 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   </div>
                 </div>
               )}
+
+            {/* No-Show Accountability Callout */}
+            {isNoShow && (
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-rose-700 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <div className="font-bold text-rose-950">
+                    {t("common.noShow")}
+                  </div>
+                  <div className="text-rose-900 leading-relaxed font-medium">
+                    {t("common.markedNoShowBy")}{" "}
+                    <strong>
+                      {reservation.no_show_admin_name ||
+                        (reservation as any).noShowAdminName ||
+                        "Administrator"}
+                    </strong>
+                    {(reservation.no_show_marked_at ||
+                      (reservation as any).noShowMarkedAt) && (
+                      <>
+                        {" "}
+                        (
+                        {new Date(
+                          reservation.no_show_marked_at ||
+                            (reservation as any).noShowMarkedAt,
+                        ).toLocaleString()}
+                        )
+                      </>
+                    )}
+                    .
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Expired Callout */}
+            {isExpired && (
+              <div className="bg-stone-100 border border-stone-300 rounded-2xl p-4 flex items-start gap-3">
+                <Clock className="w-5 h-5 text-stone-600 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <div className="font-bold text-stone-900">
+                    {t("common.expired")}
+                  </div>
+                  <div className="text-stone-600 leading-relaxed font-medium">
+                    This reservation was pending review and expired because its scheduled start time has passed.
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 2. Full Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2163,6 +2322,41 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   )}
                 </div>
               )
+            )}
+
+            {/* Admin No-Show Accountability Action on Completed Reservations */}
+            {isAdminViewer && isCompleted && (
+              <div className="flex items-center gap-2">
+                {canUnmarkNoShow ? (
+                  <button
+                    type="button"
+                    onClick={handleUnmarkNoShow}
+                    disabled={isNoShowProcessing}
+                    className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isNoShowProcessing ? (
+                      <div className="w-3.5 h-3.5 border-2 border-stone-800 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5 text-stone-700" />
+                    )}
+                    <span>{t("common.unmarkNoShow")}</span>
+                  </button>
+                ) : canMarkNoShow ? (
+                  <button
+                    type="button"
+                    onClick={handleMarkNoShow}
+                    disabled={isNoShowProcessing}
+                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
+                  >
+                    {isNoShowProcessing ? (
+                      <div className="w-3.5 h-3.5 border-2 border-rose-800 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    )}
+                    <span>{t("common.markNoShow")}</span>
+                  </button>
+                ) : null}
+              </div>
             )}
           </div>
         )}

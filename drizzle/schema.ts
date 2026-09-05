@@ -108,7 +108,11 @@ export const reservations = pgTable("reservations", {
 	feeSnapshot: numeric("fee_snapshot"),
 	status: text().default('pending').notNull(),
 	rejectionReason: text("rejection_reason"),
+	cancellationReason: text("cancellation_reason"),
 	paymentScreenshotUrl: text("payment_screenshot_url"),
+	isNoShow: boolean("is_no_show").default(false),
+	noShowMarkedAt: timestamp("no_show_marked_at", { withTimezone: true, mode: 'string' }),
+	noShowAdminId: uuid("no_show_admin_id"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	serviceName: text("service_name").notNull(),
 }, (table) => [
@@ -128,12 +132,17 @@ export const reservations = pgTable("reservations", {
 			name: "reservations_admin_id_admins_id_fk"
 		}).onDelete("set null"),
 	foreignKey({
+			columns: [table.noShowAdminId],
+			foreignColumns: [admins.id],
+			name: "reservations_no_show_admin_id_admins_id_fk"
+		}).onDelete("set null"),
+	foreignKey({
 			columns: [table.instrumentId],
 			foreignColumns: [instruments.id],
 			name: "reservations_instrument_id_instruments_id_fk"
 		}).onDelete("cascade"),
 	check("reservation_type_check", sql`reservation_type = ANY (ARRAY['in_church'::text, 'outside_church'::text])`),
-	check("status_check", sql`status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'auto_rejected'::text, 'cancelled'::text, 'ongoing'::text, 'completed'::text])`),
+	check("status_check", sql`status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'auto_rejected'::text, 'cancelled'::text, 'ongoing'::text, 'completed'::text, 'expired'::text])`),
 ]);
 
 export const failedLoginAttempts = pgTable("failed_login_attempts", {

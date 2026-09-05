@@ -403,6 +403,9 @@ export async function evaluateReservationSubmission(
     calculatedStatus = "approved";
     reasons.push("Auto-approved via Trusted User / Admin privilege");
   } else {
+    // Ensure status transitions are up-to-date before checking active limits
+    await ensureCurrentReservationStatuses().catch(() => {});
+
     // Regular user, in_church reservation:
     let limitExceeded = false;
 
@@ -1888,11 +1891,31 @@ export async function adminBulkCancel(
 }
 
 /**
+ * Window in hours after a reservation's end time during which an administrator can mark it as No-Show.
+ * Default: 48 hours.
+ */
+export const NO_SHOW_WINDOW_HOURS = 48;
+
+/**
  * =========================================================================
- * 6. STATUS TRANSITIONS (Scheduled Check / Background Job)
+ * 6. STATUS TRANSITIONS (Scheduled Check / Background Job / Lazy-on-read)
  * =========================================================================
  */
 export async function ensureCurrentReservationStatuses() {
+  // 1. Expired: A Pending reservation whose start datetime (in Africa/Cairo / UTC instant)
+  // has passed transitions to Expired.
+  // - Do NOT touch reservations in any other status.
+  // - Applies to individual occurrences within a recurring series independently.
+  // - Silent transition without bell notifications.
+  const toExpiredRes = await db.execute(sql`
+    UPDATE reservations
+    SET status = 'expired'
+    WHERE status = 'pending'
+      AND lower(time_range) <= NOW()
+    RETURNING id;
+  `);
+
+  // 2. Ongoing: Approved reservations whose start time has arrived and end time is in future
   const toOngoingRes = await db.execute(sql`
     UPDATE reservations
     SET status = 'ongoing'
@@ -1902,6 +1925,7 @@ export async function ensureCurrentReservationStatuses() {
     RETURNING id;
   `);
 
+  // 3. Completed: Ongoing or approved reservations whose end time has passed
   const toCompletedRes = await db.execute(sql`
     UPDATE reservations
     SET status = 'completed'
@@ -1910,14 +1934,113 @@ export async function ensureCurrentReservationStatuses() {
     RETURNING id;
   `);
 
+  const expiredCount = ((toExpiredRes as any).rows || []).length;
   const ongoingCount = ((toOngoingRes as any).rows || []).length;
   const completedCount = ((toCompletedRes as any).rows || []).length;
 
-  return { ongoingCount, completedCount };
+  return { expiredCount, ongoingCount, completedCount };
 }
 
 export async function runStatusTransitions() {
   return ensureCurrentReservationStatuses();
+}
+
+/**
+ * Mark a completed reservation as No-Show.
+ * - Admin-only action
+ * - Must be in 'completed' status
+ * - Time-bound: only available within NO_SHOW_WINDOW_HOURS (default 48h) after reservation's end time
+ * - Timestamped and attributed to the admin
+ */
+export async function markReservationNoShow(
+  reservationId: string,
+  adminId: string,
+) {
+  const [resRow] = await db
+    .select({
+      id: reservations.id,
+      status: reservations.status,
+      isNoShow: reservations.isNoShow,
+    })
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!resRow) {
+    throw new Error("Reservation not found.");
+  }
+
+  if (resRow.status !== "completed") {
+    throw new Error("Only completed reservations can be marked as no-show.");
+  }
+
+  const timeQuery = await db.execute(sql`
+    SELECT upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}
+  `);
+  const endTimeVal = (timeQuery as any).rows?.[0]?.end_time;
+  if (!endTimeVal) {
+    throw new Error("Unable to determine reservation end time.");
+  }
+
+  const endTime = new Date(endTimeVal);
+  const now = new Date();
+  const cutoffTime = new Date(
+    endTime.getTime() + NO_SHOW_WINDOW_HOURS * 60 * 60 * 1000,
+  );
+
+  if (now.getTime() > cutoffTime.getTime()) {
+    throw new Error(
+      `No-show marking window has expired. Reservations can only be marked as no-show within ${NO_SHOW_WINDOW_HOURS} hours after their end time.`,
+    );
+  }
+
+  const [updated] = await db
+    .update(reservations)
+    .set({
+      isNoShow: true,
+      noShowMarkedAt: new Date(),
+      noShowAdminId: adminId || null,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  return updated;
+}
+
+/**
+ * Unmark a reservation's No-Show status.
+ * - Admin-only action
+ * - Explicit deliberate unmarking action
+ */
+export async function unmarkReservationNoShow(
+  reservationId: string,
+  _adminId?: string,
+) {
+  const [resRow] = await db
+    .select({
+      id: reservations.id,
+      status: reservations.status,
+      isNoShow: reservations.isNoShow,
+    })
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!resRow) {
+    throw new Error("Reservation not found.");
+  }
+
+  const [updated] = await db
+    .update(reservations)
+    .set({
+      isNoShow: false,
+      noShowMarkedAt: null,
+      noShowAdminId: null,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  return updated;
 }
 
 /**

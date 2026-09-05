@@ -135,10 +135,15 @@ export const reservations = pgTable(
     timeRange: tstzrange("time_range").notNull(),
     reservationType: text("reservation_type").notNull(), // 'in_church' | 'outside_church'
     feeSnapshot: numeric("fee_snapshot"),
-    status: text("status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected' | 'auto_rejected' | 'cancelled' | 'ongoing' | 'completed'
+    status: text("status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected' | 'auto_rejected' | 'cancelled' | 'ongoing' | 'completed' | 'expired'
     rejectionReason: text("rejection_reason"),
     cancellationReason: text("cancellation_reason"), // admin-provided reason, only set on admin-initiated cancellations
     paymentScreenshotUrl: text("payment_screenshot_url"),
+    isNoShow: boolean("is_no_show").default(false),
+    noShowMarkedAt: timestamp("no_show_marked_at", { withTimezone: true }),
+    noShowAdminId: uuid("no_show_admin_id").references(() => admins.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -150,7 +155,7 @@ export const reservations = pgTable(
     ),
     check(
       "status_check",
-      sql`${table.status} IN ('pending','approved','rejected','auto_rejected','cancelled','ongoing','completed')`,
+      sql`${table.status} IN ('pending','approved','rejected','auto_rejected','cancelled','ongoing','completed','expired')`,
     ),
   ],
 );

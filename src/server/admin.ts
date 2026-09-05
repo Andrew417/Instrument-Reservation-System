@@ -38,6 +38,9 @@ import {
   cancelReservation,
   ensureCurrentReservationStatuses,
   getNotificationSettings,
+  markReservationNoShow,
+  unmarkReservationNoShow,
+  NO_SHOW_WINDOW_HOURS,
 } from "../services/reservation-logic.js";
 
 const router = Router();
@@ -252,6 +255,10 @@ router.get(
         to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
         to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
+        r.is_no_show,
+        r.no_show_marked_at,
+        r.no_show_admin_id,
+        nsa.name as no_show_admin_name,
         i.name as instrument_name,
         i.type as instrument_type,
         i.booking_mode,
@@ -267,6 +274,7 @@ router.get(
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
+      LEFT JOIN admins nsa ON r.no_show_admin_id = nsa.id
       WHERE 1=1
     `;
 
@@ -408,6 +416,9 @@ router.get(
   "/reservations/:id",
   async (req: Request, res: Response): Promise<void> => {
     try {
+      // Ensure status transitions are up-to-date
+      await ensureCurrentReservationStatuses().catch(() => {});
+
       const { id } = req.params;
 
       const result = await db.execute(sql`
@@ -424,6 +435,10 @@ router.get(
           r.rejection_reason,
           r.payment_screenshot_url,
           r.created_at,
+          r.is_no_show,
+          r.no_show_marked_at,
+          r.no_show_admin_id,
+          nsa.name as no_show_admin_name,
           lower(r.time_range) as start_time,
           upper(r.time_range) as end_time,
           to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as reservation_date,
@@ -443,6 +458,7 @@ router.get(
         JOIN instruments i ON r.instrument_id = i.id
         LEFT JOIN users u ON r.user_id = u.id
         LEFT JOIN admins a ON r.admin_id = a.id
+        LEFT JOIN admins nsa ON r.no_show_admin_id = nsa.id
         WHERE r.id = ${id}
       `);
 
@@ -668,6 +684,77 @@ router.delete(
         success: true,
         reservation: deleted,
         message: "Reservation permanently deleted from database.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Mark a completed reservation as No-Show (admin-only, within window)
+ */
+router.post(
+  "/reservations/:id/mark-no-show",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const updated = await markReservationNoShow(id, adminId);
+      res.json({
+        success: true,
+        reservation: updated,
+        message: "Reservation marked as No-Show.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Unmark a reservation's No-Show status (admin-only, deliberate action)
+ */
+router.post(
+  "/reservations/:id/unmark-no-show",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const updated = await unmarkReservationNoShow(id, adminId);
+      res.json({
+        success: true,
+        reservation: updated,
+        message: "Reservation No-Show status removed.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Set No-Show status directly (accepts { isNoShow: boolean })
+ */
+router.post(
+  "/reservations/:id/no-show",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { isNoShow } = req.body;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const updated = isNoShow
+        ? await markReservationNoShow(id, adminId)
+        : await unmarkReservationNoShow(id, adminId);
+      res.json({
+        success: true,
+        reservation: updated,
+        message: isNoShow
+          ? "Reservation marked as No-Show."
+          : "Reservation No-Show status removed.",
       });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
@@ -1163,7 +1250,8 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
         u.created_at,
         COUNT(r.id)::int as total_reservations,
         COUNT(CASE WHEN r.status = 'approved' THEN 1 END)::int as approved_reservations,
-        COUNT(CASE WHEN r.status = 'pending' THEN 1 END)::int as pending_reservations
+        COUNT(CASE WHEN r.status = 'pending' THEN 1 END)::int as pending_reservations,
+        COUNT(CASE WHEN r.is_no_show = true THEN 1 END)::int as no_show_count
       FROM users u
       LEFT JOIN reservations r ON u.id = r.user_id
       WHERE 1=1
@@ -1201,6 +1289,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
       totalReservations: row.total_reservations,
       approvedReservations: row.approved_reservations,
       pendingReservations: row.pending_reservations,
+      noShowCount: row.no_show_count || 0,
     }));
     res.json({ success: true, users: transformedUsers });
   } catch (err: any) {

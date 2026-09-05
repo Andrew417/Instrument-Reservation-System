@@ -33,6 +33,16 @@ import {
   Plus,
 } from "lucide-react";
 
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  pending: "common.pending",
+  approved: "common.approved",
+  rejected: "common.rejected",
+  cancelled: "common.cancelled",
+  ongoing: "common.ongoing",
+  completed: "common.completed",
+  expired: "common.expired",
+};
+
 export interface MyReservationsProps {
   allInstruments: Instrument[];
   onOpenNewReservation: () => void;
@@ -586,9 +596,17 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               {t("common.pending")}
                             </>
                           ) : (
-                            res.status
+                            STATUS_LABEL_KEYS[res.status]
+                              ? String(t(STATUS_LABEL_KEYS[res.status] as any))
+                              : res.status
                           )}
                         </span>
+
+                        {res.is_no_show && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                            {t("common.noShow")}
+                          </span>
+                        )}
 
                         {res.reservation_type === "outside_church" && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
@@ -835,7 +853,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                         : "bg-stone-100 text-stone-600"
                                   }`}
                                 >
-                                  {occ.status}
+                                  {STATUS_LABEL_KEYS[occ.status]
+                                    ? String(t(STATUS_LABEL_KEYS[occ.status] as any))
+                                    : occ.status}
                                 </span>
 
                                 {!isOccPast && !isOccCancelled && (
