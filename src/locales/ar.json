@@ -922,7 +922,8 @@
       "maxSeriesOccurrences": "الحد الأقصى للمواعيد في السلسلة الدورية",
       "maxSubmissionsPerHour": "حد المعدل (طلبات / ساعة)",
       "saveButton": "حفظ الحدود القصوى",
-      "saving": "جارٍ الحفظ..."
+      "saving": "جارٍ الحفظ...",
+      "loading": "تحميل حدود الاستخدام..."
     },
     "paymentSettings": {
       "title": "إعدادات الدفع وإنستاباي",

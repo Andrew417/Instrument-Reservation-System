@@ -923,7 +923,8 @@
       "maxSeriesOccurrences": "Max Recurring Occurrences Per Series",
       "maxSubmissionsPerHour": "Rate Limit (Requests / Hour)",
       "saveButton": "Save Hard Limits",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "loading": "Loading limits..."
     },
     "paymentSettings": {
       "title": "Payment & Instapay Configuration",

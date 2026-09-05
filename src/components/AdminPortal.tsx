@@ -767,8 +767,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // Fetch Hard Limits (Super Admin)
+  const [loadingLimits, setLoadingLimits] = useState<boolean>(false);
+
   const fetchHardLimits = async () => {
     if (!isSuperAdmin) return;
+    setLoadingLimits(true);
     try {
       const res = await adminFetch("/hard-limits");
       const data = await res.json();
@@ -777,6 +780,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       }
     } catch {
       // silent
+    } finally {
+      setLoadingLimits(false);
     }
   };
 
@@ -841,6 +846,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } else if (activeTab === "trusted_status") {
       fetchUsers();
       fetchAuditLogs();
+    } else if (activeTab === "hard_limits") {
+      fetchHardLimits();
     } else if (activeTab === "payment_settings") {
       fetchPaymentSettings();
     } else if (activeTab === "notification_settings") {
@@ -3652,240 +3659,245 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </p>
               </div>
 
-              <form onSubmit={handleSaveHardLimits} className="space-y-4">
-                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
-                  <div>
-                    <div className="font-bold text-stone-800 text-xs">
-                      {t("admin.hardLimits.bypassTitle")}
+              {loadingLimits ? (
+                <div className="py-12 text-center text-stone-500 text-xs">
+                  {t("admin.hardLimits.loading")}
+                </div>
+              ) : (
+                <form onSubmit={handleSaveHardLimits} className="space-y-4">
+                  <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+                    <div>
+                      <div className="font-bold text-stone-800 text-xs">
+                        {t("admin.hardLimits.bypassTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500">
+                        {hardLimitsState.bypassHardLimits
+                          ? t("admin.hardLimits.bypassOffDesc")
+                          : t("admin.hardLimits.bypassOnDesc")}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-stone-500">
-                      {hardLimitsState.bypassHardLimits
-                        ? t("admin.hardLimits.bypassOffDesc")
-                        : t("admin.hardLimits.bypassOnDesc")}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Toggle hard limit bypass"
-                    onClick={() =>
-                      setHardLimitsState({
-                        ...hardLimitsState,
-                        bypassHardLimits: !hardLimitsState.bypassHardLimits,
-                      })
-                    }
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                      hardLimitsState.bypassHardLimits
-                        ? "bg-stone-300"
-                        : "bg-amber-700"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    <button
+                      type="button"
+                      aria-label="Toggle hard limit bypass"
+                      onClick={() =>
+                        setHardLimitsState({
+                          ...hardLimitsState,
+                          bypassHardLimits: !hardLimitsState.bypassHardLimits,
+                        })
+                      }
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
                         hardLimitsState.bypassHardLimits
-                          ? "translate-x-1"
-                          : "translate-x-6"
+                          ? "bg-stone-300"
+                          : "bg-amber-700"
                       }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="input-max-active-reservations"
-                        className="font-bold text-stone-700"
-                      >
-                        {t("admin.hardLimits.maxActiveReservations")}
-                      </label>
-                      {renderLimitHelpToggle("activeReservations")}
-                    </div>
-                    <input
-                      id="input-max-active-reservations"
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={hardLimitsState.maxActiveReservations ?? ""}
-                      onChange={(e) =>
-                        setHardLimitsState({
-                          ...hardLimitsState,
-                          maxActiveReservations:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                    />
-                    {renderLimitHelp("activeReservations")}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                          hardLimitsState.bypassHardLimits
+                            ? "translate-x-1"
+                            : "translate-x-6"
+                        }`}
+                      />
+                    </button>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="input-max-reservations-per-day"
-                        className="font-bold text-stone-700"
-                      >
-                        {t("admin.hardLimits.maxReservationsPerDay")}
-                      </label>
-                      {renderLimitHelpToggle("reservationsPerDay")}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="input-max-active-reservations"
+                          className="font-bold text-stone-700"
+                        >
+                          {t("admin.hardLimits.maxActiveReservations")}
+                        </label>
+                        {renderLimitHelpToggle("activeReservations")}
+                      </div>
+                      <input
+                        id="input-max-active-reservations"
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={hardLimitsState.maxActiveReservations ?? ""}
+                        onChange={(e) =>
+                          setHardLimitsState({
+                            ...hardLimitsState,
+                            maxActiveReservations:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                      />
+                      {renderLimitHelp("activeReservations")}
                     </div>
-                    <input
-                      id="input-max-reservations-per-day"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={hardLimitsState.maxReservationsPerDay ?? ""}
-                      onChange={(e) =>
-                        setHardLimitsState({
-                          ...hardLimitsState,
-                          maxReservationsPerDay:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                    />
-                    {renderLimitHelp("reservationsPerDay")}
+
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="input-max-reservations-per-day"
+                          className="font-bold text-stone-700"
+                        >
+                          {t("admin.hardLimits.maxReservationsPerDay")}
+                        </label>
+                        {renderLimitHelpToggle("reservationsPerDay")}
+                      </div>
+                      <input
+                        id="input-max-reservations-per-day"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={hardLimitsState.maxReservationsPerDay ?? ""}
+                        onChange={(e) =>
+                          setHardLimitsState({
+                            ...hardLimitsState,
+                            maxReservationsPerDay:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                      />
+                      {renderLimitHelp("reservationsPerDay")}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="input-max-duration-hours"
+                          className="font-bold text-stone-700"
+                        >
+                          {t("admin.hardLimits.maxDurationHours")}
+                        </label>
+                        {renderLimitHelpToggle("durationHours")}
+                      </div>
+                      <input
+                        id="input-max-duration-hours"
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={hardLimitsState.maxDurationHours ?? ""}
+                        onChange={(e) =>
+                          setHardLimitsState({
+                            ...hardLimitsState,
+                            maxDurationHours:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                      />
+                      {renderLimitHelp("durationHours")}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="input-max-concurrent-per-type"
+                          className="font-bold text-stone-700"
+                        >
+                          {t("admin.hardLimits.maxConcurrentPerType")}
+                        </label>
+                        {renderLimitHelpToggle("concurrentPerType")}
+                      </div>
+                      <input
+                        id="input-max-concurrent-per-type"
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={hardLimitsState.maxConcurrentPerType ?? ""}
+                        onChange={(e) =>
+                          setHardLimitsState({
+                            ...hardLimitsState,
+                            maxConcurrentPerType:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                      />
+                      {renderLimitHelp("concurrentPerType")}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="input-max-series-occurrences"
+                          className="font-bold text-stone-700"
+                        >
+                          {t("admin.hardLimits.maxSeriesOccurrences")}
+                        </label>
+                        {renderLimitHelpToggle("seriesOccurrences")}
+                      </div>
+                      <input
+                        id="input-max-series-occurrences"
+                        type="number"
+                        min="2"
+                        max="20"
+                        value={hardLimitsState.maxSeriesOccurrences ?? ""}
+                        onChange={(e) =>
+                          setHardLimitsState({
+                            ...hardLimitsState,
+                            maxSeriesOccurrences:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                      />
+                      {renderLimitHelp("seriesOccurrences")}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <label
+                          htmlFor="input-max-submissions-per-hour"
+                          className="font-bold text-stone-700"
+                        >
+                          {t("admin.hardLimits.maxSubmissionsPerHour")}
+                        </label>
+                        {renderLimitHelpToggle("submissionsPerHour")}
+                      </div>
+                      <input
+                        id="input-max-submissions-per-hour"
+                        type="number"
+                        min="5"
+                        max="50"
+                        value={hardLimitsState.maxSubmissionsPerHour ?? ""}
+                        onChange={(e) =>
+                          setHardLimitsState({
+                            ...hardLimitsState,
+                            maxSubmissionsPerHour:
+                              e.target.value === ""
+                                ? ""
+                                : parseInt(e.target.value, 10),
+                          })
+                        }
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                      />
+                      {renderLimitHelp("submissionsPerHour")}
+                    </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="input-max-duration-hours"
-                        className="font-bold text-stone-700"
-                      >
-                        {t("admin.hardLimits.maxDurationHours")}
-                      </label>
-                      {renderLimitHelpToggle("durationHours")}
-                    </div>
-                    <input
-                      id="input-max-duration-hours"
-                      type="number"
-                      min="1"
-                      max="12"
-                      value={hardLimitsState.maxDurationHours ?? ""}
-                      onChange={(e) =>
-                        setHardLimitsState({
-                          ...hardLimitsState,
-                          maxDurationHours:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                    />
-                    {renderLimitHelp("durationHours")}
+                  <div className="pt-3 border-t border-stone-100 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={savingLimits}
+                      className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                    >
+                      {savingLimits
+                        ? t("admin.hardLimits.saving")
+                        : t("admin.hardLimits.saveButton")}
+                    </button>
                   </div>
-
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="input-max-concurrent-per-type"
-                        className="font-bold text-stone-700"
-                      >
-                        {t("admin.hardLimits.maxConcurrentPerType")}
-                      </label>
-                      {renderLimitHelpToggle("concurrentPerType")}
-                    </div>
-                    <input
-                      id="input-max-concurrent-per-type"
-                      type="number"
-                      min="1"
-                      max="5"
-                      value={hardLimitsState.maxConcurrentPerType ?? ""}
-                      onChange={(e) =>
-                        setHardLimitsState({
-                          ...hardLimitsState,
-                          maxConcurrentPerType:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                    />
-                    {renderLimitHelp("concurrentPerType")}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="input-max-series-occurrences"
-                        className="font-bold text-stone-700"
-                      >
-                        {t("admin.hardLimits.maxSeriesOccurrences")}
-                      </label>
-                      {renderLimitHelpToggle("seriesOccurrences")}
-                    </div>
-                    <input
-                      id="input-max-series-occurrences"
-                      type="number"
-                      min="2"
-                      max="20"
-                      value={hardLimitsState.maxSeriesOccurrences ?? ""}
-                      onChange={(e) =>
-                        setHardLimitsState({
-                          ...hardLimitsState,
-                          maxSeriesOccurrences:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                    />
-                    {renderLimitHelp("seriesOccurrences")}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <label
-                        htmlFor="input-max-submissions-per-hour"
-                        className="font-bold text-stone-700"
-                      >
-                        {t("admin.hardLimits.maxSubmissionsPerHour")}
-                      </label>
-                      {renderLimitHelpToggle("submissionsPerHour")}
-                    </div>
-                    <input
-                      id="input-max-submissions-per-hour"
-                      type="number"
-                      min="5"
-                      max="50"
-                      value={hardLimitsState.maxSubmissionsPerHour ?? ""}
-                      onChange={(e) =>
-                        setHardLimitsState({
-                          ...hardLimitsState,
-                          maxSubmissionsPerHour:
-                            e.target.value === ""
-                              ? ""
-                              : parseInt(e.target.value, 10),
-                        })
-                      }
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                    />
-                    {renderLimitHelp("submissionsPerHour")}
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-stone-100 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={savingLimits}
-                    className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
-                  >
-                    {savingLimits
-                      ? t("admin.hardLimits.saving")
-                      : t("admin.hardLimits.saveButton")}
-                  </button>
-                </div>
-              </form>
+                </form>
+              )}
             </div>
           )}
-
           {activeTab === "payment_settings" && isSuperAdmin && (
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="border-b border-stone-100 pb-3">
