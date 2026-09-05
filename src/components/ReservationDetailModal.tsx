@@ -439,9 +439,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     setApprovingMode(mode);
     setErrorMsg(null);
     try {
-      let url = `/api/reservations/admin/${reservationId}/approve`;
+      let url = `/api/admin/reservations/${reservationId}/approve`;
       if (mode === "series" && reservation?.series_id) {
-        url = `/api/reservations/admin/series/${reservation.series_id}/approve-all`;
+        url = `/api/admin/reservations/series/${reservation.series_id}/approve`;
       }
 
       const res = await fetch(url, {
@@ -505,9 +505,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     setErrorMsg(null);
 
     try {
-      let url = `/api/reservations/admin/${reservationId}/reject`;
+      let url = `/api/admin/reservations/${reservationId}/reject`;
       if (rejectMode === "series" && reservation?.series_id) {
-        url = `/api/reservations/admin/series/${reservation.series_id}/reject-all`;
+        url = `/api/admin/reservations/series/${reservation.series_id}/reject`;
       }
 
       const res = await fetch(url, {

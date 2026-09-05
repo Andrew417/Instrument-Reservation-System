@@ -188,9 +188,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
     setActioningId(notif.id);
     try {
-      let url = `/api/reservations/admin/${notif.reservation_id}/approve`;
+      let url = `/api/admin/reservations/${notif.reservation_id}/approve`;
       if (notif.series_id) {
-        url = `/api/reservations/admin/series/${notif.series_id}/approve-all`;
+        url = `/api/admin/reservations/series/${notif.series_id}/approve`;
       }
 
       const res = await fetch(url, {
@@ -243,9 +243,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
     setActioningId(notif.id);
     try {
-      let url = `/api/reservations/admin/${notif.reservation_id}/reject`;
+      let url = `/api/admin/reservations/${notif.reservation_id}/reject`;
       if (notif.series_id) {
-        url = `/api/reservations/admin/series/${notif.series_id}/reject-all`;
+        url = `/api/admin/reservations/series/${notif.series_id}/reject`;
       }
 
       const res = await fetch(url, {

@@ -4,27 +4,14 @@ import {
   createReservationSeries,
   editReservation,
   cancelReservation,
-  adminApproveReservation,
-  adminRejectReservation,
-  adminApproveSeries,
-  adminRejectSeries,
   runStatusTransitions,
   ensureCurrentReservationStatuses,
-  removeInstrumentWithConfirmation,
   evaluateReservationSubmission,
   getHardLimits,
 } from "../services/reservation-logic.js";
 import { db } from "../db/index.js";
-import {
-  instruments,
-  reservations,
-  reservationSeries,
-  notifications,
-  users,
-  admins,
-  messages,
-} from "../db/schema.js";
-import { eq, and, sql, desc, inArray } from "drizzle-orm";
+import { reservations, users, admins, messages } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
 
 const router = Router();
@@ -189,151 +176,7 @@ router.post(
   },
 );
 /**
- * 6. Admin: Approve single reservation
- */
-router.post(
-  "/admin/:id/approve",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const { adminId } = req.body;
-      const result = await adminApproveReservation(id, adminId || "");
-      res.json({ success: true, reservation: result });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * 7. Admin: Reject single reservation
- */
-router.post(
-  "/admin/:id/reject",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const { reason, adminId } = req.body;
-      const result = await adminRejectReservation(id, reason, adminId || "");
-      res.json({ success: true, reservation: result });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * 8. Admin: Approve all future occurrences in a series
- */
-router.post(
-  "/admin/series/:seriesId/approve-all",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { seriesId } = req.params;
-      const { adminId } = req.body;
-      const result = await adminApproveSeries(seriesId, adminId || "");
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * 9. Admin: Reject all future occurrences in a series
- */
-router.post(
-  "/admin/series/:seriesId/reject-all",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { seriesId } = req.params;
-      const { reason, adminId } = req.body;
-      const result = await adminRejectSeries(seriesId, reason, adminId || "");
-      res.json({ success: true, ...result });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * 10. Admin: Force remove instrument with confirmation
- */
-router.post(
-  "/admin/instruments/:id/remove",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const { confirmForce, adminId } = req.body;
-      const result = await removeInstrumentWithConfirmation(
-        id,
-        { confirmForce: Boolean(confirmForce) },
-        adminId || "",
-      );
-      res.json(result);
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * Admin: Permanently delete instrument row (for correcting mistaken entries only)
- */
-router.delete(
-  "/admin/instruments/:id",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-      const [existing] = await db
-        .select()
-        .from(instruments)
-        .where(eq(instruments.id, id));
-      if (!existing) {
-        res
-          .status(404)
-          .json({ success: false, error: "Instrument not found in database." });
-        return;
-      }
-
-      const tiedReservations = await db
-        .select({ id: reservations.id })
-        .from(reservations)
-        .where(eq(reservations.instrumentId, id));
-
-      if (tiedReservations.length > 0) {
-        const resIds = tiedReservations.map((r) => r.id);
-        await db
-          .delete(notifications)
-          .where(inArray(notifications.reservationId, resIds));
-        await db
-          .delete(messages)
-          .where(inArray(messages.reservationId, resIds));
-        await db.delete(reservations).where(eq(reservations.instrumentId, id));
-      }
-
-      await db
-        .delete(reservationSeries)
-        .where(eq(reservationSeries.instrumentId, id));
-
-      const [deleted] = await db
-        .delete(instruments)
-        .where(eq(instruments.id, id))
-        .returning();
-
-      res.json({
-        success: true,
-        instrument: deleted,
-        message: `Instrument "${existing.name}" was permanently removed from database.`,
-      });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * 11. Run scheduled status transitions
+ * Run scheduled status transitions
  */
 router.post(
   "/transitions/run",

@@ -679,7 +679,7 @@ router.delete(
  * Approve recurring series (all occurrences)
  */
 router.post(
-  "/series/:seriesId/approve-all",
+  "/reservations/series/:seriesId/approve",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
@@ -701,7 +701,7 @@ router.post(
  * Reject recurring series (all occurrences)
  */
 router.post(
-  "/series/:seriesId/reject-all",
+  "/reservations/series/:seriesId/reject",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
@@ -728,7 +728,7 @@ router.post(
  * Get all occurrences of a series for admin inspect
  */
 router.get(
-  "/series/:seriesId/occurrences",
+  "/reservations/series/:seriesId/occurrences",
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
@@ -1394,47 +1394,6 @@ router.post(
   },
 );
 
-// Alias: /users/:id/approve
-router.post(
-  "/users/:id/approve",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-
-      const [updated] = await db
-        .update(users)
-        .set({
-          approvalStatus: "approved",
-          isActive: true,
-        })
-        .where(eq(users.id, id))
-        .returning();
-
-      if (!updated) {
-        res.status(404).json({ success: false, error: "User not found." });
-        return;
-      }
-
-      if (updated.email) {
-        sendAccountApprovedEmail({
-          email: updated.email,
-          name: updated.name,
-        }).catch((err) =>
-          console.error("Failed to send account approval email:", err),
-        );
-      }
-
-      res.json({
-        success: true,
-        user: updated,
-        message: `Account for ${updated.name} has been approved. They can now log in normally.`,
-      });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
 /**
  * Reject a user account registration
  * Preserves account with approvalStatus = 'rejected' (Option B)
@@ -1460,40 +1419,6 @@ router.post(
       }
 
       // Terminate any active sessions for this user
-      await db.delete(sessions).where(eq(sessions.userId, id));
-
-      res.json({
-        success: true,
-        user: updated,
-        message: `Registration for ${updated.name} has been rejected. Record preserved in audit log.`,
-      });
-    } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
-    }
-  },
-);
-
-// Alias: /users/:id/reject
-router.post(
-  "/users/:id/reject",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-
-      const [updated] = await db
-        .update(users)
-        .set({
-          approvalStatus: "rejected",
-          isActive: false,
-        })
-        .where(eq(users.id, id))
-        .returning();
-
-      if (!updated) {
-        res.status(404).json({ success: false, error: "User not found." });
-        return;
-      }
-
       await db.delete(sessions).where(eq(sessions.userId, id));
 
       res.json({
@@ -1840,41 +1765,6 @@ router.get(
 router.get(
   "/admins/:id",
   requireAdminAuth,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { id } = req.params;
-
-      const result = await db.execute(sql`
-        SELECT id, name, email, phone_number, is_super_admin, role, approval_status, created_at 
-        FROM admins 
-        WHERE id = ${id}
-      `);
-
-      const rows = (result as any).rows || [];
-      if (rows.length === 0) {
-        res.status(404).json({
-          success: false,
-          error: "Admin not found.",
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        admin: rows[0],
-      });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  },
-);
-
-/**
- * Get a single admin by ID
- */
-router.get(
-  "/admins/:id",
-  requireAdminAuth, // ← Changed from requireSuperAdminAuth to requireAdminAuth
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
