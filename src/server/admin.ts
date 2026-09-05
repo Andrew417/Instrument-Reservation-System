@@ -216,107 +216,60 @@ router.get(
  * Get reservations list with rich filters (instrument, status, date range, user name, quick tab)
  */
 router.get(
-  "/reservations",
+  "/reservations/:id",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      // Ensure reservation statuses are up-to-date
-      await ensureCurrentReservationStatuses().catch(() => {});
+      const { id } = req.params;
 
-      const {
-        instrumentId,
-        status,
-        startDate,
-        endDate,
-        userName,
-        search,
-        quickTab,
-      } = req.query;
+      const result = await db.execute(sql`
+        SELECT 
+          r.id,
+          r.series_id,
+          r.user_id,
+          r.admin_id,
+          r.instrument_id,
+          r.service_name,
+          r.reservation_type,
+          r.fee_snapshot,
+          r.status,
+          r.rejection_reason,
+          r.payment_screenshot_url,
+          r.created_at,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as reservation_date,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+          to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+          i.name as instrument_name,
+          i.type as instrument_type,
+          i.booking_mode,
+          i.photo_url as instrument_photo_url,
+          i.description as instrument_description,
+          u.name as user_name,
+          u.phone_number as user_phone,
+          u.is_trusted as user_is_trusted,
+          a.name as admin_name,
+          a.phone_number as admin_phone
+        FROM reservations r
+        JOIN instruments i ON r.instrument_id = i.id
+        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN admins a ON r.admin_id = a.id
+        WHERE r.id = ${id}
+      `);
 
-      let querySql = sql`
-      SELECT 
-        r.id,
-        r.series_id,
-        r.user_id,
-        r.admin_id,
-        r.instrument_id,
-        r.service_name,
-        r.reservation_type,
-        r.fee_snapshot,
-        r.status,
-        r.rejection_reason,
-        r.payment_screenshot_url,
-        r.created_at,
-        lower(r.time_range) as start_time,
-        upper(r.time_range) as end_time,
-        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as reservation_date,
-        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
-        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
-        i.name as instrument_name,
-        i.type as instrument_type,
-        i.booking_mode,
-        i.photo_url as instrument_photo_url,
-        s.pattern_type as series_pattern_type,
-        u.name as user_name,
-        u.phone_number as user_phone,
-        u.is_trusted as user_is_trusted,
-        u.is_active as user_is_active,
-        a.name as admin_name
-      FROM reservations r
-      JOIN instruments i ON r.instrument_id = i.id
-      LEFT JOIN reservation_series s ON r.series_id = s.id
-      LEFT JOIN users u ON r.user_id = u.id
-      LEFT JOIN admins a ON r.admin_id = a.id
-      WHERE 1=1
-    `;
-
-      // Filter by quick tab
-      const today = getCairoDateString();
-      if (quickTab === "today") {
-        querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${today}::date`;
-      } else if (quickTab === "pending") {
-        querySql = sql`${querySql} AND r.status = 'pending'`;
+      const rows = (result as any).rows || [];
+      if (rows.length === 0) {
+        res.status(404).json({
+          success: false,
+          error: "Reservation not found.",
+        });
+        return;
       }
 
-      if (
-        instrumentId &&
-        typeof instrumentId === "string" &&
-        instrumentId !== "all"
-      ) {
-        querySql = sql`${querySql} AND r.instrument_id = ${instrumentId}`;
-      }
-
-      if (status && typeof status === "string" && status !== "all") {
-        querySql = sql`${querySql} AND r.status = ${status}`;
-      }
-
-      if (startDate && typeof startDate === "string") {
-        querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${startDate}::date`;
-      }
-
-      if (endDate && typeof endDate === "string") {
-        querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${endDate}::date`;
-      }
-
-      if (userName && typeof userName === "string" && userName.trim()) {
-        const term = `%${userName.trim()}%`;
-        querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.phone_number ILIKE ${term})`;
-      }
-
-      if (search && typeof search === "string" && search.trim()) {
-        const term = `%${search.trim()}%`;
-        querySql = sql`${querySql} AND (
-        u.name ILIKE ${term} 
-        OR u.phone_number ILIKE ${term} 
-        OR r.service_name ILIKE ${term} 
-        OR i.name ILIKE ${term}
-      )`;
-      }
-
-      querySql = sql`${querySql} ORDER BY lower(r.time_range) DESC LIMIT 200`;
-
-      const result = await db.execute(querySql);
-      res.json({ success: true, reservations: (result as any).rows || [] });
+      res.json({
+        success: true,
+        reservation: rows[0],
+      });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
@@ -1747,18 +1700,70 @@ router.post(
 /**
  * 6.1 Admin Account Management: List All Admin Accounts
  */
+/**
+ * Get a single admin by ID
+ */
 router.get(
-  "/admins",
-  requireSuperAdminAuth,
-  async (_req: Request, res: Response): Promise<void> => {
+  "/admins/:id",
+  requireAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
     try {
-      const result = await db.execute(sql`
-      SELECT id, name, email, phone_number, is_super_admin, role, approval_status, created_at 
-      FROM admins 
-      ORDER BY is_super_admin DESC, created_at ASC
-    `);
+      const { id } = req.params;
 
-      res.json({ success: true, admins: (result as any).rows || [] });
+      const result = await db.execute(sql`
+        SELECT id, name, email, phone_number, is_super_admin, role, approval_status, created_at 
+        FROM admins 
+        WHERE id = ${id}
+      `);
+
+      const rows = (result as any).rows || [];
+      if (rows.length === 0) {
+        res.status(404).json({
+          success: false,
+          error: "Admin not found.",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        admin: rows[0],
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Get a single admin by ID
+ */
+router.get(
+  "/admins/:id",
+  requireAdminAuth, // ← Changed from requireSuperAdminAuth to requireAdminAuth
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      const result = await db.execute(sql`
+        SELECT id, name, email, phone_number, is_super_admin, role, approval_status, created_at 
+        FROM admins 
+        WHERE id = ${id}
+      `);
+
+      const rows = (result as any).rows || [];
+      if (rows.length === 0) {
+        res.status(404).json({
+          success: false,
+          error: "Admin not found.",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        admin: rows[0],
+      });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
