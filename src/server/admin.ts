@@ -84,7 +84,10 @@ async function requireAdminAuth(req: Request, res: Response, next: () => void) {
     (req as any).adminUser = session.user;
     next();
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 }
 
@@ -131,7 +134,10 @@ async function requireSuperAdminAuth(
     (req as any).adminUser = session.user;
     next();
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 }
 
@@ -206,7 +212,14 @@ router.get(
         },
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -326,7 +339,14 @@ router.get(
       const result = await db.execute(querySql);
       res.json({ success: true, reservations: (result as any).rows || [] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -402,7 +422,14 @@ router.get(
         reservations: rows,
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -476,7 +503,14 @@ router.get(
         reservation: rows[0],
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -833,7 +867,14 @@ router.get(
     `);
       res.json({ success: true, occurrences: (result as any).rows || [] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -898,7 +939,14 @@ router.get(
       );
       res.json({ success: true, instruments: formatted });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -1293,9 +1341,162 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
     }));
     res.json({ success: true, users: transformedUsers });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
+
+/**
+ * Get detailed profile for a specific church user (Standing, Hard Limits, Timeline)
+ */
+router.get(
+  "/users/:id/profile",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      // 1. User base info + no show count
+      const userRes = await db.execute(sql`
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.phone_number,
+          u.is_trusted,
+          u.is_active,
+          u.approval_status,
+          u.created_at,
+          COUNT(CASE WHEN r.is_no_show = true THEN 1 END)::int as no_show_count
+        FROM users u
+        LEFT JOIN reservations r ON u.id = r.user_id
+        WHERE u.id = ${id}
+        GROUP BY u.id
+        LIMIT 1
+      `);
+
+      const userRow = (userRes as any).rows?.[0];
+      if (!userRow) {
+        res.status(404).json({ success: false, error: "User not found." });
+        return;
+      }
+
+      // 2. Ensure current reservation statuses and fetch current hard limits
+      await ensureCurrentReservationStatuses().catch(() => {});
+      const limits = await getHardLimits();
+
+      // 2a. Active reservations count (Pending + Approved, series counts as 1)
+      const activeRes = await db.execute(sql`
+        SELECT COUNT(DISTINCT COALESCE(series_id, id))::int as active_count
+        FROM reservations
+        WHERE user_id = ${id} AND status IN ('pending', 'approved')
+      `);
+      const activeCount = Number((activeRes as any).rows?.[0]?.active_count || 0);
+
+      // 2b. Bookings today in Cairo (status in pending, approved, ongoing, completed)
+      const todayCairo = getCairoDateString();
+      const todayRes = await db.execute(sql`
+        SELECT count(*)::int as count
+        FROM reservations
+        WHERE user_id = ${id}
+          AND status IN ('pending', 'approved', 'ongoing', 'completed')
+          AND (lower(time_range) AT TIME ZONE 'Africa/Cairo')::date = ${todayCairo}::date
+      `);
+      const todayCount = Number((todayRes as any).rows?.[0]?.count || 0);
+
+      // 2c. Submissions in the past hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const hourlyRes = await db.execute(sql`
+        SELECT count(*)::int as count
+        FROM reservations
+        WHERE user_id = ${id} AND created_at >= ${oneHourAgo}
+      `);
+      const hourlyCount = Number((hourlyRes as any).rows?.[0]?.count || 0);
+
+      // 3. User reservations
+      const reservationsRes = await db.execute(sql`
+        SELECT 
+          r.id,
+          r.series_id,
+          r.user_id,
+          r.admin_id,
+          r.instrument_id,
+          r.service_name,
+          r.reservation_type,
+          r.fee_snapshot,
+          r.status,
+          r.rejection_reason,
+          r.is_no_show,
+          r.no_show_marked_at,
+          r.no_show_admin_id,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          r.created_at,
+          i.name as instrument_name,
+          i.type as instrument_type
+        FROM reservations r
+        JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.user_id = ${id}
+        ORDER BY r.created_at DESC
+      `);
+      const userReservations = (reservationsRes as any).rows || [];
+
+      // 4. Admin messages sent to this user across all their reservations
+      const messagesRes = await db.execute(sql`
+        SELECT 
+          m.id,
+          m.reservation_id,
+          m.sender_role,
+          m.sender_name,
+          m.content,
+          m.created_at,
+          r.service_name,
+          i.name as instrument_name
+        FROM messages m
+        JOIN reservations r ON m.reservation_id = r.id
+        JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.user_id = ${id} AND m.sender_role = 'admin'
+        ORDER BY m.created_at DESC
+      `);
+      const adminMessages = (messagesRes as any).rows || [];
+
+      res.json({
+        success: true,
+        user: {
+          id: userRow.id,
+          name: userRow.name,
+          email: userRow.email,
+          phoneNumber: userRow.phone_number,
+          isTrusted: Boolean(userRow.is_trusted),
+          isActive: Boolean(userRow.is_active),
+          approvalStatus: userRow.approval_status,
+          createdAt: userRow.created_at,
+        },
+        standing: {
+          noShowCount: userRow.no_show_count || 0,
+          activeReservations: {
+            current: activeCount,
+            max: limits.maxActiveReservations,
+          },
+          todayReservations: {
+            current: todayCount,
+            max: limits.maxReservationsPerDay,
+          },
+          hourlySubmissions: {
+            current: hourlyCount,
+            max: limits.maxSubmissionsPerHour,
+          },
+          bypassHardLimits: Boolean(limits.bypassHardLimits),
+        },
+        reservations: userReservations,
+        messages: adminMessages,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
 
 router.get(
   "/notification-settings",
@@ -1436,7 +1637,10 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
@@ -1666,7 +1870,14 @@ router.post(
         notice: "Message sent to member.",
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -1843,7 +2054,14 @@ router.get(
         admins: (result as any).rows || [],
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -1878,7 +2096,14 @@ router.get(
         admin: rows[0],
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -1967,7 +2192,14 @@ router.post(
         message: "Administrator account created successfully.",
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -2116,7 +2348,14 @@ router.get(
 
       res.json({ success: true, auditLogs: (result as any).rows || [] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -2136,7 +2375,14 @@ router.get(
       const limits = await getHardLimits();
       res.json({ success: true, limits });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -2299,7 +2545,14 @@ router.get(
       }
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );

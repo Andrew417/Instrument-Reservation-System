@@ -17,6 +17,7 @@ import { NotificationsModal } from "./components/NotificationsModal.tsx";
 import { AdminPortal } from "./components/AdminPortal.tsx";
 import { getTodayDateString } from "./lib/date-utils";
 import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
+import { UserDetailModal } from "./components/UserDetailModal.tsx";
 import {
   LogOut,
   Sparkles,
@@ -86,6 +87,13 @@ const UserPortalMain: React.FC = () => {
     reservationDetailFromNotifications,
     setReservationDetailFromNotifications,
   ] = useState<boolean>(false);
+  const [
+    reservationDetailFromUserProfile,
+    setReservationDetailFromUserProfile,
+  ] = useState<boolean>(false);
+  const [modalStackOrder, setModalStackOrder] = useState<
+    "reservation_over_user" | "user_over_reservation"
+  >("user_over_reservation");
   const [editingReservation, setEditingReservation] = useState<any | null>(
     null,
   );
@@ -97,6 +105,45 @@ const UserPortalMain: React.FC = () => {
 
   const [allInstruments, setAllInstruments] = useState<Instrument[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // User Profile Modal with URL query param sync (?userId=<id>)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("userId") || null;
+    }
+    return null;
+  });
+
+  const handleOpenUserProfile = (userId: string) => {
+    setSelectedUserId(userId);
+    setModalStackOrder("user_over_reservation");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("userId", userId);
+      window.history.pushState({}, "", url.toString());
+    }
+  };
+
+  const handleCloseUserProfile = () => {
+    setSelectedUserId(null);
+    setReservationDetailFromUserProfile(false);
+    setModalStackOrder("reservation_over_user");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("userId");
+      window.history.pushState({}, "", url.toString());
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedUserId(params.get("userId") || null);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // Initial fetch for notifications count
   useEffect(() => {
@@ -362,10 +409,13 @@ const UserPortalMain: React.FC = () => {
             onSelectReservationDetail={(id) => {
               setSelectedReservationDetailId(id);
               setReservationDetailFromNotifications(false);
+              setReservationDetailFromUserProfile(false);
+              setModalStackOrder("reservation_over_user");
             }}
             onEditReservation={(res) => {
               setEditingReservation(res);
               setReservationDetailFromNotifications(false);
+              setReservationDetailFromUserProfile(false);
             }}
           />
         )}
@@ -375,10 +425,13 @@ const UserPortalMain: React.FC = () => {
             onOpenReservationDetail={(id) => {
               setSelectedReservationDetailId(id);
               setReservationDetailFromNotifications(false);
+              setReservationDetailFromUserProfile(false);
+              setModalStackOrder("reservation_over_user");
             }}
             onInstrumentsChanged={() => {
               setRefreshTrigger((prev) => prev + 1);
             }}
+            onOpenUserProfile={handleOpenUserProfile}
           />
         )}
       </main>
@@ -454,10 +507,22 @@ const UserPortalMain: React.FC = () => {
           reservationId={selectedReservationDetailId}
           allInstruments={allInstruments}
           initialTab={reservationDetailInitialTab}
+          zIndexClass={
+            modalStackOrder === "reservation_over_user" ? "z-[60]" : "z-50"
+          }
+          backButtonTitle={
+            reservationDetailFromNotifications
+              ? t("reservationDetail.backToNotifications")
+              : reservationDetailFromUserProfile
+              ? t("reservationDetail.backToProfile") || "Back to Member Profile"
+              : undefined
+          }
           onClose={() => {
             setSelectedReservationDetailId(null);
             setReservationDetailInitialTab("details");
             setReservationDetailFromNotifications(false);
+            setReservationDetailFromUserProfile(false);
+            setModalStackOrder("user_over_reservation");
           }}
           onBack={
             reservationDetailFromNotifications
@@ -467,12 +532,20 @@ const UserPortalMain: React.FC = () => {
                   setReservationDetailFromNotifications(false);
                   setIsNotificationsOpen(true);
                 }
+              : reservationDetailFromUserProfile
+              ? () => {
+                  setSelectedReservationDetailId(null);
+                  setReservationDetailInitialTab("details");
+                  setReservationDetailFromUserProfile(false);
+                  setModalStackOrder("user_over_reservation");
+                }
               : undefined
           }
           onEdit={(res) => {
             setSelectedReservationDetailId(null);
             setReservationDetailInitialTab("details");
             setReservationDetailFromNotifications(false);
+            setReservationDetailFromUserProfile(false);
             setEditingReservation(res);
           }}
           onCancelled={() => {
@@ -481,6 +554,7 @@ const UserPortalMain: React.FC = () => {
           onNavigateToReservation={(id) => {
             setSelectedReservationDetailId(id);
           }}
+          onOpenUserProfile={isAdminOrSuperAdmin ? handleOpenUserProfile : undefined}
         />
       )}
 
@@ -512,8 +586,33 @@ const UserPortalMain: React.FC = () => {
           setSelectedReservationDetailId(reservationId);
           setReservationDetailInitialTab(initialTab || "details");
           setReservationDetailFromNotifications(true);
+          setReservationDetailFromUserProfile(false);
+          setModalStackOrder("reservation_over_user");
         }}
+        onOpenUserProfile={isAdminOrSuperAdmin ? handleOpenUserProfile : undefined}
       />
+
+      {/* User Profile Modal (Admin / Super Admin) */}
+      {selectedUserId && isAdminOrSuperAdmin && (
+        <UserDetailModal
+          userId={selectedUserId}
+          isOpen={Boolean(selectedUserId)}
+          onClose={handleCloseUserProfile}
+          zIndexClass={
+            modalStackOrder === "user_over_reservation" ? "z-[60]" : "z-50"
+          }
+          onSelectReservation={(resId) => {
+            setSelectedReservationDetailId(resId);
+            setReservationDetailInitialTab("details");
+            setReservationDetailFromNotifications(false);
+            setReservationDetailFromUserProfile(true);
+            setModalStackOrder("reservation_over_user");
+          }}
+          isSuperAdmin={Boolean(profile?.role === "super_admin" || profile?.isSuperAdmin)}
+          sessionToken={sessionToken}
+          onUserUpdated={() => setRefreshTrigger((prev) => prev + 1)}
+        />
+      )}
     </div>
   );
 };

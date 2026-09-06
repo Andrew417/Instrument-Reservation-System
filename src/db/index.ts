@@ -6,6 +6,11 @@ declare global {
 }
 
 export const createPool = () => {
+  console.log(
+    "DB INIT — DATABASE_URL at pool creation:",
+    process.env.DATABASE_URL,
+  );
+
   if (!global._postgresPool) {
     const isServerless =
       process.env.VERCEL === "1" ||

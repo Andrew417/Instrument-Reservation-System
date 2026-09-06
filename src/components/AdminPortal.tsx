@@ -56,9 +56,11 @@ import {
   Eye,
   EyeOff,
   Download,
+  ExternalLink,
 } from "lucide-react";
 import { HandoverSheetModal } from "./HandoverSheetModal";
 import { HandoverExportFormat } from "../lib/handover-export";
+import { UserDetailModal } from "./UserDetailModal";
 
 // Add this after the imports and before the component definition
 const sortInstrumentsByStatus = (instruments: any[]) => {
@@ -77,6 +79,7 @@ interface AdminPortalProps {
   onBackToMemberView?: () => void;
   onOpenReservationDetail?: (reservationId: string) => void;
   onInstrumentsChanged?: () => void;
+  onOpenUserProfile?: (userId: string) => void;
 }
 
 type AdminTab =
@@ -124,11 +127,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onBackToMemberView,
   onOpenReservationDetail,
   onInstrumentsChanged,
+  onOpenUserProfile,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
+
+  const [internalSelectedUserId, setInternalSelectedUserId] = useState<string | null>(null);
+
+  const openUserProfile = (userId: string) => {
+    if (onOpenUserProfile) {
+      onOpenUserProfile(userId);
+    } else {
+      setInternalSelectedUserId(userId);
+    }
+  };
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
@@ -1782,18 +1796,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
-          <div className="text-stone-500 text-xs font-semibold mb-1">
-            {t("admin.pendingRequests")}
+        <button
+          id="stat-card-pending"
+          type="button"
+          onClick={() => {
+            setActiveTab("review");
+            setFilterQuickTab("pending");
+            setFilterStatus("pending");
+          }}
+          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
+        >
+          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-amber-900 flex items-center justify-between">
+            <span>{t("admin.pendingRequests")}</span>
           </div>
           <div className="text-2xl font-extrabold text-amber-900 flex items-center justify-between">
             <span>{stats.pendingRequests}</span>
-            <Clock className="w-5 h-5 text-amber-600/40" />
+            <Clock className="w-5 h-5 text-amber-600/40 group-hover:text-amber-700 transition" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">
+          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
             {t("admin.dashboard.pendingReviewNote")}
           </div>
-        </div>
+        </button>
 
         <button
           id="stat-card-approvals"
@@ -1818,44 +1841,66 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </button>
 
-        <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
-          <div className="text-stone-500 text-xs font-semibold mb-1">
-            {t("admin.todaysBookings")}
+        <button
+          id="stat-card-todays-bookings"
+          type="button"
+          onClick={() => {
+            setActiveTab("review");
+            setFilterQuickTab("today");
+            setFilterStatus("all");
+            const today = getTodayDateString();
+            setFilterStartDate(today);
+            setFilterEndDate(today);
+          }}
+          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-emerald-400 hover:shadow-xs transition cursor-pointer group"
+        >
+          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-emerald-900 flex items-center justify-between">
+            <span>{t("admin.todaysBookings")}</span>
           </div>
           <div className="text-2xl font-extrabold text-emerald-900 flex items-center justify-between">
             <span>{stats.todayReservations}</span>
-            <CalendarCheck className="w-5 h-5 text-emerald-600/40" />
+            <CalendarCheck className="w-5 h-5 text-emerald-600/40 group-hover:text-emerald-700 transition" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">
+          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
             {t("admin.dashboard.todaysBookingsNote")}
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs">
-          <div className="text-stone-500 text-xs font-semibold mb-1">
-            {t("admin.totalInstruments")}
+        <button
+          id="stat-card-instruments"
+          type="button"
+          onClick={() => setActiveTab("instruments")}
+          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
+        >
+          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-stone-900 flex items-center justify-between">
+            <span>{t("admin.totalInstruments")}</span>
           </div>
           <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
             <span>{stats.totalInstruments}</span>
-            <Music2 className="w-5 h-5 text-stone-400" />
+            <Music2 className="w-5 h-5 text-stone-400 group-hover:text-amber-700 transition" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">
+          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
             {t("admin.dashboard.totalInstrumentsNote")}
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs col-span-2 sm:col-span-1">
-          <div className="text-stone-500 text-xs font-semibold mb-1">
-            {t("admin.activeUsers")}
+        <button
+          id="stat-card-active-users"
+          type="button"
+          onClick={() => setActiveTab("users")}
+          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group col-span-2 sm:col-span-1"
+        >
+          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-stone-900 flex items-center justify-between">
+            <span>{t("admin.activeUsers")}</span>
           </div>
           <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
             <span>{stats.activeUsers}</span>
-            <Users className="w-5 h-5 text-stone-400" />
+            <Users className="w-5 h-5 text-stone-400 group-hover:text-amber-700 transition" />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">
+          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
             {t("admin.dashboard.activeUsersNote")}
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Main Admin Layout: Navigation & Content */}
@@ -2121,10 +2166,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               : r.status === "pending"
                                 ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                : "bg-stone-100 text-stone-700"
+                                : r.status === "rejected"
+                                  ? "bg-red-50 text-red-800 border border-red-200"
+                                  : r.status === "auto_rejected"
+                                    ? "bg-orange-50 text-orange-800 border border-orange-200"
+                                    : r.status === "expired"
+                                      ? "bg-stone-100 text-stone-500 border border-stone-300"
+                                      : r.status === "cancelled"
+                                        ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                        : r.status === "ongoing"
+                                          ? "bg-sky-50 text-sky-800 border border-sky-200"
+                                          : r.status === "completed"
+                                            ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                            : "bg-stone-100 text-stone-700"
                           }`}
                         >
-                          {r.status}
+                          {translateStatus(r.status)}
                         </span>
                       </div>
                     ))}
@@ -2439,9 +2496,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </td>
 
                             <td className="py-3 px-3">
-                              <div className="font-medium text-stone-900">
-                                {r.user_name || "Member"}
-                              </div>
+                              {r.user_id ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openUserProfile(r.user_id);
+                                  }}
+                                  className="font-medium text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
+                                  title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                                >
+                                  <span>{r.user_name || "Member"}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
+                                </button>
+                              ) : (
+                                <div className="font-medium text-stone-900">
+                                  {r.user_name || r.admin_name || "Member"}
+                                </div>
+                              )}
                               <div className="text-[11px] text-stone-500 font-medium">
                                 {r.service_name}
                               </div>
@@ -2481,9 +2553,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       ? "bg-amber-50 text-amber-800 border border-amber-200"
                                       : r.status === "rejected"
                                         ? "bg-red-50 text-red-800 border border-red-200"
-                                        : r.status === "expired"
-                                          ? "bg-stone-100 text-stone-500 border border-stone-300"
-                                          : "bg-stone-100 text-stone-700"
+                                        : r.status === "auto_rejected"
+                                          ? "bg-orange-50 text-orange-800 border border-orange-200"
+                                          : r.status === "expired"
+                                            ? "bg-stone-100 text-stone-500 border border-stone-300"
+                                            : r.status === "cancelled"
+                                              ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                              : r.status === "ongoing"
+                                                ? "bg-sky-50 text-sky-800 border border-sky-200"
+                                                : r.status === "completed"
+                                                  ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                                  : "bg-stone-100 text-stone-700"
                                 }`}
                               >
                                 {translateStatus(r.status)}
@@ -2520,8 +2600,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   </>
                                 )}
 
-                                {r.status === "completed" && (
-                                  r.is_no_show ? (
+                                {r.status === "completed" &&
+                                  (r.is_no_show ? (
                                     <button
                                       onClick={() => handleUnmarkNoShow(r.id)}
                                       className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
@@ -2537,8 +2617,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     >
                                       <span>{t("common.markNoShow")}</span>
                                     </button>
-                                  )
-                                )}
+                                  ))}
 
                                 {onOpenReservationDetail && (
                                   <button
@@ -2769,8 +2848,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             className="hover:bg-stone-50/60 transition"
                           >
                             <td className="py-3 px-3">
-                              <div className="font-semibold text-stone-900 flex items-center gap-1.5">
-                                <span>{u.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openUserProfile(u.id);
+                                  }}
+                                  className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
+                                  title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                                >
+                                  <span>{u.name}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
+                                </button>
                                 {u.isTrusted && (
                                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
                                     <Sparkles className="w-2.5 h-2.5 text-amber-700" />
@@ -3229,9 +3319,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           className="hover:bg-stone-50/60 transition"
                         >
                           <td className="py-3 px-3">
-                            <div className="font-semibold text-stone-900">
-                              {u.name}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openUserProfile(u.id);
+                              }}
+                              className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
+                              title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                            >
+                              <span>{u.name}</span>
+                              <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
+                            </button>
                             <div className="text-[10px] text-stone-400">
                               {t("admin.users.joined", {
                                 date: new Date(
@@ -5479,6 +5578,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         defaultMode={handoverDefaultMode}
         defaultFormat={handoverDefaultFormat}
       />
+
+      {/* User Detail Profile Modal */}
+      {internalSelectedUserId && (
+        <UserDetailModal
+          userId={internalSelectedUserId}
+          isOpen={Boolean(internalSelectedUserId)}
+          onClose={() => setInternalSelectedUserId(null)}
+          onSelectReservation={(resId) => {
+            setInternalSelectedUserId(null);
+            if (onOpenReservationDetail) {
+              onOpenReservationDetail(resId);
+            }
+          }}
+          isSuperAdmin={isSuperAdmin}
+          sessionToken={sessionToken}
+          onUserUpdated={() => {
+            fetchUsers();
+            fetchApprovals();
+            fetchStats();
+          }}
+        />
+      )}
     </div>
   );
 };

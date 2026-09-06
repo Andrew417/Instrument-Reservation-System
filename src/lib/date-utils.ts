@@ -6,7 +6,27 @@ import i18n from "./i18n.js";
 
 export const APP_TIME_ZONE = "Africa/Cairo";
 
-export function getCairoParts(date: Date = new Date()) {
+export function getCairoParts(dateInput: Date | string | number | null | undefined = new Date()) {
+  let date: Date;
+  if (dateInput instanceof Date) {
+    date = dateInput;
+  } else if (typeof dateInput === "string" || typeof dateInput === "number") {
+    const str = String(dateInput).trim();
+    const normalized = str.includes(" ") && !str.includes("T")
+      ? str.replace(" ", "T")
+      : str;
+    date = new Date(normalized);
+    if (isNaN(date.getTime())) {
+      date = new Date(dateInput);
+    }
+  } else {
+    date = new Date();
+  }
+
+  if (isNaN(date.getTime())) {
+    return { year: 1970, month: 1, day: 1, hour: 0, minute: 0, second: 0 };
+  }
+
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TIME_ZONE,
     year: "numeric",
@@ -32,17 +52,18 @@ export function getCairoParts(date: Date = new Date()) {
   };
 }
 
-export function getCairoDateString(date: Date = new Date()): string {
+export function getCairoDateString(date: Date | string | number | null | undefined = new Date()): string {
   const parts = getCairoParts(date);
   return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
-export function getCairoTimeString(date: Date = new Date()): string {
+export function getCairoTimeString(date: Date | string | number | null | undefined = new Date()): string {
   const parts = getCairoParts(date);
   return `${String(parts.hour).padStart(2, "0")}:${String(parts.minute).padStart(2, "0")}`;
 }
 
-export function formatCairoDateTime(date: Date): string {
+export function formatCairoDateTime(date: Date | string | number | null | undefined): string {
+  if (!date) return "";
   return `${getCairoDateString(date)} ${getCairoTimeString(date)}`;
 }
 

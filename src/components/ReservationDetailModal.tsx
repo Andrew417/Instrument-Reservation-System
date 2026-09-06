@@ -44,6 +44,7 @@ import {
   Check,
   Send,
 } from "lucide-react";
+import { getStatusColor } from "../lib/status-colors.ts";
 
 function formatMessageTime(dateInput: any): string {
   if (!dateInput) return "";
@@ -63,10 +64,13 @@ export interface ReservationDetailModalProps {
   allInstruments: Instrument[];
   onClose: () => void;
   onBack?: () => void;
+  backButtonTitle?: string;
   onEdit: (reservation: any) => void;
   onCancelled: () => void;
   onNavigateToReservation?: (id: string) => void;
   initialTab?: "details" | "chat";
+  onOpenUserProfile?: (userId: string) => void;
+  zIndexClass?: string;
 }
 
 export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
@@ -74,13 +78,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   allInstruments,
   onClose,
   onBack,
+  backButtonTitle,
   onEdit,
   onCancelled,
   onNavigateToReservation,
   initialTab = "details",
+  onOpenUserProfile,
+  zIndexClass = "z-50",
 }) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
+  const ArrowIcon = isRTL ? ArrowLeft : ArrowRight;
   const { profile, sessionToken } = useAuth();
   const isAdminViewer = Boolean(
     profile?.role === "admin" ||
@@ -592,9 +600,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         no_show_marked_at:
           data.reservation?.noShowMarkedAt || new Date().toISOString(),
         no_show_admin_name:
-          data.reservation?.noShowAdminName ||
-          profile?.name ||
-          "Administrator",
+          data.reservation?.noShowAdminName || profile?.name || "Administrator",
       }));
       setActionNotice({
         message:
@@ -651,7 +657,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     return (
       <div
         id="reservation-detail-modal-backdrop"
-        className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+        className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4`}
       >
         <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl border border-stone-200">
           <div className="w-10 h-10 border-3 border-amber-800 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -667,7 +673,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     return (
       <div
         id="reservation-detail-modal-backdrop"
-        className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+        className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4`}
       >
         <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-stone-200">
           <div className="flex items-center gap-3 text-red-700">
@@ -686,8 +692,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 onClick={onBack}
                 className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition"
               >
-                <ArrowLeft className="w-4 h-4" />
-                <span>{t("reservationDetail.backToNotifications")}</span>
+                <ArrowIcon className="w-4 h-4" />
+                <span>{backButtonTitle || t("reservationDetail.backToNotifications")}</span>
               </button>
             ) : null}
             <button
@@ -744,12 +750,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const isOutsideChurch = reservation.reservation_type === "outside_church";
   const isApprovedOutsideChurch = isApproved && isOutsideChurch;
 
-  const ArrowIcon = isRTL ? ArrowLeft : ArrowRight;
-
   return (
     <div
       id="reservation-detail-modal-backdrop"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+      className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto`}
       dir={isRTL ? "rtl" : "ltr"}
     >
       <div
@@ -765,10 +769,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 id="reservation-detail-back-btn"
                 onClick={onBack}
                 className="w-8 h-8 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer shrink-0"
-                title={t("reservationDetail.backToNotifications")}
-                aria-label={t("reservationDetail.backToNotifications")}
+                title={backButtonTitle || t("reservationDetail.backToNotifications")}
+                aria-label={backButtonTitle || t("reservationDetail.backToNotifications")}
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowIcon className="w-4 h-4" />
               </button>
             )}
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
@@ -1170,15 +1174,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   </div>
 
                   <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 whitespace-nowrap ${
-                      isApproved
-                        ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                        : isPending
-                          ? "bg-amber-100 text-amber-900 border border-amber-300"
-                          : "bg-stone-200 text-stone-700 border border-stone-300"
-                    }`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 whitespace-nowrap ${getStatusColor(reservation.status)}`}
                   >
-                    {isApproved ? (
+                    {reservation.status === "approved" ||
+                    reservation.status === "ongoing" ? (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                         {t("reservationDetail.approved")}
@@ -1199,6 +1198,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           <Info className="w-3 h-3" />
                         </button>
                       </>
+                    ) : reservation.status === "completed" ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-700" />
+                        {t("reservationDetail.completed")}
+                      </>
                     ) : (
                       <>
                         <X className="w-3.5 h-3.5 text-stone-500" />
@@ -1206,8 +1210,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           t("reservationDetail.rejected")}
                         {reservation.status === "cancelled" &&
                           t("reservationDetail.cancelled")}
-                        {reservation.status === "ongoing" &&
-                          t("reservationDetail.ongoing")}
                         {reservation.status === "completed" &&
                           t("reservationDetail.completed")}
                         {reservation.status === "expired" &&
@@ -1244,11 +1246,29 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
                   <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                     <div>
-                      <div className="font-bold text-stone-900 text-sm">
-                        {reservation.user_name ||
-                          reservation.admin_name ||
-                          t("reservationDetail.churchMember")}
-                      </div>
+                      {reservation.user_id && onOpenUserProfile ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenUserProfile(reservation.user_id);
+                          }}
+                          className="font-bold text-stone-900 text-sm hover:text-amber-800 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
+                          title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                        >
+                          <span>
+                            {reservation.user_name ||
+                              t("reservationDetail.churchMember")}
+                          </span>
+                          <ExternalLink className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-800 transition" />
+                        </button>
+                      ) : (
+                        <div className="font-bold text-stone-900 text-sm">
+                          {reservation.user_name ||
+                            reservation.admin_name ||
+                            t("reservationDetail.churchMember")}
+                        </div>
+                      )}
                       {(reservation.user_phone || reservation.admin_phone) && (
                         <div className="flex items-center gap-1.5 text-stone-600 text-xs mt-0.5 font-mono">
                           <Phone className="w-3 h-3 text-stone-400" />
@@ -1367,7 +1387,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     {t("common.expired")}
                   </div>
                   <div className="text-stone-600 leading-relaxed font-medium">
-                    This reservation was pending review and expired because its scheduled start time has passed.
+                    This reservation was pending review and expired because its
+                    scheduled start time has passed.
                   </div>
                 </div>
               </div>
@@ -1819,13 +1840,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                              occ.status === "approved"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : occ.status === "pending"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-stone-200 text-stone-600"
-                            }`}
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(
+                              occ.status,
+                            )}`}
                           >
                             {occ.status === "approved" &&
                               t("reservationDetail.approved")}
@@ -1939,13 +1956,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
               <div className="flex items-center gap-2">
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                    isApproved
-                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                      : isPending
-                        ? "bg-amber-100 text-amber-800 border border-amber-200"
-                        : "bg-stone-100 text-stone-600 border border-stone-200"
-                  }`}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(reservation.status)}`}
                 >
                   {reservation.status === "approved" &&
                     t("reservationDetail.approved")}
