@@ -213,13 +213,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -340,13 +338,11 @@ router.get(
       res.json({ success: true, reservations: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -423,13 +419,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -504,13 +498,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -868,13 +860,11 @@ router.get(
       res.json({ success: true, occurrences: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -940,13 +930,11 @@ router.get(
       res.json({ success: true, instruments: formatted });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -1294,6 +1282,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
         u.phone_number,
         u.is_trusted,
         u.is_active,
+        u.profile_picture_url,
         u.approval_status,
         u.created_at,
         COUNT(r.id)::int as total_reservations,
@@ -1331,6 +1320,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
       phoneNumber: row.phone_number,
       isTrusted: row.is_trusted,
       email: row.email,
+      profilePictureUrl: row.profile_picture_url,
       isActive: row.is_active,
       approvalStatus: row.approval_status,
       createdAt: row.created_at,
@@ -1366,6 +1356,7 @@ router.get(
           u.phone_number,
           u.is_trusted,
           u.is_active,
+          u.profile_picture_url,
           u.approval_status,
           u.created_at,
           COUNT(CASE WHEN r.is_no_show = true THEN 1 END)::int as no_show_count
@@ -1392,7 +1383,9 @@ router.get(
         FROM reservations
         WHERE user_id = ${id} AND status IN ('pending', 'approved')
       `);
-      const activeCount = Number((activeRes as any).rows?.[0]?.active_count || 0);
+      const activeCount = Number(
+        (activeRes as any).rows?.[0]?.active_count || 0,
+      );
 
       // 2b. Bookings today in Cairo (status in pending, approved, ongoing, completed)
       const todayCairo = getCairoDateString();
@@ -1467,6 +1460,7 @@ router.get(
           id: userRow.id,
           name: userRow.name,
           email: userRow.email,
+          profilePictureUrl: userRow.profile_picture_url,
           phoneNumber: userRow.phone_number,
           isTrusted: Boolean(userRow.is_trusted),
           isActive: Boolean(userRow.is_active),
@@ -1575,6 +1569,7 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
         u.phone_number,
         u.is_trusted,
         u.is_active,
+        u.profile_picture_url,
         u.approval_status,
         u.created_at,
         COUNT(r.id)::int as total_reservations
@@ -1602,10 +1597,12 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
     const transformedUsers = ((result as any).rows || []).map((row: any) => ({
       id: row.id,
       name: row.name,
+      email: row.email,
       phoneNumber: row.phone_number,
       isTrusted: row.is_trusted,
       isActive: row.is_active,
       approvalStatus: row.approval_status,
+      profilePictureUrl: row.profile_picture_url,
       createdAt: row.created_at,
       totalReservations: row.total_reservations,
     }));
@@ -1871,13 +1868,11 @@ router.post(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2055,13 +2050,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2097,13 +2090,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2193,13 +2184,11 @@ router.post(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2349,13 +2338,11 @@ router.get(
       res.json({ success: true, auditLogs: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2376,13 +2363,11 @@ router.get(
       res.json({ success: true, limits });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2546,13 +2531,11 @@ router.get(
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );

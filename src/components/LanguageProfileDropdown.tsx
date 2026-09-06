@@ -26,6 +26,9 @@ export const LanguageProfileDropdown: React.FC<
   const currentLang = i18n.language || "en";
   const isAr = currentLang === "ar";
 
+  // Get profile picture URL (supports both camelCase and snake_case)
+  const pictureUrl = profile?.profilePictureUrl || profile?.profile_picture_url;
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -76,6 +79,9 @@ export const LanguageProfileDropdown: React.FC<
     );
   };
 
+  console.log("Profile data:", profile);
+  console.log("Profile picture URL:", pictureUrl);
+
   return (
     <div
       ref={dropdownRef}
@@ -91,9 +97,18 @@ export const LanguageProfileDropdown: React.FC<
         aria-haspopup="true"
         title={t("common.profile")}
       >
-        <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
-          {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
-        </div>
+        {/* Profile Image or Initials Avatar */}
+        {pictureUrl ? (
+          <img
+            src={pictureUrl}
+            alt={profile.name || "Profile"}
+            className="w-6 h-6 rounded-lg object-cover shrink-0 border border-amber-200"
+          />
+        ) : (
+          <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
+            {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
+          </div>
+        )}
         <div className="hidden sm:flex flex-col text-start min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-stone-900 leading-none truncate max-w-[110px] lg:max-w-[180px]">
@@ -120,9 +135,18 @@ export const LanguageProfileDropdown: React.FC<
           {/* User Card inside dropdown */}
           <div className="px-4 py-3 border-b border-stone-100 bg-stone-50/70">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-sm shrink-0">
-                {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
-              </div>
+              {/* Profile Image or Initials Avatar */}
+              {pictureUrl ? (
+                <img
+                  src={pictureUrl}
+                  alt={profile.name || "Profile"}
+                  className="w-8 h-8 rounded-xl object-cover shrink-0 border border-amber-200"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-sm shrink-0">
+                  {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="font-bold text-stone-900 text-xs truncate">
                   {profile?.name || t("common.member")}

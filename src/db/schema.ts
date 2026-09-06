@@ -28,6 +28,7 @@ export const users = pgTable(
     email: text("email").notNull(),
     phoneNumber: text("phone_number").notNull(),
     passwordHash: text("password_hash").notNull(),
+    profilePictureUrl: text("profile_picture_url"),
     isTrusted: boolean("is_trusted").default(false).notNull(),
     isActive: boolean("is_active").default(false).notNull(),
     approvalStatus: text("approval_status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected'

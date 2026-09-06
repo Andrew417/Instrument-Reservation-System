@@ -119,10 +119,17 @@ router.post(
  */
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, phoneNumber, password } = req.body;
+    const { name, email, phoneNumber, password, profilePictureUrl } = req.body;
 
     if (!name || !name.trim()) {
       res.status(400).json({ error: "Full name is required" });
+      return;
+    }
+
+    if (!profilePictureUrl || !profilePictureUrl.trim()) {
+      res
+        .status(400)
+        .json({ error: "A profile picture is required to register" });
       return;
     }
 
@@ -196,8 +203,9 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
         email: normalizedEmail,
         phoneNumber: normalizedPhone,
         passwordHash,
+        profilePictureUrl: profilePictureUrl.trim(),
         isTrusted: false,
-        isActive: false, // New accounts are pending approval
+        isActive: false,
         approvalStatus: "pending",
       })
       .returning();

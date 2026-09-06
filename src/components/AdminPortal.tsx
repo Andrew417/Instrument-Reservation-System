@@ -134,7 +134,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const isAr = i18n.language === "ar";
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
 
-  const [internalSelectedUserId, setInternalSelectedUserId] = useState<string | null>(null);
+  const [internalSelectedUserId, setInternalSelectedUserId] = useState<
+    string | null
+  >(null);
 
   const openUserProfile = (userId: string) => {
     if (onOpenUserProfile) {
@@ -2504,7 +2506,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     openUserProfile(r.user_id);
                                   }}
                                   className="font-medium text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                  title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                                  title={
+                                    t("admin.userDetail.viewProfile") ||
+                                    "View Member Profile"
+                                  }
                                 >
                                   <span>{r.user_name || "Member"}</span>
                                   <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
@@ -2848,25 +2853,41 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             className="hover:bg-stone-50/60 transition"
                           >
                             <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openUserProfile(u.id);
-                                  }}
-                                  className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                  title={t("admin.userDetail.viewProfile") || "View Member Profile"}
-                                >
-                                  <span>{u.name}</span>
-                                  <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
-                                </button>
-                                {u.isTrusted && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                    <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                    {t("common.trusted")}
-                                  </span>
-                                )}
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-full bg-stone-100 border border-stone-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                  {u.profilePictureUrl ? (
+                                    <img
+                                      src={u.profilePictureUrl}
+                                      alt={u.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Users className="w-4 h-4 text-stone-400" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openUserProfile(u.id);
+                                    }}
+                                    className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
+                                    title={
+                                      t("admin.userDetail.viewProfile") ||
+                                      "View Member Profile"
+                                    }
+                                  >
+                                    <span>{u.name}</span>
+                                    <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
+                                  </button>
+                                  {u.isTrusted && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                      <Sparkles className="w-2.5 h-2.5 text-amber-700" />
+                                      {t("common.trusted")}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </td>
 
@@ -3326,7 +3347,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 openUserProfile(u.id);
                               }}
                               className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
-                              title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                              title={
+                                t("admin.userDetail.viewProfile") ||
+                                "View Member Profile"
+                              }
                             >
                               <span>{u.name}</span>
                               <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />

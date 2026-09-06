@@ -22,6 +22,8 @@ export interface UserProfile {
   approvalStatus?: "pending" | "approved" | "rejected";
   isSuperAdmin?: boolean;
   createdAt: string;
+  profilePictureUrl?: string; // ← ADDED
+  profile_picture_url?: string; // snake_case (for API compatibility)
 }
 
 interface AuthContextType {
@@ -29,7 +31,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   sessionToken: string | null;
   isAuthenticated: boolean;
-  firebaseUser: any | null; // Alias for backward compatibility
+  firebaseUser: any | null;
   loading: boolean;
   error: string | null;
   isLocked: boolean;
@@ -37,22 +39,12 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   loginWithPhone: (phoneOrEmail: string, password: string) => Promise<void>;
-  register: (
-    name: string,
-    email: string,
-    phone: string,
-    password: string,
-  ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   registerWithEmail: (
     name: string,
     email: string,
     phone: string,
     password: string,
-  ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
-  registerWithPhone: (
-    name: string,
-    phone: string,
-    password: string,
+    profilePictureUrl: string,
   ) => Promise<{ pendingApproval?: boolean; message?: string } | void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -120,11 +112,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         if (res.ok) {
           const data = await res.json();
           if (data.profile) {
-            setProfile(data.profile);
+            // Ensure profilePictureUrl is set
+            const profileWithImage = {
+              ...data.profile,
+              profilePictureUrl:
+                data.profile.profilePictureUrl ||
+                data.profile.profile_picture_url ||
+                "",
+            };
+            setProfile(profileWithImage);
             setSessionToken(token);
             sessionStorage.setItem(
               USER_PROFILE_KEY,
-              JSON.stringify(data.profile),
+              JSON.stringify(profileWithImage),
             );
           } else {
             handleLogoutLocally();
@@ -205,10 +205,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       if (data.token && data.profile) {
+        const profileWithImage = {
+          ...data.profile,
+          profilePictureUrl:
+            data.profile.profilePictureUrl ||
+            data.profile.profile_picture_url ||
+            "",
+        };
         setSessionToken(data.token);
-        setProfile(data.profile);
+        setProfile(profileWithImage);
         sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
-        sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+        sessionStorage.setItem(
+          USER_PROFILE_KEY,
+          JSON.stringify(profileWithImage),
+        );
         setError(null);
       }
     } catch (err: any) {
@@ -226,6 +236,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     rawEmail: string,
     phone: string,
     password: string,
+    profilePictureUrl: string,
   ) => {
     setError(null);
     const normalizedEmail = normalizeEmail(rawEmail);
@@ -233,6 +244,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     if (!name.trim()) {
       setError("Please enter your full name");
+      return;
+    }
+
+    if (!profilePictureUrl) {
+      setError("Please upload a profile picture");
       return;
     }
 
@@ -260,6 +276,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           email: normalizedEmail,
           phoneNumber: normalizedPhone,
           password,
+          profilePictureUrl,
         }),
       });
 
@@ -282,10 +299,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       if (data.token && data.profile) {
+        const profileWithImage = {
+          ...data.profile,
+          profilePictureUrl:
+            data.profile.profilePictureUrl ||
+            data.profile.profile_picture_url ||
+            "",
+        };
         setSessionToken(data.token);
-        setProfile(data.profile);
+        setProfile(profileWithImage);
         sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
-        sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
+        sessionStorage.setItem(
+          USER_PROFILE_KEY,
+          JSON.stringify(profileWithImage),
+        );
         setError(null);
         return {
           pendingApproval: false,
@@ -299,14 +326,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
       throw err;
     }
-  };
-
-  const registerWithPhone = async (
-    name: string,
-    phone: string,
-    password: string,
-  ) => {
-    return registerWithEmail(name, "", phone, password);
   };
 
   const logout = async () => {
@@ -338,10 +357,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       if (res.ok) {
         const data = await res.json();
         if (data.profile) {
-          setProfile(data.profile);
+          const profileWithImage = {
+            ...data.profile,
+            profilePictureUrl:
+              data.profile.profilePictureUrl ||
+              data.profile.profile_picture_url ||
+              "",
+          };
+          setProfile(profileWithImage);
           sessionStorage.setItem(
             USER_PROFILE_KEY,
-            JSON.stringify(data.profile),
+            JSON.stringify(profileWithImage),
           );
         }
       }
@@ -371,9 +397,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         login: loginWithEmail,
         loginWithEmail,
         loginWithPhone,
-        register: registerWithEmail,
         registerWithEmail,
-        registerWithPhone,
         logout,
         clearError,
         refreshProfile,

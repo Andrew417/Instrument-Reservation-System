@@ -2,6 +2,7 @@ import { defineConfig } from "drizzle-kit";
 import * as dotenv from "dotenv";
 import path from "path";
 
+// Load from .env.local
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 if (!process.env.DATABASE_URL) {
@@ -13,6 +14,10 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   schemaFilter: ["public"],
-  dbCredentials: { url: process.env.DATABASE_URL },
+  dbCredentials: {
+    url: process.env.DATABASE_URL,
+  },
   verbose: true,
+  // Add this for better Windows compatibility
+  strict: true,
 });

@@ -35,6 +35,9 @@ export const AuthScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string>("");
+  const [profilePicError, setProfilePicError] = useState<string | null>(null);
+  const profilePicInputRef = useRef<HTMLInputElement>(null);
 
   // Forgot Password Modal State
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -66,6 +69,47 @@ export const AuthScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
+  const handleProfilePictureChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setProfilePicError("Please select a valid image file.");
+      return;
+    }
+    setProfilePicError(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 400;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          setProfilePicture(canvas.toDataURL("image/jpeg", 0.85));
+        }
+      };
+      img.src = String(ev.target?.result || "");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting || isLocked) return;
@@ -74,7 +118,18 @@ export const AuthScreen: React.FC = () => {
       if (mode === "login") {
         await loginWithEmail(email, password);
       } else {
-        const res = await registerWithEmail(name, email, phoneNumber, password);
+        if (!profilePicture) {
+          setProfilePicError("Please upload a profile picture.");
+          setSubmitting(false);
+          return;
+        }
+        const res = await registerWithEmail(
+          name,
+          email,
+          phoneNumber,
+          password,
+          profilePicture,
+        );
         if (res && res.pendingApproval) {
           setRegistrationNotice(
             res.message ||
@@ -90,7 +145,6 @@ export const AuthScreen: React.FC = () => {
       setSubmitting(false);
     }
   };
-
   // Countdown timer for OTP resend cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -419,6 +473,55 @@ export const AuthScreen: React.FC = () => {
         <form id="auth-form" onSubmit={handleSubmit} className="space-y-4">
           {mode === "register" && (
             <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
+                Profile Picture
+              </label>
+              <input
+                ref={profilePicInputRef}
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                onChange={handleProfilePictureChange}
+                className="hidden"
+                id="register-photo-input"
+              />
+              {profilePicture ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={profilePicture}
+                    alt="Preview"
+                    className="w-14 h-14 rounded-xl object-cover border border-stone-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => profilePicInputRef.current?.click()}
+                    className="text-xs font-semibold text-amber-800 hover:underline cursor-pointer"
+                  >
+                    Change photo
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => profilePicInputRef.current?.click()}
+                  className={`w-full py-2.5 border-2 border-dashed rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    profilePicError
+                      ? "border-red-500 bg-red-50 text-red-600 hover:border-red-700"
+                      : "border-stone-300 text-stone-500 hover:border-amber-700 hover:text-amber-800"
+                  }`}
+                >
+                  Upload photo
+                </button>
+              )}
+              {profilePicError && (
+                <p className="text-[11px] text-red-600 mt-1">
+                  {profilePicError}
+                </p>
+              )}
+            </div>
+          )}
+          {/* Full Name Field - Registration Only */}
+          {mode === "register" && (
+            <div>
               <label
                 htmlFor="register-name-input"
                 className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
@@ -433,7 +536,7 @@ export const AuthScreen: React.FC = () => {
                   id="register-name-input"
                   type="text"
                   required
-                  placeholder="e.g. Samuel Mark"
+                  placeholder="Please enter your full name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"

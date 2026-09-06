@@ -59,6 +59,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [isTogglingTrust, setIsTogglingTrust] = useState<boolean>(false);
   const [confirmToggleTrust, setConfirmToggleTrust] = useState<boolean>(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !userId) {
@@ -375,28 +376,48 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
               {/* Profile Card Header */}
               <div className="bg-stone-50/70 border border-stone-200 rounded-2xl p-3.5 space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-extrabold text-stone-900 truncate">
-                      {userData.name}
-                    </h3>
-                    <div className="flex items-center gap-3 mt-0.5 text-[11px] text-stone-500 font-mono flex-wrap">
-                      {userData.email && <span>{userData.email}</span>}
-                      {userData.phoneNumber && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-stone-400" />
-                          {userData.phoneNumber}
-                        </span>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div
+                      className={`w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 overflow-hidden shrink-0 flex items-center justify-center ${userData.profilePictureUrl ? "cursor-pointer hover:opacity-80 transition" : ""}`}
+                      onClick={() => {
+                        if (userData.profilePictureUrl) {
+                          setPreviewImage(userData.profilePictureUrl);
+                        }
+                      }}
+                    >
+                      {userData.profilePictureUrl ? (
+                        <img
+                          src={userData.profilePictureUrl}
+                          alt={userData.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-stone-400" />
                       )}
                     </div>
-                    <p className="text-[11px] text-stone-400 mt-1">
-                      {t("admin.userDetail.memberSince", {
-                        date: userData.createdAt
-                          ? formatDisplayDate(
-                              getCairoDateString(userData.createdAt),
-                            )
-                          : "",
-                      })}
-                    </p>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-extrabold text-stone-900 truncate">
+                        {userData.name}
+                      </h3>
+                      <div className="flex items-center gap-3 mt-0.5 text-[11px] text-stone-500 font-mono flex-wrap">
+                        {userData.email && <span>{userData.email}</span>}
+                        {userData.phoneNumber && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-stone-400" />
+                            {userData.phoneNumber}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-stone-400 mt-1">
+                        {t("admin.userDetail.memberSince", {
+                          date: userData.createdAt
+                            ? formatDisplayDate(
+                                getCairoDateString(userData.createdAt),
+                              )
+                            : "",
+                        })}
+                      </p>
+                    </div>
                   </div>
                   <div className="shrink-0">
                     {getAccountStatusBadge(
@@ -682,6 +703,27 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
           </button>
         </div>
       </div>
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-3xl w-full max-h-[90vh] flex items-center justify-center">
+            <img
+              src={previewImage}
+              alt="Profile preview"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            />
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
