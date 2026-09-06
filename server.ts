@@ -1,3 +1,4 @@
+import "./src/env-loader";
 import path from "path";
 import express from "express";
 import { createServer as createViteServer } from "vite";

@@ -232,7 +232,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
           type: "account_approval_submitted",
           message: JSON.stringify({
             key: "notifications.msgAccountApproval",
-            params: { name: newUser.name },
+            params: { name: newUser.name, userId: newUser.id },
           }),
         })
         .catch(() => {});

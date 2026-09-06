@@ -32,6 +32,7 @@ import {
   RefreshCw,
   Plus,
 } from "lucide-react";
+import { getStatusColor } from "../lib/status-colors.ts";
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
   pending: "common.pending",
@@ -577,29 +578,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </span>
 
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${
-                            isApproved
-                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                              : isPending
-                                ? "bg-amber-100 text-amber-900 border border-amber-200"
-                                : "bg-stone-100 text-stone-600 border border-stone-200"
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${getStatusColor(res.status)}`}
                         >
-                          {isApproved ? (
-                            <>
-                              <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                              {t("common.approved")}
-                            </>
-                          ) : isPending ? (
-                            <>
-                              <Clock className="w-3 h-3 text-amber-700" />
-                              {t("common.pending")}
-                            </>
-                          ) : (
-                            STATUS_LABEL_KEYS[res.status]
-                              ? String(t(STATUS_LABEL_KEYS[res.status] as any))
-                              : res.status
-                          )}
+                          {STATUS_LABEL_KEYS[res.status]
+                            ? String(t(STATUS_LABEL_KEYS[res.status] as any))
+                            : res.status}
                         </span>
 
                         {res.is_no_show && (
@@ -845,16 +828,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                               <div className="flex items-center gap-2">
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                    isOccApproved
-                                      ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                                      : occ.status === "pending"
-                                        ? "bg-amber-100 text-amber-900 border border-amber-200"
-                                        : "bg-stone-100 text-stone-600"
-                                  }`}
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(
+                                    occ.status,
+                                  )}`}
                                 >
                                   {STATUS_LABEL_KEYS[occ.status]
-                                    ? String(t(STATUS_LABEL_KEYS[occ.status] as any))
+                                    ? String(
+                                        t(STATUS_LABEL_KEYS[occ.status] as any),
+                                      )
                                     : occ.status}
                                 </span>
 

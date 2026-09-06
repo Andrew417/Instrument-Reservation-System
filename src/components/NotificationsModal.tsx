@@ -17,6 +17,8 @@ import {
   Music2,
   RefreshCw,
   Info,
+  User,
+  ExternalLink,
 } from "lucide-react";
 
 export interface AppNotification {
@@ -33,6 +35,9 @@ export interface AppNotification {
   service_name?: string | null;
   rejection_reason?: string | null;
   instrument_name?: string | null;
+  reservation_user_id?: string | null;
+  user_name?: string | null;
+  target_user_id?: string | null;
 }
 
 export interface NotificationsModalProps {
@@ -43,6 +48,7 @@ export interface NotificationsModalProps {
     initialTab?: "details" | "chat",
   ) => void;
   onUnreadCountChange?: (count: number) => void;
+  onOpenUserProfile?: (userId: string) => void;
 }
 
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({
@@ -50,6 +56,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onClose,
   onSelectReservation,
   onUnreadCountChange,
+  onOpenUserProfile,
 }) => {
   const { t } = useTranslation();
   const { profile, sessionToken } = useAuth();
@@ -862,6 +869,50 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                       >
                         {getNotificationMessage(notif)}
                       </p>
+
+                      {isAdminViewer && onOpenUserProfile && (() => {
+                        const notifUserId =
+                          notif.reservation_user_id ||
+                          notif.target_user_id ||
+                          (() => {
+                            try {
+                              const p = JSON.parse(notif.message);
+                              return p?.params?.userId || null;
+                            } catch {
+                              return null;
+                            }
+                          })();
+                        const notifUserName =
+                          notif.user_name ||
+                          (() => {
+                            try {
+                              const p = JSON.parse(notif.message);
+                              return p?.params?.name || null;
+                            } catch {
+                              return null;
+                            }
+                          })();
+
+                        if (!notifUserId) return null;
+
+                        return (
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenUserProfile(notifUserId);
+                              }}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 hover:text-amber-950 hover:underline bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 transition cursor-pointer"
+                              title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                            >
+                              <User className="w-3 h-3 text-amber-800" />
+                              <span>{notifUserName || t("common.member") || "Member"}</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-stone-400" />
+                            </button>
+                          </div>
+                        );
+                      })()}
 
                       {notif.reservation_id && (
                         <div className="mt-2 bg-stone-50 group-hover:bg-amber-50/60 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 text-xs transition">

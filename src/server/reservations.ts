@@ -73,9 +73,10 @@ router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
     const result = await evaluateReservationSubmission(payload);
     res.json({ success: true, evaluation: result });
   } catch (err: any) {
+    console.error("Reservations list error:", err);
     res
-      .status(400)
-      .json({ success: false, error: err.message, conflicts: err.conflicts });
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
@@ -101,9 +102,10 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     const result = await createReservation(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
+    console.error("Reservations list error:", err);
     res
-      .status(400)
-      .json({ success: false, error: err.message, conflicts: err.conflicts });
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
@@ -130,9 +132,10 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
     const result = await createReservationSeries(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
+    console.error("Reservations list error:", err);
     res
-      .status(400)
-      .json({ success: false, error: err.message, conflicts: err.conflicts });
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
@@ -150,7 +153,10 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
     });
     res.json({ success: true, reservation: updated });
   } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
@@ -171,7 +177,14 @@ router.post(
       );
       res.json({ success: true, ...result });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -185,7 +198,14 @@ router.post(
       const result = await runStatusTransitions();
       res.json({ success: true, ...result });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -212,7 +232,14 @@ router.get(
       }
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -248,7 +275,14 @@ router.get(
 
       res.json({ success: true, messages: (result as any).rows || [] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -287,7 +321,14 @@ router.post(
 
       res.json({ success: true, reservation: rows[0] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -445,7 +486,14 @@ router.post(
         },
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      console.error("Reservations list error:", err);
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: err.message,
+          cause: err.cause?.message,
+        });
     }
   },
 );
@@ -505,7 +553,10 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, reservation: rows[0] });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
@@ -617,7 +668,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, reservations: sanitizedRows });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Reservations list error:", err);
+    res
+      .status(500)
+      .json({ success: false, error: err.message, cause: err.cause?.message });
   }
 });
 
