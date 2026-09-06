@@ -134,7 +134,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const isAr = i18n.language === "ar";
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
 
-  const [internalSelectedUserId, setInternalSelectedUserId] = useState<string | null>(null);
+  const [internalSelectedUserId, setInternalSelectedUserId] = useState<
+    string | null
+  >(null);
 
   const openUserProfile = (userId: string) => {
     if (onOpenUserProfile) {
@@ -2504,7 +2506,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     openUserProfile(r.user_id);
                                   }}
                                   className="font-medium text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                  title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                                  title={
+                                    t("admin.userDetail.viewProfile") ||
+                                    "View Member Profile"
+                                  }
                                 >
                                   <span>{r.user_name || "Member"}</span>
                                   <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
@@ -2651,9 +2656,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {activeTab === "approvals" && (
             <div
               id="admin-section-approvals"
-              className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4"
+              className="bg-white border border-stone-200 rounded-2xl p-4 shadow-2xs space-y-2.5"
             >
-              <div className="flex flex-col gap-2 pb-3">
+              <div className="flex flex-col gap-1 pb-2">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
@@ -2667,12 +2672,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-stone-500 mt-1">
+                  <p className="text-[11px] text-stone-400 mt-0.5">
                     {t("admin.approvals.description")}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <div className="relative flex-1 min-w-0">
                     <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
                     <input
@@ -2697,7 +2702,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {/* Filter status pills */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                 <button
                   id="filter-approvals-pending"
                   type="button"
@@ -2856,7 +2861,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     openUserProfile(u.id);
                                   }}
                                   className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                  title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                                  title={
+                                    t("admin.userDetail.viewProfile") ||
+                                    "View Member Profile"
+                                  }
                                 >
                                   <span>{u.name}</span>
                                   <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
@@ -3326,7 +3334,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 openUserProfile(u.id);
                               }}
                               className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
-                              title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                              title={
+                                t("admin.userDetail.viewProfile") ||
+                                "View Member Profile"
+                              }
                             >
                               <span>{u.name}</span>
                               <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
