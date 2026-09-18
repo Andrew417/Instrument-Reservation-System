@@ -34,6 +34,7 @@ export interface ReservationSubmissionInput {
   adminId?: string;
   instrumentId: string;
   serviceName: string; // Required free-text (e.g. 'Sunday Morning Service', 'Youth Choir Practice')
+  musicianName: string;
   date: string; // 'YYYY-MM-DD'
   startTime: string; // 'HH:mm'
   duration: number; // in hours
@@ -46,6 +47,7 @@ export interface SeriesSubmissionInput {
   adminId?: string;
   instrumentId: string;
   serviceName: string; // Applies to the whole series
+  musicianName: string;
   patternType: "weekly" | "custom";
   occurrences: TimeSlot[];
   reservationType: "in_church" | "outside_church";
@@ -573,6 +575,11 @@ export async function createReservation(input: ReservationSubmissionInput) {
   const cleanAdminId = resolvedAdminId;
   const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
   const cleanServiceName = (input.serviceName || "").trim() || "Not specified";
+  const cleanMusicianName = (input.musicianName || "").trim();
+
+  if (!cleanMusicianName) {
+    throw new Error("Musician name is required.");
+  }
 
   // Runtime validation assertion
   if (!input.instrumentId) {
@@ -585,6 +592,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     adminId: cleanAdminId,
     instrumentId: input.instrumentId,
     serviceName: cleanServiceName,
+    musicianName: cleanMusicianName,
     timeRange:
       sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
     reservationType: input.reservationType,
@@ -637,6 +645,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
               email: userInfo.email,
               name: userInfo.name,
               instrumentName: instInfo?.name || "Instrument",
+              musicianName: input.musicianName,
               serviceName: input.serviceName,
               reservationType: input.reservationType,
               startTime: evalResult.startTimeUtc,
@@ -692,6 +701,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
           { label: "Requested by:", value: requester?.name || "Unknown" },
           { label: "Phone:", value: requester?.phoneNumber || "N/A" },
           { label: "Instrument:", value: instrumentRow?.name || "Unknown" },
+          { label: "Musician:", value: input.musicianName },
           { label: "Service:", value: input.serviceName },
           { label: "Date:", value: input.date },
           { label: "Start Time", value: formattedStartTime },
@@ -878,6 +888,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         adminId: cleanAdminId || undefined,
         instrumentId,
         serviceName: input.serviceName,
+        musicianName: input.musicianName,
         date: occ.date,
         startTime: occ.startTime,
         duration: occ.duration,
@@ -895,6 +906,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       adminId: cleanAdminId,
       instrumentId,
       serviceName: (input.serviceName || "").trim() || "Not specified",
+      musicianName: (input.musicianName || "").trim(),
       timeRange:
         sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
       reservationType,
@@ -964,6 +976,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
               email: userInfo.email,
               name: userInfo.name,
               instrumentName: instInfo?.name || "Instrument",
+              musicianName: input.musicianName,
               serviceName: input.serviceName,
               reservationType,
               startTime: firstOcc.evaluation.startTimeUtc,
@@ -1006,6 +1019,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
             { label: "Requested by:", value: requester?.name || "Unknown" },
             { label: "Phone:", value: requester?.phoneNumber || "N/A" },
             { label: "Instrument:", value: instrumentRow?.name || "Unknown" },
+            { label: "Musician:", value: input.musicianName },
             { label: "Service:", value: input.serviceName },
             {
               label: "Occurrences:",
@@ -1057,6 +1071,7 @@ export async function editReservation(
   updates: {
     instrumentId?: string;
     serviceName?: string;
+    musicianName?: string;
     date?: string;
     startTime?: string;
     duration?: number;
@@ -1217,12 +1232,21 @@ export async function editReservation(
     updates.serviceName !== undefined
       ? updates.serviceName.trim()
       : existing.serviceName;
+  const cleanMusicianName =
+    updates.musicianName !== undefined
+      ? updates.musicianName.trim()
+      : existing.musicianName;
+
+  if (!cleanMusicianName) {
+    throw new Error("Musician name is required.");
+  }
 
   const [updated] = await db
     .update(reservations)
     .set({
       instrumentId,
       serviceName: cleanServiceName,
+      musicianName: cleanMusicianName,
       timeRange:
         sql`tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')` as any,
       reservationType: resType,
@@ -1431,6 +1455,7 @@ export async function adminApproveReservation(
               email: userInfo.email,
               name: userInfo.name,
               instrumentName: instInfo?.name || "Instrument",
+              musicianName: res.musicianName,
               serviceName: res.serviceName,
               reservationType: res.reservationType,
               startTime: start,
@@ -1541,6 +1566,7 @@ export async function adminRejectReservation(
               email: userInfo.email,
               name: userInfo.name,
               instrumentName: instInfo?.name || "Instrument",
+              musicianName: res.musicianName,
               serviceName: res.serviceName,
               reservationType: res.reservationType,
               startTime: start,
@@ -1623,6 +1649,7 @@ export async function adminApproveSeries(
             email: userInfo.email,
             name: userInfo.name,
             instrumentName: instInfo?.name || "Instrument",
+            musicianName: firstOcc.musicianName,
             serviceName: firstOcc.serviceName,
             reservationType: firstOcc.reservationType,
             startTime: start,
@@ -1747,6 +1774,7 @@ export async function adminRejectSeries(
             email: userInfo.email,
             name: userInfo.name,
             instrumentName: instInfo?.name || "Instrument",
+            musicianName: firstOcc.musicianName,
             serviceName: firstOcc.serviceName,
             reservationType: firstOcc.reservationType,
             startTime: start,

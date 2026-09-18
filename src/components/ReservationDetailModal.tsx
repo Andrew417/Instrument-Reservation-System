@@ -693,7 +693,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition"
               >
                 <ArrowIcon className="w-4 h-4" />
-                <span>{backButtonTitle || t("reservationDetail.backToNotifications")}</span>
+                <span>
+                  {backButtonTitle ||
+                    t("reservationDetail.backToNotifications")}
+                </span>
               </button>
             ) : null}
             <button
@@ -769,8 +772,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 id="reservation-detail-back-btn"
                 onClick={onBack}
                 className="w-8 h-8 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer shrink-0"
-                title={backButtonTitle || t("reservationDetail.backToNotifications")}
-                aria-label={backButtonTitle || t("reservationDetail.backToNotifications")}
+                title={
+                  backButtonTitle || t("reservationDetail.backToNotifications")
+                }
+                aria-label={
+                  backButtonTitle || t("reservationDetail.backToNotifications")
+                }
               >
                 <ArrowIcon className="w-4 h-4" />
               </button>
@@ -1171,6 +1178,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         reservation.serviceName ||
                         t("reservationDetail.churchService")}
                     </span>
+                    <span className="text-xs text-stone-600 truncate block">
+                      {t("reservationDetail.musicianName")}:{" "}
+                      {reservation.musician_name || reservation.musicianName}
+                    </span>
                   </div>
 
                   <span
@@ -1254,7 +1265,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             onOpenUserProfile(reservation.user_id);
                           }}
                           className="font-bold text-stone-900 text-sm hover:text-amber-800 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
-                          title={t("admin.userDetail.viewProfile") || "View Member Profile"}
+                          title={
+                            t("admin.userDetail.viewProfile") ||
+                            "View Member Profile"
+                          }
                         >
                           <span>
                             {reservation.user_name ||

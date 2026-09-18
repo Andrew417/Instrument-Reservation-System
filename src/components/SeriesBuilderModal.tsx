@@ -72,6 +72,7 @@ export interface SeriesBuilderModalProps {
   initialInstrument: Instrument;
   allInstruments: Instrument[];
   initialServiceName?: string;
+  initialMusicianName?: string;
   initialDate: string; // 'YYYY-MM-DD'
   initialTimeHhmm: string; // 'HH:mm'
   initialDuration?: number; // hours
@@ -92,6 +93,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   initialInstrument,
   allInstruments,
   initialServiceName = "",
+  initialMusicianName = "",
   initialDate,
   initialTimeHhmm,
   initialDuration = 2,
@@ -118,6 +120,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     initialInstrument.id,
   );
   const [serviceName, setServiceName] = useState<string>(initialServiceName);
+  const [musicianName, setMusicianName] = useState<string>(initialMusicianName);
   const [reservationType, setReservationType] = useState<
     "in_church" | "outside_church"
   >(initialReservationType);
@@ -395,6 +398,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
       return;
     }
 
+    if (!musicianName.trim()) {
+      setSubmitError(t("seriesBuilder.musicianNameRequired"));
+      return;
+    }
+
     if (generatedOccurrences.length === 0) {
       setSubmitError(t("seriesBuilder.errNoOccurrences"));
       return;
@@ -426,6 +434,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
         adminId: isAdminRole ? profile.id : null,
         instrumentId: currentInstrument.id,
         serviceName: serviceName.trim(),
+        musicianName: musicianName.trim(),
         patternType,
         reservationType,
         feeAcknowledged:
@@ -522,6 +531,9 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   </span>
                   <span className="font-bold text-stone-900 text-sm">
                     {serviceName}
+                  </span>
+                  <span className="text-xs text-stone-600 block">
+                    {t("seriesBuilder.musicianNameLabel")}: {musicianName}
                   </span>
                 </div>
                 <div className="text-right">
@@ -749,6 +761,25 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 value={serviceName}
                 onChange={(e) => setServiceName(e.target.value)}
                 placeholder={t("seriesBuilder.serviceNamePlaceholder")}
+                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="series-musician-name"
+                className="block text-xs font-bold text-stone-700"
+              >
+                {t("seriesBuilder.musicianNameLabel")}{" "}
+                <span className="text-amber-800 font-bold">*</span>
+              </label>
+              <input
+                id="series-musician-name"
+                type="text"
+                value={musicianName}
+                onChange={(e) => setMusicianName(e.target.value)}
+                placeholder={t("seriesBuilder.musicianNamePlaceholder")}
                 className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                 required
               />

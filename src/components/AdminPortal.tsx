@@ -344,6 +344,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [behalfForm, setBehalfForm] = useState({
     instrumentId: "",
     serviceName: "",
+    musicianName: "",
     date: getTodayDateString(),
     startTime: "10:00",
     duration: 2,
@@ -2424,6 +2425,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           {t("admin.review.colMemberService")}
                         </th>
                         <th className="py-2.5 px-3">
+                          {t("admin.review.colMusicianName")}
+                        </th>
+                        <th className="py-2.5 px-3">
                           {t("admin.review.colTypeMode")}
                         </th>
                         <th className="py-2.5 px-3">{t("common.status")}</th>
@@ -2522,11 +2526,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               <div className="text-[11px] text-stone-500 font-medium">
                                 {r.service_name}
                               </div>
-                              {r.user_phone && (
-                                <div className="text-[10px] text-stone-400">
-                                  {r.user_phone}
-                                </div>
-                              )}
+                            </td>
+
+                            <td className="py-3 px-3">
+                              <div className="font-medium text-stone-800">
+                                {r.musician_name || (
+                                  <span className="text-stone-300">—</span>
+                                )}
+                              </div>
                             </td>
 
                             <td className="py-3 px-3">
@@ -4852,6 +4859,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     setBehalfForm({
                       ...behalfForm,
                       serviceName: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">
+                  {t("reservationForm.musicianNameLabel")} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={t("reservationForm.musicianNamePlaceholder")}
+                  value={behalfForm.musicianName}
+                  onChange={(e) =>
+                    setBehalfForm({
+                      ...behalfForm,
+                      musicianName: e.target.value,
                     })
                   }
                   className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"

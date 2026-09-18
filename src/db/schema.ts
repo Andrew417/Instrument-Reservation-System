@@ -132,6 +132,7 @@ export const reservations = pgTable(
       .references(() => instruments.id, { onDelete: "cascade" })
       .notNull(),
     serviceName: text("service_name").notNull(),
+    musicianName: text("musician_name").notNull(),
     timeRange: tstzrange("time_range").notNull(),
     reservationType: text("reservation_type").notNull(), // 'in_church' | 'outside_church'
     feeSnapshot: numeric("fee_snapshot"),

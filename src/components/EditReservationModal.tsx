@@ -104,6 +104,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [serviceName, setServiceName] = useState<string>(
     reservation.service_name || reservation.serviceName || "",
   );
+  const [musicianName, setMusicianName] = useState<string>(
+    reservation.musician_name || reservation.musicianName || "",
+  );
   const [date, setDate] = useState<string>(initialDateStr);
   const [startTime, setStartTime] = useState<string>(initialTimeStr);
   const [duration, setDuration] = useState<number>(initialDurationHours);
@@ -154,6 +157,11 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       return;
     }
 
+    if (!musicianName.trim()) {
+      setErrorMsg(t("editReservation.musicianNameRequired"));
+      return;
+    }
+
     if (reservationType === "outside_church" && !feeAcknowledged) {
       setErrorMsg(t("editReservation.errAcknowledgeFee"));
       return;
@@ -173,6 +181,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           userId: profile.id,
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
+          musicianName: musicianName.trim(),
           date,
           startTime,
           duration,
@@ -284,6 +293,21 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
               placeholder={t("editReservation.purposePlaceholder")}
+              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-stone-700">
+              {t("editReservation.musicianNameLabel")}{" "}
+              <span className="text-amber-800 font-bold">*</span>
+            </label>
+            <input
+              type="text"
+              value={musicianName}
+              onChange={(e) => setMusicianName(e.target.value)}
+              placeholder={t("editReservation.musicianNamePlaceholder")}
               className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40"
               required
             />

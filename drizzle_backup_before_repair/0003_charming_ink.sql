@@ -1,0 +1,1 @@
+ALTER TABLE "reservations" ADD COLUMN "musician_name" text NOT NULL;

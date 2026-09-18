@@ -33,6 +33,7 @@ export interface ReservationFormProps {
   onOpenSeriesBuilder?: (prefill: {
     instrument: Instrument;
     serviceName: string;
+    musicianName: string;
     date: string;
     startTime: string;
     duration: number;
@@ -192,6 +193,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     initialInstrument.id,
   );
   const [serviceName, setServiceName] = useState<string>("");
+  const [musicianName, setMusicianName] = useState<string>("");
   const [date, setDate] = useState<string>(initialDate);
   const [startTime, setStartTime] = useState<string>(
     initialTimeHhmm || "10:00",
@@ -256,6 +258,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       return;
     }
 
+    if (!musicianName.trim()) {
+      setErrorMsg(t("reservationForm.musicianNameRequired"));
+      return;
+    }
+
     if (reservationType === "outside_church" && !feeAcknowledged) {
       setErrorMsg(t("reservationForm.msgAcknowledgeFee"));
       return;
@@ -266,6 +273,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       onOpenSeriesBuilder({
         instrument: currentInstrument,
         serviceName: serviceName.trim(),
+        musicianName: musicianName.trim(),
         date,
         startTime,
         duration,
@@ -291,6 +299,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           adminId: isAdminRole ? profile.id : null,
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
+          musicianName: musicianName.trim(),
           date,
           startTime,
           duration,
@@ -529,6 +538,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       t("reservationForm.notSpecifiedLabel")}
                   </span>
                 </div>
+                <div className="pt-2 border-t border-stone-200">
+                  <span className="text-stone-500 font-medium block">
+                    {t("reservationForm.musicianNameLabel")}
+                  </span>
+                  <span className="font-bold text-stone-900 text-sm">
+                    {submissionResult.reservation.musicianName || musicianName}
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200">
                   <div>
@@ -696,6 +713,25 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   value={serviceName}
                   onChange={(e) => setServiceName(e.target.value)}
                   placeholder={t("reservationForm.serviceNamePlaceholder")}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="input-musician-name"
+                  className="block text-xs font-bold text-stone-700"
+                >
+                  {t("reservationForm.musicianNameLabel")}{" "}
+                  <span className="text-amber-800 font-bold">*</span>
+                </label>
+                <input
+                  id="input-musician-name"
+                  type="text"
+                  value={musicianName}
+                  onChange={(e) => setMusicianName(e.target.value)}
+                  placeholder={t("reservationForm.musicianNamePlaceholder")}
                   className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                   required
                 />

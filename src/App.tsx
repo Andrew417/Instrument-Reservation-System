@@ -48,6 +48,7 @@ interface SelectedSlotInfo {
 interface SeriesPrefillInfo {
   instrument: Instrument;
   serviceName: string;
+  musicianName: string;
   date: string;
   startTime: string;
   duration: number;
@@ -400,6 +401,7 @@ const UserPortalMain: React.FC = () => {
               setSeriesPrefill({
                 instrument: allInstruments[0],
                 serviceName: "",
+                musicianName: "",
                 date: getTodayDateString(),
                 startTime: "10:00",
                 duration: 2,
@@ -467,6 +469,7 @@ const UserPortalMain: React.FC = () => {
               : [seriesPrefill.instrument]
           }
           initialServiceName={seriesPrefill.serviceName}
+          initialMusicianName={seriesPrefill.musicianName}
           initialDate={seriesPrefill.date}
           initialTimeHhmm={seriesPrefill.startTime}
           initialDuration={seriesPrefill.duration}
@@ -514,8 +517,9 @@ const UserPortalMain: React.FC = () => {
             reservationDetailFromNotifications
               ? t("reservationDetail.backToNotifications")
               : reservationDetailFromUserProfile
-              ? t("reservationDetail.backToProfile") || "Back to Member Profile"
-              : undefined
+                ? t("reservationDetail.backToProfile") ||
+                  "Back to Member Profile"
+                : undefined
           }
           onClose={() => {
             setSelectedReservationDetailId(null);
@@ -533,13 +537,13 @@ const UserPortalMain: React.FC = () => {
                   setIsNotificationsOpen(true);
                 }
               : reservationDetailFromUserProfile
-              ? () => {
-                  setSelectedReservationDetailId(null);
-                  setReservationDetailInitialTab("details");
-                  setReservationDetailFromUserProfile(false);
-                  setModalStackOrder("user_over_reservation");
-                }
-              : undefined
+                ? () => {
+                    setSelectedReservationDetailId(null);
+                    setReservationDetailInitialTab("details");
+                    setReservationDetailFromUserProfile(false);
+                    setModalStackOrder("user_over_reservation");
+                  }
+                : undefined
           }
           onEdit={(res) => {
             setSelectedReservationDetailId(null);
@@ -554,7 +558,9 @@ const UserPortalMain: React.FC = () => {
           onNavigateToReservation={(id) => {
             setSelectedReservationDetailId(id);
           }}
-          onOpenUserProfile={isAdminOrSuperAdmin ? handleOpenUserProfile : undefined}
+          onOpenUserProfile={
+            isAdminOrSuperAdmin ? handleOpenUserProfile : undefined
+          }
         />
       )}
 
@@ -589,7 +595,9 @@ const UserPortalMain: React.FC = () => {
           setReservationDetailFromUserProfile(false);
           setModalStackOrder("reservation_over_user");
         }}
-        onOpenUserProfile={isAdminOrSuperAdmin ? handleOpenUserProfile : undefined}
+        onOpenUserProfile={
+          isAdminOrSuperAdmin ? handleOpenUserProfile : undefined
+        }
       />
 
       {/* User Profile Modal (Admin / Super Admin) */}
@@ -608,7 +616,9 @@ const UserPortalMain: React.FC = () => {
             setReservationDetailFromUserProfile(true);
             setModalStackOrder("reservation_over_user");
           }}
-          isSuperAdmin={Boolean(profile?.role === "super_admin" || profile?.isSuperAdmin)}
+          isSuperAdmin={Boolean(
+            profile?.role === "super_admin" || profile?.isSuperAdmin,
+          )}
           sessionToken={sessionToken}
           onUserUpdated={() => setRefreshTrigger((prev) => prev + 1)}
         />

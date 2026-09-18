@@ -92,6 +92,13 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       });
       return;
     }
+    if (!req.body.musicianName || !req.body.musicianName.trim()) {
+      res.status(400).json({
+        success: false,
+        error: "Musician name is required.",
+      });
+      return;
+    }
     const sessionIdentity = await extractSessionIdentity(req);
     const payload = {
       ...req.body,
@@ -119,6 +126,13 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
         success: false,
         error:
           "What this reservation is for (service_name) is required for the series.",
+      });
+      return;
+    }
+    if (!req.body.musicianName || !req.body.musicianName.trim()) {
+      res.status(400).json({
+        success: false,
+        error: "Musician name is required for the series.",
       });
       return;
     }
@@ -178,13 +192,11 @@ router.post(
       res.json({ success: true, ...result });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -199,13 +211,11 @@ router.post(
       res.json({ success: true, ...result });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -233,13 +243,11 @@ router.get(
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -276,13 +284,11 @@ router.get(
       res.json({ success: true, messages: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -322,13 +328,11 @@ router.post(
       res.json({ success: true, reservation: rows[0] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -487,13 +491,11 @@ router.post(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -516,6 +518,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         r.admin_id,
         r.instrument_id,
         r.service_name,
+          r.musician_name,
         r.reservation_type,
         r.fee_snapshot,
         r.status,
@@ -603,6 +606,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         r.admin_id,
         r.instrument_id,
         r.service_name,
+          r.musician_name,
         r.reservation_type,
         r.fee_snapshot,
         r.status,

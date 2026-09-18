@@ -13,6 +13,7 @@ export interface HandoverReservationItem {
   user_id?: string | null;
   instrument_id: string;
   service_name: string;
+  musician_name: string;
   reservation_type: "in_church" | "outside_church" | string;
   status: string;
   start_time: string;
@@ -33,6 +34,7 @@ export const HANDOVER_HEADERS = [
   "Instrument",
   "Type/Category",
   "Service Name",
+  "Musician Name",
   "Reserved By",
   "Phone Number",
   "Usage Type",
@@ -44,7 +46,12 @@ export const HANDOVER_HEADERS = [
 export function escapeCsvCell(val: any): string {
   if (val === null || val === undefined) return "";
   const str = String(val).trim();
-  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+  if (
+    str.includes(",") ||
+    str.includes('"') ||
+    str.includes("\n") ||
+    str.includes("\r")
+  ) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
@@ -100,7 +107,9 @@ export async function fetchHandoverReservations(
   // Ensure chronological order: date ascending, then start time ascending
   const items: HandoverReservationItem[] = data.reservations || [];
   return items.sort((a, b) => {
-    const dateComp = (a.reservation_date || "").localeCompare(b.reservation_date || "");
+    const dateComp = (a.reservation_date || "").localeCompare(
+      b.reservation_date || "",
+    );
     if (dateComp !== 0) return dateComp;
     return (a.start_hhmm || "").localeCompare(b.start_hhmm || "");
   });
@@ -137,6 +146,7 @@ export function buildHandoverCsvContent(
       escapeCsvCell(r.instrument_name),
       escapeCsvCell(r.instrument_type),
       escapeCsvCell(r.service_name || "General Service"),
+      escapeCsvCell(r.musician_name || ""),
       escapeCsvCell(r.user_name || "Unknown Member"),
       escapeCsvCell(r.user_phone || "N/A"),
       escapeCsvCell(usageType),
@@ -228,7 +238,12 @@ export async function downloadHandoverXlsx(
     cell.border = thinBorder;
 
     // Date (1), Start Time (2), End Time (3), Usage Type (9) center aligned
-    if (colNumber === 1 || colNumber === 2 || colNumber === 3 || colNumber === 9) {
+    if (
+      colNumber === 1 ||
+      colNumber === 2 ||
+      colNumber === 3 ||
+      colNumber === 9
+    ) {
       cell.alignment = { horizontal: "center", vertical: "middle" };
     } else {
       cell.alignment = { horizontal: "left", vertical: "middle" };
@@ -249,6 +264,7 @@ export async function downloadHandoverXlsx(
       r.instrument_name,
       r.instrument_type,
       r.service_name || "General Service",
+      r.musician_name || "",
       r.user_name || "Unknown Member",
       r.user_phone || "N/A",
       usageText,

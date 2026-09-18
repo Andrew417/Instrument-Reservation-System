@@ -255,6 +255,7 @@ export interface ReservationApprovedEmailData {
   email: string;
   name: string;
   instrumentName: string;
+  musicianName?: string;
   serviceName?: string;
   reservationType?: string; // 'in_church' | 'outside_church'
   startTime?: Date | string | null;
@@ -317,6 +318,14 @@ function buildReservationApprovedEmailHtml(
                 <td style="color: #8a7d68; font-weight: 600;">Instrument:</td>
                 <td style="color: #2d2a24; font-weight: 700; text-align: right;">${data.instrumentName}</td>
               </tr>
+              ${
+                data.musicianName
+                  ? `<tr>
+                <td style="color: #8a7d68; font-weight: 600;">Musician:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right;">${data.musicianName}</td>
+              </tr>`
+                  : ""
+              }
               ${
                 data.serviceName
                   ? `<tr>
@@ -415,6 +424,7 @@ export interface ReservationRejectedEmailData {
   email: string;
   name: string;
   instrumentName: string;
+  musicianName?: string;
   serviceName?: string;
   reservationType?: string;
   startTime?: Date | string | null;
@@ -483,6 +493,14 @@ function buildReservationRejectedEmailHtml(
                 <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Instrument:</td>
                 <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${data.instrumentName}</td>
               </tr>
+              ${
+                data.musicianName
+                  ? `<tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Musician:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${data.musicianName}</td>
+              </tr>`
+                  : ""
+              }
               ${
                 data.serviceName
                   ? `<tr>

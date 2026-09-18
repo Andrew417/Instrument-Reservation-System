@@ -213,13 +213,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -256,6 +254,7 @@ router.get(
         r.admin_id,
         r.instrument_id,
         r.service_name,
+        r.musician_name,
         r.reservation_type,
         r.fee_snapshot,
         r.status,
@@ -330,6 +329,7 @@ router.get(
         u.name ILIKE ${term} 
         OR u.phone_number ILIKE ${term} 
         OR r.service_name ILIKE ${term} 
+        OR r.musician_name ILIKE ${term}
         OR i.name ILIKE ${term}
       )`;
       }
@@ -340,13 +340,11 @@ router.get(
       res.json({ success: true, reservations: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -386,6 +384,7 @@ router.get(
           r.user_id,
           r.instrument_id,
           r.service_name,
+          r.musician_name,
           r.reservation_type,
           r.status,
           lower(r.time_range) as start_time,
@@ -423,13 +422,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -504,13 +501,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -861,6 +856,7 @@ router.get(
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
         r.service_name
+        ,r.musician_name
       FROM reservations r
       WHERE r.series_id = ${seriesId}
       ORDER BY lower(r.time_range) ASC
@@ -868,13 +864,11 @@ router.get(
       res.json({ success: true, occurrences: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -940,13 +934,11 @@ router.get(
       res.json({ success: true, instruments: formatted });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -1392,7 +1384,9 @@ router.get(
         FROM reservations
         WHERE user_id = ${id} AND status IN ('pending', 'approved')
       `);
-      const activeCount = Number((activeRes as any).rows?.[0]?.active_count || 0);
+      const activeCount = Number(
+        (activeRes as any).rows?.[0]?.active_count || 0,
+      );
 
       // 2b. Bookings today in Cairo (status in pending, approved, ongoing, completed)
       const todayCairo = getCairoDateString();
@@ -1765,6 +1759,7 @@ router.post(
       const {
         instrumentId,
         serviceName,
+        musicianName,
         date,
         startTime,
         duration,
@@ -1779,12 +1774,19 @@ router.post(
           .json({ success: false, error: "Service/Event name is required." });
         return;
       }
+      if (!musicianName || !musicianName.trim()) {
+        res
+          .status(400)
+          .json({ success: false, error: "Musician name is required." });
+        return;
+      }
 
       const result = await createReservation({
         userId,
         adminId,
         instrumentId,
         serviceName: `[Admin Booked] ${serviceName.trim()}`,
+        musicianName: musicianName.trim(),
         date,
         startTime,
         duration: Number(duration) || 1,
@@ -1871,13 +1873,11 @@ router.post(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2055,13 +2055,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2097,13 +2095,11 @@ router.get(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2193,13 +2189,11 @@ router.post(
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2349,13 +2343,11 @@ router.get(
       res.json({ success: true, auditLogs: (result as any).rows || [] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2376,13 +2368,11 @@ router.get(
       res.json({ success: true, limits });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );
@@ -2546,13 +2536,11 @@ router.get(
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
       console.error("Reservations list error:", err);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: err.message,
-          cause: err.cause?.message,
-        });
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
     }
   },
 );

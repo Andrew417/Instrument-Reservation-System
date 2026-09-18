@@ -505,6 +505,9 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                       <th className="py-3 px-3">{t("handover.instrument")}</th>
                       <th className="py-3 px-3">{t("handover.category")}</th>
                       <th className="py-3 px-3">{t("handover.serviceName")}</th>
+                      <th className="py-3 px-3">
+                        {t("handover.musicianName")}
+                      </th>
                       <th className="py-3 px-3">{t("handover.reservedBy")}</th>
                       <th className="py-3 px-3">{t("handover.phoneNumber")}</th>
                       <th className="py-3 px-3 text-center">
@@ -558,6 +561,9 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                                 {r.service_name || t("handover.generalService")}
                               </span>
                             </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-stone-800 whitespace-nowrap">
+                            {r.musician_name}
                           </td>
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-stone-900 flex items-center gap-1">
