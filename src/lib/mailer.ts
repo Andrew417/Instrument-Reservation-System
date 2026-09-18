@@ -1,4 +1,7 @@
 import nodemailer from "nodemailer";
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { admins } from "../db/schema.js";
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -569,22 +572,44 @@ export async function sendSuperAdminNotificationEmail(
   fields: { label: string; value: string }[],
 ): Promise<{ sent: boolean; error?: string }> {
   const transport = getTransporter();
-  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL;
 
-  if (!transport || !superAdminEmail) {
+  if (!transport) {
     return {
       sent: false,
-      error: "Gmail SMTP or SUPER_ADMIN_EMAIL not configured",
+      error: "Gmail SMTP not configured",
     };
   }
 
   try {
-    await transport.sendMail({
-      from: `"St. Mark Musicians" <${process.env.GMAIL_USER}>`,
-      to: superAdminEmail,
-      subject,
-      html: buildAdminNotificationHtml(heading, intro, fields),
-    });
+    const superAdminRows = await db
+      .select({ email: admins.email })
+      .from(admins)
+      .where(eq(admins.isSuperAdmin, true));
+    const superAdminEmails = [
+      ...new Set(
+        superAdminRows
+          .map(({ email }) => email.trim())
+          .filter((email) => email.length > 0),
+      ),
+    ];
+
+    if (superAdminEmails.length === 0) {
+      return {
+        sent: false,
+        error: "No super-admin email addresses configured",
+      };
+    }
+
+    await Promise.all(
+      superAdminEmails.map((email) =>
+        transport.sendMail({
+          from: `"St. Mark Musicians" <${process.env.GMAIL_USER}>`,
+          to: email,
+          subject,
+          html: buildAdminNotificationHtml(heading, intro, fields),
+        }),
+      ),
+    );
     return { sent: true };
   } catch (err: any) {
     console.error("Error sending admin notification email:", err);

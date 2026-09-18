@@ -1050,7 +1050,7 @@
         "subtitle": "Auto-Approved via Administrator Privilege",
         "instrumentLabel": "Instrument",
         "serviceLabel": "Service / Event Name",
-        "servicePlaceholder": "e.g. Special Feast Rehearsal",
+        "servicePlaceholder": "e.g. prayer meeting, choir rehearsal, concert",
         "dateLabel": "Date",
         "startTimeLabel": "Start Time",
         "durationLabel": "Duration (Hours)",
