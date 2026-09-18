@@ -1595,7 +1595,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 )}
 
                 {/* Payment Screenshot Upload Control */}
-                <div className="space-y-3">
+                {/* <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold text-purple-950">
                     <span className="flex items-center gap-1.5">
                       <Upload className="w-4 h-4 text-purple-700" />
@@ -1609,10 +1609,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         {t("reservationDetail.receiptOnFile")}
                       </span>
                     )}
-                  </div>
+                  </div> */}
 
-                  {/* Upload Drag & Drop Area */}
-                  <div
+                {/* Upload Drag & Drop Area */}
+                {/* <div
                     onDragEnter={handleDrag}
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
@@ -1667,10 +1667,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>{t("reservationDetail.uploadSuccess")}</span>
                     </div>
-                  )}
+                  )} */}
 
-                  {/* Screenshot Preview */}
-                  {reservation.payment_screenshot_url && (
+                {/* Screenshot Preview */}
+                {/* {reservation.payment_screenshot_url && (
                     <div className="bg-white p-3 rounded-2xl border border-purple-200 space-y-2">
                       <div className="text-[11px] font-bold text-stone-700 flex items-center gap-1.5">
                         <ImageIcon className="w-3.5 h-3.5 text-purple-700" />
@@ -1685,7 +1685,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       </div>
                     </div>
                   )}
-                </div>
+                </div> */}
               </div>
             )}
 
