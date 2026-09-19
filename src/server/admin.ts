@@ -1791,7 +1791,7 @@ router.post(
         userId,
         adminId,
         instrumentId,
-        serviceName: `[Admin Booked] ${serviceName.trim()}`,
+        serviceName: serviceName.trim(),
         musicianName: musicianName.trim(),
         date,
         startTime,

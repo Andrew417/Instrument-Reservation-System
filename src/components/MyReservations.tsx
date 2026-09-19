@@ -554,6 +554,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               const isPast = endUtc < new Date();
               const isCancelled =
                 res.status === "cancelled" || res.status === "rejected";
+              const isAdminBooked = Boolean(res.user_id && res.admin_id);
 
               return (
                 <div
@@ -563,15 +564,23 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   {/* Left: Instrument & Purpose */}
                   <div
                     onClick={() => onSelectReservationDetail(res.id)}
-                    className="flex items-start gap-3.5 cursor-pointer flex-1 group"
+                    className="flex items-start gap-3.5 cursor-pointer flex-1 min-w-0 group"
                   >
                     <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 mt-0.5 group-hover:bg-amber-100 transition">
                       <Music2 className="w-5 h-5" />
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between gap-1.5 flex-nowrap">
-                        <span className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      {/* Title row — wraps on small screens, name truncates cleanly */}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span
+                          className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate max-w-full"
+                          title={
+                            res.service_name ||
+                            res.serviceName ||
+                            t("myReservations.churchServiceFallback")
+                          }
+                        >
                           {res.service_name ||
                             res.serviceName ||
                             t("myReservations.churchServiceFallback")}
@@ -586,24 +595,32 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </span>
 
                         {res.is_no_show && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
                             {t("common.noShow")}
                           </span>
                         )}
 
                         {res.reservation_type === "outside_church" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
                             <DollarSign className="w-3 h-3" />
                             {t("common.outsideChurch")}
                           </span>
                         )}
                       </div>
+                      {isAdminBooked && (
+                        <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
+                          <Shield className="w-3 h-3 shrink-0 mt-0.5" />
+                          <span className="break-words min-w-0">
+                            {t("common.adminBooked")}
+                          </span>
+                        </div>
+                      )}
 
-                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-3">
-                        <span className="font-semibold text-stone-800">
+                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-semibold text-stone-800 truncate max-w-full">
                           {res.instrument_name}
                         </span>
-                        <span className="text-stone-500 font-medium">
+                        <span className="text-stone-500 font-medium whitespace-nowrap">
                           {dateStr} ({timeStr})
                         </span>
                       </div>

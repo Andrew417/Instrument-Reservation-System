@@ -754,24 +754,32 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
               {/* Optional Notes / Special Requests */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label
-                    htmlFor="input-reservation-note"
-                    className="block text-xs font-bold text-stone-700"
-                  >
-                    {t("reservationForm.leaveANoteLabel") || "Notes / Special Requests"}
-                  </label>
-                  <span className="text-[11px] text-stone-400 font-medium">
-                    {t("common.optional") || "Optional"}
+                <label
+                  htmlFor="input-reservation-note"
+                  className="block text-xs font-bold text-stone-700"
+                >
+                  {t("reservationForm.leaveANoteLabel", {
+                    defaultValue: "Notes / Special Requests",
+                  })}{" "}
+                  <span className="text-stone-400 font-medium">
+                    ({t("common.optional", { defaultValue: "Optional" })})
                   </span>
-                </div>
+                </label>
                 <textarea
                   id="input-reservation-note"
-                  rows={2}
+                  rows={1}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder={t("reservationForm.notePlaceholder")}
-                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
+                  onInput={(e) => {
+                    const el = e.currentTarget;
+                    el.style.height = "auto";
+                    el.style.height = `${el.scrollHeight}px`;
+                  }}
+                  placeholder={t("reservationForm.notePlaceholder", {
+                    defaultValue:
+                      "Add any notes, special requirements, or requests (optional)...",
+                  })}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none overflow-hidden"
                 />
               </div>
 
