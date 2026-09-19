@@ -1484,18 +1484,33 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* 3. Usage & Fee Breakdown */}
-            <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
-              <div className="flex items-center justify-between gap-2 flex-nowrap text-xs font-bold text-stone-800">
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <DollarSign className="w-4 h-4 text-amber-800 shrink-0" />
-                  <span className="truncate">
+            {/* 3. Unified Payment Block (members see pay button, admins see fee only) */}
+            <div
+              className={`rounded-2xl border p-4 space-y-3 ${
+                isOutsideChurch
+                  ? "bg-purple-50/60 border-purple-200"
+                  : "bg-stone-50 border-stone-200"
+              }`}
+            >
+              {/* Header row: icon + label + tag */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      isOutsideChurch
+                        ? "bg-purple-700 text-white"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    <DollarSign className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-stone-800 truncate">
                     {t("reservationDetail.usageAndFee")}
                   </span>
-                </span>
+                </div>
+
                 <span
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 whitespace-nowrap ${
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${
                     isOutsideChurch
                       ? "bg-purple-100 text-purple-900 border border-purple-200"
                       : "bg-emerald-100 text-emerald-900 border border-emerald-200"
@@ -1507,188 +1522,68 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </span>
               </div>
 
-              {isOutsideChurch ? (
-                <div className="text-xs text-purple-950 bg-purple-50/80 p-3 rounded-xl border border-purple-200/80 flex items-center justify-between">
-                  <div>
-                    <div className="font-bold">
-                      {t("reservationDetail.requiredOutsideFee")}
+              {/* In-church → simple green note (visible to everyone) */}
+              {!isOutsideChurch ? (
+                <div className="flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="font-medium">
+                    {t("reservationDetail.noFeeInChurch")}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  {/* Fee row — visible to everyone (admins need this for verification) */}
+                  <div className="flex items-center justify-between gap-3 bg-white border border-purple-200 rounded-xl px-3 py-2.5">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold text-purple-800 leading-tight">
+                        {t("reservationDetail.requiredOutsideFee")}
+                      </div>
+                      <div className="text-[10px] text-purple-600 leading-tight mt-0.5">
+                        {t("reservationDetail.paymentNotice")}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-purple-800">
-                      {t("reservationDetail.feeSnapshotNote")}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-base font-bold text-purple-900">
+                    <div className="text-lg font-bold text-purple-950 whitespace-nowrap">
                       {t("reservationDetail.egp")}{" "}
                       {reservation.fee_snapshot ||
                         reservation.outside_fee_per_day ||
                         0}
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {/* 4. If Approved and Outside-Church: Instapay & Payment Screenshot Upload */}
-            {isApprovedOutsideChurch && (
-              <div className="border-2 border-purple-200 bg-purple-50/50 rounded-3xl p-5 sm:p-6 space-y-5 animate-in fade-in">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-2xl bg-purple-700 text-white flex items-center justify-center font-bold shadow-xs">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-purple-950">
-                      {t("reservationDetail.outsidePayment")}
-                    </h3>
-                    <p className="text-xs text-purple-800">
-                      {t("reservationDetail.transferFee")}{" "}
-                      <strong>
-                        {t("reservationDetail.egp")}{" "}
-                        {reservation.fee_snapshot || 0}
-                      </strong>{" "}
-                      {t("reservationDetail.viaInstapay")}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Instapay Number & Link Box */}
-                {paymentSettings && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-4 rounded-2xl border border-purple-200 shadow-2xs">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-stone-500 tracking-wider">
-                        {t("reservationDetail.instapayAccount")}
-                      </span>
-                      <div className="flex items-center justify-between bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5">
-                        <span className="font-mono font-bold text-xs text-stone-900">
-                          {paymentSettings.instapayNumber}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleCopyInstapay}
-                          className="text-stone-500 hover:text-stone-900 transition p-1 cursor-pointer"
-                          title={t("reservationDetail.copyNumber")}
-                        >
-                          {copiedNumber ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
                     </div>
+                  </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold uppercase text-stone-500 tracking-wider">
-                        {t("reservationDetail.instapayLink")}
-                      </span>
+                  {/* Instapay CTA — members only */}
+                  {!isAdminViewer &&
+                    (isApprovedOutsideChurch &&
+                    paymentSettings?.instapayLink ? (
                       <a
                         href={paymentSettings.instapayLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-between bg-purple-100/70 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer"
+                        className="flex items-center justify-between gap-2 w-full px-4 py-2.5 bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
                       >
                         <span>{t("reservationDetail.openInstapay")}</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                       </a>
-                    </div>
-                  </div>
-                )}
-
-                {/* Payment Screenshot Upload Control */}
-                {/* <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-purple-950">
-                    <span className="flex items-center gap-1.5">
-                      <Upload className="w-4 h-4 text-purple-700" />
-                      <span>
-                        {t("reservationDetail.uploadPaymentScreenshot")}
-                      </span>
-                    </span>
-                    {reservation.payment_screenshot_url && (
-                      <span className="text-emerald-700 flex items-center gap-1 text-[11px]">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {t("reservationDetail.receiptOnFile")}
-                      </span>
-                    )}
-                  </div> */}
-
-                {/* Upload Drag & Drop Area */}
-                {/* <div
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-4 sm:p-5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
-                      dragActive
-                        ? "border-purple-600 bg-purple-100/50"
-                        : "border-purple-300 bg-white hover:bg-purple-50/50"
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          processScreenshotFile(e.target.files[0]);
-                        }
-                      }}
-                      className="hidden"
-                    />
-
-                    {uploadingScreenshot ? (
-                      <div className="flex items-center gap-2 text-xs font-bold text-purple-900 py-3">
-                        <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                        <span>
-                          {t("reservationDetail.uploadingScreenshot")}
+                    ) : (
+                      <div className="flex items-center gap-2 text-[11px] text-purple-800 bg-purple-100/70 border border-purple-200 rounded-xl px-3 py-2">
+                        <Info className="w-3.5 h-3.5 shrink-0" />
+                        <span className="font-medium">
+                          {t("reservationDetail.paymentAfterApproval")}
                         </span>
                       </div>
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center">
-                          <Upload className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-purple-950">
-                            {reservation.payment_screenshot_url
-                              ? t("reservationDetail.replaceScreenshot")
-                              : t("reservationDetail.clickToUpload")}
-                          </span>
-                          <p className="text-[11px] text-purple-700 mt-0.5">
-                            {t("reservationDetail.imageSupport")}
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                    ))}
 
-                  {screenshotSuccess && (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-2 animate-in fade-in">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>{t("reservationDetail.uploadSuccess")}</span>
-                    </div>
-                  )} */}
-
-                {/* Screenshot Preview */}
-                {/* {reservation.payment_screenshot_url && (
-                    <div className="bg-white p-3 rounded-2xl border border-purple-200 space-y-2">
-                      <div className="text-[11px] font-bold text-stone-700 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-purple-700" />
-                        <span>{t("reservationDetail.receiptPreview")}:</span>
-                      </div>
-                      <div className="relative rounded-xl overflow-hidden border border-stone-200 max-h-56 bg-stone-900 flex items-center justify-center">
-                        <img
-                          src={reservation.payment_screenshot_url}
-                          alt={t("reservationDetail.receiptImage")}
-                          className="max-h-56 w-auto object-contain rounded-lg"
-                        />
-                      </div>
+                  {/* Admin-only hint */}
+                  {isAdminViewer && (
+                    <div className="flex items-center gap-2 text-[11px] text-stone-600 bg-stone-100 border border-stone-200 rounded-xl px-3 py-2">
+                      <Info className="w-3.5 h-3.5 shrink-0 text-stone-500" />
+                      <span className="font-medium">
+                        {t("reservationDetail.memberPaysViaInstapay")}
+                      </span>
                     </div>
                   )}
-                </div> */}
-              </div>
-            )}
-
+                </>
+              )}
+            </div>
             {/* 5. Conversation & Administration Chat Preview */}
             <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3.5">
               <div className="flex items-center justify-between">
@@ -2015,7 +1910,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {/* Messages conversation feed */}
             <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 space-y-3">
               {adminMessages.length === 0 ? (
-                <div className="h-full min-h-[220px] flex flex-col items-center justify-center text-center p-6 space-y-2.5">
+                <div className="h-full min-h-55 flex flex-col items-center justify-center text-center p-6 space-y-2.5">
                   <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shadow-2xs">
                     <MessageSquare className="w-6 h-6" />
                   </div>
@@ -2192,7 +2087,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   type="submit"
                   id="btn-send-chat-tab"
                   disabled={!replyContent.trim() || sendingReply}
-                  className="min-h-[40px] px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition shadow-2xs flex items-center justify-center gap-2 cursor-pointer ml-auto"
+                  className="min-h-10 px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition shadow-2xs flex items-center justify-center gap-2 cursor-pointer ml-auto"
                 >
                   {sendingReply ? (
                     <>
