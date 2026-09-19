@@ -102,6 +102,7 @@ export const reservationSeries = pgTable(
       .references(() => instruments.id, { onDelete: "cascade" })
       .notNull(),
     patternType: text("pattern_type").notNull(), // 'weekly' | 'custom'
+    note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -140,6 +141,7 @@ export const reservations = pgTable(
     rejectionReason: text("rejection_reason"),
     cancellationReason: text("cancellation_reason"), // admin-provided reason, only set on admin-initiated cancellations
     paymentScreenshotUrl: text("payment_screenshot_url"),
+    note: text("note"),
     isNoShow: boolean("is_no_show").default(false),
     noShowMarkedAt: timestamp("no_show_marked_at", { withTimezone: true }),
     noShowAdminId: uuid("no_show_admin_id").references(() => admins.id, {

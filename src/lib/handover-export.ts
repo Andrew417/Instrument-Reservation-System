@@ -14,6 +14,7 @@ export interface HandoverReservationItem {
   instrument_id: string;
   service_name: string;
   musician_name: string;
+  note?: string | null;
   reservation_type: "in_church" | "outside_church" | string;
   status: string;
   start_time: string;
@@ -38,6 +39,7 @@ export const HANDOVER_HEADERS = [
   "Reserved By",
   "Phone Number",
   "Usage Type",
+  "Notes",
 ] as const;
 
 /**
@@ -150,6 +152,7 @@ export function buildHandoverCsvContent(
       escapeCsvCell(r.user_name || "Unknown Member"),
       escapeCsvCell(r.user_phone || "N/A"),
       escapeCsvCell(usageType),
+      escapeCsvCell(r.note || ""),
     ].join(",");
   });
 
@@ -237,12 +240,12 @@ export async function downloadHandoverXlsx(
     cell.fill = navyHeaderFill;
     cell.border = thinBorder;
 
-    // Date (1), Start Time (2), End Time (3), Usage Type (9) center aligned
+    // Date (1), Start Time (2), End Time (3), Usage Type (10) center aligned
     if (
       colNumber === 1 ||
       colNumber === 2 ||
       colNumber === 3 ||
-      colNumber === 9
+      colNumber === 10
     ) {
       cell.alignment = { horizontal: "center", vertical: "middle" };
     } else {
@@ -268,6 +271,7 @@ export async function downloadHandoverXlsx(
       r.user_name || "Unknown Member",
       r.user_phone || "N/A",
       usageText,
+      r.note || "",
     ]);
 
     row.height = 21;
@@ -279,7 +283,7 @@ export async function downloadHandoverXlsx(
     row.eachCell((cell, colNumber) => {
       cell.border = thinBorder;
 
-      if (colNumber === 9) {
+      if (colNumber === 10) {
         // Usage Type color-coded cell:
         // Soft green fill (FFDCFCE7) for "In-church" with deep green text (FF166534)
         // Soft amber/gold fill (FFFEF3C7) for "Outside" with deep amber text (FF92400E)
@@ -332,8 +336,8 @@ export async function downloadHandoverXlsx(
   });
 
   // 3. Auto-size column widths based on content with comfortable padding & sensible minimums
-  // Date, Start, End, Instrument, Type, Service Name, Reserved By, Phone, Usage Type
-  const minWidths = [14, 13, 13, 22, 16, 24, 22, 16, 14];
+  // Date, Start, End, Instrument, Type, Service Name, Musician Name, Reserved By, Phone, Usage Type, Notes
+  const minWidths = [14, 13, 13, 22, 16, 24, 22, 22, 16, 14, 26];
 
   worksheet.columns.forEach((col, idx) => {
     let maxLen = 0;

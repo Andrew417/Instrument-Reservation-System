@@ -107,6 +107,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [musicianName, setMusicianName] = useState<string>(
     reservation.musician_name || reservation.musicianName || "",
   );
+  const [note, setNote] = useState<string>(
+    reservation.note || "",
+  );
   const [date, setDate] = useState<string>(initialDateStr);
   const [startTime, setStartTime] = useState<string>(initialTimeStr);
   const [duration, setDuration] = useState<number>(initialDurationHours);
@@ -182,6 +185,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
           musicianName: musicianName.trim(),
+          note: note.trim() || undefined,
           date,
           startTime,
           duration,
@@ -310,6 +314,25 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               placeholder={t("editReservation.musicianNamePlaceholder")}
               className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40"
               required
+            />
+          </div>
+
+          {/* Note Input */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-stone-700">
+                {t("reservationForm.leaveANoteLabel") || "Notes / Special Requests"}
+              </label>
+              <span className="text-[11px] text-stone-400 font-medium">
+                {t("common.optional") || "Optional"}
+              </span>
+            </div>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t("reservationForm.notePlaceholder")}
+              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 resize-none"
             />
           </div>
 

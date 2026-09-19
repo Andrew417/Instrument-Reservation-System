@@ -100,7 +100,13 @@ export async function seedSuperAdmin(): Promise<void> {
 }
 
 // Allow standalone CLI execution: tsx src/db/seed-super-admin.ts
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isMainModule =
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  (process.argv[1].endsWith("seed-super-admin.ts") ||
+    process.argv[1].endsWith("seed-super-admin.js"));
+
+if (isMainModule) {
   seedSuperAdmin()
     .then(() => {
       console.log("[Super Admin Seed] Process complete.");

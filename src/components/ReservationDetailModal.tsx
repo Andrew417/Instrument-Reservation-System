@@ -1310,6 +1310,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
             ) : null}
 
+            {/* Requester Note (if provided) */}
+            {reservation.note && (
+              <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-4 flex items-start gap-3">
+                <FileText className="w-5 h-5 text-stone-500 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1 min-w-0 flex-1">
+                  <div className="font-bold text-stone-900">
+                    {t("reservationForm.leaveANoteLabel") || "Note"}
+                  </div>
+                  <p className="text-stone-700 leading-relaxed font-medium whitespace-pre-wrap break-words">
+                    {reservation.note}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Rejection Reason notice if rejected */}
             {reservation.rejection_reason && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
