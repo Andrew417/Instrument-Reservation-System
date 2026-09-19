@@ -1802,6 +1802,50 @@ router.post(
         note: note ? String(note).trim() : undefined,
       });
 
+      // ─────────────────────────────────────────────────────────────
+      // SPEC: Admin book-on-behalf is ALWAYS auto-approved,
+      // regardless of instrument mode or hard limits.
+      // createReservation() applies generic rules, so we force-approve here.
+      // The DB exclusion constraint on (instrument_id, time_range)
+      // will reject this if the slot is already approved.
+      // ─────────────────────────────────────────────────────────────
+      if (result.reservation.status !== "approved") {
+        try {
+          await db
+            .update(reservations)
+            .set({ status: "approved" })
+            .where(eq(reservations.id, result.reservation.id));
+          result.reservation.status = "approved";
+
+          // If this is a series occurrence, approve the whole series
+          if (result.reservation.seriesId) {
+            await db
+              .update(reservations)
+              .set({ status: "approved" })
+              .where(eq(reservations.seriesId, result.reservation.seriesId));
+          }
+        } catch (err: any) {
+          // Exclusion constraint violation → slot is already booked
+          if (
+            String(err.message).includes("exclusion") ||
+            String(err.message).includes("conflict") ||
+            String(err.code) === "23P01"
+          ) {
+            // Roll back the just-created pending row so nothing lingers
+            await db
+              .delete(reservations)
+              .where(eq(reservations.id, result.reservation.id));
+            res.status(409).json({
+              success: false,
+              error:
+                "This time slot is already reserved by an approved booking. Please choose a different time or instrument.",
+            });
+            return;
+          }
+          throw err;
+        }
+      }
+
       // Notify user of administrative reservation
       try {
         await db.insert(notifications).values({

@@ -1928,11 +1928,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <LayoutDashboard className="w-4 h-4 text-amber-800" />
                   <span>{t("admin.tabDashboard")}</span>
                 </div>
-                {stats.pendingRequests > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-200">
-                    {stats.pendingRequests}
-                  </span>
-                )}
               </button>
 
               <button
@@ -1948,6 +1943,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <CalendarCheck className="w-4 h-4 text-amber-800" />
                   <span>{t("admin.tabReview")}</span>
                 </div>
+                {stats.pendingRequests > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-200">
+                    {stats.pendingRequests}
+                  </span>
+                )}
               </button>
 
               <button
