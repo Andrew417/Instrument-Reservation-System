@@ -38,6 +38,7 @@ export interface ReservationFormProps {
     startTime: string;
     duration: number;
     reservationType: "in_church" | "outside_church";
+    note?: string;
   }) => void;
 }
 
@@ -194,6 +195,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   );
   const [serviceName, setServiceName] = useState<string>("");
   const [musicianName, setMusicianName] = useState<string>("");
+  const [note, setNote] = useState<string>("");
   const [date, setDate] = useState<string>(initialDate);
   const [startTime, setStartTime] = useState<string>(
     initialTimeHhmm || "10:00",
@@ -278,6 +280,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         startTime,
         duration,
         reservationType,
+        note: note.trim() || undefined,
       });
       return;
     }
@@ -300,6 +303,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
           musicianName: musicianName.trim(),
+          note: note.trim() || undefined,
           date,
           startTime,
           duration,
@@ -547,6 +551,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </span>
                 </div>
 
+                {(submissionResult.reservation.note || note) && (
+                  <div className="pt-2 border-t border-stone-200">
+                    <span className="text-stone-500 font-medium block">
+                      {t("reservationForm.leaveANoteLabel") || "Notes"}
+                    </span>
+                    <span className="font-medium text-stone-900 text-xs whitespace-pre-wrap">
+                      {submissionResult.reservation.note || note}
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-200">
                   <div>
                     <span className="text-stone-500 font-medium block">
@@ -734,6 +749,37 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   placeholder={t("reservationForm.musicianNamePlaceholder")}
                   className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                   required
+                />
+              </div>
+
+              {/* Optional Notes / Special Requests */}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="input-reservation-note"
+                  className="block text-xs font-bold text-stone-700"
+                >
+                  {t("reservationForm.leaveANoteLabel", {
+                    defaultValue: "Notes / Special Requests",
+                  })}{" "}
+                  <span className="text-stone-400 font-medium">
+                    ({t("common.optional", { defaultValue: "Optional" })})
+                  </span>
+                </label>
+                <textarea
+                  id="input-reservation-note"
+                  rows={1}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onInput={(e) => {
+                    const el = e.currentTarget;
+                    el.style.height = "auto";
+                    el.style.height = `${el.scrollHeight}px`;
+                  }}
+                  placeholder={t("reservationForm.notePlaceholder", {
+                    defaultValue:
+                      "Add any notes, special requirements, or requests (optional)...",
+                  })}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none overflow-hidden"
                 />
               </div>
 

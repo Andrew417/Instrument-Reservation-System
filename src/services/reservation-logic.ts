@@ -40,6 +40,7 @@ export interface ReservationSubmissionInput {
   duration: number; // in hours
   reservationType: "in_church" | "outside_church";
   feeAcknowledged?: boolean;
+  note?: string;
 }
 
 export interface SeriesSubmissionInput {
@@ -52,6 +53,7 @@ export interface SeriesSubmissionInput {
   occurrences: TimeSlot[];
   reservationType: "in_church" | "outside_church";
   feeAcknowledged?: boolean;
+  note?: string;
 }
 
 export interface EvaluationResult {
@@ -576,6 +578,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
   const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
   const cleanServiceName = (input.serviceName || "").trim() || "Not specified";
   const cleanMusicianName = (input.musicianName || "").trim();
+  const cleanNote = toNullableString(input.note);
 
   if (!cleanMusicianName) {
     throw new Error("Musician name is required.");
@@ -593,6 +596,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     instrumentId: input.instrumentId,
     serviceName: cleanServiceName,
     musicianName: cleanMusicianName,
+    note: cleanNote,
     timeRange:
       sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
     reservationType: input.reservationType,
@@ -606,6 +610,40 @@ export async function createReservation(input: ReservationSubmissionInput) {
     .insert(reservations)
     .values(reservationParams)
     .returning();
+
+  // If requester provided a note, also record it as the initial message in the reservation thread
+  if (cleanNote) {
+    try {
+      const senderRole = cleanAdminId ? "admin" : "user";
+      let senderName = null;
+      if (cleanAdminId) {
+        const [adm] = await db
+          .select({ name: admins.name })
+          .from(admins)
+          .where(eq(admins.id, cleanAdminId))
+          .limit(1);
+        senderName = adm?.name || "Administrator";
+      } else if (cleanUserId) {
+        const [usr] = await db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, cleanUserId))
+          .limit(1);
+        senderName = usr?.name || "Member";
+      }
+      await db.insert(messages).values({
+        reservationId: newReservation.id,
+        adminId: cleanAdminId || null,
+        userId: cleanUserId || null,
+        senderRole,
+        senderName,
+        content: cleanNote,
+        isRead: false,
+      });
+    } catch (msgErr) {
+      console.error("Non-fatal: failed to create initial note in messages:", msgErr);
+    }
+  }
 
   // If approved: auto-reject other overlapping pending reservations
   if (evalResult.status === "approved") {
@@ -867,6 +905,8 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     }
   }
 
+  const cleanNote = toNullableString(input.note);
+
   // 6. Create series row in database
   const [newSeries] = await db
     .insert(reservationSeries)
@@ -875,6 +915,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       adminId: cleanAdminId,
       instrumentId,
       patternType,
+      note: cleanNote,
     })
     .returning();
 
@@ -907,6 +948,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       instrumentId,
       serviceName: (input.serviceName || "").trim() || "Not specified",
       musicianName: (input.musicianName || "").trim(),
+      note: cleanNote,
       timeRange:
         sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
       reservationType,
@@ -920,6 +962,40 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       .insert(reservations)
       .values(occurrenceParams)
       .returning();
+
+    // If requester provided a note, also record it as the initial message in this occurrence's thread
+    if (cleanNote) {
+      try {
+        const senderRole = cleanAdminId ? "admin" : "user";
+        let senderName = null;
+        if (cleanAdminId) {
+          const [adm] = await db
+            .select({ name: admins.name })
+            .from(admins)
+            .where(eq(admins.id, cleanAdminId))
+            .limit(1);
+          senderName = adm?.name || "Administrator";
+        } else if (cleanUserId) {
+          const [usr] = await db
+            .select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, cleanUserId))
+            .limit(1);
+          senderName = usr?.name || "Member";
+        }
+        await db.insert(messages).values({
+          reservationId: resRow.id,
+          adminId: cleanAdminId || null,
+          userId: cleanUserId || null,
+          senderRole,
+          senderName,
+          content: cleanNote,
+          isRead: false,
+        });
+      } catch (msgErr) {
+        console.error("Non-fatal: failed to record initial series note in messages:", msgErr);
+      }
+    }
 
     if (evalResult.status === "approved") {
       await autoRejectOverlappingPending(
@@ -1072,6 +1148,7 @@ export async function editReservation(
     instrumentId?: string;
     serviceName?: string;
     musicianName?: string;
+    note?: string;
     date?: string;
     startTime?: string;
     duration?: number;
@@ -1236,6 +1313,10 @@ export async function editReservation(
     updates.musicianName !== undefined
       ? updates.musicianName.trim()
       : existing.musicianName;
+  const cleanNote =
+    updates.note !== undefined
+      ? toNullableString(updates.note)
+      : existing.note;
 
   if (!cleanMusicianName) {
     throw new Error("Musician name is required.");
@@ -1247,6 +1328,7 @@ export async function editReservation(
       instrumentId,
       serviceName: cleanServiceName,
       musicianName: cleanMusicianName,
+      note: cleanNote,
       timeRange:
         sql`tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')` as any,
       reservationType: resType,

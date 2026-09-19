@@ -255,6 +255,7 @@ router.get(
         r.instrument_id,
         r.service_name,
         r.musician_name,
+        r.note,
         r.reservation_type,
         r.fee_snapshot,
         r.status,
@@ -385,6 +386,7 @@ router.get(
           r.instrument_id,
           r.service_name,
           r.musician_name,
+          r.note,
           r.reservation_type,
           r.status,
           lower(r.time_range) as start_time,
@@ -453,6 +455,8 @@ router.get(
           r.admin_id,
           r.instrument_id,
           r.service_name,
+          r.musician_name,
+          r.note,
           r.reservation_type,
           r.fee_snapshot,
           r.status,
@@ -855,8 +859,9 @@ router.get(
         r.status,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
-        r.service_name
-        ,r.musician_name
+        r.service_name,
+        r.musician_name,
+        r.note
       FROM reservations r
       WHERE r.series_id = ${seriesId}
       ORDER BY lower(r.time_range) ASC
@@ -1764,6 +1769,7 @@ router.post(
         startTime,
         duration,
         reservationType,
+        note,
       } = req.body;
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
@@ -1785,7 +1791,7 @@ router.post(
         userId,
         adminId,
         instrumentId,
-        serviceName: `[Admin Booked] ${serviceName.trim()}`,
+        serviceName: serviceName.trim(),
         musicianName: musicianName.trim(),
         date,
         startTime,
@@ -1793,6 +1799,7 @@ router.post(
         reservationType:
           reservationType === "outside_church" ? "outside_church" : "in_church",
         feeAcknowledged: true,
+        note: note ? String(note).trim() : undefined,
       });
 
       // Notify user of administrative reservation

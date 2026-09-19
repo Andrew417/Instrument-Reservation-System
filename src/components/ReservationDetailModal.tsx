@@ -58,7 +58,6 @@ function formatMessageTime(dateInput: any): string {
   });
   return `${formatDisplayDate(iso)} • ${formatHhmmTo12Hour(time)}`;
 }
-
 export interface ReservationDetailModalProps {
   reservationId: string;
   allInstruments: Instrument[];
@@ -752,7 +751,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const canUnmarkNoShow = isAdminViewer && isNoShow;
   const isOutsideChurch = reservation.reservation_type === "outside_church";
   const isApprovedOutsideChurch = isApproved && isOutsideChurch;
-
+  const isAdminBooked = Boolean(reservation.user_id && reservation.admin_id);
   return (
     <div
       id="reservation-detail-modal-backdrop"
@@ -1178,6 +1177,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         reservation.serviceName ||
                         t("reservationDetail.churchService")}
                     </span>
+                    {isAdminBooked && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 font-semibold mt-0.5 min-w-0 max-w-full">
+                        <Shield className="w-3 h-3 shrink-0" />
+                        <span className="truncate">
+                          {t("common.adminBooked")}
+                        </span>
+                      </span>
+                    )}
                     <span className="text-xs text-stone-600 truncate block">
                       {t("reservationDetail.musicianName")}:{" "}
                       {reservation.musician_name || reservation.musicianName}
@@ -1309,6 +1316,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
               </div>
             ) : null}
+
+            {/* Requester Note (if provided) */}
+            {reservation.note && (
+              <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-4 flex items-start gap-3">
+                <FileText className="w-5 h-5 text-stone-500 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1 min-w-0 flex-1">
+                  <div className="font-bold text-stone-900">
+                    {t("reservationForm.leaveANoteLabel") || "Note"}
+                  </div>
+                  <p className="text-stone-700 leading-relaxed font-medium whitespace-pre-wrap break-words">
+                    {reservation.note}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Rejection Reason notice if rejected */}
             {reservation.rejection_reason && (

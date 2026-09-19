@@ -53,6 +53,7 @@ interface SeriesPrefillInfo {
   startTime: string;
   duration: number;
   reservationType: "in_church" | "outside_church";
+  note?: string;
 }
 
 const UserPortalMain: React.FC = () => {
@@ -474,6 +475,7 @@ const UserPortalMain: React.FC = () => {
           initialTimeHhmm={seriesPrefill.startTime}
           initialDuration={seriesPrefill.duration}
           initialReservationType={seriesPrefill.reservationType}
+          initialNote={seriesPrefill.note}
           onClose={() => setSeriesPrefill(null)}
           onSuccess={handleReservationSuccess}
         />

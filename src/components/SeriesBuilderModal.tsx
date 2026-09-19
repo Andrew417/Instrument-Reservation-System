@@ -73,6 +73,7 @@ export interface SeriesBuilderModalProps {
   allInstruments: Instrument[];
   initialServiceName?: string;
   initialMusicianName?: string;
+  initialNote?: string;
   initialDate: string; // 'YYYY-MM-DD'
   initialTimeHhmm: string; // 'HH:mm'
   initialDuration?: number; // hours
@@ -94,6 +95,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   allInstruments,
   initialServiceName = "",
   initialMusicianName = "",
+  initialNote = "",
   initialDate,
   initialTimeHhmm,
   initialDuration = 2,
@@ -121,6 +123,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   );
   const [serviceName, setServiceName] = useState<string>(initialServiceName);
   const [musicianName, setMusicianName] = useState<string>(initialMusicianName);
+  const [note, setNote] = useState<string>(initialNote);
   const [reservationType, setReservationType] = useState<
     "in_church" | "outside_church"
   >(initialReservationType);
@@ -435,6 +438,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
         instrumentId: currentInstrument.id,
         serviceName: serviceName.trim(),
         musicianName: musicianName.trim(),
+        note: note.trim() || undefined,
         patternType,
         reservationType,
         feeAcknowledged:
@@ -535,6 +539,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   <span className="text-xs text-stone-600 block">
                     {t("seriesBuilder.musicianNameLabel")}: {musicianName}
                   </span>
+                  {note.trim() && (
+                    <span className="text-xs text-stone-600 block whitespace-pre-wrap">
+                      {t("seriesBuilder.noteLabel") || "Notes"}: {note.trim()}
+                    </span>
+                  )}
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-stone-500 font-medium block">
@@ -782,6 +791,29 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 placeholder={t("seriesBuilder.musicianNamePlaceholder")}
                 className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                 required
+              />
+            </div>
+
+            {/* Optional Notes / Special Requests */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="series-note"
+                  className="block text-xs font-bold text-stone-700"
+                >
+                  {t("seriesBuilder.noteLabel") || "Notes / Special Requests"}
+                </label>
+                <span className="text-[11px] text-stone-400 font-medium">
+                  {t("common.optional") || "Optional"}
+                </span>
+              </div>
+              <textarea
+                id="series-note"
+                rows={2}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={t("seriesBuilder.notePlaceholder")}
+                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
               />
             </div>
 
