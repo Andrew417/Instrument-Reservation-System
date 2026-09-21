@@ -3474,17 +3474,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               <div className="flex items-center justify-end gap-1.5">
                                 {(u.approval_status === "pending" ||
                                   u.approvalStatus === "pending") && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleApproveRegistration(u.id, u.name)
-                                    }
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                                    title={t("admin.users.approveTooltip")}
-                                  >
-                                    <Check className="w-3 h-3" />
-                                    <span>{t("admin.users.approve")}</span>
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleApproveRegistration(u.id, u.name)
+                                      }
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      title={t("admin.users.approveTooltip")}
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      <span>{t("admin.users.approve")}</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => triggerRejectUser(u)}
+                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                      title="Reject registration (account preserved in audit database)"
+                                    >
+                                      <X className="w-3 h-3" />
+                                      <span>
+                                        {t("admin.approvals.rejectBtn")}
+                                      </span>
+                                    </button>
+                                  </>
                                 )}
 
                                 <button
