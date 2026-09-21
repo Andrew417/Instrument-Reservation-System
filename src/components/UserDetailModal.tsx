@@ -381,12 +381,29 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                     </h3>
                     <div className="flex items-center gap-3 mt-0.5 text-[11px] text-stone-500 font-mono flex-wrap">
                       {userData.email && <span>{userData.email}</span>}
-                      {userData.phoneNumber && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-stone-400" />
-                          {userData.phoneNumber}
-                        </span>
-                      )}
+                      {userData.phoneNumber &&
+                        (() => {
+                          const whatsappNumber = String(userData.phoneNumber)
+                            .replace(/[^\d]/g, "")
+                            .replace(/^0/, "20");
+                          return whatsappNumber ? (
+                            <a
+                              href={`https://wa.me/${whatsappNumber}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline transition"
+                              title={`Chat with ${userData.name} on WhatsApp`}
+                            >
+                              <Phone className="w-3 h-3 text-emerald-600" />
+                              {userData.phoneNumber}
+                            </a>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-stone-400" />
+                              {userData.phoneNumber}
+                            </span>
+                          );
+                        })()}
                     </div>
                     <p className="text-[11px] text-stone-400 mt-1">
                       {t("admin.userDetail.memberSince", {
