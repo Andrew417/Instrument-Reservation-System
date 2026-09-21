@@ -23,6 +23,7 @@ import {
   MessageSquare,
   ShieldCheck,
   Sliders,
+  Menu,
   CreditCard,
   CheckCircle2,
   XCircle,
@@ -142,6 +143,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [internalSelectedEntityType, setInternalSelectedEntityType] = useState<
     "user" | "admin"
   >("user");
+
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const openUserProfile = (
     userId: string,
@@ -1373,6 +1376,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           if (data.success) {
             showNotice(data.message);
             fetchUsers();
+            setInternalSelectedUserId(null); // 👈 close profile modal
           } else {
             showNotice(data.error, "error");
           }
@@ -1457,6 +1461,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         showNotice(data.message);
         fetchUsers();
         fetchAdmins();
+        setInternalSelectedUserId(null); // 👈 close profile modal
       } else {
         showNotice(data.error, "error");
       }
@@ -1733,6 +1738,85 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const translateStatus = (status: string) =>
     t(STATUS_LABEL_KEYS[status] || status);
+  const operationsTabs = [
+    {
+      id: "dashboard" as const,
+      label: t("admin.tabDashboard"),
+      Icon: LayoutDashboard,
+      count: 0,
+    },
+    {
+      id: "review" as const,
+      label: t("admin.tabReview"),
+      Icon: CalendarCheck,
+      count: stats.pendingRequests,
+    },
+    {
+      id: "approvals" as const,
+      label: t("admin.tabApprovals"),
+      Icon: UserCheck,
+      count: stats.pendingUserApprovals || 0,
+    },
+    {
+      id: "instruments" as const,
+      label: t("admin.tabInstruments"),
+      Icon: Music2,
+      count: stats.totalInstruments,
+    },
+    {
+      id: "users" as const,
+      label: t("admin.tabUsers"),
+      Icon: Users,
+      count: stats.activeUsers,
+    },
+    {
+      id: "messaging" as const,
+      label: t("admin.tabMessaging"),
+      Icon: MessageSquare,
+      count: 0,
+    },
+  ];
+
+  const superAdminTabs = [
+    {
+      id: "admin_accounts" as const,
+      label: t("admin.tabAdminAccounts"),
+      Icon: ShieldCheck,
+      count: adminAccountsList.length,
+    },
+    {
+      id: "trusted_status" as const,
+      label: t("admin.tabTrustedStatus"),
+      Icon: UserCheck,
+      count: 0,
+    },
+    {
+      id: "hard_limits" as const,
+      label: t("admin.tabHardLimits"),
+      Icon: Sliders,
+      count: 0,
+    },
+    {
+      id: "payment_settings" as const,
+      label: t("admin.tabPaymentSettings"),
+      Icon: CreditCard,
+      count: 0,
+    },
+    {
+      id: "notification_settings" as const,
+      label: t("admin.tabNotificationSettings"),
+      Icon: Bell,
+      count: 0,
+    },
+  ];
+
+  const totalPending =
+    (stats.pendingRequests || 0) + (stats.pendingUserApprovals || 0);
+
+  const handleMobileTabSelect = (tabId: AdminTab) => {
+    setActiveTab(tabId);
+    setMobileNavOpen(false);
+  };
   return (
     <div id="admin-portal-root" className="space-y-6">
       {/* Feedback Banner */}
@@ -1764,7 +1848,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </button>
         </div>
       )}
-
       {/* Top Section Header Card */}
       <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0">
@@ -1788,6 +1871,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap justify-end w-full md:w-auto md:justify-start">
+          {/* Mobile navigation trigger — Bottom Sheet */}
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            className="lg:hidden relative p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 transition cursor-pointer shrink-0"
+            title="Open navigation"
+            aria-label="Open admin navigation"
+          >
+            <Menu className="w-4 h-4" />
+            {totalPending > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                {totalPending > 9 ? "9+" : totalPending}
+              </span>
+            )}
+          </button>
+
           <button
             id="btn-admin-export-handover"
             type="button"
@@ -1805,7 +1904,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </button>
         </div>
       </div>
-
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <button
@@ -1914,11 +2012,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </button>
       </div>
-
       {/* Main Admin Layout: Navigation & Content */}
       <div className="flex flex-col md:flex-row gap-6">
         {/* Navigation Sidebar */}
-        <aside className="w-full md:w-64 shrink-0 space-y-4">
+        <aside className="hidden lg:block w-full md:w-64 shrink-0 space-y-4">
+          {" "}
           <div className="bg-white border border-stone-200 rounded-2xl p-3 shadow-2xs">
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
               {t("admin.sidebar.operationsSection")}
@@ -3339,22 +3437,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse min-w-[600px]">
+                  <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                         <th className="py-2.5 px-3 whitespace-nowrap">
                           {t("admin.users.colMember")}
                         </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">
+                        <th className="py-2.5 px-3 whitespace-nowrap w-[140px]">
                           {t("admin.users.colPhone")}
                         </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">
+                        <th className="py-2.5 px-3 whitespace-nowrap w-[110px]">
                           {t("admin.users.colStatus")}
                         </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap">
+                        <th className="py-2.5 px-3 whitespace-nowrap w-[130px]">
                           {t("admin.users.colTrusted")}
                         </th>
-                        <th className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <th className="py-2.5 px-3 text-right whitespace-nowrap w-[180px]">
                           {t("admin.users.colActions")}
                         </th>
                       </tr>
@@ -3663,12 +3761,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           {t("admin.adminAccounts.colAdministrator")}
                         </th>
                         <th className="py-2.5 px-3">
-                          {t("admin.adminAccounts.colEmail")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.adminAccounts.colPhone")}
-                        </th>
-                        <th className="py-2.5 px-3">
                           {t("admin.adminAccounts.colRole")}
                         </th>
                         <th className="py-2.5 px-3">
@@ -3696,23 +3788,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             key={adm.id}
                             className="hover:bg-stone-50/60 transition"
                           >
-                            <td className="py-3 px-3">
+                            <td className="py-3 px-3 align-middle">
                               <button
                                 type="button"
                                 onClick={() => openUserProfile(adm.id, "admin")}
                                 className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
                                 title="View Administrator Profile"
                               >
-                                <Shield className="w-3.5 h-3.5 text-amber-800" />
-                                <span>{adm.name}</span>
-                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
+                                <Shield className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                                <span className="truncate">{adm.name}</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
                               </button>
-                            </td>
-                            <td className="py-3 px-3 font-mono text-stone-800">
-                              {adm.email || "—"}
-                            </td>
-                            <td className="py-3 px-3 font-mono text-stone-600">
-                              {adm.phoneNumber || adm.phone_number || "—"}
                             </td>
                             <td className="py-3 px-3">
                               <span
@@ -4270,7 +4356,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           )}
         </main>
       </div>
-
       {/* =============================================================
           MODAL 1: Add / Edit Instrument
           ============================================================= */}
@@ -4568,7 +4653,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 2: Mark Unavailable Confirmation (Retire from Service)
           ============================================================= */}
@@ -4646,7 +4730,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 2B: Permanent Delete Confirmation (Mistaken Entries Only)
          ============================================================= */}
@@ -4798,7 +4881,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 3: Book on Behalf of User
           ============================================================= */}
@@ -5005,7 +5087,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 4: Provision Administrator Account (Super Admin)
           ============================================================= */}
@@ -5164,7 +5245,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 5: In-App Rejection Dialog (Reliable, Beautiful, No iframe prompt blocks)
           ============================================================= */}
@@ -5333,7 +5413,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 5B: Bulk Cancellation Reason (Preset + Optional Custom Text)
          ============================================================= */}
@@ -5449,7 +5528,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* =============================================================
           MODAL 6: In-App Confirmation Dialog
          ============================================================= */}
@@ -5611,7 +5689,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </div>
       )}
-
       {/* Key-Holder Handover Sheet Export Modal (Dual Format CSV / XLSX) */}
       <HandoverSheetModal
         isOpen={showHandoverModal}
@@ -5620,7 +5697,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         defaultMode={handoverDefaultMode}
         defaultFormat={handoverDefaultFormat}
       />
-
       {/* User Detail Profile Modal */}
       {internalSelectedUserId && (
         <UserDetailModal
@@ -5640,11 +5716,175 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             fetchUsers();
             fetchApprovals();
             fetchStats();
+            if (isSuperAdmin) fetchAdmins();
           }}
           onPromoteUser={handleOpenPromoteModal}
           onDeleteUser={handleDeleteUser}
         />
       )}
+      {/* =============================================================
+    MOBILE NAVIGATION — Bottom Sheet
+    ============================================================= */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-[90] lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Admin navigation"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setMobileNavOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Sheet */}
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-200 pb-[env(safe-area-inset-bottom)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag handle + header */}
+            <div className="sticky top-0 bg-white/95 backdrop-blur-xs pt-2 pb-2 px-4 border-b border-stone-100 z-10">
+              <div className="w-12 h-1.5 bg-stone-300 rounded-full mx-auto mb-2" />
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-stone-900 truncate">
+                    {isSuperAdmin
+                      ? t("admin.consoleTitle")
+                      : t("admin.adminTitle")}
+                  </div>
+                  <div className="text-[11px] text-stone-500 truncate">
+                    {operationsTabs.find((t2) => t2.id === activeTab)?.label ||
+                      superAdminTabs.find((t2) => t2.id === activeTab)?.label ||
+                      t("admin.consoleSubtitle")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="shrink-0 p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                  aria-label="Close navigation"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Operations & Management */}
+            <div className="px-2 pt-2 pb-1.5">
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                {t("admin.sidebar.operationsSection")}
+              </div>
+              <nav className="space-y-0">
+                {" "}
+                {operationsTabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => handleMobileTabSelect(tab.id)}
+                      className={`relative w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+                        isActive
+                          ? "bg-amber-100 text-amber-950 border border-amber-300"
+                          : "text-stone-700 hover:bg-amber-50/60"
+                      }`}
+                    >
+                      {isActive && (
+                        <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-amber-700" />
+                      )}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                            isActive
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-stone-100 text-stone-600"
+                          }`}
+                        >
+                          <tab.Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="truncate">{tab.label}</span>
+                      </div>
+                      {tab.count > 0 && (
+                        <span
+                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                            isActive
+                              ? "bg-amber-100 text-amber-900 border-amber-200"
+                              : "bg-stone-100 text-stone-700 border-stone-200"
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Super Admin Tools */}
+            {isSuperAdmin && (
+              <div className="px-2 pt-3 pb-1.5 mt-1 border-t border-stone-100">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-amber-700" />
+                  <span>{t("admin.sidebar.superAdminSection")}</span>
+                </div>
+                <nav className="space-y-0">
+                  {" "}
+                  {superAdminTabs.map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => handleMobileTabSelect(tab.id)}
+                        className={`relative w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+                          isActive
+                            ? "bg-amber-100 text-amber-950 border border-amber-300"
+                            : "text-stone-700 hover:bg-amber-50/60"
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-amber-700" />
+                        )}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              isActive
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-stone-100 text-stone-600"
+                            }`}
+                          >
+                            <tab.Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="truncate">{tab.label}</span>
+                        </div>
+                        {tab.count > 0 && (
+                          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/60 text-amber-950 border border-amber-300/60">
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            )}
+
+            {/* Close */}
+            <div className="px-3 pt-1 pb-3">
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(false)}
+                className="w-full py-2 rounded-xl text-[13px] font-bold text-stone-500 hover:text-stone-800 hover:bg-stone-50 transition cursor-pointer"
+              >
+                {t("common.close") || "Close"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}{" "}
     </div>
   );
 };
