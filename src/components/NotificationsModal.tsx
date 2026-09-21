@@ -647,18 +647,18 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   return (
     <div
       id="notifications-modal-overlay"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
       <div
         id="screen-7-notifications"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col"
+        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-stone-900 text-white px-6 py-4.5 flex items-center justify-between border-b border-stone-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-stone-800 border border-stone-700 text-white flex items-center justify-center relative">
+        <div className="bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-stone-800 border border-stone-700 text-white flex items-center justify-center relative shrink-0">
               <Bell className="w-5 h-5 text-amber-400" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-stone-950 font-bold text-[10px] rounded-full flex items-center justify-center ring-2 ring-stone-900">
@@ -666,13 +666,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 </span>
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">
+                <h2 className="text-sm sm:text-base font-bold text-white truncate">
                   {t("notifications.title")}
                 </h2>
               </div>
-              <p className="text-xs text-stone-400">
+              <p className="text-[11px] sm:text-xs text-stone-400 truncate">
                 {unreadCount > 0
                   ? t("notifications.unreadCount", { count: unreadCount })
                   : t("notifications.allCaughtUp")}
@@ -680,12 +680,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllAsRead}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold transition cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 active:bg-stone-600 text-stone-200 text-xs font-semibold transition cursor-pointer touch-manipulation"
                 title={t("notifications.markAllReadTooltip")}
               >
                 <CheckCheck className="w-3.5 h-3.5" />
@@ -696,31 +696,32 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <button
               id="close-notifications-btn"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+              className="shrink-0 w-11 h-11 -mr-2 rounded-full bg-transparent hover:bg-stone-700 active:bg-stone-600 text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer touch-manipulation"
+              aria-label={t("common.close")}
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Action Notice Bar */}
         {actionNotice && (
-          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 text-xs text-amber-900 font-semibold flex items-center justify-between shrink-0 animate-in fade-in">
-            <span>{actionNotice}</span>
-            <Check className="w-4 h-4 text-amber-700" />
+          <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2.5 text-xs text-amber-900 font-semibold flex items-center justify-between gap-2 shrink-0 animate-in fade-in">
+            <span className="break-words min-w-0">{actionNotice}</span>
+            <Check className="w-4 h-4 text-amber-700 shrink-0" />
           </div>
         )}
 
         {/* Filter Bar */}
-        <div className="px-6 py-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
+        <div className="px-3 sm:px-6 py-2.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5 flex-1 min-w-0">
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
                 filter === "all"
                   ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
               }`}
             >
               {t("notifications.tabAll")} ({notifications.length})
@@ -728,10 +729,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <button
               type="button"
               onClick={() => setFilter("unread")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
                 filter === "unread"
                   ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
               }`}
             >
               {t("notifications.tabUnread")} ({unreadCount})
@@ -739,10 +740,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <button
               type="button"
               onClick={() => setFilter("requests")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
                 filter === "requests"
                   ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
               }`}
             >
               {t("notifications.tabRequests")}
@@ -750,10 +751,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <button
               type="button"
               onClick={() => setFilter("approvals")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
                 filter === "approvals"
                   ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
               }`}
             >
               {t("notifications.tabApprovals")}
@@ -761,10 +762,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <button
               type="button"
               onClick={() => setFilter("rejections")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
                 filter === "rejections"
                   ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
               }`}
             >
               {t("notifications.tabRejections")}
@@ -772,21 +773,21 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             <button
               type="button"
               onClick={() => setFilter("messages")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
                 filter === "messages"
                   ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100"
+                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
               }`}
             >
               {t("notifications.tabMessages")}
             </button>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={fetchNotifications}
-              className="p-1 text-stone-500 hover:text-stone-900 transition rounded-lg hover:bg-stone-200/60 cursor-pointer"
+              className="p-2 text-stone-500 hover:text-stone-900 active:bg-stone-200 transition rounded-lg cursor-pointer touch-manipulation"
               title={t("notifications.refreshTooltip")}
             >
               <RefreshCw
@@ -797,7 +798,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         </div>
 
         {/* Notifications List Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1 bg-stone-100/60">
+        <div className="p-3 sm:p-6 overflow-y-auto overscroll-contain space-y-3 flex-1 min-h-0 bg-stone-100/60">
           {loading && notifications.length === 0 ? (
             <div className="py-12 text-center text-xs text-stone-500 flex flex-col items-center justify-center gap-2">
               <div className="w-6 h-6 border-2 border-stone-400 border-t-amber-800 rounded-full animate-spin" />
@@ -831,37 +832,37 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   key={notif.id}
                   id={`notification-card-${notif.id}`}
                   onClick={() => handleNotificationClick(notif)}
-                  className={`group relative rounded-2xl p-4 transition border shadow-2xs cursor-pointer ${
+                  className={`group relative rounded-2xl p-3 sm:p-4 transition border shadow-2xs cursor-pointer active:scale-[0.995] touch-manipulation ${
                     notif.is_read
                       ? "bg-white hover:bg-stone-50 border-stone-200"
                       : "bg-white hover:bg-amber-50/40 border-amber-300 ring-1 ring-amber-200/50"
                   }`}
                 >
-                  <div className="flex items-start gap-3.5">
-                    <div className="mt-0.5">{visuals.icon}</div>
+                  <div className="flex items-start gap-3 sm:gap-3.5">
+                    <div className="mt-0.5 shrink-0">{visuals.icon}</div>
 
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${visuals.badgeBg}`}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider whitespace-nowrap ${visuals.badgeBg}`}
                           >
                             {visuals.typeLabel}
                           </span>
 
                           {!notif.is_read && (
-                            <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+                            <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse shrink-0" />
                           )}
                         </div>
 
-                        <span className="text-[11px] text-stone-400 font-mono flex items-center gap-1">
+                        <span className="text-[11px] text-stone-400 font-mono flex items-center gap-1 shrink-0">
                           <Clock className="w-3 h-3" />
                           {timeAgo}
                         </span>
                       </div>
 
                       <p
-                        className={`text-xs leading-relaxed ${
+                        className={`text-xs leading-relaxed break-words ${
                           notif.is_read
                             ? "text-stone-700"
                             : "text-stone-900 font-medium"
@@ -870,49 +871,58 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                         {getNotificationMessage(notif)}
                       </p>
 
-                      {isAdminViewer && onOpenUserProfile && (() => {
-                        const notifUserId =
-                          notif.reservation_user_id ||
-                          notif.target_user_id ||
-                          (() => {
-                            try {
-                              const p = JSON.parse(notif.message);
-                              return p?.params?.userId || null;
-                            } catch {
-                              return null;
-                            }
-                          })();
-                        const notifUserName =
-                          notif.user_name ||
-                          (() => {
-                            try {
-                              const p = JSON.parse(notif.message);
-                              return p?.params?.name || null;
-                            } catch {
-                              return null;
-                            }
-                          })();
+                      {isAdminViewer &&
+                        onOpenUserProfile &&
+                        (() => {
+                          const notifUserId =
+                            notif.reservation_user_id ||
+                            notif.target_user_id ||
+                            (() => {
+                              try {
+                                const p = JSON.parse(notif.message);
+                                return p?.params?.userId || null;
+                              } catch {
+                                return null;
+                              }
+                            })();
+                          const notifUserName =
+                            notif.user_name ||
+                            (() => {
+                              try {
+                                const p = JSON.parse(notif.message);
+                                return p?.params?.name || null;
+                              } catch {
+                                return null;
+                              }
+                            })();
 
-                        if (!notifUserId) return null;
+                          if (!notifUserId) return null;
 
-                        return (
-                          <div className="mt-1.5 flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onOpenUserProfile(notifUserId);
-                              }}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 hover:text-amber-950 hover:underline bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 transition cursor-pointer"
-                              title={t("admin.userDetail.viewProfile") || "View Member Profile"}
-                            >
-                              <User className="w-3 h-3 text-amber-800" />
-                              <span>{notifUserName || t("common.member") || "Member"}</span>
-                              <ExternalLink className="w-2.5 h-2.5 text-stone-400" />
-                            </button>
-                          </div>
-                        );
-                      })()}
+                          return (
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenUserProfile(notifUserId);
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 hover:text-amber-950 hover:underline bg-amber-50 hover:bg-amber-100 active:bg-amber-200 px-2 py-0.5 rounded-md border border-amber-200 transition cursor-pointer touch-manipulation"
+                                title={
+                                  t("admin.userDetail.viewProfile") ||
+                                  "View Member Profile"
+                                }
+                              >
+                                <User className="w-3 h-3 text-amber-800" />
+                                <span className="truncate max-w-[120px]">
+                                  {notifUserName ||
+                                    t("common.member") ||
+                                    "Member"}
+                                </span>
+                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 shrink-0" />
+                              </button>
+                            </div>
+                          );
+                        })()}
 
                       {notif.reservation_id && (
                         <div className="mt-2 bg-stone-50 group-hover:bg-amber-50/60 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 text-xs transition">
@@ -930,7 +940,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1 text-amber-900 font-bold text-[11px] shrink-0">
-                            <span>
+                            <span className="hidden sm:inline">
                               {notif.type === "reservation_message"
                                 ? t("notifications.openChat")
                                 : t("myReservations.viewDetails")}
@@ -959,7 +969,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                         key={preset}
                                         type="button"
                                         onClick={() => setRejectReason(preset)}
-                                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 text-stone-700 font-medium transition cursor-pointer text-start"
+                                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 active:bg-stone-400 text-stone-700 font-medium transition cursor-pointer text-start touch-manipulation"
                                       >
                                         {t(
                                           `presets.rejection.${preset}`,
@@ -990,7 +1000,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                       setRejectReason("");
                                     }}
                                     disabled={actioningId === notif.id}
-                                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-200 transition cursor-pointer"
+                                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-200 active:bg-stone-300 transition cursor-pointer touch-manipulation"
                                   >
                                     {t("common.cancel")}
                                   </button>
@@ -1003,7 +1013,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                       !rejectReason.trim() ||
                                       actioningId === notif.id
                                     }
-                                    className="px-3 py-1 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5"
+                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5 touch-manipulation"
                                   >
                                     {actioningId === notif.id ? (
                                       <>
@@ -1025,14 +1035,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <button
                                   type="button"
                                   onClick={(e) =>
                                     handleApproveFromNotification(notif, e)
                                   }
                                   disabled={actioningId === notif.id}
-                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 touch-manipulation"
                                 >
                                   {actioningId === notif.id ? (
                                     <>
@@ -1060,7 +1070,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                     setRejectReason("");
                                   }}
                                   disabled={actioningId === notif.id}
-                                  className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-red-50 text-stone-700 hover:text-red-700 border border-stone-200 hover:border-red-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                                  className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-red-50 active:bg-red-100 text-stone-700 hover:text-red-700 border border-stone-200 hover:border-red-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 touch-manipulation"
                                 >
                                   <XCircle className="w-3.5 h-3.5" />
                                   <span>
@@ -1087,7 +1097,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                             ) : (
                               <div className="flex items-center gap-1 text-red-700 font-semibold">
                                 <XCircle className="w-3.5 h-3.5" />
-                                <span>
+                                <span className="break-words">
                                   {notif.rejection_reason
                                     ? t(
                                         "notifications.statusRejectedWithReason",
@@ -1107,7 +1117,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleMarkAsRead(notif.id, e)}
-                        className="p-1.5 text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition cursor-pointer"
+                        className="shrink-0 w-9 h-9 -mr-1 -mt-1 flex items-center justify-center text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 rounded-full transition cursor-pointer touch-manipulation"
                         title={t("notifications.markAsReadTooltip")}
                       >
                         <Check className="w-4 h-4" />
@@ -1121,16 +1131,18 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-white border-t border-stone-200 flex items-center justify-between text-xs text-stone-500 shrink-0">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>{t("notifications.realtimeActive")}</span>
+        <div className="p-3 sm:p-4 bg-white border-t border-stone-200 flex items-center justify-between gap-2 text-xs text-stone-500 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="truncate">
+              {t("notifications.realtimeActive")}
+            </span>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs transition cursor-pointer"
+            className="px-4 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 font-bold text-xs transition cursor-pointer shrink-0 touch-manipulation"
           >
             {t("notifications.done")}
           </button>
