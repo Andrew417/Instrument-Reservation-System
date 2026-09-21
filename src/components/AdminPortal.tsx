@@ -139,11 +139,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [internalSelectedUserId, setInternalSelectedUserId] = useState<
     string | null
   >(null);
+  const [internalSelectedEntityType, setInternalSelectedEntityType] = useState<
+    "user" | "admin"
+  >("user");
 
-  const openUserProfile = (userId: string) => {
+  const openUserProfile = (
+    userId: string,
+    entityType: "user" | "admin" = "user",
+  ) => {
     if (onOpenUserProfile) {
       onOpenUserProfile(userId);
     } else {
+      setInternalSelectedEntityType(entityType);
       setInternalSelectedUserId(userId);
     }
   };
@@ -3488,77 +3495,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   <Plus className="w-3 h-3 text-amber-800" />
                                   <span>{t("admin.users.bookFor")}</span>
                                 </button>
-                                {isSuperAdmin && (
-                                  <button
-                                    onClick={() =>
-                                      handleOpenPromoteModal(u.id, u.name)
-                                    }
-                                    className="px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer bg-stone-50 hover:bg-amber-50 text-amber-900 border-stone-200"
-                                    title={t("admin.users.promoteTooltip")}
-                                  >
-                                    {t("admin.users.promoteTo")}
-                                  </button>
-                                )}
-
-                                {isSuperAdmin && (
-                                  <button
-                                    onClick={() =>
-                                      handleToggleTrusted(
-                                        u.id,
-                                        u.isTrusted,
-                                        u.name,
-                                      )
-                                    }
-                                    className={`px-2 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
-                                      u.isTrusted
-                                        ? "bg-stone-50 hover:bg-amber-50 text-amber-900 border-amber-200"
-                                        : "bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200"
-                                    }`}
-                                    title={
-                                      u.isTrusted
-                                        ? t("admin.users.revokeTrustTooltip")
-                                        : t("admin.users.makeTrustedTooltip")
-                                    }
-                                  >
-                                    {u.isTrusted
-                                      ? t("admin.users.revokeTrust")
-                                      : t("admin.users.makeTrusted")}
-                                  </button>
-                                )}
-
-                                <button
-                                  onClick={() =>
-                                    handleToggleUserActive(
-                                      u.id,
-                                      u.isActive,
-                                      u.name,
-                                    )
-                                  }
-                                  className="p-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                                  title={
-                                    u.isActive
-                                      ? t("admin.users.deactivateTooltip")
-                                      : t("admin.users.reactivateTooltip")
-                                  }
-                                >
-                                  {u.isActive ? (
-                                    <UserX className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <UserCheck className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-
-                                {isSuperAdmin && (
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteUser(u.id, u.name)
-                                    }
-                                    className="p-1.5 rounded-lg bg-stone-50 hover:bg-red-50 text-red-600 border border-stone-200 hover:border-red-200 transition cursor-pointer"
-                                    title={t("admin.users.deleteTooltip")}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>
@@ -3747,10 +3683,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             className="hover:bg-stone-50/60 transition"
                           >
                             <td className="py-3 px-3">
-                              <div className="font-semibold text-stone-900 flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => openUserProfile(adm.id, "admin")}
+                                className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
+                                title="View Administrator Profile"
+                              >
                                 <Shield className="w-3.5 h-3.5 text-amber-800" />
                                 <span>{adm.name}</span>
-                              </div>
+                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
+                              </button>
                             </td>
                             <td className="py-3 px-3 font-mono text-stone-800">
                               {adm.email || "—"}
@@ -5498,7 +5440,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 6: In-App Confirmation Dialog
          ============================================================= */}
       {confirmModal && confirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div
@@ -5547,7 +5489,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL: Promote User — Choose Role
           ============================================================= */}
       {promoteModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
@@ -5669,6 +5611,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       {internalSelectedUserId && (
         <UserDetailModal
           userId={internalSelectedUserId}
+          entityType={internalSelectedEntityType}
           isOpen={Boolean(internalSelectedUserId)}
           onClose={() => setInternalSelectedUserId(null)}
           onSelectReservation={(resId) => {
@@ -5684,6 +5627,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             fetchApprovals();
             fetchStats();
           }}
+          onPromoteUser={handleOpenPromoteModal}
+          onDeleteUser={handleDeleteUser}
         />
       )}
     </div>

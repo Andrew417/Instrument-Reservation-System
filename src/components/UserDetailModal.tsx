@@ -17,6 +17,10 @@ import {
   AlertCircle,
   Layers,
   ChevronRight,
+  UserX,
+  UserCheck,
+  Trash2,
+  ArrowUpCircle,
 } from "lucide-react";
 import {
   formatDisplayDate,
@@ -28,6 +32,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 
 export interface UserDetailModalProps {
   userId: string | null;
+  entityType?: "user" | "admin";
   isOpen: boolean;
   onClose: () => void;
   onSelectReservation: (reservationId: string) => void;
@@ -35,12 +40,54 @@ export interface UserDetailModalProps {
   sessionToken?: string | null;
   onUserUpdated?: () => void;
   zIndexClass?: string;
+  onPromoteUser?: (userId: string, name: string) => void;
+  onDeleteUser?: (userId: string, name: string) => void;
 }
 
 type StatTone = "default" | "danger" | "ok";
 
+const RoleBadge: React.FC<{ role?: string; isSuperAdmin?: boolean }> = ({
+  role,
+  isSuperAdmin,
+}) => {
+  const normalized = isSuperAdmin ? "super_admin" : role || "user";
+
+  const config: Record<
+    string,
+    { label: string; classes: string; icon: React.ReactNode }
+  > = {
+    super_admin: {
+      label: "Super Admin",
+      classes: "bg-amber-100 text-amber-900 border-amber-300",
+      icon: <Sparkles className="w-3 h-3" />,
+    },
+    admin: {
+      label: "Admin",
+      classes: "bg-purple-50 text-purple-800 border-purple-200",
+      icon: <Shield className="w-3 h-3" />,
+    },
+    user: {
+      label: "Member",
+      classes: "bg-stone-100 text-stone-600 border-stone-200",
+      icon: <User className="w-3 h-3" />,
+    },
+  };
+
+  const cfg = config[normalized] || config.user;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${cfg.classes}`}
+    >
+      {cfg.icon}
+      <span>{cfg.label}</span>
+    </span>
+  );
+};
+
 const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   userId,
+  entityType = "user",
   isOpen,
   onClose,
   onSelectReservation,
@@ -48,6 +95,8 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   sessionToken,
   onUserUpdated,
   zIndexClass = "z-50",
+  onPromoteUser,
+  onDeleteUser,
 }) => {
   const { t } = useTranslation();
 
@@ -59,6 +108,9 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [isTogglingTrust, setIsTogglingTrust] = useState<boolean>(false);
   const [confirmToggleTrust, setConfirmToggleTrust] = useState<boolean>(false);
+  const [isTogglingActive, setIsTogglingActive] = useState<boolean>(false);
+  const [confirmToggleActive, setConfirmToggleActive] =
+    useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen || !userId) {
@@ -77,7 +129,12 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
           localStorage.getItem("auth_token") ||
           "";
 
-        const res = await fetch(`/api/admin/users/${userId}/profile`, {
+        const endpoint =
+          entityType === "admin"
+            ? `/api/admin/admins/${userId}`
+            : `/api/admin/users/${userId}/profile`;
+
+        const res = await fetch(endpoint, {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -86,10 +143,30 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
 
         const data = await res.json();
         if (data.success) {
-          setUserData(data.user);
-          setStanding(data.standing);
-          setReservations(data.reservations || []);
-          setMessages(data.messages || []);
+          if (entityType === "admin") {
+            const a = data.admin;
+            setUserData({
+              id: a.id,
+              name: a.name,
+              email: a.email,
+              phoneNumber: a.phone_number,
+              isTrusted: false,
+              isActive: true,
+              approvalStatus: a.approval_status || "approved",
+              createdAt: a.created_at,
+              role: a.role,
+              isSuperAdmin: a.is_super_admin,
+              isAdmin: true,
+            });
+            setStanding(null);
+            setReservations([]);
+            setMessages([]);
+          } else {
+            setUserData(data.user);
+            setStanding(data.standing);
+            setReservations(data.reservations || []);
+            setMessages(data.messages || []);
+          }
         } else {
           setError(data.error || t("admin.userDetail.notFound"));
         }
@@ -153,6 +230,42 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
       alert(err.message || "Failed to update trusted status");
     } finally {
       setIsTogglingTrust(false);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    if (!userData) return;
+    setIsTogglingActive(true);
+    try {
+      const token =
+        sessionToken ||
+        localStorage.getItem("admin_session_token") ||
+        localStorage.getItem("auth_token") ||
+        "";
+
+      const targetActive = !userData.isActive;
+
+      const res = await fetch(`/api/admin/users/${userData.id}/toggle-status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ isActive: targetActive }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setUserData((prev: any) => ({ ...prev, isActive: targetActive }));
+        setConfirmToggleActive(false);
+        if (onUserUpdated) onUserUpdated();
+      } else {
+        alert(data.error || "Failed to update account status");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to update account status");
+    } finally {
+      setIsTogglingActive(false);
     }
   };
 
@@ -341,6 +454,10 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
             >
               {t("admin.userDetail.title")}
             </h2>
+            <RoleBadge
+              role={userData?.role}
+              isSuperAdmin={userData?.isSuperAdmin || userData?.is_super_admin}
+            />
           </div>
           <button
             type="button"
@@ -423,267 +540,337 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Trusted Status Row */}
-                <div className="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-stone-200">
-                  <div className="flex items-center gap-2">
-                    {userData.isTrusted ? (
-                      <Sparkles className="w-4 h-4 text-amber-800 shrink-0" />
-                    ) : (
-                      <Shield className="w-4 h-4 text-stone-400 shrink-0" />
-                    )}
-                    <span className="text-sm font-bold text-stone-900">
-                      {userData.isTrusted
-                        ? t("admin.userDetail.trustedBadge")
-                        : t("admin.userDetail.standardBadge")}
-                    </span>
-                  </div>
-
-                  {isSuperAdmin ? (
-                    !confirmToggleTrust ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmToggleTrust(true)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer shrink-0 ${
-                          userData.isTrusted
-                            ? "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-300"
-                            : "bg-amber-800 hover:bg-amber-900 text-white border-amber-800 shadow-2xs"
-                        }`}
-                      >
-                        {userData.isTrusted
-                          ? t("admin.userDetail.revokeTrusted")
-                          : t("admin.userDetail.grantTrusted")}
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-2 shrink-0">
+                {/* Compact Account Actions — users only */}
+                {entityType === "user" && (
+                  <div className="bg-white rounded-xl border border-stone-200 p-2">
+                    <div className="flex items-center justify-between gap-1.5">
+                      {" "}
+                      {/* Trusted */}
+                      {isSuperAdmin &&
+                        (!confirmToggleTrust ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmToggleTrust(true)}
+                            title={
+                              userData.isTrusted
+                                ? "Remove trusted"
+                                : "Make trusted"
+                            }
+                            className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border transition cursor-pointer ${
+                              userData.isTrusted
+                                ? "bg-amber-50 border-amber-200 text-amber-800"
+                                : "bg-stone-50 border-stone-200 text-stone-500"
+                            }`}
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span className="text-[9px] font-bold leading-none">
+                              {userData.isTrusted ? "Trusted" : "Trust"}
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="flex-1 flex gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmToggleTrust(false)}
+                              className="flex-1 py-2 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold"
+                            >
+                              ✕
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleToggleTrusted}
+                              disabled={isTogglingTrust}
+                              className="flex-1 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-bold disabled:opacity-50"
+                            >
+                              {isTogglingTrust ? "…" : "✓"}
+                            </button>
+                          </div>
+                        ))}
+                      {/* Active / Deactivate */}
+                      {!confirmToggleActive ? (
                         <button
                           type="button"
-                          onClick={() => setConfirmToggleTrust(false)}
-                          className="px-2 py-1 rounded-lg text-xs font-medium text-stone-600 hover:bg-stone-100 cursor-pointer"
-                        >
-                          {t("common.cancel")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleToggleTrusted}
-                          disabled={isTogglingTrust}
-                          className={`px-3 py-1 rounded-lg text-xs font-bold text-white transition cursor-pointer ${
-                            userData.isTrusted
-                              ? "bg-rose-700 hover:bg-rose-800"
-                              : "bg-amber-800 hover:bg-amber-900"
+                          onClick={() => setConfirmToggleActive(true)}
+                          title={
+                            userData.isActive ? "Deactivate" : "Reactivate"
+                          }
+                          className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border transition cursor-pointer ${
+                            userData.isActive
+                              ? "bg-stone-50 border-stone-200 text-stone-500"
+                              : "bg-emerald-50 border-emerald-200 text-emerald-800"
                           }`}
                         >
-                          {isTogglingTrust ? "..." : t("common.confirm")}
-                        </button>
-                      </div>
-                    )
-                  ) : (
-                    <span className="text-xs text-stone-400 font-medium shrink-0">
-                      {userData.isTrusted
-                        ? t("admin.userDetail.trustedBadge")
-                        : t("admin.userDetail.standardBadge")}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Standing & Limits Summary */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-amber-800" />
-                    <span>{t("admin.userDetail.standingTitle")}</span>
-                  </h4>
-                  {standing?.bypassHardLimits && (
-                    <span className="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      {t("admin.userDetail.bypassedNote")}
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {renderStatCard(
-                    t("admin.userDetail.noShows"),
-                    noShowCount,
-                    undefined,
-                    noShowCount > 0 ? "danger" : "ok",
-                  )}
-                  {renderStatCard(
-                    t("admin.userDetail.activeReservations"),
-                    standing?.activeReservations?.current ?? 0,
-                    standing?.activeReservations?.max ?? 5,
-                  )}
-                  {renderStatCard(
-                    t("admin.userDetail.todayBookings"),
-                    standing?.todayReservations?.current ?? 0,
-                    standing?.todayReservations?.max ?? 5,
-                  )}
-                  {renderStatCard(
-                    t("admin.userDetail.hourlySubmissions"),
-                    standing?.hourlySubmissions?.current ?? 0,
-                    standing?.hourlySubmissions?.max ?? 10,
-                  )}
-                </div>
-              </div>
-
-              {/* Merged Activity & History Timeline */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-amber-800" />
-                    <span>{t("admin.userDetail.timelineTitle")}</span>
-                  </h4>
-                  <span className="text-xs text-stone-400 font-medium">
-                    {timelineItems.length}{" "}
-                    {timelineItems.length === 1 ? "item" : "items"}
-                  </span>
-                </div>
-
-                {timelineItems.length === 0 ? (
-                  <div className="p-6 text-center bg-stone-50/60 rounded-2xl border border-dashed border-stone-200 text-stone-500">
-                    <Calendar className="w-7 h-7 text-stone-300 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-stone-600">
-                      {t("admin.userDetail.emptyTimeline")}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {timelineItems.map((item) => {
-                      if (item.itemType === "reservation") {
-                        const res = item.data;
-                        return (
-                          <div
-                            key={`res-${res.id}`}
-                            onClick={() => onSelectReservation(res.id)}
-                            className="bg-white border border-stone-200 hover:border-amber-400 hover:shadow-xs hover:bg-amber-50/15 rounded-2xl p-3 transition cursor-pointer group text-left"
-                            role="button"
-                            tabIndex={0}
-                            title={
-                              t("admin.userDetail.clickToOpen") ||
-                              "Click to view full reservation details"
-                            }
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="space-y-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-bold text-stone-900 group-hover:text-amber-900 transition text-sm truncate">
-                                    {res.service_name}
-                                  </span>
-                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-stone-100 text-stone-600">
-                                    {res.reservation_type === "outside_church"
-                                      ? t("common.outsideChurch")
-                                      : t("common.inChurch")}
-                                  </span>
-                                  {res.series_id && (
-                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                      Series
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-1.5 text-xs text-stone-600">
-                                  <Music2 className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                                  <span className="truncate">
-                                    {res.instrument_name}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-1.5 text-[11px] text-stone-500 font-mono">
-                                  <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                                  <span>
-                                    {formatDisplayDate(
-                                      getCairoDateString(res.start_time),
-                                    )}
-                                    {res.start_time && (
-                                      <span className="text-stone-400 ml-1">
-                                        ·{" "}
-                                        {formatHhmmTo12Hour(
-                                          getCairoTimeString(res.start_time),
-                                        )}
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                {getStatusBadge(res.status, res.is_no_show)}
-                                <span className="text-[10px] font-semibold text-amber-800 flex items-center gap-0.5 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
-                                  <span>
-                                    {t("admin.userDetail.viewReservation")}
-                                  </span>
-                                  <ChevronRight className="w-3 h-3" />
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      const msg = item.data;
-                      return (
-                        <div
-                          key={`msg-${msg.id}`}
-                          className="bg-amber-50/40 border border-amber-200/70 rounded-2xl p-3 space-y-1.5 text-left"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <MessageSquare className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                              <span className="text-xs font-bold text-amber-900">
-                                {t("admin.userDetail.adminMessage")}
-                              </span>
-                              {msg.sender_name && (
-                                <span className="text-[10px] text-stone-500 font-medium truncate">
-                                  ({msg.sender_name})
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-stone-400 font-mono shrink-0">
-                              {formatDisplayDate(
-                                getCairoDateString(msg.created_at),
-                              )}
-                              {msg.created_at && (
-                                <span className="ml-1">
-                                  ·{" "}
-                                  {formatHhmmTo12Hour(
-                                    getCairoTimeString(msg.created_at),
-                                  )}
-                                </span>
-                              )}
-                            </span>
-                          </div>
-
-                          <div className="text-xs text-stone-700 bg-white/80 p-2.5 rounded-xl border border-amber-100 italic">
-                            "{msg.content}"
-                          </div>
-
-                          {msg.service_name && (
-                            <div className="text-[10px] text-stone-500 flex items-center justify-between pt-0.5">
-                              <span className="truncate">
-                                {t("admin.userDetail.regarding", {
-                                  service: msg.service_name,
-                                })}
-                                {msg.instrument_name &&
-                                  ` (${msg.instrument_name})`}
-                              </span>
-                              {msg.reservation_id && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    onSelectReservation(msg.reservation_id)
-                                  }
-                                  className="text-amber-800 hover:underline font-semibold cursor-pointer flex items-center gap-1 shrink-0"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
+                          {userData.isActive ? (
+                            <UserX className="w-4 h-4" />
+                          ) : (
+                            <UserCheck className="w-4 h-4" />
                           )}
+                          <span className="text-[9px] font-bold leading-none">
+                            {userData.isActive ? "Off" : "On"}
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="flex-1 flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setConfirmToggleActive(false)}
+                            className="flex-1 py-2 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold"
+                          >
+                            ✕
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleToggleActive}
+                            disabled={isTogglingActive}
+                            className={`flex-1 py-2 rounded-lg text-white text-[10px] font-bold disabled:opacity-50 ${
+                              userData.isActive
+                                ? "bg-rose-700"
+                                : "bg-emerald-700"
+                            }`}
+                          >
+                            {isTogglingActive ? "…" : "✓"}
+                          </button>
                         </div>
-                      );
-                    })}
+                      )}
+                      {/* Promote */}
+                      {isSuperAdmin && onPromoteUser && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onPromoteUser(userData.id, userData.name)
+                          }
+                          title="Promote to Admin"
+                          className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border bg-stone-50 border-stone-200 text-amber-800 transition cursor-pointer"
+                        >
+                          <ArrowUpCircle className="w-4 h-4" />
+                          <span className="text-[9px] font-bold leading-none">
+                            Promote
+                          </span>
+                        </button>
+                      )}
+                      {/* Delete */}
+                      {isSuperAdmin && onDeleteUser && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onDeleteUser(userData.id, userData.name)
+                          }
+                          title="Delete permanently"
+                          className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border bg-stone-50 border-stone-200 text-rose-600 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="text-[9px] font-bold leading-none">
+                            Delete
+                          </span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
+
+              {/* Standing & Limits Summary — users only */}
+              {entityType === "user" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-amber-800" />
+                      <span>{t("admin.userDetail.standingTitle")}</span>
+                    </h4>
+                    {standing?.bypassHardLimits && (
+                      <span className="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        {t("admin.userDetail.bypassedNote")}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {renderStatCard(
+                      t("admin.userDetail.noShows"),
+                      noShowCount,
+                      undefined,
+                      noShowCount > 0 ? "danger" : "ok",
+                    )}
+                    {renderStatCard(
+                      t("admin.userDetail.activeReservations"),
+                      standing?.activeReservations?.current ?? 0,
+                      standing?.activeReservations?.max ?? 5,
+                    )}
+                    {renderStatCard(
+                      t("admin.userDetail.todayBookings"),
+                      standing?.todayReservations?.current ?? 0,
+                      standing?.todayReservations?.max ?? 5,
+                    )}
+                    {renderStatCard(
+                      t("admin.userDetail.hourlySubmissions"),
+                      standing?.hourlySubmissions?.current ?? 0,
+                      standing?.hourlySubmissions?.max ?? 10,
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Merged Activity & History Timeline — users only */}
+              {entityType === "user" && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-800" />
+                      <span>{t("admin.userDetail.timelineTitle")}</span>
+                    </h4>
+                    <span className="text-xs text-stone-400 font-medium">
+                      {timelineItems.length}{" "}
+                      {timelineItems.length === 1 ? "item" : "items"}
+                    </span>
+                  </div>
+
+                  {timelineItems.length === 0 ? (
+                    <div className="p-6 text-center bg-stone-50/60 rounded-2xl border border-dashed border-stone-200 text-stone-500">
+                      <Calendar className="w-7 h-7 text-stone-300 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-stone-600">
+                        {t("admin.userDetail.emptyTimeline")}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {timelineItems.map((item) => {
+                        if (item.itemType === "reservation") {
+                          const res = item.data;
+                          return (
+                            <div
+                              key={`res-${res.id}`}
+                              onClick={() => onSelectReservation(res.id)}
+                              className="bg-white border border-stone-200 hover:border-amber-400 hover:shadow-xs hover:bg-amber-50/15 rounded-2xl p-3 transition cursor-pointer group text-left"
+                              role="button"
+                              tabIndex={0}
+                              title={
+                                t("admin.userDetail.clickToOpen") ||
+                                "Click to view full reservation details"
+                              }
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-stone-900 group-hover:text-amber-900 transition text-sm truncate">
+                                      {res.service_name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-stone-100 text-stone-600">
+                                      {res.reservation_type === "outside_church"
+                                        ? t("common.outsideChurch")
+                                        : t("common.inChurch")}
+                                    </span>
+                                    {res.series_id && (
+                                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                        Series
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 text-xs text-stone-600">
+                                    <Music2 className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                    <span className="truncate">
+                                      {res.instrument_name}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 text-[11px] text-stone-500 font-mono">
+                                    <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                    <span>
+                                      {formatDisplayDate(
+                                        getCairoDateString(res.start_time),
+                                      )}
+                                      {res.start_time && (
+                                        <span className="text-stone-400 ml-1">
+                                          ·{" "}
+                                          {formatHhmmTo12Hour(
+                                            getCairoTimeString(res.start_time),
+                                          )}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                  {getStatusBadge(res.status, res.is_no_show)}
+                                  <span className="text-[10px] font-semibold text-amber-800 flex items-center gap-0.5 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
+                                    <span>
+                                      {t("admin.userDetail.viewReservation")}
+                                    </span>
+                                    <ChevronRight className="w-3 h-3" />
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        const msg = item.data;
+                        return (
+                          <div
+                            key={`msg-${msg.id}`}
+                            className="bg-amber-50/40 border border-amber-200/70 rounded-2xl p-3 space-y-1.5 text-left"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <MessageSquare className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                                <span className="text-xs font-bold text-amber-900">
+                                  {t("admin.userDetail.adminMessage")}
+                                </span>
+                                {msg.sender_name && (
+                                  <span className="text-[10px] text-stone-500 font-medium truncate">
+                                    ({msg.sender_name})
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-stone-400 font-mono shrink-0">
+                                {formatDisplayDate(
+                                  getCairoDateString(msg.created_at),
+                                )}
+                                {msg.created_at && (
+                                  <span className="ml-1">
+                                    ·{" "}
+                                    {formatHhmmTo12Hour(
+                                      getCairoTimeString(msg.created_at),
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-stone-700 bg-white/80 p-2.5 rounded-xl border border-amber-100 italic">
+                              "{msg.content}"
+                            </div>
+
+                            {msg.service_name && (
+                              <div className="text-[10px] text-stone-500 flex items-center justify-between pt-0.5">
+                                <span className="truncate">
+                                  {t("admin.userDetail.regarding", {
+                                    service: msg.service_name,
+                                  })}
+                                  {msg.instrument_name &&
+                                    ` (${msg.instrument_name})`}
+                                </span>
+                                {msg.reservation_id && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onSelectReservation(msg.reservation_id)
+                                    }
+                                    className="text-amber-800 hover:underline font-semibold cursor-pointer flex items-center gap-1 shrink-0"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

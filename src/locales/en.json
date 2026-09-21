@@ -883,6 +883,10 @@
       "footerNote": "Retire = temporarily hide (reversible) · Delete = permanent, for mistaken entries only"
     },
     "users": {
+      "deactivateAccount": "Deactivate Account",
+      "reactivateAccount": "Reactivate Account",
+      "promoteToAdmin": "Promote to Admin",
+      "deletePermanently": "Delete Permanently",
       "title": "Member Directory",
       "subtitle": "Search members, toggle account status, grant Trusted status, or book on their behalf.",
       "searchPlaceholder": "Search name, email, phone...",
@@ -898,7 +902,7 @@
       "rejected": "Rejected",
       "active": "Active",
       "deactivated": "Deactivated",
-      "trustedMember": "Trusted Member",
+      "trustedMember": "Trusted",
       "standard": "Standard",
       "approve": "Approve",
       "approveTooltip": "Approve registration",
@@ -995,6 +999,7 @@
       "saving": "Saving..."
     },
     "userDetail": {
+      "managementActions": "Management Actions",
       "title": "Member Profile",
       "memberSince": "Member since {{date}}",
       "status": "Account Status",

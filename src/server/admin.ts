@@ -1535,6 +1535,8 @@ router.get(
           isActive: Boolean(userRow.is_active),
           approvalStatus: userRow.approval_status,
           createdAt: userRow.created_at,
+          role: userRow.role || "user",
+          isSuperAdmin: Boolean(userRow.is_super_admin),
         },
         standing: {
           noShowCount: userRow.no_show_count || 0,

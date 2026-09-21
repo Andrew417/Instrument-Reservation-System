@@ -434,7 +434,6 @@ const UserPortalMain: React.FC = () => {
             onInstrumentsChanged={() => {
               setRefreshTrigger((prev) => prev + 1);
             }}
-            onOpenUserProfile={handleOpenUserProfile}
           />
         )}
       </main>
