@@ -734,7 +734,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       {/* 3. Resource Timeline Grid */}
       <div
         id="resource-timeline-wrapper"
-        className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden"
+        className="bg-white rounded-2xl border border-stone-200 shadow-xs"
       >
         {loading && instruments.length === 0 ? (
           <div className="p-16 flex flex-col items-center justify-center gap-3">
@@ -763,7 +763,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <p className="mt-1">{t("calendar.noInstrumentsMatchFilter")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto overscroll-contain scrollbar-thin">
+          <div className="overflow-x-auto scrollbar-thin">
+            {" "}
             <table
               className={`w-full border-collapse min-w-[760px] ${isAr ? "text-right" : "text-left"}`}
             >

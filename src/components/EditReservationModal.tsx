@@ -59,7 +59,7 @@ const TIME_SLOTS = [
   "21:30",
 ];
 
-/** Native select wrapper: adds a custom chevron and a consistent 16px font
+/** Native select wrapper: adds a custom chevron and keeps the text at 16px
  * (native <select> text below 16px triggers iOS Safari's zoom-on-focus). */
 const SelectField: React.FC<SelectHTMLAttributes<HTMLSelectElement>> = ({
   className = "",
@@ -270,7 +270,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               <Music2 className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
+              <h2 className="text-xs sm:text-sm font-bold text-white leading-tight truncate">
                 {t("editReservation.headerTitle")}
               </h2>
               <p className="text-[11px] text-stone-400 truncate">
@@ -492,10 +492,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-bold text-sm text-stone-900 leading-snug">
+                  <span className="font-bold text-xs text-stone-900 leading-snug">
                     {t("editReservation.inChurchUseLabel")}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
                     {t("editReservation.freeBadge")}
                   </span>
                 </div>
@@ -516,10 +516,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-bold text-sm text-stone-900 leading-snug">
+                  <span className="font-bold text-xs text-stone-900 leading-snug">
                     {t("editReservation.outsideChurchLabel")}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 shrink-0 whitespace-nowrap">
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-100 text-purple-800 shrink-0 whitespace-nowrap">
                     {t("editReservation.egpPerDayBadge", { fee: feeNumber })}
                   </span>
                 </div>
@@ -538,7 +538,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                     onChange={(e) => setFeeAcknowledged(e.target.checked)}
                     className="mt-0.5 w-5 h-5 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
                   />
-                  <span className="text-sm font-semibold text-purple-950 leading-snug">
+                  <span className="text-xs font-semibold text-purple-950 leading-snug">
                     {t("editReservation.feeAcknowledgeLabel", {
                       fee: feeNumber,
                     })}
@@ -562,7 +562,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-h-[48px] px-4 py-3 bg-white hover:bg-stone-100 active:bg-stone-200 border border-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer shrink-0 disabled:opacity-50 touch-manipulation"
+            className="min-h-[48px] px-4 py-3 bg-white hover:bg-stone-100 active:bg-stone-200 border border-stone-300 text-stone-700 text-xs font-bold rounded-2xl transition cursor-pointer shrink-0 disabled:opacity-50 touch-manipulation"
           >
             {t("editReservation.cancelButton")}
           </button>
@@ -571,7 +571,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             type="submit"
             form="edit-reservation-form"
             disabled={submitDisabled}
-            className={`flex-1 min-h-[48px] px-6 py-3 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+            className={`flex-1 min-h-[48px] px-6 py-3 rounded-2xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
               submitDisabled
                 ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                 : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
