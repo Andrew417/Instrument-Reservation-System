@@ -59,6 +59,7 @@ function formatMessageTime(dateInput: any): string {
   });
   return `${formatDisplayDate(iso)} • ${formatHhmmTo12Hour(time)}`;
 }
+
 export interface ReservationDetailModalProps {
   reservationId: string;
   allInstruments: Instrument[];
@@ -133,7 +134,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const [rejectReason, setRejectReason] = useState<string>("");
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [isRejecting, setIsRejecting] = useState<boolean>(false);
-  const [isTransformingFullDay, setIsTransformingFullDay] = useState<boolean>(false);
+  const [isTransformingFullDay, setIsTransformingFullDay] =
+    useState<boolean>(false);
   const [fullDayConfirmOpen, setFullDayConfirmOpen] = useState<boolean>(false);
 
   // Instapay copy feedback
@@ -463,17 +465,25 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       );
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || t("reservationDetail.transformToFullDayError") || "Failed to transform reservation to full day.");
+        throw new Error(
+          data.error ||
+            t("reservationDetail.transformToFullDayError") ||
+            "Failed to transform reservation to full day.",
+        );
       }
       setIsTransformingFullDay(false);
       setFullDayConfirmOpen(false);
       setActionNotice({
-        message: t("reservationDetail.transformToFullDaySuccess") || "Reservation successfully transformed to Full Day!",
+        message:
+          t("reservationDetail.transformToFullDaySuccess") ||
+          "Reservation successfully transformed to Full Day!",
         type: "success",
       });
       await loadReservationData();
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to transform reservation to full day.");
+      setErrorMsg(
+        err.message || "Failed to transform reservation to full day.",
+      );
       setIsTransformingFullDay(false);
     }
   };
@@ -687,11 +697,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     }
   };
 
+  // ---------- Loading & Not-Found Views (full-screen on mobile) ----------
   if (loading) {
     return (
       <div
         id="reservation-detail-modal-backdrop"
-        className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4`}
+        className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]`}
       >
         <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-2xl border border-stone-200">
           <div className="w-10 h-10 border-3 border-amber-800 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -707,7 +718,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     return (
       <div
         id="reservation-detail-modal-backdrop"
-        className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4`}
+        className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]`}
       >
         <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-stone-200">
           <div className="flex items-center gap-3 text-red-700">
@@ -724,7 +735,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <button
                 id="reservation-detail-notfound-back-btn"
                 onClick={onBack}
-                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition"
+                className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer transition touch-manipulation"
               >
                 <ArrowIcon className="w-4 h-4" />
                 <span>
@@ -735,7 +746,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             ) : null}
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold cursor-pointer transition"
+              className="flex-1 py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-sm font-bold cursor-pointer transition touch-manipulation"
             >
               {t("reservationDetail.close")}
             </button>
@@ -779,7 +790,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     reservation.is_full_day ||
     reservation.isFullDay ||
     (reservation.start_hhmm === "09:00" && reservation.end_hhmm === "22:00") ||
-    Number(durationHours) >= 13
+    Number(durationHours) >= 13,
   );
   const hoursSinceEnd =
     (new Date().getTime() - endUtc.getTime()) / (3600 * 1000);
@@ -795,15 +806,16 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const isAdminBooked = Boolean(
     reservation.booked_by_admin || reservation.bookedByAdmin,
   );
+
   return (
     <div
       id="reservation-detail-modal-backdrop"
-      className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto`}
+      className={`fixed inset-0 ${zIndexClass} bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4`}
       dir={isRTL ? "rtl" : "ltr"}
     >
       <div
         id="reservation-detail-modal"
-        className="bg-white rounded-2xl sm:rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 h-[92vh] max-h-[92vh] flex flex-col"
+        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       >
         {/* Header */}
         <div className="bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
@@ -813,7 +825,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 type="button"
                 id="reservation-detail-back-btn"
                 onClick={onBack}
-                className="w-8 h-8 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer shrink-0"
+                className="w-11 h-11 -ml-2 rounded-full text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
                 title={
                   backButtonTitle || t("reservationDetail.backToNotifications")
                 }
@@ -821,7 +833,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   backButtonTitle || t("reservationDetail.backToNotifications")
                 }
               >
-                <ArrowIcon className="w-4 h-4" />
+                <ArrowIcon className="w-5 h-5" />
               </button>
             )}
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
@@ -840,21 +852,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer shrink-0 ml-2"
+            className="w-11 h-11 -mr-2 rounded-full text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 ml-2 touch-manipulation"
             aria-label={t("reservationDetail.close")}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-stone-900 border-b border-stone-800 px-3 sm:px-6 pt-1 flex items-center justify-between shrink-0 select-none">
-          <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="bg-stone-900 border-b border-stone-800 px-2 sm:px-6 flex items-center justify-between shrink-0 select-none">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
               id="tab-btn-details"
               onClick={() => setActiveTab("details")}
-              className={`px-3.5 sm:px-5 py-2 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 sm:gap-2 border-b-2 ${
+              className={`px-3.5 sm:px-5 py-2.5 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 sm:gap-2 border-b-2 touch-manipulation ${
                 activeTab === "details"
                   ? "bg-white text-stone-900 border-amber-700 shadow-xs"
                   : "text-stone-400 hover:text-stone-200 border-transparent hover:bg-stone-800/60"
@@ -876,7 +888,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   chatInputRef.current?.focus();
                 }, 80);
               }}
-              className={`px-3.5 sm:px-5 py-2 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 sm:gap-2 border-b-2 ${
+              className={`px-3.5 sm:px-5 py-2.5 text-xs font-bold rounded-t-xl transition cursor-pointer flex items-center gap-1.5 sm:gap-2 border-b-2 touch-manipulation ${
                 activeTab === "chat"
                   ? "bg-white text-stone-900 border-amber-700 shadow-xs"
                   : "text-stone-400 hover:text-stone-200 border-transparent hover:bg-stone-800/60"
@@ -898,7 +910,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2 pb-1">
+          <div className="hidden sm:flex items-center gap-2 pb-1">
             {reservation.rejection_reason && activeTab === "details" && (
               <button
                 type="button"
@@ -915,15 +927,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 title={t("reservationDetail.viewRejectionAndReply")}
               >
                 <AlertCircle className="w-3 h-3 text-red-400" />
-                <span className="hidden xs:inline">
-                  {t("reservationDetail.rejected")} •
-                </span>
                 <span>{t("reservationDetail.reply")}</span>
               </button>
             )}
 
             <span
-              className={`hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+              className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${
                 isApproved
                   ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800"
                   : isPending
@@ -949,7 +958,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 (t("reservationDetail.expired") || "Expired")}
             </span>
             {isNoShow && (
-              <span className="hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-950/80 text-rose-300 border border-rose-800">
+              <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-950/80 text-rose-300 border border-rose-800 whitespace-nowrap">
                 {t("common.noShow")}
               </span>
             )}
@@ -958,28 +967,28 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
         {/* Scrollable Content */}
         {activeTab === "details" ? (
-          <div className="p-4 sm:p-6 overflow-y-auto space-y-5 flex-1">
+          <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-4 sm:space-y-5 flex-1 min-h-0">
             {actionNotice && (
               <div
                 id="admin-action-notice"
-                className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center justify-between animate-in fade-in ${
+                className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-center justify-between gap-2 animate-in fade-in ${
                   actionNotice.type === "success"
                     ? "bg-emerald-50 border-emerald-200 text-emerald-900"
                     : "bg-red-50 border-red-200 text-red-900"
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   {actionNotice.type === "success" ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   ) : (
                     <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                   )}
-                  <span>{actionNotice.message}</span>
+                  <span className="truncate">{actionNotice.message}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActionNotice(null)}
-                  className="text-stone-400 hover:text-stone-600 p-1 cursor-pointer transition"
+                  className="text-stone-400 hover:text-stone-600 p-1 cursor-pointer transition shrink-0 touch-manipulation"
                   aria-label={t("reservationDetail.dismiss")}
                 >
                   <X className="w-3.5 h-3.5" />
@@ -990,11 +999,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {errorMsg && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-900 flex items-start gap-3 animate-in fade-in">
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
+                <div className="text-xs space-y-1 min-w-0">
                   <div className="font-bold text-red-950">
                     {t("reservationDetail.notice")}
                   </div>
-                  <div className="text-red-800">{errorMsg}</div>
+                  <div className="text-red-800 break-words">{errorMsg}</div>
                 </div>
               </div>
             )}
@@ -1003,18 +1012,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {isAdminViewer && isPending && isRejectOpen && (
               <div
                 id="admin-inline-reject-panel"
-                className="bg-red-50/70 border-2 border-red-300 rounded-3xl p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150"
+                className="bg-red-50/70 border-2 border-red-300 rounded-2xl p-4 sm:p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-150"
               >
                 <div className="flex items-start justify-between gap-2 border-b border-red-200/80 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center font-bold shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
                       <XCircle className="w-4 h-4" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-sm font-bold text-red-950">
                         {t("reservationDetail.rejectRequest")}
                       </h3>
-                      <p className="text-xs text-red-700">
+                      <p className="text-[11px] text-red-700 truncate">
                         {t("reservationDetail.rejectSubtitle")}
                       </p>
                     </div>
@@ -1026,7 +1035,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       setIsRejectOpen(false);
                       setRejectError(null);
                     }}
-                    className="text-stone-400 hover:text-stone-600 p-1 rounded-lg hover:bg-stone-200/50 transition cursor-pointer"
+                    className="shrink-0 w-9 h-9 flex items-center justify-center text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-200/50 transition cursor-pointer touch-manipulation"
                     aria-label={t("reservationDetail.cancelReject")}
                   >
                     <X className="w-4 h-4" />
@@ -1039,26 +1048,26 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     {t("reservationDetail.requestSummary")}
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-stone-500 text-[11px] block">
                         {t("reservationDetail.member")}
                       </span>
-                      <span className="font-bold text-stone-900">
+                      <span className="font-bold text-stone-900 truncate block">
                         {reservation.user_name ||
                           reservation.admin_name ||
                           t("reservationDetail.churchMember")}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-stone-500 text-[11px] block">
                         {t("reservationDetail.instrument")}
                       </span>
-                      <span className="font-bold text-stone-900">
+                      <span className="font-bold text-stone-900 truncate block">
                         {reservation.instrument_name ||
                           t("reservationDetail.instrument")}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-stone-500 text-[11px] block">
                         {t("reservationDetail.slotTime")}
                       </span>
@@ -1069,15 +1078,15 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   </div>
 
                   {reservation.series_id && (
-                    <div className="pt-2 border-t border-stone-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="pt-2 border-t border-stone-100 flex flex-col gap-2 text-xs">
                       <span className="text-stone-600 font-medium">
                         {t("reservationDetail.rejectionScope")}:
                       </span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => setRejectMode("single")}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          className={`min-h-[44px] px-3 rounded-xl text-xs font-bold transition cursor-pointer touch-manipulation ${
                             rejectMode === "single"
                               ? "bg-red-700 text-white shadow-2xs"
                               : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -1088,7 +1097,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setRejectMode("series")}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          className={`min-h-[44px] px-3 rounded-xl text-xs font-bold transition cursor-pointer touch-manipulation ${
                             rejectMode === "series"
                               ? "bg-red-700 text-white shadow-2xs"
                               : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -1118,7 +1127,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           setRejectReason(preset);
                           setRejectError(null);
                         }}
-                        className={`text-xs px-2.5 py-1 rounded-xl transition cursor-pointer border text-left ${
+                        className={`text-xs px-2.5 py-1.5 rounded-xl transition cursor-pointer border text-left active:scale-[0.97] touch-manipulation ${
                           rejectReason === preset
                             ? "bg-red-700 text-white border-red-700 font-bold shadow-2xs"
                             : "bg-white hover:bg-red-100/60 text-stone-700 border-red-200 hover:border-red-300 font-medium"
@@ -1145,7 +1154,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     }}
                     placeholder={t("reservationDetail.rejectPlaceholder")}
                     rows={3}
-                    className={`w-full text-xs p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-white text-stone-900 resize-none ${
+                    className={`w-full text-sm p-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-white text-stone-900 resize-none ${
                       rejectError
                         ? "border-red-500 bg-red-50/30"
                         : "border-stone-300 focus:border-red-600"
@@ -1161,7 +1170,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
 
                 {/* Confirm / Cancel Controls */}
-                <div className="flex items-center justify-end gap-2 pt-1">
+                <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -1169,7 +1178,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       setRejectError(null);
                     }}
                     disabled={isRejecting}
-                    className="px-3.5 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="flex-1 min-h-[48px] px-3.5 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-xl text-sm font-bold transition cursor-pointer touch-manipulation"
                   >
                     {t("reservationDetail.cancel")}
                   </button>
@@ -1179,18 +1188,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     type="button"
                     onClick={handleAdminReject}
                     disabled={isRejecting}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                    className="flex-1 min-h-[48px] px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 touch-manipulation"
                   >
                     {isRejecting ? (
                       <>
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         <span>
                           {t("reservationDetail.processingRejection")}
                         </span>
                       </>
                     ) : (
                       <>
-                        <XCircle className="w-3.5 h-3.5" />
+                        <XCircle className="w-4 h-4" />
                         <span>
                           {t("reservationDetail.confirmReject")}
                           {rejectMode === "series"
@@ -1208,9 +1217,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {isAdminViewer || reservation.user_name ? (
               <div
                 id="reservation-summary-card"
-                className="p-4.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-3.5"
+                className="p-4 sm:p-4.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-3.5"
               >
-                <div className="flex items-center justify-between gap-2 flex-nowrap">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <span className="text-[11px] text-stone-500 font-semibold uppercase tracking-wider block">
                       {t("reservationDetail.reservationPurpose")}
@@ -1221,7 +1230,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         t("reservationDetail.churchService")}
                     </span>
                     {isAdminBooked && (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 font-semibold mt-0.5 min-w-0 max-w-full">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 font-semibold mt-0.5 max-w-full">
                         <Shield className="w-3 h-3 shrink-0" />
                         <span className="truncate">
                           {t("common.adminBooked")}
@@ -1247,17 +1256,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       <>
                         <Clock className="w-3.5 h-3.5 text-amber-700" />
                         {t("reservationDetail.pendingReview")}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowPolicyExplainer(true);
-                          }}
-                          className="ml-0.5 text-amber-700 hover:text-amber-900 transition cursor-pointer"
-                          title={t("reservationDetail.learnMore")}
-                        >
-                          <Info className="w-3 h-3" />
-                        </button>
                       </>
                     ) : reservation.status === "completed" ? (
                       <>
@@ -1275,15 +1273,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           t("reservationDetail.completed")}
                         {reservation.status === "expired" &&
                           (t("reservationDetail.expired") || "Expired")}
-                        {isNoShow && (
-                          <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                            {t("common.noShow")}
-                          </span>
-                        )}
                       </>
                     )}
                   </span>
                 </div>
+
+                {isPending && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPolicyExplainer(true)}
+                    className="inline-flex items-center gap-1.5 text-[11px] text-amber-800 hover:text-amber-900 font-semibold cursor-pointer touch-manipulation"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                    {t("reservationDetail.learnMore")}
+                  </button>
+                )}
 
                 <div className="border-t border-stone-200 pt-3 space-y-2.5">
                   <div className="flex items-center justify-between gap-2 flex-nowrap text-xs font-bold text-stone-800">
@@ -1305,8 +1309,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-                    <div>
+                  <div className="flex flex-wrap items-start justify-between gap-3 text-xs">
+                    <div className="min-w-0">
                       {reservation.user_id && onOpenUserProfile ? (
                         <button
                           type="button"
@@ -1314,36 +1318,45 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             e.stopPropagation();
                             onOpenUserProfile(reservation.user_id);
                           }}
-                          className="font-bold text-stone-900 text-sm hover:text-amber-800 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
+                          className="font-bold text-stone-900 text-sm hover:text-amber-800 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group touch-manipulation"
                           title={
                             t("admin.userDetail.viewProfile") ||
                             "View Member Profile"
                           }
                         >
-                          <span>
+                          <span className="truncate">
                             {reservation.user_name ||
                               t("reservationDetail.churchMember")}
                           </span>
-                          <ExternalLink className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-800 transition" />
+                          <ExternalLink className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
                         </button>
                       ) : (
-                        <div className="font-bold text-stone-900 text-sm">
+                        <div className="font-bold text-stone-900 text-sm truncate">
                           {reservation.user_name ||
                             reservation.admin_name ||
                             t("reservationDetail.churchMember")}
                         </div>
                       )}
                       {(reservation.user_phone || reservation.admin_phone) && (
-                        <div className="flex items-center gap-1.5 text-stone-600 text-xs mt-0.5 font-mono">
-                          <Phone className="w-3 h-3 text-stone-400" />
+                        <a
+                          href={`https://wa.me/${String(
+                            reservation.user_phone || reservation.admin_phone,
+                          )
+                            .replace(/[^\d]/g, "")
+                            .replace(/^0/, "20")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 text-xs mt-1 font-mono touch-manipulation"
+                        >
+                          <Phone className="w-3.5 h-3.5 shrink-0" />
                           <span>
                             {reservation.user_phone || reservation.admin_phone}
                           </span>
-                        </div>
+                        </a>
                       )}
                     </div>
 
-                    <div className="text-right text-[11px] text-stone-500">
+                    <div className="text-right text-[11px] text-stone-500 shrink-0">
                       <div>{t("reservationDetail.requestSubmitted")}</div>
                       <div className="font-mono text-stone-700">
                         {new Date(
@@ -1360,7 +1373,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
             ) : null}
 
-            {/* Requester Note (if provided) */}
+            {/* Requester Note */}
             {reservation.note && (
               <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-4 flex items-start gap-3">
                 <FileText className="w-5 h-5 text-stone-500 shrink-0 mt-0.5" />
@@ -1375,35 +1388,33 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
             )}
 
-            {/* Rejection Reason notice if rejected */}
+            {/* Rejection Reason notice */}
             {reservation.rejection_reason && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1.5 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-red-950">
-                      {t("reservationDetail.adminRejectionReason")}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTab("chat");
-                        setTimeout(() => {
-                          chatInputRef.current?.focus();
-                          messagesEndRef.current?.scrollIntoView({
-                            behavior: "smooth",
-                          });
-                        }, 80);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-100 hover:bg-red-200 text-red-900 font-bold text-xs transition cursor-pointer"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      {t("reservationDetail.replyToAdmin")}
-                    </button>
-                  </div>
-                  <div className="text-red-800 leading-relaxed font-medium">
+                <div className="text-xs space-y-2 flex-1 min-w-0">
+                  <span className="font-bold text-red-950 block">
+                    {t("reservationDetail.adminRejectionReason")}
+                  </span>
+                  <div className="text-red-800 leading-relaxed font-medium break-words">
                     {reservation.rejection_reason}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("chat");
+                      setTimeout(() => {
+                        chatInputRef.current?.focus();
+                        messagesEndRef.current?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                      }, 80);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-900 font-bold text-xs transition cursor-pointer touch-manipulation"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    {t("reservationDetail.replyToAdmin")}
+                  </button>
                 </div>
               </div>
             )}
@@ -1413,11 +1424,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               reservation.cancellation_reason && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
                   <XCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                  <div className="text-xs space-y-1">
+                  <div className="text-xs space-y-1 min-w-0">
                     <div className="font-bold text-amber-950">
                       {t("reservationDetail.cancellationReason")}
                     </div>
-                    <div className="text-amber-900 leading-relaxed">
+                    <div className="text-amber-900 leading-relaxed break-words">
                       {reservation.cancellation_reason}
                     </div>
                   </div>
@@ -1428,7 +1439,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {isNoShow && (
               <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-rose-700 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
+                <div className="text-xs space-y-1 min-w-0">
                   <div className="font-bold text-rose-950">
                     {t("common.noShow")}
                   </div>
@@ -1461,7 +1472,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {isExpired && (
               <div className="bg-stone-100 border border-stone-300 rounded-2xl p-4 flex items-start gap-3">
                 <Clock className="w-5 h-5 text-stone-600 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-1">
+                <div className="text-xs space-y-1 min-w-0">
                   <div className="font-bold text-stone-900">
                     {t("common.expired")}
                   </div>
@@ -1500,18 +1511,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       <Music2 className="w-6 h-6 text-amber-800" />
                     )}
                   </div>
-                  <div className="space-y-1 text-xs flex-1">
-                    <div className="font-bold text-stone-900 text-sm">
+                  <div className="space-y-1 text-xs flex-1 min-w-0">
+                    <div className="font-bold text-stone-900 text-sm truncate">
                       {reservation.instrument_name ||
                         t("reservationDetail.instrument")}
                     </div>
-                    <div className="text-stone-500">
+                    <div className="text-stone-500 truncate">
                       <span className="font-semibold text-stone-700">
                         {t("reservationDetail.type")}
                       </span>{" "}
                       {reservation.instrument_type || "General"}
                     </div>
-                    <div className="text-stone-500">
+                    <div className="text-stone-500 truncate">
                       <span className="font-semibold text-stone-700">
                         {t("reservationDetail.bookingMode")}
                       </span>{" "}
@@ -1520,7 +1531,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       </span>
                     </div>
                     {reservation.instrument_description && (
-                      <div className="text-stone-500 text-[11px] pt-1 italic">
+                      <div className="text-stone-500 text-[11px] pt-1 italic line-clamp-2">
                         {reservation.instrument_description}
                       </div>
                     )}
@@ -1542,12 +1553,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     <span>{timeStr}</span>
                     <span className="text-stone-400">•</span>
                     {isFullDay ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px]">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] whitespace-nowrap">
                         <Sun className="w-3 h-3 text-amber-700 shrink-0" />
                         <span>{t("common.fullDay")} (13h)</span>
                       </span>
                     ) : (
-                      <span className="text-stone-500 text-[11px] font-normal">
+                      <span className="text-stone-500 text-[11px] font-normal whitespace-nowrap">
                         {durationHours} {t("reservationDetail.hour")}
                         {Number(durationHours) > 1 ? "s" : ""}
                       </span>
@@ -1556,7 +1567,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
               </div>
             </div>
-            {/* 3. Unified Payment Block (members see pay button, admins see fee only) */}
+
+            {/* 3. Unified Payment Block */}
             <div
               className={`rounded-2xl border p-4 space-y-3 ${
                 isOutsideChurch
@@ -1564,7 +1576,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   : "bg-stone-50 border-stone-200"
               }`}
             >
-              {/* Header row: icon + label + tag */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div
@@ -1582,7 +1593,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
 
                 <span
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 whitespace-nowrap ${
                     isOutsideChurch
                       ? "bg-purple-100 text-purple-900 border border-purple-200"
                       : "bg-emerald-100 text-emerald-900 border border-emerald-200"
@@ -1594,7 +1605,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </span>
               </div>
 
-              {/* In-church → simple green note (visible to everyone) */}
               {!isOutsideChurch ? (
                 <div className="flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -1604,7 +1614,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
               ) : (
                 <>
-                  {/* Fee row — visible to everyone (admins need this for verification) */}
                   <div className="flex items-center justify-between gap-3 bg-white border border-purple-200 rounded-xl px-3 py-2.5">
                     <div className="min-w-0">
                       <div className="text-[11px] font-semibold text-purple-800 leading-tight">
@@ -1622,7 +1631,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Instapay CTA — members only */}
                   {!isAdminViewer &&
                     (isApprovedOutsideChurch &&
                     paymentSettings?.instapayLink ? (
@@ -1630,10 +1638,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         href={paymentSettings.instapayLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-between gap-2 w-full px-4 py-2.5 bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
+                        className="flex items-center justify-between gap-2 w-full min-h-[48px] px-4 py-3 bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-sm font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation"
                       >
                         <span>{t("reservationDetail.openInstapay")}</span>
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        <ExternalLink className="w-4 h-4 shrink-0" />
                       </a>
                     ) : (
                       <div className="flex items-center gap-2 text-[11px] text-purple-800 bg-purple-100/70 border border-purple-200 rounded-xl px-3 py-2">
@@ -1644,7 +1652,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       </div>
                     ))}
 
-                  {/* Admin-only hint */}
                   {isAdminViewer && (
                     <div className="flex items-center gap-2 text-[11px] text-stone-600 bg-stone-100 border border-stone-200 rounded-xl px-3 py-2">
                       <Info className="w-3.5 h-3.5 shrink-0 text-stone-500" />
@@ -1656,15 +1663,16 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </>
               )}
             </div>
-            {/* 5. Conversation & Administration Chat Preview */}
+
+            {/* 5. Conversation Preview */}
             <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-amber-800" />
-                  <span className="text-xs font-bold text-stone-900">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MessageSquare className="w-4 h-4 text-amber-800 shrink-0" />
+                  <span className="text-xs font-bold text-stone-900 truncate">
                     {t("reservationDetail.conversationNotes")}
                   </span>
-                  <span className="text-[11px] bg-stone-200 text-stone-700 font-semibold px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] bg-stone-200 text-stone-700 font-semibold px-2 py-0.5 rounded-full shrink-0">
                     {adminMessages.length}
                   </span>
                 </div>
@@ -1680,9 +1688,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       chatInputRef.current?.focus();
                     }, 80);
                   }}
-                  className="text-xs font-bold text-amber-900 hover:text-amber-950 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-amber-900 hover:text-amber-950 flex items-center gap-1 cursor-pointer shrink-0 touch-manipulation"
                 >
-                  <span>{t("reservationDetail.openFullChat")}</span>
+                  <span className="hidden sm:inline">
+                    {t("reservationDetail.openFullChat")}
+                  </span>
                   <ArrowIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -1698,41 +1708,40 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       setActiveTab("chat");
                       setTimeout(() => chatInputRef.current?.focus(), 80);
                     }}
-                    className="px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
+                    className="min-h-[44px] px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer transition touch-manipulation"
                   >
-                    <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
+                    <MessageSquare className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                     <span>{t("reservationDetail.sendMessage")}</span>
                   </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {/* Most recent message snippet */}
                   {(() => {
                     const lastMsg = adminMessages[adminMessages.length - 1];
                     const isUser = lastMsg.sender_role === "user";
                     return (
                       <div className="bg-white p-3 rounded-xl border border-stone-200 text-xs space-y-1">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-bold flex items-center gap-1.5">
+                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="font-bold flex items-center gap-1.5 min-w-0">
                             {isUser ? (
                               <>
-                                <User className="w-3 h-3 text-stone-500" />
-                                <span className="text-stone-800">
+                                <User className="w-3 h-3 text-stone-500 shrink-0" />
+                                <span className="text-stone-800 truncate">
                                   {lastMsg.sender_name ||
                                     t("reservationDetail.member")}
                                 </span>
                               </>
                             ) : (
                               <>
-                                <Shield className="w-3 h-3 text-amber-800" />
-                                <span className="text-amber-900">
+                                <Shield className="w-3 h-3 text-amber-800 shrink-0" />
+                                <span className="text-amber-900 truncate">
                                   {lastMsg.sender_name ||
                                     t("reservationDetail.churchAdministration")}
                                 </span>
                               </>
                             )}
                           </span>
-                          <span className="text-[10px] text-stone-400">
+                          <span className="text-[10px] text-stone-400 shrink-0">
                             {formatMessageTime(
                               lastMsg.created_at || lastMsg.createdAt,
                             )}
@@ -1756,9 +1765,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         chatInputRef.current?.focus();
                       }, 80);
                     }}
-                    className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full min-h-[44px] py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
+                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                     <span>
                       {isAdminViewer
                         ? t("reservationDetail.openChatReplyMember")
@@ -1772,19 +1781,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             {/* 6. Recurring Series Occurrence Breakdown */}
             {reservation.series_id && (
               <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-bold text-stone-800">
-                  <div className="flex items-center gap-2">
-                    <Repeat className="w-4 h-4 text-amber-800" />
-                    <span>{t("reservationDetail.partOfRecurringSeries")}</span>
+                <div className="flex items-center justify-between gap-2 text-xs font-bold text-stone-800">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Repeat className="w-4 h-4 text-amber-800 shrink-0" />
+                    <span className="truncate">
+                      {t("reservationDetail.partOfRecurringSeries")}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-stone-500 font-normal">
+                  <span className="text-[11px] text-stone-500 font-normal shrink-0 whitespace-nowrap">
                     {t("reservationDetail.occurrencesTotal", {
                       count: seriesOccurrences.length,
                     })}
                   </span>
                 </div>
 
-                <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 max-h-48 overflow-y-auto bg-stone-50/50">
+                <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 max-h-48 overflow-y-auto overscroll-contain bg-stone-50/50">
                   {seriesOccurrences.map((occ, idx) => {
                     const occStart = new Date(occ.start_time || occ.startTime);
                     const occDateStr = getCairoDateString(occStart);
@@ -1799,17 +1810,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             onNavigateToReservation(occ.id);
                           }
                         }}
-                        className={`p-3 text-xs flex items-center justify-between transition ${
+                        className={`p-3 text-xs flex items-center justify-between gap-2 transition ${
                           isCurrent
                             ? "bg-amber-100/50 font-bold border-l-4 border-l-amber-800"
-                            : "hover:bg-stone-100 cursor-pointer"
+                            : "hover:bg-stone-100 cursor-pointer touch-manipulation"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-5 h-5 rounded-md bg-stone-200 text-stone-700 flex items-center justify-center text-[10px] font-bold">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-5 h-5 rounded-md bg-stone-200 text-stone-700 flex items-center justify-center text-[10px] font-bold shrink-0">
                             {idx + 1}
                           </span>
-                          <div>
+                          <div className="min-w-0">
                             <span className="text-stone-900 font-semibold">
                               {occDateStr}
                             </span>
@@ -1819,9 +1830,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(
                               occ.status,
                             )}`}
                           >
@@ -1835,7 +1846,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                               t("reservationDetail.cancelled")}
                           </span>
                           {isCurrent && (
-                            <span className="text-[10px] text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded font-bold">
+                            <span className="text-[10px] text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded font-bold whitespace-nowrap">
                               {t("reservationDetail.viewing")}
                             </span>
                           )}
@@ -1852,7 +1863,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-3 animate-in fade-in">
                 <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
                   <Sun className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>{t("reservationDetail.transformToFullDayConfirm")}</span>
+                  <span>
+                    {t("reservationDetail.transformToFullDayConfirm")}
+                  </span>
                 </div>
                 <p className="text-xs text-amber-900 leading-relaxed">
                   {t("reservationDetail.transformToFullDayDesc")}
@@ -1863,12 +1876,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     id="btn-confirm-transform-fullday"
                     onClick={handleAdminTransformFullDay}
                     disabled={isTransformingFullDay}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                    className="flex-1 min-h-[48px] px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation"
                   >
                     {isTransformingFullDay ? (
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <Sun className="w-3.5 h-3.5" />
+                      <Sun className="w-4 h-4" />
                     )}
                     <span>{t("reservationDetail.transformToFullDay")}</span>
                   </button>
@@ -1876,7 +1889,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     type="button"
                     onClick={() => setFullDayConfirmOpen(false)}
                     disabled={isTransformingFullDay}
-                    className="px-3.5 py-2 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                    className="min-h-[48px] px-4 py-2 bg-white hover:bg-stone-50 text-stone-700 border border-stone-300 text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation"
                   >
                     {t("common.cancel")}
                   </button>
@@ -1909,7 +1922,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     <select
                       value={cancelReasonPreset}
                       onChange={(e) => setCancelReasonPreset(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-red-500"
+                      className="w-full px-3 py-2.5 bg-white border border-red-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:border-red-500"
                     >
                       {CANCELLATION_REASON_PRESETS.map((preset) => (
                         <option key={preset} value={preset}>
@@ -1923,7 +1936,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                         value={cancelReasonCustom}
                         onChange={(e) => setCancelReasonCustom(e.target.value)}
                         placeholder={t("reservationDetail.describeReason")}
-                        className="w-full px-3 py-2 bg-white border border-red-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-red-500"
+                        className="w-full px-3 py-2.5 bg-white border border-red-200 rounded-xl text-sm text-stone-900 focus:outline-none focus:border-red-500 resize-none"
                       />
                     )}
                   </div>
@@ -1933,7 +1946,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setCancelPrompt(null)}
-                    className="px-3.5 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
+                    className="flex-1 min-h-[48px] bg-stone-200 hover:bg-stone-300 text-stone-800 text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation"
                   >
                     {t("reservationDetail.keepReservation")}
                   </button>
@@ -1941,11 +1954,16 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     type="button"
                     disabled={isCancelling}
                     onClick={() => handleCancelExecution(cancelPrompt)}
-                    className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                    className="flex-1 min-h-[48px] bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 touch-manipulation"
                   >
-                    {isCancelling
-                      ? t("reservationDetail.cancelling")
-                      : t("reservationDetail.yesCancelNow")}
+                    {isCancelling ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>{t("reservationDetail.cancelling")}</span>
+                      </>
+                    ) : (
+                      t("reservationDetail.yesCancelNow")
+                    )}
                   </button>
                 </div>
               </div>
@@ -1954,7 +1972,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         ) : (
           /* DEDICATED CHAT SCREEN */
           <div className="flex-1 min-h-0 flex flex-col bg-stone-50/50">
-            {/* Top compact context summary banner */}
             <div className="bg-white px-3.5 py-2.5 sm:px-5 sm:py-3 border-b border-stone-200 shrink-0 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0">
@@ -1966,15 +1983,15 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       t("reservationDetail.reservation")}{" "}
                     • {reservation.instrument_name}
                   </div>
-                  <div className="text-[11px] text-stone-500 font-medium">
+                  <div className="text-[11px] text-stone-500 font-medium truncate">
                     {dateStr} ({timeStr})
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(reservation.status)}`}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(reservation.status)}`}
                 >
                   {reservation.status === "approved" &&
                     t("reservationDetail.approved")}
@@ -1993,7 +2010,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab("details")}
-                  className="text-[11px] font-semibold text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-2.5 py-1 rounded-lg border border-stone-200 transition cursor-pointer flex items-center gap-1"
+                  className="text-[11px] font-semibold text-stone-700 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 px-2.5 py-1.5 rounded-lg border border-stone-200 transition cursor-pointer flex items-center gap-1 touch-manipulation"
                 >
                   <span>{t("reservationDetail.details")}</span>
                   <ArrowIcon className="w-3 h-3" />
@@ -2001,7 +2018,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Administrative Rejection Callout */}
             {reservation.rejection_reason && (
               <div className="mx-3 mt-3 sm:mx-5 sm:mt-3.5 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 shrink-0 animate-in fade-in">
                 <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
@@ -2009,15 +2025,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   <div className="font-bold text-red-950">
                     {t("reservationDetail.adminRejectionReason")}
                   </div>
-                  <p className="text-red-900 leading-relaxed font-medium text-[11px] sm:text-xs">
+                  <p className="text-red-900 leading-relaxed font-medium text-[11px] sm:text-xs break-words">
                     {reservation.rejection_reason}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Messages conversation feed */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 space-y-3">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-5 space-y-3">
               {adminMessages.length === 0 ? (
                 <div className="h-full min-h-55 flex flex-col items-center justify-center text-center p-6 space-y-2.5">
                   <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shadow-2xs">
@@ -2071,7 +2086,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                                 <span>{t("reservationDetail.you")}</span>
                               ) : isUserMsg ? (
                                 <>
-                                  <User className="w-3 h-3 text-stone-500" />
+                                  <User className="w-3 h-3 text-stone-500 shrink-0" />
                                   <span>
                                     {msg.sender_name ||
                                       msg.user_name ||
@@ -2080,7 +2095,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                                 </>
                               ) : (
                                 <>
-                                  <Shield className="w-3 h-3 text-amber-800" />
+                                  <Shield className="w-3 h-3 text-amber-800 shrink-0" />
                                   <span>
                                     {msg.sender_name ||
                                       msg.admin_name ||
@@ -2094,8 +2109,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             <span
                               className={
                                 isMe
-                                  ? "text-amber-300/80 font-mono text-[9px]"
-                                  : "text-stone-400 font-mono text-[9px]"
+                                  ? "text-amber-300/80 font-mono text-[9px] shrink-0"
+                                  : "text-stone-400 font-mono text-[9px] shrink-0"
                               }
                             >
                               {timeFormatted}
@@ -2103,7 +2118,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           </div>
 
                           <p
-                            className={`leading-relaxed whitespace-pre-wrap ${
+                            className={`leading-relaxed whitespace-pre-wrap break-words ${
                               isMe
                                 ? "text-amber-50 font-normal"
                                 : "text-stone-800 font-medium"
@@ -2120,7 +2135,6 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               )}
             </div>
 
-            {/* Quick replies */}
             {!isAdminViewer && reservation.rejection_reason && (
               <div className="px-3 pt-2 pb-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                 <span className="text-[10px] text-stone-400 font-medium shrink-0">
@@ -2132,7 +2146,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     setReplyContent(t("reservationDetail.canReschedule"));
                     chatInputRef.current?.focus();
                   }}
-                  className="text-[11px] px-2.5 py-1 bg-white border border-stone-200 text-stone-700 rounded-full hover:border-amber-400 hover:text-amber-900 transition whitespace-nowrap shrink-0 cursor-pointer"
+                  className="text-[11px] px-2.5 py-1.5 bg-white border border-stone-200 text-stone-700 rounded-full hover:border-amber-400 hover:text-amber-900 transition whitespace-nowrap shrink-0 cursor-pointer touch-manipulation"
                 >
                   {t("reservationDetail.canReschedule")}
                 </button>
@@ -2142,14 +2156,13 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     setReplyContent(t("reservationDetail.alternateInstrument"));
                     chatInputRef.current?.focus();
                   }}
-                  className="text-[11px] px-2.5 py-1 bg-white border border-stone-200 text-stone-700 rounded-full hover:border-amber-400 hover:text-amber-900 transition whitespace-nowrap shrink-0 cursor-pointer"
+                  className="text-[11px] px-2.5 py-1.5 bg-white border border-stone-200 text-stone-700 rounded-full hover:border-amber-400 hover:text-amber-900 transition whitespace-nowrap shrink-0 cursor-pointer touch-manipulation"
                 >
                   {t("reservationDetail.alternateInstrument")}
                 </button>
               </div>
             )}
 
-            {/* Sticky Bottom Input Bar */}
             <form
               onSubmit={handleSendMessage}
               className="p-3 sm:p-4 bg-white border-t border-stone-200 shrink-0 space-y-2 shadow-xs"
@@ -2172,7 +2185,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       ? t("reservationDetail.adminPlaceholder")
                       : t("reservationDetail.userPlaceholder")
                   }
-                  className="w-full px-3.5 py-2 text-sm sm:text-xs bg-stone-50 focus:bg-white border border-stone-300 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-700/30 focus:border-amber-700 transition resize-none"
+                  className="w-full px-3.5 py-2.5 text-sm bg-stone-50 focus:bg-white border border-stone-300 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-700/30 focus:border-amber-700 transition resize-none"
                   disabled={sendingReply}
                 />
               </div>
@@ -2196,17 +2209,19 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   type="submit"
                   id="btn-send-chat-tab"
                   disabled={!replyContent.trim() || sendingReply}
-                  className="min-h-10 px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition shadow-2xs flex items-center justify-center gap-2 cursor-pointer ml-auto"
+                  className="min-h-[48px] px-5 py-2.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition shadow-2xs flex items-center justify-center gap-2 cursor-pointer ml-auto touch-manipulation"
                 >
                   {sendingReply ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       <span>{t("reservationDetail.sending")}</span>
                     </>
                   ) : (
                     <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{t("reservationDetail.sendMessageButton")}</span>
+                      <Send className="w-4 h-4" />
+                      <span className="hidden xs:inline">
+                        {t("reservationDetail.sendMessageButton")}
+                      </span>
                     </>
                   )}
                 </button>
@@ -2217,206 +2232,210 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
         {/* Modal Actions Footer - Shown on Details Tab */}
         {activeTab === "details" && (
-          <div className="p-3 sm:p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-2 shrink-0 overflow-x-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
-            >
-              {t("reservationDetail.close")}
-            </button>
+          <div className="p-3 sm:p-4 bg-stone-50 border-t border-stone-200 shrink-0 overflow-x-auto overscroll-contain">
+            <div className="flex items-center gap-2 min-w-max sm:min-w-0 sm:flex-wrap">
+              <button
+                type="button"
+                onClick={onClose}
+                className="min-h-[48px] px-4 py-2 bg-stone-200 hover:bg-stone-300 active:bg-stone-400 text-stone-800 text-sm font-bold rounded-xl transition cursor-pointer shrink-0 touch-manipulation"
+              >
+                {t("reservationDetail.close")}
+              </button>
 
-            {/* Admin Pending Action Controls */}
-            {isAdminViewer && isPending && !cancelPrompt ? (
-              <div className="flex flex-nowrap items-center gap-1.5 shrink-0">
-                <button
-                  id="btn-footer-admin-reject"
-                  type="button"
-                  onClick={() => {
-                    setIsRejectOpen(!isRejectOpen);
-                    setRejectError(null);
-                  }}
-                  disabled={isApproving || isRejecting}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
-                    isRejectOpen
-                      ? "bg-stone-200 text-stone-800 border-stone-300"
-                      : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                  }`}
-                >
-                  <XCircle className="w-3.5 h-3.5 text-red-600" />
-                  <span>
-                    {isRejectOpen
-                      ? t("reservationDetail.closeRejectForm")
-                      : t("reservationDetail.reject")}
-                  </span>
-                </button>
+              {/* Admin Pending Action Controls */}
+              {isAdminViewer && isPending && !cancelPrompt ? (
+                <div className="flex flex-nowrap items-center gap-2 shrink-0">
+                  <button
+                    id="btn-footer-admin-reject"
+                    type="button"
+                    onClick={() => {
+                      setIsRejectOpen(!isRejectOpen);
+                      setRejectError(null);
+                    }}
+                    disabled={isApproving || isRejecting}
+                    className={`min-h-[48px] px-3.5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-1.5 cursor-pointer border whitespace-nowrap shrink-0 touch-manipulation ${
+                      isRejectOpen
+                        ? "bg-stone-200 text-stone-800 border-stone-300"
+                        : "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                    }`}
+                  >
+                    <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>
+                      {isRejectOpen
+                        ? t("reservationDetail.closeRejectForm")
+                        : t("reservationDetail.reject")}
+                    </span>
+                  </button>
 
-                {reservation.series_id ? (
-                  <>
+                  {reservation.series_id ? (
+                    <>
+                      <button
+                        id="btn-footer-admin-approve-single"
+                        type="button"
+                        onClick={() => handleAdminApprove("single")}
+                        disabled={isApproving || isRejecting}
+                        className="min-h-[48px] px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50 whitespace-nowrap shrink-0 touch-manipulation"
+                      >
+                        {isApproving && approvingMode === "single" ? (
+                          <div className="w-4 h-4 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                        )}
+                        <span>{t("reservationDetail.approveOccurrence")}</span>
+                      </button>
+
+                      <button
+                        id="btn-footer-admin-approve-series"
+                        type="button"
+                        onClick={() => handleAdminApprove("series")}
+                        disabled={isApproving || isRejecting}
+                        className="min-h-[48px] px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 whitespace-nowrap shrink-0 touch-manipulation"
+                      >
+                        {isApproving && approvingMode === "series" ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        )}
+                        <span>
+                          {t("reservationDetail.approveEntireSeries", {
+                            count:
+                              seriesOccurrences.length ||
+                              t("reservationDetail.all"),
+                          })}
+                        </span>
+                      </button>
+                    </>
+                  ) : (
                     <button
                       id="btn-footer-admin-approve-single"
                       type="button"
                       onClick={() => handleAdminApprove("single")}
                       disabled={isApproving || isRejecting}
-                      className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+                      className="min-h-[48px] px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 whitespace-nowrap shrink-0 touch-manipulation"
                     >
-                      {isApproving && approvingMode === "single" ? (
-                        <div className="w-3.5 h-3.5 border-2 border-emerald-800 border-t-transparent rounded-full animate-spin" />
+                      {isApproving ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
                       )}
-                      <span>{t("reservationDetail.approveOccurrence")}</span>
-                    </button>
-
-                    <button
-                      id="btn-footer-admin-approve-series"
-                      type="button"
-                      onClick={() => handleAdminApprove("series")}
-                      disabled={isApproving || isRejecting}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                    >
-                      {isApproving && approvingMode === "series" ? (
-                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      )}
-                      <span>
-                        {t("reservationDetail.approveEntireSeries", {
-                          count:
-                            seriesOccurrences.length ||
-                            t("reservationDetail.all"),
-                        })}
-                      </span>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    id="btn-footer-admin-approve-single"
-                    type="button"
-                    onClick={() => handleAdminApprove("single")}
-                    disabled={isApproving || isRejecting}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                  >
-                    {isApproving ? (
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    )}
-                    <span>{t("reservationDetail.approve")}</span>
-                  </button>
-                )}
-
-                {/* Transform to Full Day button for pending */}
-                {!isFullDay && (
-                  <button
-                    id="btn-footer-admin-transform-fullday"
-                    type="button"
-                    onClick={() => setFullDayConfirmOpen(true)}
-                    disabled={isApproving || isRejecting || isTransformingFullDay}
-                    className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
-                    title={t("reservationDetail.transformToFullDayTooltip")}
-                  >
-                    <Sun className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{t("reservationDetail.transformToFullDay")}</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              !isPast &&
-              !isCancelled &&
-              !cancelPrompt && (
-                <div className="flex items-center gap-2">
-                  {/* Edit Single */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onEdit(reservation);
-                    }}
-                    className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                    <span>{t("reservationDetail.editSlot")}</span>
-                  </button>
-
-                  {/* Admin Transform to Full Day for already approved non-full-day */}
-                  {isAdminViewer && !isFullDay && (
-                    <button
-                      id="btn-admin-transform-fullday-approved"
-                      type="button"
-                      onClick={() => setFullDayConfirmOpen(true)}
-                      disabled={isTransformingFullDay}
-                      className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
-                      title={t("reservationDetail.transformToFullDayTooltip")}
-                    >
-                      <Sun className="w-3.5 h-3.5 text-amber-600" />
-                      <span>{t("reservationDetail.transformToFullDay")}</span>
+                      <span>{t("reservationDetail.approve")}</span>
                     </button>
                   )}
 
-                  {/* Single Cancel */}
-                  <button
-                    type="button"
-                    onClick={() => setCancelPrompt("single")}
-                    className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>
-                      {reservation.series_id
-                        ? t("reservationDetail.cancelThisOccurrence")
-                        : t("reservationDetail.cancelReservation")}
-                    </span>
-                  </button>
-
-                  {/* Series Cancel if applicable */}
-                  {reservation.series_id && (
+                  {!isFullDay && (
                     <button
+                      id="btn-footer-admin-transform-fullday"
                       type="button"
-                      onClick={() => setCancelPrompt("series")}
-                      className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      onClick={() => setFullDayConfirmOpen(true)}
+                      disabled={
+                        isApproving || isRejecting || isTransformingFullDay
+                      }
+                      className="min-h-[48px] px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50 whitespace-nowrap shrink-0 touch-manipulation"
+                      title={t("reservationDetail.transformToFullDayTooltip")}
                     >
-                      <Repeat className="w-3.5 h-3.5" />
-                      <span>{t("reservationDetail.cancelEntireSeries")}</span>
+                      <Sun className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="hidden sm:inline">
+                        {t("reservationDetail.transformToFullDay")}
+                      </span>
                     </button>
                   )}
                 </div>
-              )
-            )}
+              ) : (
+                !isPast &&
+                !isCancelled &&
+                !cancelPrompt && (
+                  <div className="flex flex-nowrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onEdit(reservation);
+                      }}
+                      className="min-h-[48px] px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                    >
+                      <Edit className="w-4 h-4 shrink-0" />
+                      <span className="hidden sm:inline">
+                        {t("reservationDetail.editSlot")}
+                      </span>
+                    </button>
 
-            {/* Admin No-Show Accountability Action on Completed Reservations */}
-            {isAdminViewer && isCompleted && (
-              <div className="flex items-center gap-2">
-                {canUnmarkNoShow ? (
-                  <button
-                    type="button"
-                    onClick={handleUnmarkNoShow}
-                    disabled={isNoShowProcessing}
-                    className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    {isNoShowProcessing ? (
-                      <div className="w-3.5 h-3.5 border-2 border-stone-800 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Check className="w-3.5 h-3.5 text-stone-700" />
+                    {isAdminViewer && !isFullDay && (
+                      <button
+                        id="btn-admin-transform-fullday-approved"
+                        type="button"
+                        onClick={() => setFullDayConfirmOpen(true)}
+                        disabled={isTransformingFullDay}
+                        className="min-h-[48px] px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50 whitespace-nowrap shrink-0 touch-manipulation"
+                        title={t("reservationDetail.transformToFullDayTooltip")}
+                      >
+                        <Sun className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="hidden sm:inline">
+                          {t("reservationDetail.transformToFullDay")}
+                        </span>
+                      </button>
                     )}
-                    <span>{t("common.unmarkNoShow")}</span>
-                  </button>
-                ) : canMarkNoShow ? (
-                  <button
-                    type="button"
-                    onClick={handleMarkNoShow}
-                    disabled={isNoShowProcessing}
-                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
-                  >
-                    {isNoShowProcessing ? (
-                      <div className="w-3.5 h-3.5 border-2 border-rose-800 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+
+                    <button
+                      type="button"
+                      onClick={() => setCancelPrompt("single")}
+                      className="min-h-[48px] px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      <span>
+                        {reservation.series_id
+                          ? t("reservationDetail.cancelThisOccurrence")
+                          : t("reservationDetail.cancelReservation")}
+                      </span>
+                    </button>
+
+                    {reservation.series_id && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelPrompt("series")}
+                        className="min-h-[48px] px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap shrink-0 touch-manipulation"
+                      >
+                        <Repeat className="w-4 h-4 shrink-0" />
+                        <span>{t("reservationDetail.cancelEntireSeries")}</span>
+                      </button>
                     )}
-                    <span>{t("common.markNoShow")}</span>
-                  </button>
-                ) : null}
-              </div>
-            )}
+                  </div>
+                )
+              )}
+
+              {isAdminViewer && isCompleted && (
+                <div className="flex items-center gap-2 shrink-0">
+                  {canUnmarkNoShow ? (
+                    <button
+                      type="button"
+                      onClick={handleUnmarkNoShow}
+                      disabled={isNoShowProcessing}
+                      className="min-h-[48px] px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-300 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0 touch-manipulation"
+                    >
+                      {isNoShowProcessing ? (
+                        <div className="w-4 h-4 border-2 border-stone-800 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4 text-stone-700 shrink-0" />
+                      )}
+                      <span>{t("common.unmarkNoShow")}</span>
+                    </button>
+                  ) : canMarkNoShow ? (
+                    <button
+                      type="button"
+                      onClick={handleMarkNoShow}
+                      disabled={isNoShowProcessing}
+                      className="min-h-[48px] px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs whitespace-nowrap shrink-0 touch-manipulation"
+                    >
+                      {isNoShowProcessing ? (
+                        <div className="w-4 h-4 border-2 border-rose-800 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      )}
+                      <span>{t("common.markNoShow")}</span>
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

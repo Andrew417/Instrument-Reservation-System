@@ -79,17 +79,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t } = useTranslation();
 
-  // Tab: 'upcoming' | 'pending' | 'past'
   const [activeTab, setActiveTab] = useState<"upcoming" | "pending" | "past">(
     "upcoming",
   );
 
-  // Expanded series IDs map
   const [expandedSeries, setExpandedSeries] = useState<Record<string, boolean>>(
     {},
   );
 
-  // Cancellation confirm dialog state
   const [cancellingItem, setCancellingItem] = useState<{
     id: string;
     mode: "single" | "series";
@@ -98,7 +95,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  // Data fetching
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -141,7 +137,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     }));
   };
 
-  // Handle Cancellation Action
   const executeCancellation = async () => {
     if (!cancellingItem || !profile) return;
     setIsCancelling(true);
@@ -182,7 +177,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     }
   };
 
-  // Group and categorize user reservations into: Upcoming, Pending, Past
   const categorizedData = useMemo(() => {
     const now = new Date();
 
@@ -190,7 +184,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     const pendingList: any[] = [];
     const pastList: any[] = [];
 
-    // Grouping by series vs single
     const seriesMap: Record<string, any[]> = {};
     const standaloneList: any[] = [];
 
@@ -205,7 +198,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       }
     });
 
-    // Build series group objects
     const seriesGroups: GroupedSeries[] = Object.entries(seriesMap).map(
       ([seriesId, occs]) => {
         const sorted = [...occs].sort(
@@ -232,7 +224,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       },
     );
 
-    // 1. Process Standalone Items
     standaloneList.forEach((r) => {
       const start = new Date(r.start_time);
       const end = new Date(r.end_time);
@@ -246,12 +237,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           pastList.push({ type: "single", data: r, time: start });
         }
       } else {
-        // cancelled, rejected, completed
         pastList.push({ type: "single", data: r, time: start });
       }
     });
 
-    // 2. Process Series Groups
     seriesGroups.forEach((sg) => {
       const hasPending = sg.occurrences.some((o) => o.status === "pending");
       const hasUpcomingApproved = sg.occurrences.some(
@@ -278,10 +267,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       }
     });
 
-    // Sort all arrays chronologically
     upcomingList.sort((a, b) => a.time.getTime() - b.time.getTime());
     pendingList.sort((a, b) => a.time.getTime() - b.time.getTime());
-    pastList.sort((a, b) => b.time.getTime() - a.time.getTime()); // reverse for past
+    pastList.sort((a, b) => b.time.getTime() - a.time.getTime());
 
     return { upcomingList, pendingList, pastList };
   }, [reservations, t]);
@@ -294,7 +282,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         : categorizedData.pastList;
 
   return (
-    <div id="screen-5-my-reservations" className="space-y-6">
+    <div
+      id="screen-5-my-reservations"
+      className="space-y-4 sm:space-y-6 pb-[env(safe-area-inset-bottom)]"
+    >
       {/* Top Banner / Header */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-2xs space-y-4">
         <div className="flex items-start justify-between gap-2.5">
@@ -303,10 +294,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               <Calendar className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-stone-900 leading-tight">
+              <h1 className="text-lg font-bold text-stone-900 leading-tight truncate">
                 {t("myReservations.title")}
               </h1>
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-stone-500 truncate">
                 {t("myReservations.subtitle")}
               </p>
             </div>
@@ -315,7 +306,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             onClick={fetchMyReservations}
-            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50 transition cursor-pointer"
+            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50 active:bg-stone-100 transition cursor-pointer touch-manipulation"
             title={t("common.refresh")}
           >
             <RefreshCw
@@ -328,44 +319,50 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             onClick={onOpenSeriesBuilder}
-            className="flex-1 h-9 rounded-lg border border-amber-800/30 bg-amber-50 hover:bg-amber-100/80 text-amber-950 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+            className="flex-1 h-9 rounded-lg border border-amber-800/30 bg-amber-50 hover:bg-amber-100/80 text-amber-950 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:bg-amber-200/60 touch-manipulation"
           >
             <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-            <span>{t("myReservations.recurringSeries")}</span>
+            <span className="truncate">
+              {t("myReservations.recurringSeries")}
+            </span>
           </button>
 
           <button
             type="button"
             onClick={onOpenNewReservation}
-            className="flex-1 h-9 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+            className="flex-1 h-9 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
           >
             <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span>{t("myReservations.newReservation")}</span>
+            <span className="truncate">
+              {t("myReservations.newReservation")}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Tabs Bar: segmented control for mobile-friendly visibility */}
-      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1.5 shadow-2xs">
-        <div className="grid grid-cols-3 gap-1.5">
+      {/* Tabs Bar */}
+      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1.5 shadow-2xs overflow-x-auto overscroll-contain scrollbar-hide">
+        <div className="grid grid-cols-3 gap-1.5 min-w-[340px]">
           <button
             type="button"
             id="tab-upcoming-reservations"
             onClick={() => setActiveTab("upcoming")}
-            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
               activeTab === "upcoming"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
             }`}
           >
             <CheckCircle2
-              className={`w-3.5 h-3.5 ${activeTab === "upcoming" ? "text-white" : "text-emerald-600"}`}
+              className={`w-3.5 h-3.5 shrink-0 ${
+                activeTab === "upcoming" ? "text-white" : "text-emerald-600"
+              }`}
             />
-            <span className="text-[11px] font-bold">
+            <span className="text-[11px] font-bold truncate">
               {t("myReservations.upcomingTab")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "upcoming"
                   ? "bg-amber-900/30 text-white"
                   : "bg-stone-100 text-stone-600"
@@ -379,18 +376,22 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-pending-reservations"
             onClick={() => setActiveTab("pending")}
-            className={`h-9 w-full rounded-xl px-2 py-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
               activeTab === "pending"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
             }`}
           >
             <Clock
-              className={`w-3.5 h-3.5 ${activeTab === "pending" ? "text-white" : "text-amber-600"}`}
+              className={`w-3.5 h-3.5 shrink-0 ${
+                activeTab === "pending" ? "text-white" : "text-amber-600"
+              }`}
             />
-            <span className="text-[11px] font-bold">{t("common.pending")}</span>
+            <span className="text-[11px] font-bold truncate">
+              {t("common.pending")}
+            </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "pending"
                   ? "bg-amber-900/30 text-white"
                   : "bg-stone-100 text-stone-600"
@@ -404,20 +405,22 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-past-reservations"
             onClick={() => setActiveTab("past")}
-            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
               activeTab === "past"
                 ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
                 : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
             }`}
           >
             <CalendarRange
-              className={`w-3.5 h-3.5 ${activeTab === "past" ? "text-white" : "text-stone-400"}`}
+              className={`w-3.5 h-3.5 shrink-0 ${
+                activeTab === "past" ? "text-white" : "text-stone-400"
+              }`}
             />
-            <span className="text-[11px] font-bold">
+            <span className="text-[11px] font-bold truncate">
               {t("myReservations.pastTab")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "past"
                   ? "bg-amber-900/30 text-white"
                   : "bg-stone-100 text-stone-600"
@@ -431,24 +434,26 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
       {/* Cancellation Modal Confirmation Overlay */}
       {cancellingItem && (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-stone-200 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center gap-3 text-red-900">
               <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center text-red-700 font-bold shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-bold text-sm text-stone-900">
                   {cancellingItem.mode === "series"
                     ? t("myReservations.cancelSeriesTitle")
                     : t("myReservations.cancelSingleTitle")}
                 </h3>
-                <p className="text-xs text-stone-500">{cancellingItem.title}</p>
+                <p className="text-xs text-stone-500 break-words">
+                  {cancellingItem.title}
+                </p>
               </div>
             </div>
 
             {cancelError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-900">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-900 break-words">
                 {cancelError}
               </div>
             )}
@@ -466,7 +471,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   setCancellingItem(null);
                   setCancelError(null);
                 }}
-                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer"
+                disabled={isCancelling}
+                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50 touch-manipulation"
               >
                 {t("myReservations.keepBooking")}
               </button>
@@ -475,7 +481,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 type="button"
                 disabled={isCancelling}
                 onClick={executeCancellation}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs"
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation"
               >
                 {isCancelling
                   ? t("myReservations.cancelling")
@@ -497,10 +503,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       ) : fetchError ? (
         <div className="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-900 space-y-2">
           <div className="font-bold text-sm">{t("common.error")}</div>
-          <p className="text-xs">{fetchError}</p>
+          <p className="text-xs break-words">{fetchError}</p>
           <button
             onClick={fetchMyReservations}
-            className="px-4 py-2 bg-red-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+            className="px-4 py-2 bg-red-800 text-white rounded-xl text-xs font-bold cursor-pointer touch-manipulation"
           >
             {t("calendar.tryAgain")}
           </button>
@@ -525,7 +531,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               <button
                 type="button"
                 onClick={onOpenNewReservation}
-                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-xl transition cursor-pointer touch-manipulation"
               >
                 {t("myReservations.newReservation")}
               </button>
@@ -533,7 +539,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {currentList.map((item, idx) => {
             if (item.type === "single") {
               const res = item.data;
@@ -558,23 +564,31 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               const isAdminBooked = Boolean(
                 res.booked_by_admin || res.bookedByAdmin,
               );
+              const isFullDayItem = Boolean(
+                res.is_full_day ||
+                (res.start_hhmm === "09:00" && res.end_hhmm === "22:00") ||
+                (res.startTime &&
+                  res.endTime &&
+                  new Date(res.endTime).getTime() -
+                    new Date(res.startTime).getTime() >=
+                    13 * 3600 * 1000),
+              );
 
               return (
                 <div
                   key={res.id}
-                  className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-xs transition p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-xs transition p-4 sm:p-5 space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
                   {/* Left: Instrument & Purpose */}
                   <div
                     onClick={() => onSelectReservationDetail(res.id)}
-                    className="flex items-start gap-3.5 cursor-pointer flex-1 min-w-0 group"
+                    className="flex items-start gap-3.5 cursor-pointer flex-1 min-w-0 group touch-manipulation"
                   >
                     <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 mt-0.5 group-hover:bg-amber-100 transition">
                       <Music2 className="w-5 h-5" />
                     </div>
 
                     <div className="space-y-1 min-w-0 flex-1">
-                      {/* Title row — wraps on small screens, name truncates cleanly */}
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span
                           className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate max-w-full"
@@ -610,13 +624,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           </span>
                         )}
 
-                        {(res.is_full_day || (res.start_hhmm === "09:00" && res.end_hhmm === "22:00") || (res.startTime && res.endTime && (new Date(res.endTime).getTime() - new Date(res.startTime).getTime()) >= 13 * 3600 * 1000)) && (
+                        {isFullDayItem && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                             <Sun className="w-3 h-3 text-amber-700" />
                             {t("common.fullDay")}
                           </span>
                         )}
                       </div>
+
                       {isAdminBooked && (
                         <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
                           <Shield className="w-3 h-3 shrink-0 mt-0.5" />
@@ -637,7 +652,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     </div>
                   </div>
 
-                  {/* Right: Actions (Edit, Cancel, Details) */}
+                  {/* Actions row — grid on mobile, flex on desktop; original button sizes */}
                   <div
                     className={`grid gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100 ${
                       !isPast && !isCancelled ? "grid-cols-3" : "grid-cols-1"
@@ -648,7 +663,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         <button
                           type="button"
                           onClick={() => onEditReservation(res)}
-                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
+                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden touch-manipulation"
                           title={t("common.edit")}
                         >
                           <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
@@ -667,7 +682,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               }),
                             })
                           }
-                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden"
+                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden touch-manipulation"
                           title={t("common.cancel")}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
@@ -679,7 +694,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     <button
                       type="button"
                       onClick={() => onSelectReservationDetail(res.id)}
-                      className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap overflow-hidden"
+                      className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap overflow-hidden touch-manipulation"
                     >
                       <span className="truncate block">
                         {t("myReservations.viewDetails")}
@@ -689,9 +704,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 </div>
               );
             } else {
-              // ---------------------------------------------------------
-              // RECURRING SERIES GROUPED CARD (Expandable)
-              // ---------------------------------------------------------
+              // RECURRING SERIES GROUPED CARD
               const sg: GroupedSeries = item.data;
               const isExpanded = Boolean(expandedSeries[sg.seriesId]);
               const approvedCount = sg.occurrences.filter(
@@ -711,26 +724,26 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   <div className="p-5 bg-linear-to-r from-amber-50/60 to-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div
                       onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                      className="flex items-start gap-3.5 cursor-pointer flex-1 select-none"
+                      className="flex items-start gap-3.5 cursor-pointer flex-1 select-none touch-manipulation"
                     >
                       <div className="w-10 h-10 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold shrink-0 mt-0.5 shadow-2xs">
                         <Repeat className="w-5 h-5" />
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-stone-900 text-sm">
+                          <span className="font-bold text-stone-900 text-sm truncate max-w-full">
                             {sg.serviceName}
                           </span>
 
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 uppercase tracking-wider">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 uppercase tracking-wider shrink-0">
                             <Layers className="w-3 h-3" />
                             {t("myReservations.sessionsSeriesBadge", {
                               count: sg.occurrences.length,
                             })}
                           </span>
 
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-700 capitalize">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-700 capitalize shrink-0">
                             {t("myReservations.patternSuffix", {
                               pattern: sg.patternType,
                             })}
@@ -738,10 +751,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </div>
 
                         <div className="text-xs text-stone-600 flex flex-wrap items-center gap-3">
-                          <span className="font-semibold text-stone-800">
+                          <span className="font-semibold text-stone-800 truncate max-w-full">
                             {sg.instrumentName}
                           </span>
-                          <span className="text-stone-500">
+                          <span className="text-stone-500 whitespace-nowrap">
                             {t("myReservations.approvedPendingCount", {
                               approved: approvedCount,
                               pending: pendingCount,
@@ -753,7 +766,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                     {/* Series Header Actions */}
                     <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
-                      {/* Cancel Entire Series */}
                       <button
                         type="button"
                         onClick={() =>
@@ -766,18 +778,17 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             }),
                           })
                         }
-                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
                         title={t("myReservations.cancelEntireSeries")}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
                         <span>{t("myReservations.cancelEntireSeries")}</span>
                       </button>
 
-                      {/* Expand / Collapse Button */}
                       <button
                         type="button"
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                        className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
                       >
                         <span>
                           {isExpanded
@@ -800,7 +811,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         <span>
                           {t("myReservations.individualSessionsTitle")}
                         </span>
-                        <span className="text-stone-400">
+                        <span className="text-stone-400 hidden sm:inline">
                           {t("myReservations.selectSessionNote")}
                         </span>
                       </div>
@@ -838,24 +849,24 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                 onClick={() =>
                                   onSelectReservationDetail(occ.id)
                                 }
-                                className="flex items-center gap-3 cursor-pointer flex-1"
+                                className="flex items-center gap-3 cursor-pointer flex-1 min-w-0 touch-manipulation"
                               >
-                                <span className="w-6 h-6 rounded-lg bg-stone-100 text-stone-700 font-bold flex items-center justify-center text-[10px]">
+                                <span className="w-6 h-6 rounded-lg bg-stone-100 text-stone-700 font-bold flex items-center justify-center text-[10px] shrink-0">
                                   {occIdx + 1}
                                 </span>
-                                <div>
-                                  <div className="font-bold text-stone-900">
+                                <div className="min-w-0">
+                                  <div className="font-bold text-stone-900 truncate">
                                     {occDateStr}
                                   </div>
-                                  <div className="text-[11px] text-stone-500">
+                                  <div className="text-[11px] text-stone-500 truncate">
                                     {occTimeStr}
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusColor(
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap shrink-0 ${getStatusColor(
                                     occ.status,
                                   )}`}
                                 >
@@ -882,7 +893,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                         ),
                                       })
                                     }
-                                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-bold rounded-lg transition cursor-pointer"
+                                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-[11px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
                                     title={t("myReservations.cancelSlot")}
                                   >
                                     {t("myReservations.cancelSlot")}
@@ -894,7 +905,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                   onClick={() =>
                                     onSelectReservationDetail(occ.id)
                                   }
-                                  className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-800 text-[11px] font-bold rounded-lg transition cursor-pointer"
+                                  className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-[11px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
                                 >
                                   {t("common.details")}
                                 </button>
