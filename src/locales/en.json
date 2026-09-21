@@ -49,6 +49,7 @@
     "trusted": "Trusted",
     "instant": "Instant",
     "manual": "Manual",
+    "fullDay": "Full Day",
     "inChurch": "In-church",
     "outsideChurch": "Outside-church",
     "booked": "Booked",
@@ -104,7 +105,9 @@
     "tapToReserve": "Tap to reserve {{name}} at {{time}}",
     "instantModeTitle": "Instant Booking",
     "manualModeTitle": "Manual Approval",
-    "adminQuickToggle": "Admin Quick-Toggle: Click to switch to {{mode}}"
+    "adminQuickToggle": "Admin Quick-Toggle: Click to switch to {{mode}}",
+    "fullDayReserved": "Full Day Reserved (Admin Booking)",
+    "fullDayBookedTooltip": "This instrument is reserved for the full day (09:00 AM – 10:00 PM)"
   },
   "myReservations": {
     "title": "My Reservations",
@@ -253,7 +256,10 @@
     "duration2h30": "2.5 hrs",
     "duration3h": "3 hours",
     "duration4h": "4 hours",
-    "duration5h": "5 hours"
+    "duration5h": "5 hours",
+    "duration6h": "6 hours",
+    "duration8h": "8 hours",
+    "durationFullDay": "Full Day (13h • 09:00 – 22:00)"
   },
   "seriesBuilder": {
     "title": "Recurring Series Builder",
@@ -648,6 +654,12 @@
     "close": "Close",
     "closeRejectForm": "Close Reject Form",
     "reject": "Reject",
+    "transformToFullDay": "Transform to Full Day",
+    "transformToFullDayTooltip": "Transform into a full-day booking (09:00 AM – 10:00 PM)",
+    "transformToFullDayConfirm": "Transform to Full Day Booking",
+    "transformToFullDayDesc": "Transform this reservation into a Full Day booking (09:00 AM – 10:00 PM)? It will be approved, and any conflicting pending requests will be auto-rejected.",
+    "transformToFullDaySuccess": "Reservation successfully transformed to Full Day!",
+    "fullDayBadge": "Full Day (09:00 AM – 10:00 PM)",
     "rejectRequest": "Reject Reservation Request",
     "rejectSubtitle": "Provide an explanation for the member",
     "cancelReject": "Cancel Reject",
@@ -819,7 +831,12 @@
       "seriesBadge": "Series",
       "approveBtn": "Approve",
       "rejectBtn": "Reject",
-      "detailsChatBtn": "Details & Chat"
+      "detailsChatBtn": "Details & Chat",
+      "transformFullDayBtn": "Full Day",
+      "transformFullDayTooltip": "Transform to Full Day (09:00 - 22:00) & Approve",
+      "transformFullDayTitle": "Transform to Full Day Reservation",
+      "transformFullDayDesc": "Transform reservation for \"{{service}}\" on {{date}} into a Full Day booking (09:00 AM – 10:00 PM)? Any overlapping pending requests will be rejected.",
+      "transformFullDaySuccess": "Reservation transformed to Full Day successfully!"
     },
     "approvals": {
       "pendingBadge": "{{count}} Pending",

@@ -147,6 +147,7 @@ export const reservations = pgTable(
     noShowAdminId: uuid("no_show_admin_id").references(() => admins.id, {
       onDelete: "set null",
     }),
+    bookedByAdmin: boolean("booked_by_admin").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

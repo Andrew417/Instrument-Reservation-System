@@ -26,6 +26,7 @@ import {
 import { sendAccountApprovedEmail } from "../lib/mailer.js";
 import {
   adminApproveReservation,
+  adminTransformToFullDay,
   adminRejectReservation,
   adminApproveSeries,
   adminRejectSeries,
@@ -268,6 +269,7 @@ router.get(
         to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
         to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
+        r.booked_by_admin,
         r.is_no_show,
         r.no_show_marked_at,
         r.no_show_admin_id,
@@ -338,7 +340,18 @@ router.get(
       querySql = sql`${querySql} ORDER BY lower(r.time_range) DESC LIMIT 200`;
 
       const result = await db.execute(querySql);
-      res.json({ success: true, reservations: (result as any).rows || [] });
+      const rows = (result as any).rows || [];
+      const mapped = rows.map((r: any) => {
+        const isFullDay =
+          (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+          Number(r.duration_hours) >= 13;
+        return {
+          ...r,
+          is_full_day: isFullDay,
+          isFullDay,
+        };
+      });
+      res.json({ success: true, reservations: mapped });
     } catch (err: any) {
       console.error("Reservations list error:", err);
       res.status(500).json({
@@ -499,9 +512,18 @@ router.get(
         return;
       }
 
+      const r = rows[0];
+      const isFullDay =
+        (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+        Number(r.duration_hours) >= 13;
+
       res.json({
         success: true,
-        reservation: rows[0],
+        reservation: {
+          ...r,
+          is_full_day: isFullDay,
+          isFullDay,
+        },
       });
     } catch (err: any) {
       console.error("Reservations list error:", err);
@@ -530,6 +552,48 @@ router.post(
         success: true,
         reservation: result,
         message: "Reservation approved successfully.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Transform single reservation into a Full Day reservation (Admin Only)
+ * Sets time to 09:00 - 22:00 Cairo time, auto-approves, and auto-rejects overlapping pending requests.
+ */
+router.post(
+  "/reservations/:id/transform-full-day",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const result = await adminTransformToFullDay(id, adminId);
+      res.json({
+        success: true,
+        reservation: result,
+        message: "Reservation transformed to Full Day successfully.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.post(
+  "/reservations/:id/transform-to-full-day",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const result = await adminTransformToFullDay(id, adminId);
+      res.json({
+        success: true,
+        reservation: result,
+        message: "Reservation transformed to Full Day successfully.",
       });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });

@@ -49,6 +49,7 @@
     "trusted": "موثوق",
     "instant": "فوري",
     "manual": "مراجعة يدوية",
+    "fullDay": "يوم كامل",
     "inChurch": "داخل الكنيسة",
     "outsideChurch": "خارج الكنيسة",
     "booked": "محجوز",
@@ -104,7 +105,9 @@
     "tapToReserve": "انقر لحجز {{name}} في تمام {{time}}",
     "instantModeTitle": "حجز فوري",
     "manualModeTitle": "موافقة الادمن",
-    "adminQuickToggle": "تبديل سريع للادمن: انقر للتحويل إلى وضع {{mode}}"
+    "adminQuickToggle": "تبديل سريع للادمن: انقر للتحويل إلى وضع {{mode}}",
+    "fullDayReserved": "محجوز طوال اليوم (حجز الإدارة)",
+    "fullDayBookedTooltip": "هذه الآلة محجوزة طوال اليوم (09:00 ص – 10:00 م)"
   },
   "myReservations": {
     "title": "حجوزاتي",
@@ -195,6 +198,12 @@
     "close": "إغلاق",
     "closeRejectForm": "إغلاق نموذج الرفض",
     "reject": "رفض",
+    "transformToFullDay": "تحويل ليوم كامل",
+    "transformToFullDayTooltip": "تحويل الحجز إلى يوم كامل (09:00 ص – 10:00 م)",
+    "transformToFullDayConfirm": "تحويل الحجز إلى يوم كامل",
+    "transformToFullDayDesc": "هل تريد تحويل هذا الحجز إلى يوم كامل (09:00 ص – 10:00 م)؟ سيتم اعتماده ورفض أي طلبات معلقة متعارضة.",
+    "transformToFullDaySuccess": "تم تحويل الحجز إلى يوم كامل بنجاح!",
+    "fullDayBadge": "يوم كامل (09:00 ص – 10:00 م)",
     "rejectRequest": "رفض طلب الحجز",
     "rejectSubtitle": "قدّم توضيحاً للعضو",
     "cancelReject": "إلغاء الرفض",
@@ -400,7 +409,10 @@
     "duration2h30": "ساعتان ونصف",
     "duration3h": "3 ساعات",
     "duration4h": "4 ساعات",
-    "duration5h": "5 ساعات"
+    "duration5h": "5 ساعات",
+    "duration6h": "6 ساعات",
+    "duration8h": "8 ساعات",
+    "durationFullDay": "يوم كامل (13 ساعة • 09:00 – 22:00)"
   },
   "seriesBuilder": {
     "title": "منشئ السلسلة الدورية",
@@ -818,7 +830,12 @@
       "seriesBadge": "سلسلة",
       "approveBtn": "قبول",
       "rejectBtn": "رفض",
-      "detailsChatBtn": "التفاصيل والمحادثة"
+      "detailsChatBtn": "التفاصيل والمحادثة",
+      "transformFullDayBtn": "يوم كامل",
+      "transformFullDayTooltip": "تحويل ليوم كامل (09:00 - 22:00) واعتماده",
+      "transformFullDayTitle": "تحويل الحجز إلى يوم كامل",
+      "transformFullDayDesc": "تحويل حجز \"{{service}}\" بتاريخ {{date}} إلى يوم كامل (09:00 ص – 10:00 م)؟ سيتم رفض أي طلبات معلقة متعارضة تلقائياً.",
+      "transformFullDaySuccess": "تم تحويل الحجز إلى يوم كامل بنجاح!"
     },
     "approvals": {
       "pendingBadge": "{{count}} قيد المراجعة",

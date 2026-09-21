@@ -338,6 +338,14 @@ export async function evaluateReservationSubmission(
 
   const limits = options?.preloadedLimits || (await getHardLimits());
 
+  // Strictly enforce 5-hour limit for regular users (members cannot book full-day reservations; only admins can book or transform)
+  const isActualAdmin = Boolean(cleanAdminId || isAdmin);
+  if (!isActualAdmin && duration > limits.maxDurationHours) {
+    throw new Error(
+      `Members can book a maximum duration of ${limits.maxDurationHours} hours. Only administrators can create or transform full-day reservations.`,
+    );
+  }
+
   // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled)
   if (!options?.skipRateLimitCheck && cleanUserId && !limits.bypassHardLimits) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -604,6 +612,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     status: evalResult.status,
     rejectionReason: null,
     paymentScreenshotUrl: null,
+    bookedByAdmin: Boolean(cleanAdminId),
   };
 
   const [newReservation] = await db
@@ -956,6 +965,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       status: evalResult.status,
       rejectionReason: null,
       paymentScreenshotUrl: null,
+      bookedByAdmin: Boolean(cleanAdminId),
     };
 
     const [resRow] = await db
@@ -1208,6 +1218,18 @@ export async function editReservation(
   }
 
   validateWorkingHours(start, end);
+
+  // Enforce max duration for regular users (members cannot edit to > 5 hours, only admins can)
+  const isActualAdminCaller = Boolean(caller.adminId || caller.isSuperAdmin);
+  const editDurationHours = (end.getTime() - start.getTime()) / (3600 * 1000);
+  if (!isActualAdminCaller) {
+    const limits = await getHardLimits();
+    if (editDurationHours > limits.maxDurationHours) {
+      throw new Error(
+        `Members can book a maximum duration of ${limits.maxDurationHours} hours. Only administrators can create or transform full-day reservations.`,
+      );
+    }
+  }
 
   // Check conflicts with OTHER approved reservations on this instrument
   const conflicts = await db
@@ -1554,6 +1576,162 @@ export async function adminApproveReservation(
   }
 
   return approved;
+}
+
+/**
+ * Transform a reservation into a Full Day reservation (09:00 - 22:00 Cairo time)
+ * Can transform a pending or approved reservation into a full day booking.
+ * Exclusively available to administrators. Auto-approves and auto-rejects any overlapping pending requests.
+ */
+export async function adminTransformToFullDay(
+  reservationId: string,
+  adminId?: string | null,
+  options?: { skipEmail?: boolean },
+) {
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error("Reservation not found.");
+
+  if (res.status === "cancelled" || res.status === "rejected") {
+    throw new Error("Cannot transform a cancelled or rejected reservation to full day.");
+  }
+
+  // Extract date of current reservation
+  const boundsRes: any = await db.execute(
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
+  );
+  if (!boundsRes.rows || boundsRes.rows.length === 0) {
+    throw new Error("Could not determine reservation time boundaries.");
+  }
+  const currentStart = new Date(boundsRes.rows[0].start_time);
+  const dateStr = getCairoDateString(currentStart);
+
+  // Full day window: 09:00 to 22:00 Cairo time (13 hours)
+  const fullDayStart = cairoDateTimeToDate(dateStr, "09:00");
+  const fullDayEnd = cairoDateTimeToDate(dateStr, "22:00");
+
+  // Conflict check: check if any OTHER approved reservation exists for this instrument on this day
+  const conflicts = await db
+    .select({
+      id: reservations.id,
+      serviceName: reservations.serviceName,
+      musicianName: reservations.musicianName,
+    })
+    .from(reservations)
+    .where(
+      sql`${reservations.instrumentId} = ${res.instrumentId}
+        AND ${reservations.id} != ${reservationId}
+        AND ${reservations.status} = 'approved'
+        AND ${reservations.timeRange} && tstzrange(${fullDayStart.toISOString()}, ${fullDayEnd.toISOString()}, '[)')`,
+    );
+
+  if (conflicts.length > 0) {
+    const conflictNames = conflicts
+      .map((c) => `"${c.serviceName}" (${c.musicianName || "Musician"})`)
+      .join(", ");
+    throw new Error(
+      `Cannot transform to full day: another approved reservation (${conflictNames}) already exists on ${dateStr} for this instrument.`,
+    );
+  }
+
+  const cleanAdminId = toNullableString(adminId);
+
+  // If outside church, ensure fee is set to full day fee
+  let outsideFee = res.feeSnapshot;
+  if (res.reservationType === "outside_church") {
+    const [inst] = await db
+      .select({ outsideFeePerDay: instruments.outsideFeePerDay })
+      .from(instruments)
+      .where(eq(instruments.id, res.instrumentId))
+      .limit(1);
+    if (inst?.outsideFeePerDay) {
+      outsideFee = inst.outsideFeePerDay;
+    }
+  }
+
+  const [transformed] = await db
+    .update(reservations)
+    .set({
+      timeRange: sql`tstzrange(${fullDayStart.toISOString()}, ${fullDayEnd.toISOString()}, '[)')` as any,
+      status: "approved",
+      rejectionReason: null,
+      adminId: cleanAdminId || res.adminId,
+      feeSnapshot: outsideFee,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  // Auto-reject any overlapping pending requests on this day
+  await autoRejectOverlappingPending(
+    res.instrumentId,
+    fullDayStart,
+    fullDayEnd,
+    reservationId,
+  );
+
+  // Send admin note message in conversation thread
+  try {
+    await db.insert(messages).values({
+      reservationId,
+      adminId: cleanAdminId,
+      senderRole: "admin",
+      senderName: "Church Administration",
+      content: "Reservation has been transformed to a Full Day booking (09:00 AM – 10:00 PM) by church administration.",
+      isRead: false,
+    });
+  } catch (msgErr) {
+    console.warn("Could not insert transform system message:", msgErr);
+  }
+
+  // Notify user in-app
+  if (res.userId) {
+    await db.insert(notifications).values({
+      userId: res.userId,
+      reservationId: res.id,
+      type: "reservation_approved",
+      message: `Your reservation for "${res.serviceName}" on ${dateStr} has been transformed to a Full Day booking (09:00 AM – 10:00 PM) and approved by administration.`,
+    });
+
+    if (!options?.skipEmail) {
+      (async () => {
+        try {
+          const [userInfo] = await db
+            .select({ name: users.name, email: users.email })
+            .from(users)
+            .where(eq(users.id, res.userId!))
+            .limit(1);
+
+          const [instInfo] = await db
+            .select({ name: instruments.name })
+            .from(instruments)
+            .where(eq(instruments.id, res.instrumentId))
+            .limit(1);
+
+          if (userInfo?.email) {
+            await sendReservationApprovedEmail({
+              email: userInfo.email,
+              name: userInfo.name,
+              instrumentName: instInfo?.name || "Instrument",
+              musicianName: res.musicianName,
+              serviceName: `${res.serviceName} (Full Day Booking)`,
+              startTime: fullDayStart,
+              endTime: fullDayEnd,
+              reservationType: res.reservationType,
+              feeSnapshot: outsideFee,
+            });
+          }
+        } catch (mailErr) {
+          console.error("Failed to send full-day transformed approval email:", mailErr);
+        }
+      })().catch(() => {});
+    }
+  }
+
+  return transformed;
 }
 
 export async function adminRejectReservation(

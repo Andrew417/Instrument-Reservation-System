@@ -14,6 +14,7 @@ import {
   Plus,
   RefreshCw,
   SlidersHorizontal,
+  Sun,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { useTranslation } from "react-i18next";
@@ -53,6 +54,7 @@ export interface ReservedSlot {
   endTime: string;
   startHhmm: string;
   endHhmm: string;
+  isFullDay?: boolean;
 }
 
 interface AvailabilityCalendarProps {
@@ -893,6 +895,17 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   <span>{t("common.egp")} {inst.outsideFeePerDay}{t("common.perDay")}</span>
                                 </span>
                               )}
+
+                              {/* Full Day Indicator if instrument has a full-day booking today */}
+                              {reservations.some((r) => r.instrumentId === inst.id && r.isFullDay) && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
+                                  title={t("calendar.fullDayBookedTooltip") || "Instrument is booked for the full day"}
+                                >
+                                  <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                  <span>{t("common.fullDay")}</span>
+                                </span>
+                              )}
                             </div>
                           </div>
                         </th>
@@ -943,11 +956,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                           const userOwn = isUserOwnBooking(inst.id, slotHhmm);
 
                           if (booked) {
+                            const slotRes = getSlotReservation(
+                              inst.id,
+                              slotHhmm,
+                            );
+
                             if (isAdminOrSuperAdmin) {
-                              const slotRes = getSlotReservation(
-                                inst.id,
-                                slotHhmm,
-                              );
                               const reservantKey =
                                 slotRes?.userId ||
                                 slotRes?.userName ||
@@ -978,11 +992,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   >
                                     <div className="flex flex-col items-center justify-center leading-tight w-full overflow-hidden text-center">
                                       <span
-                                        className="font-bold truncate max-w-full text-[10px]"
+                                        className="font-bold truncate max-w-full text-[10px] flex items-center gap-1"
                                         style={{ color: colorTheme.nameHex }}
                                         title={reservantName}
                                       >
-                                        {reservantName}
+                                        {slotRes?.isFullDay && (
+                                          <Sun className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                                        )}
+                                        <span className="truncate">{reservantName}</span>
                                       </span>
                                       <span
                                         className="text-[9px] truncate max-w-full opacity-90"
@@ -997,8 +1014,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               );
                             }
 
-                            // Regular users: approved slots show only a solid black box labeled "Booked"
+                            // Regular users: approved slots show a solid box labeled "Booked" or "Full Day"
                             // No name, no service_name, no reservant-specific color
+                            const isSlotFullDay = Boolean(slotRes?.isFullDay);
                             return (
                               <td
                                 key={`${inst.id}-${slotHhmm}`}
@@ -1007,14 +1025,26 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   isAr ? "border-l" : "border-r"
                                 } border-stone-200 text-center select-none`}
                               >
-                                <div
-                                  className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-black text-white border border-black select-none"
-                                  title={t("common.booked")}
-                                >
-                                  <span className="tracking-wider uppercase text-[9px] font-bold text-white">
-                                    {t("common.booked")}
-                                  </span>
-                                </div>
+                                {isSlotFullDay ? (
+                                  <div
+                                    className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-stone-900 text-amber-300 border border-amber-500/40 select-none gap-1"
+                                    title={t("calendar.fullDayReserved") || "Full Day Reserved"}
+                                  >
+                                    <Sun className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                    <span className="tracking-wider uppercase text-[9px] font-bold text-amber-200">
+                                      {t("common.fullDay")}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-black text-white border border-black select-none"
+                                    title={t("common.booked")}
+                                  >
+                                    <span className="tracking-wider uppercase text-[9px] font-bold text-white">
+                                      {t("common.booked")}
+                                    </span>
+                                  </div>
+                                )}
                               </td>
                             );
                           }

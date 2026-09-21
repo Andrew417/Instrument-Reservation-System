@@ -283,7 +283,8 @@ router.get(
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
         to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
@@ -299,11 +300,15 @@ router.get(
         date: dateStr,
         instruments: formattedInstruments,
         reservations: reservedSlots.map((r: any) => {
+          const isFullDay =
+            (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+            Number(r.duration_hours) >= 13;
           return {
             id: r.id,
             instrumentId: r.instrument_id,
             status: r.status,
             reservationType: r.reservation_type,
+            isFullDay,
             // Only reveal reservant identity, userId & service name to admins/super admins
             userId: isAdmin ? r.user_id || r.admin_id : undefined,
             userName: isAdmin ? r.user_name : undefined,
@@ -384,7 +389,8 @@ router.get(
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
         to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
@@ -400,11 +406,15 @@ router.get(
         date: dateStr,
         instruments: formattedInstruments,
         reservations: reservedSlots.map((r: any) => {
+          const isFullDay =
+            (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+            Number(r.duration_hours) >= 13;
           return {
             id: r.id,
             instrumentId: r.instrument_id,
             status: r.status,
             reservationType: r.reservation_type,
+            isFullDay,
             userId: isAdmin ? r.user_id || r.admin_id : undefined,
             userName: isAdmin ? r.user_name : undefined,
             serviceName: isAdmin ? r.service_name : undefined,

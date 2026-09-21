@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../lib/i18n";
 import { Instrument } from "./AvailabilityCalendar.tsx";
@@ -212,6 +212,22 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   // Status & Submission States
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
+  );
+
+  const durationOptions = useMemo(() => {
+    if (isAdmin) {
+      return [
+        ...DURATION_OPTIONS,
+        { labelKey: "reservationForm.durationFullDay", value: 13 },
+      ];
+    }
+    return DURATION_OPTIONS;
+  }, [isAdmin]);
   const [submissionResult, setSubmissionResult] = useState<{
     reservation: any;
     evaluation: {
@@ -851,17 +867,22 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     )}
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {DURATION_OPTIONS.map((opt) => (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {durationOptions.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setDuration(opt.value)}
+                      onClick={() => {
+                        setDuration(opt.value);
+                        if (opt.value === 13) {
+                          setStartTime("09:00");
+                        }
+                      }}
                       className={`py-2 px-2 rounded-xl text-xs font-bold text-center transition cursor-pointer border ${
                         duration === opt.value
                           ? "bg-amber-800 text-white border-amber-900 shadow-xs"
                           : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
-                      }`}
+                      } ${opt.value === 13 ? "col-span-2 sm:col-span-1 border-amber-400 bg-amber-50/50" : ""}`}
                     >
                       {t(opt.labelKey)}
                     </button>

@@ -70,16 +70,11 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t } = useTranslation();
 
-  const DURATION_OPTIONS = [
-    { label: t("reservationForm.duration30m"), value: 0.5 },
-    { label: t("reservationForm.duration1h"), value: 1 },
-    { label: t("reservationForm.duration1h30"), value: 1.5 },
-    { label: t("reservationForm.duration2h"), value: 2 },
-    { label: t("reservationForm.duration2h30"), value: 2.5 },
-    { label: t("reservationForm.duration3h"), value: 3 },
-    { label: t("reservationForm.duration4h"), value: 4 },
-    { label: t("reservationForm.duration5h"), value: 5 },
-  ];
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    (profile as any)?.isSuperAdmin,
+  );
 
   // Derive initial values from reservation
   const startUtc = new Date(reservation.start_time || reservation.startTime);
@@ -94,6 +89,20 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     0.5,
     (endUtc.getTime() - startUtc.getTime()) / (3600 * 1000),
   );
+
+  const DURATION_OPTIONS = [
+    { label: t("reservationForm.duration30m"), value: 0.5 },
+    { label: t("reservationForm.duration1h"), value: 1 },
+    { label: t("reservationForm.duration1h30"), value: 1.5 },
+    { label: t("reservationForm.duration2h"), value: 2 },
+    { label: t("reservationForm.duration2h30"), value: 2.5 },
+    { label: t("reservationForm.duration3h"), value: 3 },
+    { label: t("reservationForm.duration4h"), value: 4 },
+    { label: t("reservationForm.duration5h"), value: 5 },
+    ...(isAdmin || initialDurationHours >= 13 || reservation.is_full_day
+      ? [{ label: t("reservationForm.durationFullDay"), value: 13 }]
+      : []),
+  ];
 
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
     reservation.instrument_id ||

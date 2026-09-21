@@ -31,6 +31,7 @@ import {
   Trash2,
   RefreshCw,
   Plus,
+  Sun,
 } from "lucide-react";
 import { getStatusColor } from "../lib/status-colors.ts";
 
@@ -554,7 +555,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               const isPast = endUtc < new Date();
               const isCancelled =
                 res.status === "cancelled" || res.status === "rejected";
-              const isAdminBooked = Boolean(res.user_id && res.admin_id);
+              const isAdminBooked = Boolean(
+                res.booked_by_admin || res.bookedByAdmin,
+              );
 
               return (
                 <div
@@ -604,6 +607,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
                             <DollarSign className="w-3 h-3" />
                             {t("common.outsideChurch")}
+                          </span>
+                        )}
+
+                        {(res.is_full_day || (res.start_hhmm === "09:00" && res.end_hhmm === "22:00") || (res.startTime && res.endTime && (new Date(res.endTime).getTime() - new Date(res.startTime).getTime()) >= 13 * 3600 * 1000)) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                            <Sun className="w-3 h-3 text-amber-700" />
+                            {t("common.fullDay")}
                           </span>
                         )}
                       </div>

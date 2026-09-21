@@ -44,6 +44,7 @@ import {
   History,
   Check,
   X,
+  Sun,
   Info,
   CalendarDays,
   Coins,
@@ -2490,6 +2491,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   hour12: true,
                                 })}
                               </div>
+                              {(r.is_full_day || (r.start_hhmm === "09:00" && r.end_hhmm === "22:00")) && (
+                                <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                  <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                  <span>{t("common.fullDay")}</span>
+                                </span>
+                              )}
                             </td>
 
                             <td className="py-3 px-3">

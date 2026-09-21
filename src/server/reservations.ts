@@ -529,8 +529,12 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         r.is_no_show,
         r.no_show_marked_at,
         r.no_show_admin_id,
+        r.booked_by_admin,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
+        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
         i.name as instrument_name,
         i.type as instrument_type,
         i.booking_mode,
@@ -555,7 +559,19 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.json({ success: true, reservation: rows[0] });
+    const r = rows[0];
+    const isFullDay =
+      (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+      Number(r.duration_hours) >= 13;
+
+    res.json({
+      success: true,
+      reservation: {
+        ...r,
+        is_full_day: isFullDay,
+        isFullDay,
+      },
+    });
   } catch (err: any) {
     console.error("Reservations list error:", err);
     res
@@ -618,8 +634,12 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         r.is_no_show,
         r.no_show_marked_at,
         r.no_show_admin_id,
+        r.booked_by_admin,
         lower(r.time_range) as start_time,
         upper(r.time_range) as end_time,
+        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
         i.name as instrument_name,
         i.type as instrument_type,
         i.booking_mode,
@@ -649,20 +669,33 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     const rows = (result as any).rows || [];
     const sanitizedRows = rows.map((r: any) => {
+      const isFullDay =
+        (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+        Number(r.duration_hours) >= 13;
       const isOwn =
         currentUserId &&
         (r.user_id === currentUserId || r.admin_id === currentUserId);
       if (isAdmin) {
-        return r;
+        return {
+          ...r,
+          is_full_day: isFullDay,
+          isFullDay,
+        };
       }
       if (isOwn && userId && String(userId) === currentUserId) {
         // User querying their own reservations (MyReservations view)
-        return r;
+        return {
+          ...r,
+          is_full_day: isFullDay,
+          isFullDay,
+        };
       }
       // For regular users querying instruments / general calendars:
       // Redact reservant identity, phone, payment, and service name completely
       return {
         ...r,
+        is_full_day: isFullDay,
+        isFullDay,
         user_name: undefined,
         user_phone: undefined,
         service_name: undefined,
