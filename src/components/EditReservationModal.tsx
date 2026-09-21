@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, type SelectHTMLAttributes } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
@@ -20,6 +20,7 @@ import {
   DollarSign,
   User as UserIcon,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 
 export interface EditReservationModalProps {
@@ -57,6 +58,37 @@ const TIME_SLOTS = [
   "21:00",
   "21:30",
 ];
+
+/** Native select wrapper: adds a custom chevron and a consistent 16px font
+ * (native <select> text below 16px triggers iOS Safari's zoom-on-focus). */
+const SelectField: React.FC<SelectHTMLAttributes<HTMLSelectElement>> = ({
+  className = "",
+  children,
+  ...props
+}) => (
+  <div className="relative">
+    <select
+      {...props}
+      className={`w-full min-h-[48px] appearance-none bg-white border border-stone-300 rounded-xl pl-3.5 pr-10 py-3 text-base font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 cursor-pointer touch-manipulation ${className}`}
+    >
+      {children}
+    </select>
+    <ChevronDown className="w-4 h-4 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+  </div>
+);
+
+const FieldLabel: React.FC<{
+  icon: React.ReactNode;
+  required?: boolean;
+  children: React.ReactNode;
+}> = ({ icon, required, children }) => (
+  <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
+    {icon}
+    <span>
+      {children} {required && <span className="text-amber-800">*</span>}
+    </span>
+  </label>
+);
 
 export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   reservation,
@@ -175,8 +207,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     setErrorMsg(null);
 
     try {
-      // FIX: server derives admin/user identity from the Bearer token.
-      // We only include `userId` for the no-session legacy/self-edit fallback.
+      // Server derives admin/user identity from the Bearer token.
+      // `userId` is only included for the no-session legacy/self-edit fallback.
       const body: Record<string, unknown> = {
         instrumentId: currentInstrument.id,
         serviceName: serviceName.trim(),
@@ -232,7 +264,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         className="bg-white w-full sm:max-w-xl sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)]"
       >
         {/* ============ STICKY HEADER ============ */}
-        <div className="bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 border-b border-stone-800 shrink-0">
+        <div className="bg-stone-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between gap-3 border-b border-stone-800 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center shrink-0 shadow-xs">
               <Music2 className="w-5 h-5" />
@@ -259,8 +291,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
         {/* ============ STICKY INLINE ERROR ============ */}
         {errorMsg && (
-          <div className="px-4 sm:px-6 pt-3 pb-1 shrink-0">
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 text-red-900 flex items-start gap-3">
+          <div className="px-4 sm:px-6 pt-3 shrink-0">
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div className="space-y-0.5 text-xs min-w-0">
                 <div className="font-bold text-red-950">
@@ -278,18 +310,16 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         <form
           id="edit-reservation-form"
           onSubmit={handleEditSubmit}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-5"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-6"
         >
           {/* -------- Instrument -------- */}
           <section className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
-              <Music2 className="w-4 h-4 text-amber-800" />
-              <span>{t("editReservation.selectInstrumentLabel")}</span>
-            </label>
-            <select
+            <FieldLabel icon={<Music2 className="w-4 h-4 text-amber-800" />}>
+              {t("editReservation.selectInstrumentLabel")}
+            </FieldLabel>
+            <SelectField
               value={selectedInstrumentId}
               onChange={(e) => setSelectedInstrumentId(e.target.value)}
-              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 cursor-pointer touch-manipulation"
             >
               {allInstruments.map((inst) => (
                 <option key={inst.id} value={inst.id}>
@@ -300,7 +330,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   })}
                 </option>
               ))}
-            </select>
+            </SelectField>
 
             {willResetToPending && (
               <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900">
@@ -314,13 +344,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
           {/* -------- Purpose -------- */}
           <section className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
-              <FileText className="w-4 h-4 text-amber-800" />
-              <span>
-                {t("editReservation.purposeQuestionLabel")}{" "}
-                <span className="text-amber-800">*</span>
-              </span>
-            </label>
+            <FieldLabel
+              icon={<FileText className="w-4 h-4 text-amber-800" />}
+              required
+            >
+              {t("editReservation.purposeQuestionLabel")}
+            </FieldLabel>
             <input
               type="text"
               inputMode="text"
@@ -328,20 +357,19 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
               placeholder={t("editReservation.purposePlaceholder")}
-              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 touch-manipulation"
+              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-base font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 touch-manipulation"
               required
             />
           </section>
 
           {/* -------- Musician -------- */}
           <section className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
-              <UserIcon className="w-4 h-4 text-amber-800" />
-              <span>
-                {t("editReservation.musicianNameLabel")}{" "}
-                <span className="text-amber-800">*</span>
-              </span>
-            </label>
+            <FieldLabel
+              icon={<UserIcon className="w-4 h-4 text-amber-800" />}
+              required
+            >
+              {t("editReservation.musicianNameLabel")}
+            </FieldLabel>
             <input
               type="text"
               inputMode="text"
@@ -349,7 +377,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               value={musicianName}
               onChange={(e) => setMusicianName(e.target.value)}
               placeholder={t("editReservation.musicianNamePlaceholder")}
-              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 touch-manipulation"
+              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-base font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 touch-manipulation"
               required
             />
           </section>
@@ -357,13 +385,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           {/* -------- Note -------- */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
-                <FileText className="w-4 h-4 text-amber-800" />
-                <span>
-                  {t("reservationForm.leaveANoteLabel") ||
-                    "Notes / Special Requests"}
-                </span>
-              </label>
+              <FieldLabel
+                icon={<FileText className="w-4 h-4 text-amber-800" />}
+              >
+                {t("reservationForm.leaveANoteLabel") ||
+                  "Notes / Special Requests"}
+              </FieldLabel>
               <span className="text-[11px] text-stone-400 font-medium">
                 {t("common.optional") || "Optional"}
               </span>
@@ -373,18 +400,18 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={t("reservationForm.notePlaceholder")}
-              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 resize-none touch-manipulation"
+              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-base font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 resize-none touch-manipulation"
             />
           </section>
 
           {/* -------- Date & Time -------- */}
-          <section className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
+          <section className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3.5">
             <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
               <CalendarIcon className="w-4 h-4 text-amber-800" />
               <span>{t("editReservation.scheduleDurationTitle")}</span>
             </div>
 
-            {/* Date — full width on mobile (native date pickers need room) */}
+            {/* Date — full width (native date pickers need room) */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider">
                 {t("editReservation.dateLabel")}
@@ -393,55 +420,53 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-4 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 touch-manipulation"
+                className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-4 py-3 text-base font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 touch-manipulation"
                 required
               />
             </div>
 
-            {/* Start time + Duration — two columns on all sizes */}
+            {/* Start time + Duration — two columns */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 uppercase tracking-wider">
                   <Clock className="w-3.5 h-3.5 text-stone-500" />
                   <span>{t("editReservation.startTimeLabel")}</span>
                 </label>
-                <select
+                <SelectField
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-3 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 cursor-pointer touch-manipulation"
                 >
                   {TIME_SLOTS.map((tm) => (
                     <option key={tm} value={tm}>
                       {formatHhmmTo12Hour(tm)}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider truncate">
                   {t("editReservation.durationUntilLabel", {
                     end: formatHhmmTo12Hour(calculateEndTime()),
                   })}
                 </label>
-                <select
+                <SelectField
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-3 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 cursor-pointer touch-manipulation"
                 >
                   {DURATION_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
             </div>
 
             {/* Live end-time summary chip */}
-            <div className="flex items-center justify-center gap-2 text-xs text-stone-600 pt-1">
-              <Clock className="w-3.5 h-3.5 text-stone-500" />
-              <span className="font-semibold text-stone-800">
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-stone-200 rounded-full text-xs font-semibold text-stone-800">
+                <Clock className="w-3.5 h-3.5 text-stone-500" />
                 {formatHhmmTo12Hour(startTime)} –{" "}
                 {formatHhmmTo12Hour(calculateEndTime())}
               </span>
@@ -450,32 +475,31 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
           {/* -------- Usage Type -------- */}
           <section className="space-y-2.5">
-            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
-              <MapPin className="w-4 h-4 text-amber-800" />
-              <span>{t("editReservation.usageTypeLabel")}</span>
-            </label>
+            <FieldLabel icon={<MapPin className="w-4 h-4 text-amber-800" />}>
+              {t("editReservation.usageTypeLabel")}
+            </FieldLabel>
 
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               {/* In-church */}
               <button
                 type="button"
                 onClick={() => setReservationType("in_church")}
                 aria-pressed={reservationType === "in_church"}
-                className={`min-h-[88px] p-4 rounded-2xl border-2 text-start transition cursor-pointer touch-manipulation active:scale-[0.99] ${
+                className={`min-h-[92px] p-3.5 rounded-2xl border-2 text-start transition cursor-pointer touch-manipulation active:scale-[0.98] flex flex-col justify-between ${
                   reservationType === "in_church"
                     ? "bg-amber-50 border-amber-800 ring-2 ring-amber-800/30"
                     : "bg-white border-stone-200 hover:bg-stone-50"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5 gap-2">
-                  <span className="font-bold text-sm text-stone-900 truncate">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-bold text-sm text-stone-900 leading-snug">
                     {t("editReservation.inChurchUseLabel")}
                   </span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
                     {t("editReservation.freeBadge")}
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-500 leading-snug">
+                <p className="text-[11px] text-stone-500 leading-snug mt-1.5">
                   {t("editReservation.inChurchDesc")}
                 </p>
               </button>
@@ -485,52 +509,51 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 type="button"
                 onClick={() => setReservationType("outside_church")}
                 aria-pressed={reservationType === "outside_church"}
-                className={`min-h-[88px] p-4 rounded-2xl border-2 text-start transition cursor-pointer touch-manipulation active:scale-[0.99] ${
+                className={`min-h-[92px] p-3.5 rounded-2xl border-2 text-start transition cursor-pointer touch-manipulation active:scale-[0.98] flex flex-col justify-between ${
                   reservationType === "outside_church"
                     ? "bg-purple-50 border-purple-800 ring-2 ring-purple-800/30"
                     : "bg-white border-stone-200 hover:bg-stone-50"
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5 gap-2">
-                  <span className="font-bold text-sm text-stone-900 truncate">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-bold text-sm text-stone-900 leading-snug">
                     {t("editReservation.outsideChurchLabel")}
                   </span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 shrink-0 whitespace-nowrap">
                     {t("editReservation.egpPerDayBadge", { fee: feeNumber })}
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-500 leading-snug">
+                <p className="text-[11px] text-stone-500 leading-snug mt-1.5">
                   {t("editReservation.outsideChurchDesc")}
                 </p>
               </button>
             </div>
 
             {reservationType === "outside_church" && (
-              <label className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-2xl cursor-pointer select-none min-h-[56px] touch-manipulation">
-                <input
-                  type="checkbox"
-                  checked={feeAcknowledged}
-                  onChange={(e) => setFeeAcknowledged(e.target.checked)}
-                  className="mt-0.5 w-5 h-5 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
-                />
-                <span className="text-xs sm:text-sm font-semibold text-purple-950 leading-snug">
-                  {t("editReservation.feeAcknowledgeLabel", { fee: feeNumber })}
-                </span>
-              </label>
-            )}
+              <>
+                <label className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-2xl cursor-pointer select-none min-h-[56px] touch-manipulation">
+                  <input
+                    type="checkbox"
+                    checked={feeAcknowledged}
+                    onChange={(e) => setFeeAcknowledged(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm font-semibold text-purple-950 leading-snug">
+                    {t("editReservation.feeAcknowledgeLabel", {
+                      fee: feeNumber,
+                    })}
+                  </span>
+                </label>
 
-            {reservationType === "outside_church" && (
-              <div className="flex items-start gap-2 p-3 bg-white border border-purple-200 rounded-xl text-[11px] text-purple-900">
-                <DollarSign className="w-3.5 h-3.5 text-purple-700 shrink-0 mt-0.5" />
-                <span className="leading-relaxed">
-                  {t("reservationDetail.paymentNotice")}
-                </span>
-              </div>
+                <div className="flex items-start gap-2 p-3 bg-white border border-purple-200 rounded-xl text-[11px] text-purple-900">
+                  <DollarSign className="w-3.5 h-3.5 text-purple-700 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">
+                    {t("reservationDetail.paymentNotice")}
+                  </span>
+                </div>
+              </>
             )}
           </section>
-
-          {/* Bottom spacer so the last field isn't hidden behind the sticky footer */}
-          <div className="h-2" aria-hidden="true" />
         </form>
 
         {/* ============ STICKY ACTION FOOTER ============ */}
