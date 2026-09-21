@@ -455,22 +455,23 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               />
             </div>
 
-            {/* 3. Date & Time Selection */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-stone-700">
-                  {t("editReservation.dateLabel")}
-                </label>
-                <input
-                  id="input-edit-reservation-date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
-                  required
-                />
-              </div>
+            {/* 3. Date Selection */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-stone-700">
+                {t("editReservation.dateLabel")}
+              </label>
+              <input
+                id="input-edit-reservation-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                required
+              />
+            </div>
 
+            {/* 4. Start Time & Duration — same row, both dropdowns */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-stone-700">
                   {t("editReservation.startTimeLabel")}
@@ -499,55 +500,54 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 4. Duration Selector & Time Preview */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-stone-700">
-                  {t("editReservation.durationUntilLabel", {
-                    end: formatHhmmTo12Hour(endTimeStr),
+                  {t("editReservation.durationLabel", {
+                    defaultValue: "Duration",
                   })}
                 </label>
-                <span className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg whitespace-nowrap">
-                  {isAr ? (
-                    <>
-                      {formatHhmmTo12Hour(startTime)} ←{" "}
-                      {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
-                    </>
-                  ) : (
-                    <>
-                      {formatHhmmTo12Hour(startTime)} →{" "}
-                      {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
-                    </>
-                  )}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {durationOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      setDuration(opt.value);
-                      if (opt.value === 13) {
-                        setStartTime("09:00");
-                      }
-                    }}
-                    className={`py-2.5 px-2 rounded-xl text-xs font-bold text-center transition cursor-pointer border active:scale-[0.97] touch-manipulation ${
-                      duration === opt.value
-                        ? "bg-amber-800 text-white border-amber-900 shadow-xs"
-                        : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
-                    } ${
-                      opt.value === 13
-                        ? "col-span-2 sm:col-span-1 border-amber-400 bg-amber-50/50"
-                        : ""
+                <div className="relative">
+                  <select
+                    id="select-edit-duration"
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                    className="w-full appearance-none bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pr-8 cursor-pointer"
+                  >
+                    {durationOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {t(opt.labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className={`pointer-events-none absolute inset-y-0 flex items-center px-3 text-stone-500 ${
+                      isAr ? "left-0" : "right-0"
                     }`}
                   >
-                    {t(opt.labelKey)}
-                  </button>
-                ))}
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 ${isAr ? "-rotate-90" : "rotate-90"}`}
+                    />
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Live end-time preview */}
+            <div className="flex justify-center">
+              <span className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                {isAr ? (
+                  <>
+                    {formatHhmmTo12Hour(startTime)} ←{" "}
+                    {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
+                  </>
+                ) : (
+                  <>
+                    {formatHhmmTo12Hour(startTime)} →{" "}
+                    {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
+                  </>
+                )}
+              </span>
             </div>
 
             {/* 5. Usage Type Toggle */}
