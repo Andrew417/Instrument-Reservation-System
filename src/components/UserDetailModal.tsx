@@ -77,7 +77,7 @@ const RoleBadge: React.FC<{ role?: string; isSuperAdmin?: boolean }> = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${cfg.classes}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${cfg.classes}`}
     >
       {cfg.icon}
       <span>{cfg.label}</span>
@@ -301,8 +301,8 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   const getStatusBadge = (status: string, isNoShow?: boolean) => {
     if (isNoShow) {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
-          <AlertCircle className="w-3 h-3 text-rose-700" />
+        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1 whitespace-nowrap">
+          <AlertCircle className="w-3 h-3 text-rose-700 shrink-0" />
           <span>{t("common.noShow") || "No-Show"}</span>
         </span>
       );
@@ -311,52 +311,52 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
     switch (status) {
       case "approved":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 whitespace-nowrap">
+            <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />
             <span>{t("common.approved")}</span>
           </span>
         );
       case "pending":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
-            <Clock className="w-3 h-3 text-amber-700" />
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 whitespace-nowrap">
+            <Clock className="w-3 h-3 text-amber-700 shrink-0" />
             <span>{t("common.pending")}</span>
           </span>
         );
       case "completed":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-stone-100 text-stone-700 border border-stone-200 whitespace-nowrap">
             {t("common.completed") || "Completed"}
           </span>
         );
       case "ongoing":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200 whitespace-nowrap">
             {t("common.ongoing") || "In Progress"}
           </span>
         );
       case "rejected":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
-            <XCircle className="w-3 h-3 text-rose-600" />
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 whitespace-nowrap">
+            <XCircle className="w-3 h-3 text-rose-600 shrink-0" />
             <span>{t("common.rejected")}</span>
           </span>
         );
       case "expired":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-500 border border-stone-200">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-stone-100 text-stone-500 border border-stone-200 whitespace-nowrap">
             {t("common.expired") || "Expired"}
           </span>
         );
       case "cancelled":
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-500 border border-stone-200">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-stone-100 text-stone-500 border border-stone-200 whitespace-nowrap">
             {t("common.cancelled")}
           </span>
         );
       default:
         return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-200">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-stone-100 text-stone-600 border border-stone-200 whitespace-nowrap">
             {status}
           </span>
         );
@@ -366,27 +366,27 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   const getAccountStatusBadge = (isActive: boolean, approvalStatus: string) => {
     if (approvalStatus === "pending") {
       return (
-        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
           {t("admin.users.pendingApproval")}
         </span>
       );
     }
     if (approvalStatus === "rejected") {
       return (
-        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
           {t("admin.users.rejected")}
         </span>
       );
     }
     if (!isActive) {
       return (
-        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-stone-100 text-stone-600 border border-stone-200">
+        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-stone-100 text-stone-600 border border-stone-200 whitespace-nowrap">
           {t("admin.users.deactivated")}
         </span>
       );
     }
     return (
-      <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
         {t("admin.users.active")}
       </span>
     );
@@ -407,7 +407,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
           : "bg-white border-stone-200"
       }`}
     >
-      <div className="text-[10px] font-semibold text-stone-500 truncate">
+      <div className="text-[11px] font-semibold text-stone-500 truncate">
         {label}
       </div>
       <div
@@ -429,9 +429,17 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
 
   const noShowCount = Number(standing?.noShowCount || 0);
 
+  // Count of visible action buttons for the compact row grid
+  const actionCount = [
+    isSuperAdmin,
+    true, // Active toggle is always shown for users
+    isSuperAdmin && !!onPromoteUser,
+    isSuperAdmin && !!onDeleteUser,
+  ].filter(Boolean).length;
+
   return (
     <div
-      className={`fixed inset-0 ${zIndexClass} flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overflow-y-auto`}
+      className={`fixed inset-0 ${zIndexClass} flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="user-detail-title"
@@ -439,30 +447,38 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
 
       <div
-        className="relative bg-white rounded-3xl shadow-2xl border border-stone-200 w-full max-w-2xl my-8 z-10 flex flex-col max-h-[90vh] overflow-hidden"
+        className="relative bg-white sm:rounded-3xl shadow-2xl sm:border sm:border-stone-200 w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-stone-200 bg-stone-50/70">
-          <div className="flex items-center gap-2">
+        <div className="shrink-0 flex items-center justify-between gap-2 px-4 sm:px-5 py-3 border-b border-stone-200 bg-white/95 backdrop-blur-xs">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shrink-0">
               <User className="w-4 h-4" />
             </div>
-            <h2
-              id="user-detail-title"
-              className="text-base font-bold text-stone-900"
-            >
-              {t("admin.userDetail.title")}
-            </h2>
-            <RoleBadge
-              role={userData?.role}
-              isSuperAdmin={userData?.isSuperAdmin || userData?.is_super_admin}
-            />
+            <div className="min-w-0">
+              <h2
+                id="user-detail-title"
+                className="text-sm sm:text-base font-bold text-stone-900 truncate"
+              >
+                {userData?.name || t("admin.userDetail.title")}
+              </h2>
+              {userData && (
+                <div className="mt-0.5">
+                  <RoleBadge
+                    role={userData?.role}
+                    isSuperAdmin={
+                      userData?.isSuperAdmin || userData?.is_super_admin
+                    }
+                  />
+                </div>
+              )}
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 transition cursor-pointer"
+            className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full text-stone-500 hover:text-stone-800 hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer touch-manipulation"
             aria-label={t("admin.userDetail.close")}
           >
             <X className="w-5 h-5" />
@@ -470,7 +486,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
           {loading && (
             <div className="py-16 text-center text-stone-500">
               <div className="w-8 h-8 border-2 border-amber-800 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
@@ -496,8 +512,10 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                     <h3 className="text-base font-extrabold text-stone-900 truncate">
                       {userData.name}
                     </h3>
-                    <div className="flex items-center gap-3 mt-0.5 text-[11px] text-stone-500 font-mono flex-wrap">
-                      {userData.email && <span>{userData.email}</span>}
+                    <div className="flex items-center gap-3 mt-1 text-xs text-stone-600 font-mono flex-wrap">
+                      {userData.email && (
+                        <span className="truncate">{userData.email}</span>
+                      )}
                       {userData.phoneNumber &&
                         (() => {
                           const whatsappNumber = String(userData.phoneNumber)
@@ -511,18 +529,18 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                               className="flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline transition"
                               title={`Chat with ${userData.name} on WhatsApp`}
                             >
-                              <Phone className="w-3 h-3 text-emerald-600" />
+                              <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                               {userData.phoneNumber}
                             </a>
                           ) : (
                             <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-stone-400" />
+                              <Phone className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                               {userData.phoneNumber}
                             </span>
                           );
                         })()}
                     </div>
-                    <p className="text-[11px] text-stone-400 mt-1">
+                    <p className="text-xs text-stone-400 mt-1">
                       {t("admin.userDetail.memberSince", {
                         date: userData.createdAt
                           ? formatDisplayDate(
@@ -543,8 +561,12 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                 {/* Compact Account Actions — users only */}
                 {entityType === "user" && (
                   <div className="bg-white rounded-xl border border-stone-200 p-2">
-                    <div className="flex items-center justify-between gap-1.5">
-                      {" "}
+                    <div
+                      className="grid gap-1.5"
+                      style={{
+                        gridTemplateColumns: `repeat(${Math.max(actionCount, 1)}, minmax(0, 1fr))`,
+                      }}
+                    >
                       {/* Trusted */}
                       {isSuperAdmin &&
                         (!confirmToggleTrust ? (
@@ -556,23 +578,24 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                                 ? "Remove trusted"
                                 : "Make trusted"
                             }
-                            className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border transition cursor-pointer ${
+                            className={`flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border transition cursor-pointer active:scale-95 touch-manipulation ${
                               userData.isTrusted
                                 ? "bg-amber-50 border-amber-200 text-amber-800"
                                 : "bg-stone-50 border-stone-200 text-stone-500"
                             }`}
                           >
-                            <Sparkles className="w-4 h-4" />
-                            <span className="text-[9px] font-bold leading-none">
+                            <Sparkles className="w-5 h-5 shrink-0" />
+                            <span className="text-[11px] font-bold leading-none">
                               {userData.isTrusted ? "Trusted" : "Trust"}
                             </span>
                           </button>
                         ) : (
-                          <div className="flex-1 flex gap-0.5">
+                          <div className="flex gap-1">
                             <button
                               type="button"
                               onClick={() => setConfirmToggleTrust(false)}
-                              className="flex-1 py-2 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold"
+                              className="flex-1 min-h-[56px] rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold active:scale-95 touch-manipulation"
+                              aria-label="Cancel"
                             >
                               ✕
                             </button>
@@ -580,12 +603,14 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                               type="button"
                               onClick={handleToggleTrusted}
                               disabled={isTogglingTrust}
-                              className="flex-1 py-2 rounded-lg bg-amber-700 text-white text-[10px] font-bold disabled:opacity-50"
+                              className="flex-1 min-h-[56px] rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-sm font-bold disabled:opacity-50 active:scale-95 touch-manipulation"
+                              aria-label="Confirm"
                             >
                               {isTogglingTrust ? "…" : "✓"}
                             </button>
                           </div>
                         ))}
+
                       {/* Active / Deactivate */}
                       {!confirmToggleActive ? (
                         <button
@@ -594,27 +619,28 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                           title={
                             userData.isActive ? "Deactivate" : "Reactivate"
                           }
-                          className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border transition cursor-pointer ${
+                          className={`flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border transition cursor-pointer active:scale-95 touch-manipulation ${
                             userData.isActive
                               ? "bg-stone-50 border-stone-200 text-stone-500"
                               : "bg-emerald-50 border-emerald-200 text-emerald-800"
                           }`}
                         >
                           {userData.isActive ? (
-                            <UserX className="w-4 h-4" />
+                            <UserX className="w-5 h-5 shrink-0" />
                           ) : (
-                            <UserCheck className="w-4 h-4" />
+                            <UserCheck className="w-5 h-5 shrink-0" />
                           )}
-                          <span className="text-[9px] font-bold leading-none">
+                          <span className="text-[11px] font-bold leading-none">
                             {userData.isActive ? "Off" : "On"}
                           </span>
                         </button>
                       ) : (
-                        <div className="flex-1 flex gap-0.5">
+                        <div className="flex gap-1">
                           <button
                             type="button"
                             onClick={() => setConfirmToggleActive(false)}
-                            className="flex-1 py-2 rounded-lg bg-stone-100 text-stone-600 text-[10px] font-bold"
+                            className="flex-1 min-h-[56px] rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold active:scale-95 touch-manipulation"
+                            aria-label="Cancel"
                           >
                             ✕
                           </button>
@@ -622,16 +648,18 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                             type="button"
                             onClick={handleToggleActive}
                             disabled={isTogglingActive}
-                            className={`flex-1 py-2 rounded-lg text-white text-[10px] font-bold disabled:opacity-50 ${
+                            className={`flex-1 min-h-[56px] rounded-xl text-white text-sm font-bold disabled:opacity-50 active:scale-95 touch-manipulation ${
                               userData.isActive
-                                ? "bg-rose-700"
-                                : "bg-emerald-700"
+                                ? "bg-rose-700 hover:bg-rose-800"
+                                : "bg-emerald-700 hover:bg-emerald-800"
                             }`}
+                            aria-label="Confirm"
                           >
                             {isTogglingActive ? "…" : "✓"}
                           </button>
                         </div>
                       )}
+
                       {/* Promote */}
                       {isSuperAdmin && onPromoteUser && (
                         <button
@@ -640,14 +668,15 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                             onPromoteUser(userData.id, userData.name)
                           }
                           title="Promote to Admin"
-                          className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border bg-stone-50 border-stone-200 text-amber-800 transition cursor-pointer"
+                          className="flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border bg-stone-50 border-stone-200 text-amber-800 transition cursor-pointer active:scale-95 touch-manipulation"
                         >
-                          <ArrowUpCircle className="w-4 h-4" />
-                          <span className="text-[9px] font-bold leading-none">
+                          <ArrowUpCircle className="w-5 h-5 shrink-0" />
+                          <span className="text-[11px] font-bold leading-none">
                             Promote
                           </span>
                         </button>
                       )}
+
                       {/* Delete */}
                       {isSuperAdmin && onDeleteUser && (
                         <button
@@ -656,10 +685,10 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                             onDeleteUser(userData.id, userData.name)
                           }
                           title="Delete permanently"
-                          className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg border bg-stone-50 border-stone-200 text-rose-600 transition cursor-pointer"
+                          className="flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border bg-stone-50 border-stone-200 text-rose-600 transition cursor-pointer active:scale-95 touch-manipulation"
                         >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="text-[9px] font-bold leading-none">
+                          <Trash2 className="w-5 h-5 shrink-0" />
+                          <span className="text-[11px] font-bold leading-none">
                             Delete
                           </span>
                         </button>
@@ -678,7 +707,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                       <span>{t("admin.userDetail.standingTitle")}</span>
                     </h4>
                     {standing?.bypassHardLimits && (
-                      <span className="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      <span className="text-[11px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                         {t("admin.userDetail.bypassedNote")}
                       </span>
                     )}
@@ -740,7 +769,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                             <div
                               key={`res-${res.id}`}
                               onClick={() => onSelectReservation(res.id)}
-                              className="bg-white border border-stone-200 hover:border-amber-400 hover:shadow-xs hover:bg-amber-50/15 rounded-2xl p-3 transition cursor-pointer group text-left"
+                              className="bg-white border border-stone-200 hover:border-amber-400 hover:shadow-xs hover:bg-amber-50/15 rounded-2xl p-3 transition cursor-pointer group text-left active:scale-[0.99] touch-manipulation"
                               role="button"
                               tabIndex={0}
                               title={
@@ -754,13 +783,13 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                                     <span className="font-bold text-stone-900 group-hover:text-amber-900 transition text-sm truncate">
                                       {res.service_name}
                                     </span>
-                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-stone-100 text-stone-600">
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-stone-100 text-stone-600 whitespace-nowrap">
                                       {res.reservation_type === "outside_church"
                                         ? t("common.outsideChurch")
                                         : t("common.inChurch")}
                                     </span>
                                     {res.series_id && (
-                                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
                                         Series
                                       </span>
                                     )}
@@ -773,7 +802,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center gap-1.5 text-[11px] text-stone-500 font-mono">
+                                  <div className="flex items-center gap-1.5 text-xs text-stone-500 font-mono">
                                     <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                                     <span>
                                       {formatDisplayDate(
@@ -794,7 +823,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                                   {getStatusBadge(res.status, res.is_no_show)}
                                   <span className="text-[10px] font-semibold text-amber-800 flex items-center gap-0.5 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition">
-                                    <span>
+                                    <span className="hidden sm:inline">
                                       {t("admin.userDetail.viewReservation")}
                                     </span>
                                     <ChevronRight className="w-3 h-3" />
@@ -818,7 +847,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                                   {t("admin.userDetail.adminMessage")}
                                 </span>
                                 {msg.sender_name && (
-                                  <span className="text-[10px] text-stone-500 font-medium truncate">
+                                  <span className="text-[11px] text-stone-500 font-medium truncate">
                                     ({msg.sender_name})
                                   </span>
                                 )}
@@ -843,7 +872,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                             </div>
 
                             {msg.service_name && (
-                              <div className="text-[10px] text-stone-500 flex items-center justify-between pt-0.5">
+                              <div className="text-[11px] text-stone-500 flex items-center justify-between gap-2 pt-0.5">
                                 <span className="truncate">
                                   {t("admin.userDetail.regarding", {
                                     service: msg.service_name,
@@ -857,9 +886,10 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                                     onClick={() =>
                                       onSelectReservation(msg.reservation_id)
                                     }
-                                    className="text-amber-800 hover:underline font-semibold cursor-pointer flex items-center gap-1 shrink-0"
+                                    className="w-9 h-9 flex items-center justify-center rounded-lg text-amber-800 hover:bg-amber-100 active:bg-amber-200 transition cursor-pointer shrink-0 touch-manipulation"
+                                    aria-label="Open reservation"
                                   >
-                                    <ExternalLink className="w-3 h-3" />
+                                    <ExternalLink className="w-4 h-4" />
                                   </button>
                                 )}
                               </div>
@@ -875,8 +905,8 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-5 py-2.5 border-t border-stone-200 bg-stone-50/50 flex justify-end">
+        {/* Modal Footer — desktop only (mobile uses header X) */}
+        <div className="hidden sm:flex shrink-0 px-5 py-2.5 border-t border-stone-200 bg-stone-50/50 justify-end">
           <button
             type="button"
             onClick={onClose}
