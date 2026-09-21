@@ -9,6 +9,7 @@ import {
   getCairoDateString,
   getCairoParts,
   getCairoTimeString,
+  getTodayDateString,
   formatHhmmTo12Hour,
 } from "../lib/date-utils";
 
@@ -481,29 +482,30 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
 
   const isAtMaxLimit = generatedOccurrences.length >= maxSeriesLimit;
   const hasConflicts = conflicts.length > 0;
+  const todayStr = getTodayDateString();
 
   return (
     <div
       id="series-builder-modal-backdrop"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="series-builder-modal"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       >
         {/* Header */}
-        <div className="bg-stone-900 text-white px-6 py-5 flex items-center justify-between border-b border-stone-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs">
+        <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-5 flex items-center justify-between border-b border-stone-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
               <Repeat className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
                 {seriesResult
                   ? t("seriesBuilder.confirmationTitle")
                   : t("seriesBuilder.title")}
               </h2>
-              <p className="text-xs text-stone-400">
+              <p className="text-[11px] sm:text-xs text-stone-400 truncate">
                 {seriesResult
                   ? t("seriesBuilder.confirmationSubtitle")
                   : t("seriesBuilder.builderSubtitle")}
@@ -514,10 +516,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           <button
             id="btn-close-series-modal"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer"
+            className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
             aria-label={t("common.close")}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -525,698 +527,719 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
         {/* RESULT / CONFIRMATION VIEW (Per-occurrence breakdown) */}
         {/* ------------------------------------------------------------- */}
         {seriesResult ? (
-          <div className="p-6 sm:p-8 space-y-6">
-            {/* Series Summary Banner */}
-            <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-stone-500 font-medium block">
-                    {t("seriesBuilder.whatForLabel")}
-                  </span>
-                  <span className="font-bold text-stone-900 text-sm">
-                    {serviceName}
-                  </span>
-                  <span className="text-xs text-stone-600 block">
-                    {t("seriesBuilder.musicianNameLabel")}: {musicianName}
-                  </span>
-                  {note.trim() && (
-                    <span className="text-xs text-stone-600 block whitespace-pre-wrap">
-                      {t("seriesBuilder.noteLabel") || "Notes"}: {note.trim()}
+          <>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-8 space-y-5 sm:space-y-6">
+              {/* Series Summary Banner */}
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-[11px] text-stone-500 font-medium block">
+                      {t("seriesBuilder.whatForLabel")}
                     </span>
-                  )}
+                    <span className="font-bold text-stone-900 text-sm block truncate">
+                      {serviceName}
+                    </span>
+                    <span className="text-xs text-stone-600 block truncate">
+                      {t("seriesBuilder.musicianNameLabel")}: {musicianName}
+                    </span>
+                    {note.trim() && (
+                      <span className="text-xs text-stone-600 block whitespace-pre-wrap">
+                        {t("seriesBuilder.noteLabel") || "Notes"}: {note.trim()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[11px] text-stone-500 font-medium block">
+                      {t("seriesBuilder.instrumentColonLabel")}
+                    </span>
+                    <span className="font-bold text-amber-900 text-xs">
+                      {currentInstrument.name}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-stone-500 font-medium block">
-                    {t("seriesBuilder.instrumentColonLabel")}
-                  </span>
-                  <span className="font-bold text-amber-900 text-xs">
-                    {currentInstrument.name}
-                  </span>
+
+                <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center justify-between text-xs text-stone-600 gap-2">
+                  <div>
+                    <span>{t("seriesBuilder.patternLabel")} </span>
+                    <strong className="capitalize text-stone-900">
+                      {seriesResult.series.patternType}
+                    </strong>
+                    <span>
+                      {" "}
+                      {t("seriesBuilder.occurrencesCountSuffix", {
+                        count: seriesResult.occurrences.length,
+                      })}
+                    </span>
+                  </div>
+                  <div className="font-mono text-[11px] text-stone-500">
+                    {t("seriesBuilder.seriesIdLabel")}{" "}
+                    {seriesResult.series.id.substring(0, 13)}...
+                  </div>
                 </div>
+
+                {/* Outside church WhatsApp notification message */}
+                {reservationType === "outside_church" && (
+                  <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2">
+                    <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                      WA
+                    </div>
+                    <p className="leading-relaxed">
+                      {t("seriesBuilder.whatsappNotice")}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center justify-between text-xs text-stone-600 gap-2">
-                <div>
-                  <span>{t("seriesBuilder.patternLabel")} </span>
-                  <strong className="capitalize text-stone-900">
-                    {seriesResult.series.patternType}
-                  </strong>
-                  <span>
-                    {" "}
-                    {t("seriesBuilder.occurrencesCountSuffix", {
-                      count: seriesResult.occurrences.length,
+              {/* Per-Occurrence Status Table */}
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-stone-800 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5">
+                    {t("seriesBuilder.perOccurrenceBreakdown")}
+                    <button
+                      type="button"
+                      onClick={() => setShowPolicyExplainer(true)}
+                      className="text-stone-500 hover:text-amber-800 transition cursor-pointer"
+                      title={t("seriesBuilder.learnMoreLimitsTooltip")}
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                  </span>
+                  <span className="text-[11px] font-normal text-stone-500">
+                    {t("seriesBuilder.approvedPendingSummary", {
+                      approved: seriesResult.occurrences.filter(
+                        (o) => o.evaluation.status === "approved",
+                      ).length,
+                      pending: seriesResult.occurrences.filter(
+                        (o) => o.evaluation.status === "pending",
+                      ).length,
                     })}
                   </span>
                 </div>
-                <div className="font-mono text-[11px] text-stone-500">
-                  {t("seriesBuilder.seriesIdLabel")}{" "}
-                  {seriesResult.series.id.substring(0, 13)}...
-                </div>
-              </div>
 
-              {/* Outside church WhatsApp notification message */}
-              {reservationType === "outside_church" && (
-                <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
-                    WA
-                  </div>
-                  <p className="leading-relaxed">
-                    {t("seriesBuilder.whatsappNotice")}
-                  </p>
-                </div>
-              )}
-            </div>
+                <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 max-h-64 overflow-y-auto overscroll-contain">
+                  {seriesResult.occurrences.map((item, idx) => {
+                    const isApproved = item.evaluation.status === "approved";
+                    const startUtc = new Date(item.evaluation.startTimeUtc);
+                    const endUtc = new Date(item.evaluation.endTimeUtc);
+                    const dateStr = getCairoDateString(startUtc);
+                    const timeStr = `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
 
-            {/* Per-Occurrence Status Table */}
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-stone-800 flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  {t("seriesBuilder.perOccurrenceBreakdown")}
-                  <button
-                    type="button"
-                    onClick={() => setShowPolicyExplainer(true)}
-                    className="text-stone-500 hover:text-amber-800 transition cursor-pointer"
-                    title={t("seriesBuilder.learnMoreLimitsTooltip")}
-                  >
-                    <Info className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-                <span className="text-[11px] font-normal text-stone-500">
-                  {t("seriesBuilder.approvedPendingSummary", {
-                    approved: seriesResult.occurrences.filter(
-                      (o) => o.evaluation.status === "approved",
-                    ).length,
-                    pending: seriesResult.occurrences.filter(
-                      (o) => o.evaluation.status === "pending",
-                    ).length,
+                    return (
+                      <div
+                        key={item.reservation.id || idx}
+                        className="p-3.5 bg-white text-xs flex items-start justify-between gap-3"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isApproved
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-stone-900">
+                              {dateStr}
+                            </div>
+                            <div className="text-[11px] text-stone-500">
+                              {timeStr}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
+                              isApproved
+                                ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                                : "bg-amber-100 text-amber-900 border border-amber-200"
+                            }`}
+                          >
+                            {isApproved ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />
+                                {t("common.approved")}
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3 h-3 text-amber-700 shrink-0" />
+                                {t("seriesBuilder.pendingReviewBadge")}
+                              </>
+                            )}
+                          </span>
+
+                          {!isApproved &&
+                            item.evaluation.reasons &&
+                            item.evaluation.reasons.length > 0 && (
+                              <span className="text-[10px] text-amber-800 text-right">
+                                {item.evaluation.reasons.join(", ")}
+                              </span>
+                            )}
+                        </div>
+                      </div>
+                    );
                   })}
-                </span>
-              </div>
-
-              <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 max-h-64 overflow-y-auto">
-                {seriesResult.occurrences.map((item, idx) => {
-                  const isApproved = item.evaluation.status === "approved";
-                  const startUtc = new Date(item.evaluation.startTimeUtc);
-                  const endUtc = new Date(item.evaluation.endTimeUtc);
-                  const dateStr = getCairoDateString(startUtc);
-                  const timeStr = `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
-
-                  return (
-                    <div
-                      key={item.reservation.id || idx}
-                      className="p-3.5 bg-white hover:bg-stone-50 transition text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isApproved
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {idx + 1}
-                        </div>
-                        <div>
-                          <div className="font-bold text-stone-900">
-                            {dateStr}
-                          </div>
-                          <div className="text-[11px] text-stone-500">
-                            {timeStr}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:items-end gap-1">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                            isApproved
-                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                              : "bg-amber-100 text-amber-900 border border-amber-200"
-                          }`}
-                        >
-                          {isApproved ? (
-                            <>
-                              <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                              {t("common.approved")}
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="w-3 h-3 text-amber-700" />
-                              {t("seriesBuilder.pendingReviewBadge")}
-                            </>
-                          )}
-                        </span>
-
-                        {/* If hard limits or downgrade reason occurred, show reason per occurrence */}
-                        {!isApproved &&
-                          item.evaluation.reasons &&
-                          item.evaluation.reasons.length > 0 && (
-                            <span className="text-[10px] text-amber-800 text-right">
-                              {item.evaluation.reasons.join(", ")}
-                            </span>
-                          )}
-                      </div>
-                    </div>
-                  );
-                })}
+                </div>
               </div>
             </div>
 
-            {/* Done Action Button */}
-            <div className="pt-2">
+            {/* Confirmation Footer */}
+            <div className="shrink-0 p-4 sm:px-8 sm:pb-6 border-t border-stone-200 bg-white">
               <button
                 id="btn-series-done"
                 onClick={onClose}
-                className="w-full py-3 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-2xl transition cursor-pointer shadow-md"
+                className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
               >
                 {t("seriesBuilder.doneReturnToCalendar")}
               </button>
             </div>
-          </div>
+          </>
         ) : (
           /* ------------------------------------------------------------- */
           /* BUILDER CONFIGURATION FORM */
           /* ------------------------------------------------------------- */
-          <form onSubmit={handleSubmitSeries} className="p-6 sm:p-7 space-y-6">
-            {/* Top Error Notice */}
-            {submitError && (
-              <div
-                id="series-error-banner"
-                className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-900 flex items-start gap-3 animate-in fade-in"
-              >
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="space-y-1 text-xs">
-                  <div className="font-bold text-red-950">
-                    {t("seriesBuilder.submissionBlockedTitle")}
-                  </div>
-                  <div className="text-red-800 leading-relaxed">
-                    {submitError}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Instrument Header & Occurrence Counter Pill */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-stone-50 border border-stone-200 rounded-2xl">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-800 text-white flex items-center justify-center font-bold text-xs">
-                  <Music2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-stone-900 block">
-                    {currentInstrument.name}
-                  </span>
-                  <span className="text-[11px] text-stone-500 block capitalize">
-                    {t("seriesBuilder.instrumentModeSuffix", {
-                      type: currentInstrument.type,
-                      mode: currentInstrument.bookingMode,
-                    })}
-                  </span>
-                </div>
-              </div>
-
-              {/* Dynamic Live Occurrence Counter */}
-              <div className="flex items-center gap-2">
+          <form
+            onSubmit={handleSubmitSeries}
+            className="flex flex-col flex-1 min-h-0"
+          >
+            {/* Scrollable Form Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-7 space-y-5 sm:space-y-6">
+              {/* Top Error Notice */}
+              {submitError && (
                 <div
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border ${
-                    isAtMaxLimit
-                      ? "bg-amber-100 text-amber-900 border-amber-300"
-                      : "bg-white text-stone-700 border-stone-200 shadow-2xs"
-                  }`}
+                  id="series-error-banner"
+                  className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-900 flex items-start gap-3 animate-in fade-in"
                 >
-                  <Layers className="w-3.5 h-3.5 text-stone-500" />
-                  <span>
-                    {t("seriesBuilder.occurrenceCounter", {
-                      count: generatedOccurrences.length,
-                      max: maxSeriesLimit,
-                    })}
-                  </span>
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-xs">
+                    <div className="font-bold text-red-950">
+                      {t("seriesBuilder.submissionBlockedTitle")}
+                    </div>
+                    <div className="text-red-800 leading-relaxed">
+                      {submitError}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Instrument Header & Occurrence Counter Pill */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-stone-50 border border-stone-200 rounded-2xl">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-amber-800 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    <Music2 className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-stone-900 block truncate">
+                      {currentInstrument.name}
+                    </span>
+                    <span className="text-[11px] text-stone-500 block capitalize truncate">
+                      {t("seriesBuilder.instrumentModeSuffix", {
+                        type: currentInstrument.type,
+                        mode: currentInstrument.bookingMode,
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Dynamic Live Occurrence Counter */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border ${
+                      isAtMaxLimit
+                        ? "bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-white text-stone-700 border-stone-200 shadow-2xs"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                    <span>
+                      {t("seriesBuilder.occurrenceCounter", {
+                        count: generatedOccurrences.length,
+                        max: maxSeriesLimit,
+                      })}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* 1. Purpose / Service Name */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="series-service-name"
-                className="block text-xs font-bold text-stone-700"
-              >
-                {t("seriesBuilder.serviceNameQuestion")}{" "}
-                <span className="text-amber-800 font-bold">*</span>
-              </label>
-              <input
-                id="series-service-name"
-                type="text"
-                value={serviceName}
-                onChange={(e) => setServiceName(e.target.value)}
-                placeholder={t("seriesBuilder.serviceNamePlaceholder")}
-                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                htmlFor="series-musician-name"
-                className="block text-xs font-bold text-stone-700"
-              >
-                {t("seriesBuilder.musicianNameLabel")}{" "}
-                <span className="text-amber-800 font-bold">*</span>
-              </label>
-              <input
-                id="series-musician-name"
-                type="text"
-                value={musicianName}
-                onChange={(e) => setMusicianName(e.target.value)}
-                placeholder={t("seriesBuilder.musicianNamePlaceholder")}
-                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
-                required
-              />
-            </div>
-
-            {/* Optional Notes / Special Requests */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              {/* 1. Purpose / Service Name */}
+              <div className="space-y-1.5">
                 <label
-                  htmlFor="series-note"
+                  htmlFor="series-service-name"
                   className="block text-xs font-bold text-stone-700"
                 >
-                  {t("seriesBuilder.noteLabel") || "Notes / Special Requests"}
+                  {t("seriesBuilder.serviceNameQuestion")}{" "}
+                  <span className="text-amber-800 font-bold">*</span>
                 </label>
-                <span className="text-[11px] text-stone-400 font-medium">
-                  {t("common.optional") || "Optional"}
-                </span>
+                <input
+                  id="series-service-name"
+                  type="text"
+                  value={serviceName}
+                  onChange={(e) => setServiceName(e.target.value)}
+                  placeholder={t("seriesBuilder.serviceNamePlaceholder")}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                  required
+                />
               </div>
-              <textarea
-                id="series-note"
-                rows={2}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t("seriesBuilder.notePlaceholder")}
-                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
-              />
-            </div>
 
-            {/* 2. Pattern Choice (Weekly vs Custom) */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-stone-700">
-                {t("seriesBuilder.recurrencePatternLabel")}
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  id="btn-pattern-weekly"
-                  onClick={() => setPatternType("weekly")}
-                  className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                    patternType === "weekly"
-                      ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
-                      : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
-                  }`}
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="series-musician-name"
+                  className="block text-xs font-bold text-stone-700"
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-stone-900">
-                      {t("seriesBuilder.weeklyCadenceTitle")}
-                    </span>
-                    <Repeat className="w-4 h-4 text-amber-800" />
-                  </div>
-                  <p className="text-[11px] text-stone-500 leading-tight text-start">
-                    {t("seriesBuilder.weeklyCadenceDesc")}
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  id="btn-pattern-custom"
-                  onClick={() => setPatternType("custom")}
-                  className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between ${
-                    patternType === "custom"
-                      ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
-                      : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-stone-900">
-                      {t("seriesBuilder.customDatesTitle")}
-                    </span>
-                    <Calendar className="w-4 h-4 text-amber-800" />
-                  </div>
-                  <p className="text-[11px] text-stone-500 leading-tight text-start">
-                    {t("seriesBuilder.customDatesDesc")}
-                  </p>
-                </button>
-              </div>
-            </div>
-
-            {/* 3. Base Time Slot Settings (Applies to all occurrences) */}
-            <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
-              <div className="text-xs font-bold text-stone-900">
-                {t("seriesBuilder.baseTimeTitle")}
+                  {t("seriesBuilder.musicianNameLabel")}{" "}
+                  <span className="text-amber-800 font-bold">*</span>
+                </label>
+                <input
+                  id="series-musician-name"
+                  type="text"
+                  value={musicianName}
+                  onChange={(e) => setMusicianName(e.target.value)}
+                  placeholder={t("seriesBuilder.musicianNamePlaceholder")}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                  required
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Initial Anchor Date */}
-                <div>
-                  <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                    {patternType === "weekly"
-                      ? t("seriesBuilder.firstSessionDateLabel")
-                      : t("seriesBuilder.referenceDateLabel")}
-                  </label>
-                  <input
-                    type="date"
-                    value={baseDate}
-                    onChange={(e) => setBaseDate(e.target.value)}
-                    className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
-                  />
-                </div>
-
-                {/* Start Time */}
-                <div>
-                  <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                    {t("reservationForm.startTimeLabel")}
-                  </label>
-                  <select
-                    value={baseStartTime}
-                    onChange={(e) => setBaseStartTime(e.target.value)}
-                    className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
+              {/* Optional Notes / Special Requests */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor="series-note"
+                    className="block text-xs font-bold text-stone-700"
                   >
-                    {TIME_SLOTS.map((slot) => (
-                      <option key={slot} value={slot}>
-                        {formatHhmmTo12Hour(slot)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Duration */}
-                <div>
-                  <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                    {t("seriesBuilder.durationUntilLabel", {
-                      end: formatHhmmTo12Hour(
-                        calculateEndTime(baseStartTime, baseDuration),
-                      ),
-                    })}
+                    {t("seriesBuilder.noteLabel") || "Notes / Special Requests"}
                   </label>
-                  <select
-                    value={baseDuration}
-                    onChange={(e) => setBaseDuration(Number(e.target.value))}
-                    className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
+                  <span className="text-[11px] text-stone-400 font-medium">
+                    {t("common.optional") || "Optional"}
+                  </span>
+                </div>
+                <textarea
+                  id="series-note"
+                  rows={2}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={t("seriesBuilder.notePlaceholder")}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
+                />
+              </div>
+
+              {/* 2. Pattern Choice (Weekly vs Custom) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-stone-700">
+                  {t("seriesBuilder.recurrencePatternLabel")}
+                </label>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    id="btn-pattern-weekly"
+                    onClick={() => setPatternType("weekly")}
+                    className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
+                      patternType === "weekly"
+                        ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
+                        : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
+                    }`}
                   >
-                    {DURATION_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    <div className="flex items-center justify-between mb-1 gap-2">
+                      <span className="font-bold text-xs text-stone-900">
+                        {t("seriesBuilder.weeklyCadenceTitle")}
+                      </span>
+                      <Repeat className="w-4 h-4 text-amber-800 shrink-0" />
+                    </div>
+                    <p className="text-[11px] text-stone-500 leading-tight text-start">
+                      {t("seriesBuilder.weeklyCadenceDesc")}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-pattern-custom"
+                    onClick={() => setPatternType("custom")}
+                    className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
+                      patternType === "custom"
+                        ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
+                        : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1 gap-2">
+                      <span className="font-bold text-xs text-stone-900">
+                        {t("seriesBuilder.customDatesTitle")}
+                      </span>
+                      <Calendar className="w-4 h-4 text-amber-800 shrink-0" />
+                    </div>
+                    <p className="text-[11px] text-stone-500 leading-tight text-start">
+                      {t("seriesBuilder.customDatesDesc")}
+                    </p>
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* 4. Pattern-Specific Controls */}
-            {patternType === "weekly" ? (
-              <div className="p-4 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-4">
-                <div className="text-xs font-bold text-amber-950">
-                  {t("seriesBuilder.weeklyRepeatConfigTitle")}
+              {/* 3. Base Time Slot Settings (Applies to all occurrences) */}
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
+                <div className="text-xs font-bold text-stone-900">
+                  {t("seriesBuilder.baseTimeTitle")}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Initial Anchor Date */}
                   <div>
-                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      {t("seriesBuilder.repeatCadenceLabel")}
+                    <label className="block text-[11px] font-bold text-stone-600 mb-1">
+                      {patternType === "weekly"
+                        ? t("seriesBuilder.firstSessionDateLabel")
+                        : t("seriesBuilder.referenceDateLabel")}
+                    </label>
+                    <input
+                      type="date"
+                      value={baseDate}
+                      min={todayStr}
+                      onChange={(e) => setBaseDate(e.target.value)}
+                      className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
+                    />
+                  </div>
+
+                  {/* Start Time */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-stone-600 mb-1">
+                      {t("reservationForm.startTimeLabel")}
                     </label>
                     <select
-                      value={weeklyInterval}
-                      onChange={(e) =>
-                        setWeeklyInterval(Number(e.target.value))
-                      }
-                      className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
+                      value={baseStartTime}
+                      onChange={(e) => setBaseStartTime(e.target.value)}
+                      className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
                     >
-                      <option value={1}>{t("seriesBuilder.everyWeek")}</option>
-                      <option value={2}>
-                        {t("seriesBuilder.everyTwoWeeks")}
-                      </option>
-                      <option value={3}>
-                        {t("seriesBuilder.everyThreeWeeks")}
-                      </option>
-                      <option value={4}>
-                        {t("seriesBuilder.everyFourWeeks")}
-                      </option>
+                      {TIME_SLOTS.map((slot) => (
+                        <option key={slot} value={slot}>
+                          {formatHhmmTo12Hour(slot)}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
+                  {/* Duration */}
                   <div>
-                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      {t("seriesBuilder.totalOccurrences", {
-                        max: maxSeriesLimit,
+                    <label className="block text-[11px] font-bold text-stone-600 mb-1">
+                      {t("seriesBuilder.durationUntilLabel", {
+                        end: formatHhmmTo12Hour(
+                          calculateEndTime(baseStartTime, baseDuration),
+                        ),
                       })}
                     </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        max={maxSeriesLimit}
-                        value={weeklyCount}
-                        onChange={(e) => {
-                          const val = Math.min(
-                            Math.max(1, Number(e.target.value)),
-                            maxSeriesLimit,
-                          );
-                          setWeeklyCount(val);
-                        }}
-                        className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
-                      />
-                      <span className="text-xs text-stone-500 font-medium shrink-0">
-                        {t("seriesBuilder.sessionsUnit")}
-                      </span>
-                    </div>
+                    <select
+                      value={baseDuration}
+                      onChange={(e) => setBaseDuration(Number(e.target.value))}
+                      className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
+                    >
+                      {DURATION_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
+              </div>
 
-                {weeklyCount >= maxSeriesLimit && (
-                  <div className="text-[11px] text-amber-900 bg-amber-100/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
-                    <Info className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {t("seriesBuilder.reachedMax", { max: maxSeriesLimit })}
+              {/* 4. Pattern-Specific Controls */}
+              {patternType === "weekly" ? (
+                <div className="p-4 bg-amber-50/50 border border-amber-200/80 rounded-2xl space-y-4">
+                  <div className="text-xs font-bold text-amber-950">
+                    {t("seriesBuilder.weeklyRepeatConfigTitle")}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                        {t("seriesBuilder.repeatCadenceLabel")}
+                      </label>
+                      <select
+                        value={weeklyInterval}
+                        onChange={(e) =>
+                          setWeeklyInterval(Number(e.target.value))
+                        }
+                        className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
+                      >
+                        <option value={1}>
+                          {t("seriesBuilder.everyWeek")}
+                        </option>
+                        <option value={2}>
+                          {t("seriesBuilder.everyTwoWeeks")}
+                        </option>
+                        <option value={3}>
+                          {t("seriesBuilder.everyThreeWeeks")}
+                        </option>
+                        <option value={4}>
+                          {t("seriesBuilder.everyFourWeeks")}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-stone-700 mb-1">
+                        {t("seriesBuilder.totalOccurrences", {
+                          max: maxSeriesLimit,
+                        })}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          max={maxSeriesLimit}
+                          value={weeklyCount}
+                          onChange={(e) => {
+                            const val = Math.min(
+                              Math.max(1, Number(e.target.value)),
+                              maxSeriesLimit,
+                            );
+                            setWeeklyCount(val);
+                          }}
+                          className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
+                        />
+                        <span className="text-xs text-stone-500 font-medium shrink-0">
+                          {t("seriesBuilder.sessionsUnit")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {weeklyCount >= maxSeriesLimit && (
+                    <div className="text-[11px] text-amber-900 bg-amber-100/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
+                      <Info className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {t("seriesBuilder.reachedMax", { max: maxSeriesLimit })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Custom Specific Dates Builder */
+                <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-bold text-stone-900">
+                      {t("seriesBuilder.customDatesListTitle")}
+                    </div>
+                    <span className="text-[11px] text-stone-500">
+                      {t("seriesBuilder.allowedDates", {
+                        count: customDates.length,
+                        max: maxSeriesLimit,
+                      })}
                     </span>
                   </div>
-                )}
-              </div>
-            ) : (
-              /* Custom Specific Dates Builder */
-              <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-stone-900">
-                    {t("seriesBuilder.customDatesListTitle")}
+
+                  {/* Add Custom Date Input */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={newCustomDateInput}
+                      min={todayStr}
+                      disabled={isAtMaxLimit}
+                      onChange={(e) => setNewCustomDateInput(e.target.value)}
+                      className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 disabled:bg-stone-100 disabled:text-stone-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={isAtMaxLimit || !newCustomDateInput}
+                      onClick={handleAddCustomDate}
+                      className="shrink-0 px-4 py-2.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 disabled:bg-stone-300 text-white text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed touch-manipulation"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="hidden sm:inline">
+                        {t("seriesBuilder.addCustomDate")}
+                      </span>
+                    </button>
                   </div>
-                  <span className="text-[11px] text-stone-500">
-                    {t("seriesBuilder.allowedDates", {
-                      count: customDates.length,
-                      max: maxSeriesLimit,
+
+                  {isAtMaxLimit && (
+                    <div className="text-[11px] text-amber-900 bg-amber-100/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {t("seriesBuilder.reachedMax", { max: maxSeriesLimit })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Custom Dates Chip List */}
+                  <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto overscroll-contain pt-1">
+                    {customDates.map((d, idx) => (
+                      <div
+                        key={d}
+                        className="inline-flex items-center gap-1 pl-3 pr-1 py-1 bg-white border border-stone-300 rounded-xl text-xs font-medium text-stone-800 shadow-2xs"
+                      >
+                        <span>
+                          #{idx + 1}: {d}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomDate(d)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 transition cursor-pointer touch-manipulation"
+                          title={t("seriesBuilder.removeDate")}
+                          aria-label="Remove date"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 5. In-Progress Occurrences Preview List */}
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-stone-800 flex items-center justify-between gap-2">
+                  <span>{t("seriesBuilder.calculatedScheduleTitle")}</span>
+                  <span className="text-[11px] font-normal text-stone-500">
+                    {t("seriesBuilder.allSessionsLabel", {
+                      start: formatHhmmTo12Hour(baseStartTime),
+                      end: formatHhmmTo12Hour(
+                        calculateEndTime(baseStartTime, baseDuration),
+                      ),
+                      duration: baseDuration,
                     })}
                   </span>
                 </div>
 
-                {/* Add Custom Date Input */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={newCustomDateInput}
-                    disabled={isAtMaxLimit}
-                    onChange={(e) => setNewCustomDateInput(e.target.value)}
-                    className="flex-1 bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 disabled:bg-stone-100 disabled:text-stone-400"
-                  />
-                  <button
-                    type="button"
-                    disabled={isAtMaxLimit || !newCustomDateInput}
-                    onClick={handleAddCustomDate}
-                    className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{t("seriesBuilder.addCustomDate")}</span>
-                  </button>
-                </div>
-
-                {isAtMaxLimit && (
-                  <div className="text-[11px] text-amber-900 bg-amber-100/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {t("seriesBuilder.reachedMax", { max: maxSeriesLimit })}
-                    </span>
+                {!hasConflicts && (
+                  <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t("seriesBuilder.autoCheckedNotice")}</span>
                   </div>
                 )}
 
-                {/* Custom Dates Chip List */}
-                <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto pt-1">
-                  {customDates.map((d, idx) => (
+                <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 max-h-40 overflow-y-auto overscroll-contain">
+                  {generatedOccurrences.map((occ, idx) => (
                     <div
-                      key={d}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-medium text-stone-800 shadow-2xs"
+                      key={occ.id}
+                      className="px-3.5 py-2.5 bg-white flex items-center justify-between text-xs gap-2"
                     >
-                      <span>
-                        #{idx + 1}: {d}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-5 h-5 rounded-lg bg-stone-100 text-stone-600 font-bold flex items-center justify-center text-[10px] shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="font-semibold text-stone-900 truncate">
+                          {occ.date}
+                        </span>
+                      </div>
+                      <span className="text-stone-500 text-[11px] whitespace-nowrap shrink-0">
+                        {formatHhmmTo12Hour(occ.startTime)} –{" "}
+                        {formatHhmmTo12Hour(
+                          calculateEndTime(occ.startTime, occ.duration),
+                        )}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCustomDate(d)}
-                        className="text-stone-400 hover:text-red-600 transition cursor-pointer"
-                        title={t("seriesBuilder.removeDate")}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 6. Real-Time Conflict Warning Panel (Listing ALL conflicts) */}
+              {hasConflicts && (
+                <div
+                  id="series-conflict-warning-panel"
+                  className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2 animate-in fade-in"
+                >
+                  <div className="flex items-center gap-2 text-red-950 font-bold text-xs">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span>
+                      {t("seriesBuilder.conflictsDetectedTitle", {
+                        count: conflicts.length,
+                      })}{" "}
+                      {t("seriesBuilder.submissionDisabledSuffix")}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 pt-1">
+                    {conflicts.map((conf, i) => (
+                      <div
+                        key={i}
+                        className="bg-white/80 border border-red-200 rounded-xl p-2 text-xs text-red-900 flex items-start gap-2"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 5. In-Progress Occurrences Preview List */}
-            <div className="space-y-2">
-              <div className="text-xs font-bold text-stone-800 flex items-center justify-between">
-                <span>{t("seriesBuilder.calculatedScheduleTitle")}</span>
-                {t("seriesBuilder.allSessionsLabel", {
-                  start: formatHhmmTo12Hour(baseStartTime),
-                  end: formatHhmmTo12Hour(
-                    calculateEndTime(baseStartTime, baseDuration),
-                  ),
-                  duration: baseDuration,
-                })}
-              </div>
-
-              {!hasConflicts && (
-                <div className="text-[11px] text-stone-500 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t("seriesBuilder.autoCheckedNotice")}</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0" />
+                        <span className="leading-snug">{conf.message}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 max-h-40 overflow-y-auto">
-                {generatedOccurrences.map((occ, idx) => (
-                  <div
-                    key={occ.id}
-                    className="px-3.5 py-2 bg-white flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-5 h-5 rounded-lg bg-stone-100 text-stone-600 font-bold flex items-center justify-center text-[10px]">
-                        {idx + 1}
-                      </span>
-                      <span className="font-semibold text-stone-900">
-                        {occ.date}
-                      </span>
-                    </div>
-                    <span className="text-stone-500 text-[11px]">
-                      {formatHhmmTo12Hour(occ.startTime)} –{" "}
-                      {formatHhmmTo12Hour(
-                        calculateEndTime(occ.startTime, occ.duration),
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* 6. Real-Time Conflict Warning Panel (Listing ALL conflicts) */}
-            {hasConflicts && (
-              <div
-                id="series-conflict-warning-panel"
-                className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2 animate-in fade-in"
-              >
-                <div className="flex items-center gap-2 text-red-950 font-bold text-xs">
-                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                  <span>
-                    {t("seriesBuilder.conflictsDetectedTitle", {
-                      count: conflicts.length,
-                    })}{" "}
-                    {t("seriesBuilder.submissionDisabledSuffix")}
-                  </span>
-                </div>
-                <div className="space-y-1.5 pt-1">
-                  {conflicts.map((conf, i) => (
-                    <div
-                      key={i}
-                      className="bg-white/80 border border-red-200 rounded-xl p-2 text-xs text-red-900 flex items-start gap-2"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0" />
-                      <span className="leading-snug">{conf.message}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 7. Reservation Usage Type & Fee Agreement */}
-            <div className="space-y-2.5">
-              <label className="block text-xs font-bold text-stone-700">
-                {t("reservationForm.usageTypeLabel")}
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReservationType("in_church");
-                    setFeeAcknowledged(false);
-                  }}
-                  className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                    reservationType === "in_church"
-                      ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
-                      : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-bold text-xs text-stone-900">
-                      {t("reservationForm.inChurchUseLabel")}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                      {t("reservationForm.freeBadge")}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-stone-500 text-start">
-                    {t("reservationForm.inChurchDesc")}
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setReservationType("outside_church")}
-                  className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
-                    reservationType === "outside_church"
-                      ? "bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30"
-                      : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-bold text-xs text-stone-900">
-                      {t("reservationForm.outsideChurchLabel")}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800">
-                      {t("reservationForm.egpPerDayBadge", { fee: feeNumber })}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-stone-500 text-start">
-                    {t("reservationForm.outsideChurchDesc")}
-                  </p>
-                </button>
-              </div>
-
-              {reservationType === "outside_church" && (
-                <label className="flex items-start gap-2.5 p-3 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={feeAcknowledged}
-                    onChange={(e) => setFeeAcknowledged(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer"
-                  />
-                  <span className="text-xs font-semibold text-purple-950">
-                    {t("seriesBuilder.feeAckPerOccurrence", { fee: feeNumber })}
-                  </span>
+              {/* 7. Reservation Usage Type & Fee Agreement */}
+              <div className="space-y-2.5">
+                <label className="block text-xs font-bold text-stone-700">
+                  {t("reservationForm.usageTypeLabel")}
                 </label>
-              )}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReservationType("in_church");
+                      setFeeAcknowledged(false);
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition cursor-pointer active:scale-[0.98] touch-manipulation ${
+                      reservationType === "in_church"
+                        ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
+                        : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-0.5 gap-1">
+                      <span className="font-bold text-xs text-stone-900">
+                        {t("reservationForm.inChurchUseLabel")}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">
+                        {t("reservationForm.freeBadge")}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-stone-500 text-start">
+                      {t("reservationForm.inChurchDesc")}
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setReservationType("outside_church")}
+                    className={`p-3 rounded-2xl border text-left transition cursor-pointer active:scale-[0.98] touch-manipulation ${
+                      reservationType === "outside_church"
+                        ? "bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30"
+                        : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-0.5 gap-1">
+                      <span className="font-bold text-xs text-stone-900">
+                        {t("reservationForm.outsideChurchLabel")}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 whitespace-nowrap">
+                        {t("reservationForm.egpPerDayBadge", {
+                          fee: feeNumber,
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-stone-500 text-start">
+                      {t("reservationForm.outsideChurchDesc")}
+                    </p>
+                  </button>
+                </div>
+
+                {reservationType === "outside_church" && (
+                  <label className="flex items-start gap-2.5 p-3 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={feeAcknowledged}
+                      onChange={(e) => setFeeAcknowledged(e.target.checked)}
+                      className="mt-0.5 w-5 h-5 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
+                    />
+                    <span className="text-xs font-semibold text-purple-950">
+                      {t("seriesBuilder.feeAckPerOccurrence", {
+                        fee: feeNumber,
+                      })}
+                    </span>
+                  </label>
+                )}
+              </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3 pt-2">
+            {/* Sticky Footer Actions */}
+            <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-4 sm:px-7 sm:pb-6 border-t border-stone-200 bg-white">
               <button
                 type="button"
                 onClick={onClose}
-                className="py-3 px-5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-2xl transition cursor-pointer"
+                className="py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation"
               >
                 {t("common.cancel")}
               </button>
@@ -1231,7 +1254,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   generatedOccurrences.length === 0 ||
                   (reservationType === "outside_church" && !feeAcknowledged)
                 }
-                className={`flex-1 py-3 px-6 rounded-2xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${
+                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                   isSubmitting ||
                   !serviceName.trim() ||
                   hasConflicts ||
@@ -1265,6 +1288,14 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           </form>
         )}
       </div>
+
+      {/* Policy Explainer modal (unchanged) */}
+      {showPolicyExplainer && (
+        <PolicyExplainerModal
+          isOpen={showPolicyExplainer}
+          onClose={() => setShowPolicyExplainer(false)}
+        />
+      )}
     </div>
   );
 };
