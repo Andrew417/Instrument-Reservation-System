@@ -894,12 +894,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     filterEndDate,
   ]);
 
-  // Refetch approvals when filters or search query change
+  // ESC-to-close for all secondary modals
   useEffect(() => {
-    if (activeTab === "approvals") {
-      fetchApprovals();
-    }
-  }, [approvalFilterStatus, approvalSearch]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (confirmModal) setConfirmModal(null);
+      else if (promoteModal) setPromoteModal(null);
+      else if (rejectModal) setRejectModal(null);
+      else if (cancelReasonModal) setCancelReasonModal(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmModal, promoteModal, rejectModal, cancelReasonModal]);
 
   // Selection handlers for bulk reservation actions
   const handleToggleSelectReservation = (id: string) => {
@@ -2778,39 +2784,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           {activeTab === "approvals" && (
             <div
               id="admin-section-approvals"
-              className="bg-white border border-stone-200 rounded-2xl p-4 shadow-2xs space-y-2.5"
+              className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden"
             >
-              <div className="flex flex-col gap-1 pb-2">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
+              <div className="p-3 sm:p-4 border-b border-stone-100">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
                       {t("admin.accountApprovals")}
                     </h2>
                     {approvalCounts.pending > 0 && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
-                        {t("admin.approvals.pendingBadge", {
-                          count: approvalCounts.pending,
-                        })}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
+                        {approvalCounts.pending} new
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-stone-400 mt-0.5">
-                    {t("admin.approvals.description")}
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-1.5">
-                  <div className="relative flex-1 min-w-0">
-                    <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
-                    <input
-                      id="approvals-search-input"
-                      type="text"
-                      placeholder={t("admin.approvals.searchPlaceholder")}
-                      value={approvalSearch}
-                      onChange={(e) => setApprovalSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
-                    />
-                  </div>
                   <button
                     id="btn-refresh-approvals"
                     type="button"
@@ -2821,336 +2809,453 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <RefreshCw className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
 
-              {/* Filter status pills */}
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <button
-                  id="filter-approvals-pending"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus("pending")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === "pending"
-                      ? "bg-amber-800 text-white shadow-xs"
-                      : "bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70"
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{t("common.pending")}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      approvalFilterStatus === "pending"
-                        ? "bg-amber-900 text-amber-100"
-                        : "bg-stone-200 text-stone-700 font-extrabold"
-                    }`}
-                  >
-                    {approvalCounts.pending}
-                  </span>
-                </button>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
+                  <input
+                    id="approvals-search-input"
+                    type="text"
+                    placeholder={t("admin.approvals.searchPlaceholder")}
+                    value={approvalSearch}
+                    onChange={(e) => setApprovalSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                  />
+                </div>
 
-                <button
-                  id="filter-approvals-approved"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus("approved")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === "approved"
-                      ? "bg-amber-800 text-white shadow-xs"
-                      : "bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70"
-                  }`}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{t("common.approved")}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      approvalFilterStatus === "approved"
-                        ? "bg-amber-900 text-amber-100"
-                        : "bg-stone-200 text-stone-700 font-extrabold"
-                    }`}
-                  >
-                    {approvalCounts.approved}
-                  </span>
-                </button>
-
-                <button
-                  id="filter-approvals-rejected"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus("rejected")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === "rejected"
-                      ? "bg-amber-800 text-white shadow-xs"
-                      : "bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70"
-                  }`}
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>{t("common.rejected")}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      approvalFilterStatus === "rejected"
-                        ? "bg-amber-900 text-amber-100"
-                        : "bg-stone-200 text-stone-700 font-extrabold"
-                    }`}
-                  >
-                    {approvalCounts.rejected}
-                  </span>
-                </button>
-
-                <button
-                  id="filter-approvals-all"
-                  type="button"
-                  onClick={() => setApprovalFilterStatus("all")}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                    approvalFilterStatus === "all"
-                      ? "bg-amber-800 text-white shadow-xs"
-                      : "bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200/70"
-                  }`}
-                >
-                  <span>{t("common.all")}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      approvalFilterStatus === "all"
-                        ? "bg-amber-900 text-amber-100"
-                        : "bg-stone-200 text-stone-700 font-extrabold"
-                    }`}
-                  >
-                    {approvalCounts.total}
-                  </span>
-                </button>
+                <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto -mx-1 px-1 pb-2 scrollbar-hide">
+                  {" "}
+                  {(
+                    [
+                      {
+                        key: "pending" as const,
+                        label: t("common.pending"),
+                        count: approvalCounts.pending,
+                        Icon: Clock,
+                      },
+                      {
+                        key: "approved" as const,
+                        label: t("common.approved"),
+                        count: approvalCounts.approved,
+                        Icon: Check,
+                      },
+                      {
+                        key: "rejected" as const,
+                        label: t("common.rejected"),
+                        count: approvalCounts.rejected,
+                        Icon: X,
+                      },
+                      {
+                        key: "all" as const,
+                        label: t("common.all"),
+                        count: approvalCounts.total,
+                        Icon: null,
+                      },
+                    ] as const
+                  ).map((tab) => {
+                    const isActive = approvalFilterStatus === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setApprovalFilterStatus(tab.key)}
+                        className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${
+                          isActive
+                            ? "bg-amber-800 text-white shadow-xs"
+                            : "bg-stone-100 text-stone-600 hover:bg-stone-200/70"
+                        }`}
+                      >
+                        {tab.Icon && <tab.Icon className="w-3 h-3" />}
+                        <span>{tab.label}</span>
+                        <span
+                          className={`px-1.5 rounded-full text-[10px] font-extrabold ${
+                            isActive
+                              ? "bg-amber-900 text-amber-100"
+                              : "bg-stone-200 text-stone-700"
+                          }`}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Table / List */}
-              {loadingApprovals ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.approvals.loading")}
-                </div>
-              ) : approvalsList.length === 0 ? (
-                <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
-                  <UserCheck className="w-8 h-8 text-stone-300 mx-auto mb-2" />
-                  <div className="font-bold text-stone-700 text-xs">
-                    {approvalFilterStatus === "pending"
-                      ? t("admin.approvals.emptyPendingTitle")
-                      : t("admin.approvals.emptyFilteredTitle")}
+              <div className="p-3 sm:p-4 pt-0">
+                {loadingApprovals ? (
+                  <div className="py-12 text-center text-stone-500 text-xs">
+                    {t("admin.approvals.loading")}
                   </div>
-                  <p className="text-[11px] text-stone-400 mt-1 max-w-sm mx-auto">
-                    {approvalFilterStatus === "pending"
-                      ? t("admin.approvals.emptyPendingDesc")
-                      : t("admin.approvals.emptyFilteredDesc")}
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3">
-                          {t("admin.approvals.colApplicantName")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.approvals.colPhoneNumber")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.approvals.colRegistrationDate")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.approvals.colApprovalStatus")}
-                        </th>
-                        <th className="py-2.5 px-3 text-right">
-                          {t("common.actions")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
+                ) : approvalsList.length === 0 ? (
+                  <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
+                    <UserCheck className="w-8 h-8 text-stone-300 mx-auto mb-2" />
+                    <div className="font-bold text-stone-700 text-xs">
+                      {approvalFilterStatus === "pending"
+                        ? t("admin.approvals.emptyPendingTitle")
+                        : t("admin.approvals.emptyFilteredTitle")}
+                    </div>
+                    <p className="text-[11px] text-stone-400 mt-1 max-w-sm mx-auto">
+                      {approvalFilterStatus === "pending"
+                        ? t("admin.approvals.emptyPendingDesc")
+                        : t("admin.approvals.emptyFilteredDesc")}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile card list (< sm) */}
+                    <div className="sm:hidden space-y-2">
                       {approvalsList.map((u) => {
                         const status =
                           u.approvalStatus ||
                           u.approval_status ||
                           (u.isActive ? "approved" : "pending");
                         const isActioning = approvalActionId === u.id;
-
                         const rawPhone = u.phoneNumber || u.phone_number || "";
-                        // Strip non-digits, then convert leading 0 to country code (20 = Egypt)
                         const whatsappNumber = rawPhone
                           .replace(/[^\d]/g, "")
                           .replace(/^0/, "20");
 
                         return (
-                          <tr
+                          <div
                             key={u.id}
-                            className="hover:bg-stone-50/60 transition"
+                            className="border border-stone-200 rounded-xl p-3 bg-white space-y-2"
                           >
-                            {/* Name (clickable to open profile) */}
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openUserProfile(u.id);
-                                  }}
-                                  className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                  title={
-                                    t("admin.userDetail.viewProfile") ||
-                                    "View Member Profile"
-                                  }
-                                >
-                                  <span>{u.name}</span>
-                                  <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
-                                </button>
-                                {u.isTrusted && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                    <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                    {t("common.trusted")}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
+                            <div className="flex items-start justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openUserProfile(u.id)}
+                                className="font-bold text-stone-900 hover:text-amber-900 text-left text-[13px] cursor-pointer truncate flex items-center gap-1 group min-w-0"
+                              >
+                                <span className="truncate">{u.name}</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
+                              </button>
 
-                            {/* Phone Number (clickable to open WhatsApp) */}
-                            <td className="py-3 px-3 font-mono text-stone-600">
+                              {status === "pending" && (
+                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {t("common.pending")}
+                                </span>
+                              )}
+                              {status === "approved" && (
+                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  <Check className="w-2.5 h-2.5" />
+                                  {t("common.approved")}
+                                </span>
+                              )}
+                              {status === "rejected" && (
+                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                  <X className="w-2.5 h-2.5" />
+                                  {t("common.rejected")}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
                               {whatsappNumber ? (
                                 <a
                                   href={`https://wa.me/${whatsappNumber}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 hover:underline transition"
-                                  title={`Chat with ${u.name} on WhatsApp`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-mono truncate"
                                 >
-                                  <MessageCircle className="w-3.5 h-3.5" />
-                                  <span>{rawPhone}</span>
+                                  <MessageCircle className="w-3 h-3 shrink-0" />
+                                  {rawPhone}
                                 </a>
                               ) : (
-                                "—"
+                                <span className="text-stone-300">—</span>
                               )}
-                            </td>
+                              <span className="shrink-0 font-mono text-stone-400">
+                                {new Date(
+                                  u.createdAt || u.created_at,
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
 
-                            {/* Registration Date */}
-                            <td className="py-3 px-3 text-stone-500 text-[11px]">
-                              {new Date(
-                                u.createdAt || u.created_at,
-                              ).toLocaleString([], { hour12: true })}
-                            </td>
-
-                            {/* Approval Status */}
-                            <td className="py-3 px-3">
+                            <div className="flex items-center gap-1.5 pt-1">
                               {status === "pending" && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                                  <Clock className="w-3 h-3 text-amber-700" />
-                                  {t("admin.approvals.statusAwaiting")}
-                                </span>
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={isActioning}
+                                    onClick={() =>
+                                      handleApproveRegistration(u.id, u.name)
+                                    }
+                                    className="flex-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                  >
+                                    <Check className="w-3.5 h-3.5 shrink-0" />
+                                    <span>
+                                      {t("admin.approvals.approveBtn")}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isActioning}
+                                    onClick={() => triggerRejectUser(u)}
+                                    className="flex-1 px-3 py-2 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                  >
+                                    <X className="w-3.5 h-3.5 shrink-0" />
+                                    <span>
+                                      {t("admin.approvals.rejectBtn")}
+                                    </span>
+                                  </button>
+                                </>
                               )}
-                              {status === "approved" && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  <Check className="w-3 h-3 text-emerald-700" />
-                                  {t("admin.approvals.statusApprovedActive")}
-                                </span>
-                              )}
+
                               {status === "rejected" && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                                  <X className="w-3 h-3 text-rose-700" />
-                                  {t("admin.approvals.statusRejectedAudit")}
-                                </span>
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={isActioning}
+                                    onClick={() =>
+                                      handleApproveRegistration(u.id, u.name)
+                                    }
+                                    className="flex-1 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                  >
+                                    <Check className="w-3.5 h-3.5 shrink-0" />
+                                    <span>
+                                      {t("admin.approvals.reApproveBtn")}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isActioning}
+                                    onClick={() =>
+                                      triggerDeleteUserPermanently(u)
+                                    }
+                                    className="px-3 py-2 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 cursor-pointer"
+                                    title="Delete permanently"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
                               )}
-                            </td>
 
-                            {/* Actions */}
-                            <td className="py-3 px-3 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {status === "pending" && (
-                                  <>
-                                    <button
-                                      id={`btn-approve-user-${u.id}`}
-                                      type="button"
-                                      disabled={isActioning}
-                                      onClick={() =>
-                                        handleApproveRegistration(u.id, u.name)
-                                      }
-                                      className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition cursor-pointer disabled:opacity-50"
-                                      title="Approve registration and allow member to log in"
-                                    >
-                                      <Check className="w-3.5 h-3.5" />
-                                      <span>
-                                        {t("admin.approvals.approveBtn")}
-                                      </span>
-                                    </button>
+                              {status === "approved" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setUserSearch(u.name);
+                                    setActiveTab("users");
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                                >
+                                  <Users className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                                  <span>
+                                    {t("admin.approvals.viewInDirectoryBtn")}
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                                    <button
-                                      id={`btn-reject-user-${u.id}`}
-                                      type="button"
-                                      disabled={isActioning}
-                                      onClick={() => triggerRejectUser(u)}
-                                      className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
-                                      title="Reject registration (account preserved in audit database)"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                      <span>
-                                        {t("admin.approvals.rejectBtn")}
-                                      </span>
-                                    </button>
-                                  </>
-                                )}
+                    {/* Desktop table (≥ sm) */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                            <th className="py-2.5 px-3">
+                              {t("admin.approvals.colApplicantName")}
+                            </th>
+                            <th className="py-2.5 px-3 w-[140px]">
+                              {t("admin.approvals.colPhoneNumber")}
+                            </th>
+                            <th className="py-2.5 px-3 w-[110px]">
+                              {t("admin.approvals.colRegistrationDate")}
+                            </th>
+                            <th className="py-2.5 px-3 w-[110px]">
+                              {t("admin.approvals.colApprovalStatus")}
+                            </th>
+                            <th className="py-2.5 px-3 text-right w-[200px]">
+                              {t("common.actions")}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {approvalsList.map((u) => {
+                            const status =
+                              u.approvalStatus ||
+                              u.approval_status ||
+                              (u.isActive ? "approved" : "pending");
+                            const isActioning = approvalActionId === u.id;
+                            const rawPhone =
+                              u.phoneNumber || u.phone_number || "";
+                            const whatsappNumber = rawPhone
+                              .replace(/[^\d]/g, "")
+                              .replace(/^0/, "20");
 
-                                {status === "rejected" && (
-                                  <>
-                                    <button
-                                      id={`btn-reapprove-user-${u.id}`}
-                                      type="button"
-                                      disabled={isActioning}
-                                      onClick={() =>
-                                        handleApproveRegistration(u.id, u.name)
-                                      }
-                                      className="px-2.5 py-1.5 rounded-xl bg-stone-50 hover:bg-emerald-50 text-emerald-800 border border-stone-200 hover:border-emerald-200 font-semibold text-xs flex items-center gap-1 transition cursor-pointer"
-                                      title="Re-approve this rejected registration"
-                                    >
-                                      <Check className="w-3 h-3 text-emerald-700" />
-                                      <span>
-                                        {t("admin.approvals.reApproveBtn")}
-                                      </span>
-                                    </button>
-
-                                    <button
-                                      id={`btn-delete-mistaken-user-${u.id}`}
-                                      type="button"
-                                      disabled={isActioning}
-                                      onClick={() =>
-                                        triggerDeleteUserPermanently(u)
-                                      }
-                                      className="p-1.5 rounded-xl bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 transition cursor-pointer"
-                                      title="Delete mistaken entry permanently from database"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
-
-                                {status === "approved" && (
+                            return (
+                              <tr
+                                key={u.id}
+                                className="hover:bg-stone-50/60 transition"
+                              >
+                                <td className="py-3 px-3">
                                   <div className="flex items-center gap-1.5">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setUserSearch(u.name);
-                                        setActiveTab("users");
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openUserProfile(u.id);
                                       }}
-                                      className="px-2.5 py-1.5 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold text-xs flex items-center gap-1 cursor-pointer"
-                                      title="View member in church directory"
+                                      className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group whitespace-nowrap"
                                     >
-                                      <Users className="w-3 h-3 text-amber-800" />
-                                      <span>
-                                        {t(
-                                          "admin.approvals.viewInDirectoryBtn",
-                                        )}
+                                      <span className="truncate max-w-[200px]">
+                                        {u.name}
                                       </span>
+                                      <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
                                     </button>
+                                    {u.isTrusted && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                        <Sparkles className="w-2.5 h-2.5 text-amber-700" />
+                                        {t("common.trusted")}
+                                      </span>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                                </td>
+
+                                <td className="py-3 px-3 font-mono text-stone-600 whitespace-nowrap">
+                                  {whatsappNumber ? (
+                                    <a
+                                      href={`https://wa.me/${whatsappNumber}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 hover:underline transition"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="truncate max-w-[110px]">
+                                        {rawPhone}
+                                      </span>
+                                    </a>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </td>
+
+                                <td className="py-3 px-3 text-stone-500 text-[11px] whitespace-nowrap">
+                                  {new Date(
+                                    u.createdAt || u.created_at,
+                                  ).toLocaleDateString()}
+                                </td>
+
+                                <td className="py-3 px-3">
+                                  {status === "pending" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 whitespace-nowrap">
+                                      <Clock className="w-3 h-3" />
+                                      {t("common.pending")}
+                                    </span>
+                                  )}
+                                  {status === "approved" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                      <Check className="w-3 h-3" />
+                                      {t("common.approved")}
+                                    </span>
+                                  )}
+                                  {status === "rejected" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 whitespace-nowrap">
+                                      <X className="w-3 h-3" />
+                                      {t("common.rejected")}
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="py-3 px-3 text-right">
+                                  <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                                    {status === "pending" && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          disabled={isActioning}
+                                          onClick={() =>
+                                            handleApproveRegistration(
+                                              u.id,
+                                              u.name,
+                                            )
+                                          }
+                                          className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+                                        >
+                                          <Check className="w-3 h-3 shrink-0" />
+                                          <span>
+                                            {t("admin.approvals.approveBtn")}
+                                          </span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={isActioning}
+                                          onClick={() => triggerRejectUser(u)}
+                                          className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                        >
+                                          <X className="w-3 h-3 shrink-0" />
+                                          <span>
+                                            {t("admin.approvals.rejectBtn")}
+                                          </span>
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {status === "rejected" && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          disabled={isActioning}
+                                          onClick={() =>
+                                            handleApproveRegistration(
+                                              u.id,
+                                              u.name,
+                                            )
+                                          }
+                                          className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-emerald-50 text-emerald-800 border border-stone-200 hover:border-emerald-200 disabled:opacity-50 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                        >
+                                          <Check className="w-3 h-3 text-emerald-700 shrink-0" />
+                                          <span>
+                                            {t("admin.approvals.reApproveBtn")}
+                                          </span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={isActioning}
+                                          onClick={() =>
+                                            triggerDeleteUserPermanently(u)
+                                          }
+                                          className="p-1.5 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 transition cursor-pointer shrink-0"
+                                          title="Delete permanently"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {status === "approved" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setUserSearch(u.name);
+                                          setActiveTab("users");
+                                        }}
+                                        className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                      >
+                                        <Users className="w-3 h-3 text-amber-800 shrink-0" />
+                                        <span>
+                                          {t(
+                                            "admin.approvals.viewInDirectoryBtn",
+                                          )}
+                                        </span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
@@ -3440,7 +3545,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3 whitespace-nowrap">
+                        <th className="py-2.5 px-3 whitespace-nowrap w-[220px]">
                           {t("admin.users.colMember")}
                         </th>
                         <th className="py-2.5 px-3 whitespace-nowrap w-[140px]">
