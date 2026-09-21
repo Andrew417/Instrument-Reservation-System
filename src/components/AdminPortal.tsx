@@ -3477,22 +3477,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   e.stopPropagation();
                                   openUserProfile(u.id);
                                 }}
-                                className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
+                                className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group whitespace-nowrap"
                                 title={
                                   t("admin.userDetail.viewProfile") ||
                                   "View Member Profile"
                                 }
                               >
-                                <span>{u.name}</span>
-                                <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
+                                <span className="truncate max-w-[220px]">
+                                  {u.name}
+                                </span>
+                                <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
                               </button>
-                              <div className="text-[10px] text-stone-400">
-                                {t("admin.users.joined", {
-                                  date: new Date(
-                                    u.createdAt,
-                                  ).toLocaleDateString(),
-                                })}
-                              </div>
                             </td>
 
                             {/* Phone (WhatsApp clickable) */}
@@ -3569,7 +3564,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                             {/* Actions */}
                             <td className="py-3 px-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                                 {(u.approval_status === "pending" ||
                                   u.approvalStatus === "pending") && (
                                   <>
@@ -3578,20 +3573,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       onClick={() =>
                                         handleApproveRegistration(u.id, u.name)
                                       }
-                                      className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
                                       title={t("admin.users.approveTooltip")}
                                     >
-                                      <Check className="w-3 h-3" />
+                                      <Check className="w-3 h-3 shrink-0" />
                                       <span>{t("admin.users.approve")}</span>
                                     </button>
 
                                     <button
                                       type="button"
                                       onClick={() => triggerRejectUser(u)}
-                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                                       title="Reject registration (account preserved in audit database)"
                                     >
-                                      <X className="w-3 h-3" />
+                                      <X className="w-3 h-3 shrink-0" />
                                       <span>
                                         {t("admin.approvals.rejectBtn")}
                                       </span>
@@ -3601,10 +3596,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                                 <button
                                   onClick={() => setBookOnBehalfUser(u)}
-                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
                                   title={t("admin.users.bookForTooltip")}
                                 >
-                                  <Plus className="w-3 h-3 text-amber-800" />
+                                  <Plus className="w-3 h-3 text-amber-800 shrink-0" />
                                   <span>{t("admin.users.bookFor")}</span>
                                 </button>
                               </div>
