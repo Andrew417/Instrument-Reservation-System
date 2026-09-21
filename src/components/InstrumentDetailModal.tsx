@@ -318,7 +318,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     }
   };
 
-  // Instrument photo: uses uploaded photo when set, null when no photo is set
+  // Instrument photo
   const photoUrl =
     currentInstrument.photoUrl ||
     (currentInstrument as any).photo_url ||
@@ -350,12 +350,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     });
   };
 
-  // -------------------------------------------------------------
-  // WEEKLY VIEW CALCULATIONS (7 days around or starting from selectedDate)
-  // -------------------------------------------------------------
+  // WEEKLY VIEW CALCULATIONS
   const weekDays = useMemo(() => {
     const base = parseLocalDate(selectedDate);
-    // Find Monday of the current week (0 is Sunday, 1 is Monday...)
     const dayOfWeek = base.getDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(
@@ -387,9 +384,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     return days;
   }, [selectedDate, i18n.language]);
 
-  // -------------------------------------------------------------
-  // MONTHLY VIEW CALCULATIONS (Month grid with density indicators)
-  // -------------------------------------------------------------
+  // MONTHLY VIEW CALCULATIONS
   const monthCalendarData = useMemo(() => {
     const year = currentMonthDate.getFullYear();
     const month = currentMonthDate.getMonth();
@@ -397,7 +392,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
 
-    const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 is Sunday
+    const startingDayOfWeek = firstDayOfMonth.getDay();
     const daysInMonth = lastDayOfMonth.getDate();
 
     const cells: {
@@ -410,7 +405,6 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
     const todayStr = getTodayDateString();
 
-    // Padding previous month days
     for (let i = 0; i < startingDayOfWeek; i++) {
       const prevDate = new Date(year, month, -startingDayOfWeek + i + 1);
       const dateStr = getLocalDateString(prevDate);
@@ -423,12 +417,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
       });
     }
 
-    // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
       const thisDate = new Date(year, month, day);
       const dateStr = getLocalDateString(thisDate);
 
-      // Count approved reservations on this date
       const count = approvedReservations.filter((res) => {
         const rDate =
           res.reservation_date ||
@@ -488,26 +480,24 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   return (
     <div
       id="instrument-detail-modal-backdrop"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="instrument-detail-modal"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-4xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col"
+        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-4xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         dir={isAr ? "rtl" : "ltr"}
       >
-        {/* ========================================================= */}
         {/* MODAL TOP BAR & CLOSE */}
-        {/* ========================================================= */}
-        <div className="bg-stone-900 text-white px-5 sm:px-6 py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs">
+        <div className="bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
               <Music2 className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
                 {instrument.name}
               </h2>
-              <p className="text-[11px] text-stone-400">
+              <p className="text-[11px] text-stone-400 truncate">
                 {t("instrumentDetail.headerSubtitle")}
               </p>
             </div>
@@ -516,19 +506,17 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           <button
             id="btn-close-instrument-detail"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer"
+            className="shrink-0 w-11 h-11 -mr-2 rounded-full bg-transparent text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer touch-manipulation"
             aria-label={t("common.close")}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Content Container */}
-        <div className="overflow-y-auto p-5 sm:p-6 space-y-6 flex-1">
-          {/* ========================================================= */}
+        <div className="overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5 sm:space-y-6 flex-1 min-h-0">
           {/* HEADER: NAME, TYPE, DESCRIPTION, PHOTO & BADGES */}
-          {/* ========================================================= */}
-          <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-5 items-start">
+          <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:gap-5 items-start">
             {/* Hidden photo file input for admins */}
             <input
               ref={fileInputRef}
@@ -552,12 +540,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   {currentInstrument.type}
                 </div>
                 {isAdminOrSuperAdmin && (
-                  <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-2xs">
+                  <div className="absolute inset-0 bg-stone-900/60 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-2xs">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploadingPhoto}
-                      className="px-2.5 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer touch-manipulation"
                     >
                       <Upload className="w-3 h-3" />
                       <span>
@@ -570,7 +558,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       type="button"
                       onClick={handleRemovePhotoOnScreen4}
                       disabled={isUploadingPhoto}
-                      className="px-2.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold shadow-md transition flex items-center gap-1 cursor-pointer touch-manipulation"
                     >
                       <Trash2 className="w-3 h-3" />
                       <span>{t("instrumentDetail.removePhoto")}</span>
@@ -594,7 +582,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploadingPhoto}
-                    className="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                    className="mt-1.5 px-2.5 py-1 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs touch-manipulation"
                   >
                     <Upload className="w-3 h-3" />
                     <span>
@@ -611,14 +599,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             )}
 
             {/* Instrument Info & Badges */}
-            <div className="space-y-2.5 flex-1">
+            <div className="space-y-2.5 flex-1 min-w-0">
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h1 className="text-lg font-bold text-stone-900">
+                  <h1 className="text-lg font-bold text-stone-900 truncate">
                     {currentInstrument.name}
                   </h1>
 
-                  {/* Matching Screen 2 Badges: Interactive toggle for admins, static badge for users */}
                   {isAdminOrSuperAdmin ? (
                     <button
                       type="button"
@@ -631,7 +618,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                             ? t("instrumentDetail.manualApprovalLabel")
                             : t("instrumentDetail.instantBookingLabel"),
                       })}
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 touch-manipulation ${
                         currentInstrument.bookingMode === "instant"
                           ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300"
                           : "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300"
@@ -643,7 +630,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                           ? t("instrumentDetail.instantBookingLabel")
                           : t("instrumentDetail.manualApprovalLabel")}
                       </span>
-                      <span className="text-[9px] lowercase font-normal opacity-75">
+                      <span className="text-[9px] lowercase font-normal opacity-75 hidden sm:inline">
                         {t("instrumentDetail.clickToToggle")}
                       </span>
                     </button>
@@ -672,7 +659,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   )}
 
                   {modeNotice && (
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md animate-fade-in">
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md animate-fade-in break-words">
                       {modeNotice}
                     </span>
                   )}
@@ -698,17 +685,15 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             </div>
           </div>
 
-          {/* ========================================================= */}
           {/* VIEW MODE TOGGLE & NAVIGATION BAR */}
-          {/* ========================================================= */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-stone-200 shadow-2xs">
-            {/* View Mode Toggle: Daily / Weekly / Monthly */}
-            <div className="inline-flex p-1 bg-stone-100 rounded-xl border border-stone-200">
+            {/* View Mode Toggle */}
+            <div className="inline-flex p-1 bg-stone-100 rounded-xl border border-stone-200 overflow-x-auto scrollbar-hide">
               <button
                 type="button"
                 id="btn-view-daily"
                 onClick={() => setViewMode("daily")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap touch-manipulation ${
                   viewMode === "daily"
                     ? "bg-white text-stone-900 shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
@@ -722,7 +707,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 type="button"
                 id="btn-view-weekly"
                 onClick={() => setViewMode("weekly")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap touch-manipulation ${
                   viewMode === "weekly"
                     ? "bg-white text-stone-900 shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
@@ -736,7 +721,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 type="button"
                 id="btn-view-monthly"
                 onClick={() => setViewMode("monthly")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap touch-manipulation ${
                   viewMode === "monthly"
                     ? "bg-white text-stone-900 shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
@@ -748,13 +733,13 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             </div>
 
             {/* Date Navigator depending on View */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-end">
               {viewMode === "daily" && (
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handlePrevDay}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 transition cursor-pointer touch-manipulation"
                     title={t("instrumentDetail.prevDay")}
                   >
                     {isAr ? (
@@ -767,12 +752,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="bg-stone-50 border border-stone-300 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
+                    className="bg-stone-50 border border-stone-300 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 min-w-0"
                   />
                   <button
                     type="button"
                     onClick={handleNextDay}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 transition cursor-pointer touch-manipulation"
                     title={t("instrumentDetail.nextDay")}
                   >
                     {isAr ? (
@@ -789,7 +774,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={handlePrevWeek}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 transition cursor-pointer touch-manipulation"
                     title={t("instrumentDetail.prevWeek")}
                   >
                     {isAr ? (
@@ -798,7 +783,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       <ChevronLeft className="w-4 h-4" />
                     )}
                   </button>
-                  <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200">
+                  <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200 whitespace-nowrap">
                     {t("instrumentDetail.weekOfLabel", {
                       date: weekDays[0]?.dateStr,
                     })}
@@ -806,7 +791,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={handleNextWeek}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 transition cursor-pointer touch-manipulation"
                     title={t("instrumentDetail.nextWeek")}
                   >
                     {isAr ? (
@@ -823,7 +808,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={handlePrevMonth}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 transition cursor-pointer touch-manipulation"
                     title={t("instrumentDetail.prevMonth")}
                   >
                     {isAr ? (
@@ -832,7 +817,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       <ChevronLeft className="w-4 h-4" />
                     )}
                   </button>
-                  <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200">
+                  <span className="text-xs font-bold text-stone-800 px-2 py-1 bg-stone-50 rounded-lg border border-stone-200 whitespace-nowrap">
                     {currentMonthDate.toLocaleDateString(localeTag, {
                       month: "long",
                       year: "numeric",
@@ -841,7 +826,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={handleNextMonth}
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 transition cursor-pointer"
+                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 transition cursor-pointer touch-manipulation"
                     title={t("instrumentDetail.nextMonth")}
                   >
                     {isAr ? (
@@ -855,18 +840,16 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             </div>
           </div>
 
-          {/* ========================================================= */}
-          {/* 1. DAILY VIEW GRID (30-min intervals, 09:00 - 22:00) */}
-          {/* ========================================================= */}
+          {/* 1. DAILY VIEW GRID */}
           {viewMode === "daily" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-stone-500">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
                   {t("instrumentDetail.scheduleForLabel", {
                     date: selectedDate,
                   })}
                 </span>
-                <span className="flex items-center gap-2">
+                <span className="flex flex-wrap items-center gap-2">
                   <span className="inline-block w-2.5 h-2.5 rounded-sm bg-stone-200 border border-stone-300" />
                   <span>{t("instrumentDetail.freeLegend")}</span>
                   {isAdminOrSuperAdmin ? (
@@ -953,8 +936,6 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       );
                     }
 
-                    // Regular users: approved slots show ONLY a solid black box labeled "Booked"
-                    // No name, no service_name, no reservant-specific color
                     return (
                       <button
                         key={slotHhmm}
@@ -987,7 +968,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                       onClick={() =>
                         onSelectSlot(instrument, selectedDate, slotHhmm, 2)
                       }
-                      className="p-2.5 rounded-xl border text-left transition relative flex flex-col justify-between min-h-[72px] select-none bg-white hover:bg-amber-50/60 hover:border-amber-700 border-stone-200 text-stone-800 cursor-pointer shadow-2xs hover:shadow-xs"
+                      className="p-2.5 rounded-xl border text-left transition relative flex flex-col justify-between min-h-[72px] select-none bg-white hover:bg-amber-50/60 hover:border-amber-700 active:bg-amber-100/60 border-stone-200 text-stone-800 cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation"
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className="text-[11px] font-bold text-stone-900">
@@ -1008,12 +989,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* 2. WEEKLY VIEW GRID (7-day columns x 30-min intervals) */}
-          {/* ========================================================= */}
+          {/* 2. WEEKLY VIEW GRID */}
           {viewMode === "weekly" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-stone-500">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
                   {t("instrumentDetail.sevenDayGridTitle")}
                 </span>
@@ -1022,7 +1001,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 </span>
               </div>
 
-              <div className="border border-stone-200 rounded-2xl overflow-x-auto bg-white shadow-2xs">
+              <div className="border border-stone-200 rounded-2xl overflow-x-auto overscroll-contain bg-white shadow-2xs">
                 <div className="min-w-[640px]">
                   {/* Day Headers */}
                   <div className="grid grid-cols-8 border-b border-stone-200 bg-stone-50 text-center text-xs font-bold text-stone-800">
@@ -1039,7 +1018,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                         }`}
                       >
                         <div
-                          className={`text-[10px] uppercase ${d.isSelected ? "text-amber-100" : "text-stone-500"}`}
+                          className={`text-[10px] uppercase ${
+                            d.isSelected ? "text-amber-100" : "text-stone-500"
+                          }`}
                         >
                           {d.dayName}
                         </div>
@@ -1049,7 +1030,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   </div>
 
                   {/* Time rows */}
-                  <div className="divide-y divide-stone-100 max-h-[380px] overflow-y-auto">
+                  <div className="divide-y divide-stone-100 max-h-[380px] overflow-y-auto overscroll-contain">
                     {TIME_SLOTS.slice(0, -1).map((slotHhmm) => (
                       <div
                         key={slotHhmm}
@@ -1125,8 +1106,6 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                               );
                             }
 
-                            // Regular users: approved slots show ONLY a solid black box labeled "Booked"
-                            // No name, no service_name, no reservant-specific color
                             return (
                               <button
                                 key={d.dateStr}
@@ -1155,7 +1134,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                   time: formatHhmmTo12Hour(slotHhmm),
                                 },
                               )}
-                              className="p-1 border-r last:border-r-0 border-stone-100 transition h-11 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 text-stone-300 hover:text-amber-900 cursor-pointer"
+                              className="p-1 border-r last:border-r-0 border-stone-100 transition h-11 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 active:bg-amber-100 text-stone-300 hover:text-amber-900 cursor-pointer touch-manipulation"
                             >
                               <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">
                                 +
@@ -1171,12 +1150,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* 3. MONTHLY VIEW GRID (Day cells with density indicators) */}
-          {/* ========================================================= */}
+          {/* 3. MONTHLY VIEW GRID */}
           {viewMode === "monthly" && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-stone-500">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-500">
                 <span className="font-semibold text-stone-800">
                   {t("instrumentDetail.monthOverviewTitle", {
                     month: currentMonthDate.toLocaleDateString(localeTag, {
@@ -1209,23 +1186,23 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                           setSelectedDate(cell.dateStr);
                           setViewMode("daily");
                         }}
-                        className={`p-3 min-h-[70px] text-left transition flex flex-col justify-between cursor-pointer ${
+                        className={`p-1.5 sm:p-3 min-h-[56px] sm:min-h-[70px] text-left transition flex flex-col justify-between cursor-pointer touch-manipulation ${
                           isSelected
                             ? "bg-amber-800 text-white font-bold shadow-xs"
                             : !cell.isCurrentMonth
                               ? "bg-stone-50/40 text-stone-300 opacity-60 hover:bg-stone-100/50"
                               : cell.isToday
                                 ? "bg-amber-50/80 text-amber-900 font-bold hover:bg-amber-100/60"
-                                : "bg-white text-stone-800 hover:bg-amber-50/40"
+                                : "bg-white text-stone-800 hover:bg-amber-50/40 active:bg-amber-100/60"
                         }`}
                       >
-                        <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center justify-between w-full gap-0.5">
                           <span
                             className={`text-xs font-bold ${
                               isSelected
                                 ? "text-white"
                                 : cell.isToday
-                                  ? "w-5 h-5 rounded-full bg-amber-800 text-white flex items-center justify-center text-[10px]"
+                                  ? "w-5 h-5 rounded-full bg-amber-800 text-white flex items-center justify-center text-[10px] shrink-0"
                                   : ""
                             }`}
                           >
@@ -1234,7 +1211,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
                           {cell.approvedCount > 0 && (
                             <span
-                              className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                              className={`px-1 py-0.5 rounded-full text-[9px] font-bold shrink-0 hidden sm:inline-block ${
                                 isSelected
                                   ? "bg-amber-900 text-amber-100"
                                   : "bg-amber-800 text-amber-100"
@@ -1256,7 +1233,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                               }).map((_, dotIdx) => (
                                 <span
                                   key={dotIdx}
-                                  className={`w-1.5 h-1.5 rounded-full ${
+                                  className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${
                                     isSelected ? "bg-amber-200" : "bg-amber-800"
                                   }`}
                                 />
@@ -1275,7 +1252,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                             </div>
                           ) : cell.isCurrentMonth ? (
                             <span
-                              className={`text-[9px] font-medium ${
+                              className={`text-[9px] font-medium hidden sm:inline ${
                                 isSelected
                                   ? "text-amber-200"
                                   : "text-emerald-600"
@@ -1295,10 +1272,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between text-xs text-stone-500 shrink-0">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-stone-400" />
-            <span>
+        <div className="p-3 sm:p-4 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-500 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Info className="w-4 h-4 text-stone-400 shrink-0" />
+            <span className="truncate">
               {isAdminOrSuperAdmin
                 ? t("instrumentDetail.adminFooterNote")
                 : t("instrumentDetail.userFooterNote")}
@@ -1308,7 +1285,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl transition cursor-pointer shadow-xs"
+            className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation shrink-0 self-end sm:self-auto"
           >
             {t("instrumentDetail.closeButton")}
           </button>

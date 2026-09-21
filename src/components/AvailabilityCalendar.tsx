@@ -340,9 +340,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       const dateStr = getLocalDateString(d);
       chips.push({
         dateStr,
-        dayName: d.toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", { weekday: "short" }),
+        dayName: d.toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", {
+          weekday: "short",
+        }),
         dayNum: d.getDate(),
-        monthName: d.toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", { month: "short" }),
+        monthName: d.toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", {
+          month: "short",
+        }),
         isToday: dateStr === todayStr,
       });
     }
@@ -474,21 +478,25 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   };
 
   return (
-    <div id="availability-calendar-container" className="space-y-6">
+    <div
+      id="availability-calendar-container"
+      className="space-y-4 sm:space-y-6 pb-[env(safe-area-inset-bottom)]"
+    >
       {/* Admin Mode Switch Notification */}
       {modeNotice && (
         <div
           id="calendar-mode-update-notice"
-          className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
+          className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-3 sm:px-4 py-3 rounded-2xl flex items-start justify-between gap-2 text-xs font-semibold shadow-xs animate-in fade-in slide-in-from-top-2 duration-200"
         >
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-            <span>{modeNotice}</span>
+          <div className="flex items-start gap-2 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse mt-1 shrink-0" />
+            <span className="break-words min-w-0">{modeNotice}</span>
           </div>
           <button
             type="button"
             onClick={() => setModeNotice(null)}
-            className="text-emerald-700 hover:text-emerald-900 cursor-pointer font-bold px-1.5 py-0.5"
+            className="text-emerald-700 hover:text-emerald-900 cursor-pointer font-bold px-2 py-1 -mr-1 shrink-0 touch-manipulation"
+            aria-label="Dismiss"
           >
             ✕
           </button>
@@ -496,8 +504,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       )}
 
       {/* 1. Header Controls & Date Navigator */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs">
-        <div className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex items-center gap-2 flex-wrap">
             <h1 className="text-base sm:text-xl font-bold text-stone-900 tracking-tight leading-none">
               {t("calendar.title")}
@@ -506,128 +515,129 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mr-1 rtl:mr-0 rtl:ml-1 inline-block" />
               {t("calendar.updatedNow")}
             </span>
-            <button
-              type="button"
-              onClick={() => setShowHelperText(!showHelperText)}
-              className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition text-[10px] font-semibold"
-              title="Toggle timeline help and reference info"
-            >
-              <Info className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t("calendar.howThisWorks")}</span>
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowHelperText(!showHelperText)}
+            className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition text-[10px] font-semibold touch-manipulation"
+            title="Toggle timeline help and reference info"
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">
+              {t("calendar.howThisWorks")}
+            </span>
+          </button>
+        </div>
 
-          <div className="flex items-center justify-end gap-2 min-w-0 overflow-x-auto scrollbar-none flex-nowrap sm:shrink-0">
-            {allInstrumentTypes.length > 0 && (
-              <div className="relative shrink-0" ref={filterPanelRef}>
-                <button
-                  id="btn-open-instrument-filter"
-                  onClick={() => setIsFilterPanelOpen((o) => !o)}
-                  className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 transition cursor-pointer whitespace-nowrap shrink-0"
+        {/* Controls row — scrollable on mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
+          {allInstrumentTypes.length > 0 && (
+            <div className="relative shrink-0" ref={filterPanelRef}>
+              <button
+                id="btn-open-instrument-filter"
+                onClick={() => setIsFilterPanelOpen((o) => !o)}
+                className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                <span className="hidden sm:inline">{t("common.filter")}</span>
+                <span className="sm:hidden">({checkedInstrumentIds.size})</span>
+              </button>
+
+              {isFilterPanelOpen && (
+                <div
+                  id="instrument-filter-panel"
+                  className="fixed left-1/2 top-24 -translate-x-1/2 w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto overscroll-contain bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                  <span className="hidden sm:inline">{t("common.filter")}</span>
-                  <span className="sm:hidden">
-                    ({checkedInstrumentIds.size})
-                  </span>
-                </button>
+                  {allInstrumentTypes.map((type) => {
+                    const isTypeChecked = checkedTypes.includes(type);
+                    const typeInstruments = sortInstrumentsByManualOrder(
+                      instruments.filter((inst) => inst.type === type),
+                    );
+                    return (
+                      <div key={type} className="space-y-1.5">
+                        <label className="flex items-center gap-2 text-xs font-bold text-stone-800 cursor-pointer min-h-[36px] touch-manipulation">
+                          <input
+                            type="checkbox"
+                            checked={isTypeChecked}
+                            onChange={() => handleToggleType(type)}
+                            className="w-4 h-4 accent-amber-800 cursor-pointer shrink-0"
+                          />
+                          <span className="truncate">{type}</span>
+                          <span className="text-[10px] font-medium text-stone-400 shrink-0">
+                            ({typeInstruments.length})
+                          </span>
+                        </label>
 
-                {isFilterPanelOpen && (
-                  <div
-                    id="instrument-filter-panel"
-                    className="fixed left-1/2 top-24 -translate-x-1/2 w-[min(20rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto bg-white border border-stone-200 rounded-xl shadow-lg z-30 p-3 space-y-3"
-                  >
-                    {allInstrumentTypes.map((type) => {
-                      const isTypeChecked = checkedTypes.includes(type);
-                      const typeInstruments = sortInstrumentsByManualOrder(
-                        instruments.filter((inst) => inst.type === type),
-                      );
-                      return (
-                        <div key={type} className="space-y-1.5">
-                          <label className="flex items-center gap-2 text-xs font-bold text-stone-800 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isTypeChecked}
-                              onChange={() => handleToggleType(type)}
-                              className="w-3.5 h-3.5 accent-amber-800 cursor-pointer"
-                            />
-                            <span>{type}</span>
-                            <span className="text-[10px] font-medium text-stone-400">
-                              ({typeInstruments.length})
-                            </span>
-                          </label>
-
-                          {isTypeChecked && (
-                            <div className="pl-5 space-y-1">
-                              {typeInstruments.map((inst) => (
-                                <label
-                                  key={inst.id}
-                                  className="flex items-center gap-2 text-xs text-stone-700 cursor-pointer"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={checkedInstrumentIds.has(inst.id)}
-                                    onChange={() =>
-                                      handleToggleInstrument(inst.id)
-                                    }
-                                    className="w-3.5 h-3.5 accent-amber-700 cursor-pointer"
-                                  />
-                                  <span>{inst.name}</span>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button
-              id="btn-jump-today"
-              onClick={jumpToToday}
-              className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-[11px] font-semibold text-stone-800 transition cursor-pointer shrink-0"
-            >
-              {t("common.today")}
-            </button>
-
-            <div className="relative flex items-center shrink-0">
-              <input
-                id="jump-to-date-input"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  if (e.target.value) setSelectedDate(e.target.value);
-                }}
-                className={`py-1.5 text-[11px] font-semibold bg-stone-50 border border-stone-200 rounded-xl text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer ${
-                  isAr ? "pr-7 pl-2.5" : "pl-7 pr-2.5"
-                }`}
-              />
-              <CalendarIcon
-                className={`w-3.5 h-3.5 text-stone-500 absolute pointer-events-none ${
-                  isAr ? "right-2.5" : "left-2.5"
-                }`}
-              />
+                        {isTypeChecked && (
+                          <div className="pl-5 space-y-1">
+                            {typeInstruments.map((inst) => (
+                              <label
+                                key={inst.id}
+                                className="flex items-center gap-2 text-xs text-stone-700 cursor-pointer min-h-[36px] touch-manipulation"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checkedInstrumentIds.has(inst.id)}
+                                  onChange={() =>
+                                    handleToggleInstrument(inst.id)
+                                  }
+                                  className="w-4 h-4 accent-amber-700 cursor-pointer shrink-0"
+                                />
+                                <span className="truncate">{inst.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+          )}
 
-            <button
-              id="btn-refresh-calendar"
-              onClick={() => fetchAvailability(selectedDate)}
-              disabled={loading}
-              className="p-2 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs transition cursor-pointer shrink-0"
-              title={t("common.refresh")}
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? "animate-spin text-amber-700" : ""}`}
-              />
-            </button>
+          <button
+            id="btn-jump-today"
+            onClick={jumpToToday}
+            className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-[11px] font-semibold text-stone-800 transition cursor-pointer shrink-0 touch-manipulation"
+          >
+            {t("common.today")}
+          </button>
+
+          <div className="relative flex items-center shrink-0">
+            <input
+              id="jump-to-date-input"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                if (e.target.value) setSelectedDate(e.target.value);
+              }}
+              className={`py-1.5 text-[11px] font-semibold bg-stone-50 border border-stone-200 rounded-xl text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer ${
+                isAr ? "pr-7 pl-2.5" : "pl-7 pr-2.5"
+              }`}
+            />
+            <CalendarIcon
+              className={`w-3.5 h-3.5 text-stone-500 absolute pointer-events-none ${
+                isAr ? "right-2.5" : "left-2.5"
+              }`}
+            />
           </div>
+
+          <button
+            id="btn-refresh-calendar"
+            onClick={() => fetchAvailability(selectedDate)}
+            disabled={loading}
+            className="p-2 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 text-xs transition cursor-pointer shrink-0 touch-manipulation"
+            title={t("common.refresh")}
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading ? "animate-spin text-amber-700" : ""}`}
+            />
+          </button>
         </div>
 
         {showHelperText && (
-          <div className="mb-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-[11px] text-stone-600">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-[11px] text-stone-600">
             <p className="text-stone-700 font-medium">
               {t("calendar.selectOpenSlot")}
             </p>
@@ -652,37 +662,42 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           </div>
         )}
 
-        <div className="flex items-center gap-2 pb-2">
+        {/* Date navigation row */}
+        <div className="flex items-center gap-2">
           <button
             id="btn-date-prev"
             onClick={() => navigateDate("prev")}
-            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 shrink-0 transition cursor-pointer"
+            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation"
             title={t("calendar.prevDay")}
           >
             <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
 
-          <div className="flex-1 min-w-0 text-center text-[11px] font-semibold text-stone-600 uppercase tracking-[0.12em]">
-            {parseLocalDate(selectedDate).toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", {
-              month: "long",
-              year: "numeric",
-            })}
+          <div className="flex-1 min-w-0 text-center text-[11px] font-semibold text-stone-600 uppercase tracking-[0.12em] truncate">
+            {parseLocalDate(selectedDate).toLocaleDateString(
+              isAr ? "ar-u-nu-latn" : "en-US",
+              {
+                month: "long",
+                year: "numeric",
+              },
+            )}
           </div>
 
           <button
             id="btn-date-next"
             onClick={() => navigateDate("next")}
-            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 shrink-0 transition cursor-pointer"
+            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation"
             title={t("calendar.nextDay")}
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
 
+        {/* Date chip strip — centered on the selected date */}
         <div
           id="date-chip-strip"
           ref={dateStripRef}
-          className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none scroll-smooth"
+          className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-hide scroll-smooth -mx-1 px-1"
         >
           {dateChips.map((chip) => {
             const isSelected = chip.dateStr === selectedDate;
@@ -691,7 +706,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 key={chip.dateStr}
                 id={`date-chip-${chip.dateStr}`}
                 onClick={() => setSelectedDate(chip.dateStr)}
-                className={`flex-shrink-0 flex flex-col items-center justify-center w-[52px] sm:w-[58px] h-[52px] rounded-xl border transition-all cursor-pointer ${
+                className={`flex-shrink-0 flex flex-col items-center justify-center w-[52px] sm:w-[58px] h-[52px] rounded-xl border transition-all cursor-pointer touch-manipulation active:scale-95 ${
                   isSelected
                     ? "bg-amber-800 text-white border-amber-900 shadow-md font-bold"
                     : chip.isToday
@@ -716,7 +731,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         </div>
       </div>
 
-      {/* 3. Resource Timeline Grid (Side-by-side Columns with Spanning Header) */}
+      {/* 3. Resource Timeline Grid */}
       <div
         id="resource-timeline-wrapper"
         className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden"
@@ -729,12 +744,12 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             </span>
           </div>
         ) : error ? (
-          <div className="p-12 text-center text-red-700 bg-red-50 text-xs">
-            <p className="font-semibold mb-2">{t("calendar.errorLoading")}</p>
-            <p>{error}</p>
+          <div className="p-12 text-center text-red-700 bg-red-50 text-xs space-y-2">
+            <p className="font-semibold">{t("calendar.errorLoading")}</p>
+            <p className="break-words">{error}</p>
             <button
               onClick={() => fetchAvailability(selectedDate)}
-              className="mt-3 px-4 py-1.5 bg-red-600 text-white rounded-xl text-xs font-semibold cursor-pointer"
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl text-xs font-semibold cursor-pointer touch-manipulation"
             >
               {t("calendar.tryAgain")}
             </button>
@@ -745,13 +760,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <p className="font-semibold text-stone-700 text-sm">
               {t("calendar.noInstrumentsFound")}
             </p>
-            <p className="mt-1">
-              {t("calendar.noInstrumentsMatchFilter")}
-            </p>
+            <p className="mt-1">{t("calendar.noInstrumentsMatchFilter")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className={`w-full border-collapse min-w-[760px] ${isAr ? "text-right" : "text-left"}`}>
+          <div className="overflow-x-auto overscroll-contain scrollbar-thin">
+            <table
+              className={`w-full border-collapse min-w-[760px] ${isAr ? "text-right" : "text-left"}`}
+            >
               {/* TOP SPANNING HEADER: Instrument Group / Type */}
               <thead>
                 <tr className="bg-stone-100/90 border-b border-stone-200">
@@ -806,7 +821,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                           onClick={() => onSelectInstrument(inst)}
                           className={`p-3 w-48 min-w-[180px] max-w-[220px] ${
                             isAr ? "border-l" : "border-r"
-                          } border-stone-200 align-top hover:bg-amber-50/60 transition-colors cursor-pointer group select-none`}
+                          } border-stone-200 align-top hover:bg-amber-50/60 active:bg-amber-100/60 transition-colors cursor-pointer group select-none touch-manipulation`}
                           title="Tap to view instrument profile & full schedule"
                         >
                           <div className="flex flex-col gap-1.5">
@@ -834,7 +849,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                             </div>
 
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {/* Booking Mode Chip: Interactive toggle for Admins, static badge for users */}
+                              {/* Booking Mode Chip */}
                               {isAdminOrSuperAdmin ? (
                                 <button
                                   type="button"
@@ -849,7 +864,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                       ? "Manual Approval"
                                       : "Instant Booking"
                                   }`}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 ${
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold cursor-pointer transition shadow-2xs hover:scale-105 active:scale-95 touch-manipulation ${
                                     inst.bookingMode === "instant"
                                       ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300"
                                       : "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300"
@@ -889,18 +904,25 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                 </span>
                               )}
 
-                              {/* Outside Fee Badge (if fee > 0) */}
                               {hasFee && (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
-                                  <span>{t("common.egp")} {inst.outsideFeePerDay}{t("common.perDay")}</span>
+                                  <span>
+                                    {t("common.egp")} {inst.outsideFeePerDay}
+                                    {t("common.perDay")}
+                                  </span>
                                 </span>
                               )}
 
-                              {/* Full Day Indicator if instrument has a full-day booking today */}
-                              {reservations.some((r) => r.instrumentId === inst.id && r.isFullDay) && (
+                              {reservations.some(
+                                (r) =>
+                                  r.instrumentId === inst.id && r.isFullDay,
+                              ) && (
                                 <span
                                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
-                                  title={t("calendar.fullDayBookedTooltip") || "Instrument is booked for the full day"}
+                                  title={
+                                    t("calendar.fullDayBookedTooltip") ||
+                                    "Instrument is booked for the full day"
+                                  }
                                 >
                                   <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
                                   <span>{t("common.fullDay")}</span>
@@ -940,10 +962,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                         }`}
                       >
                         <div className="flex flex-col items-center gap-0.5">
-                          <span>{formatHhmmTo12Hour(slotHhmm, isAr ? "ar" : "en")}</span>
+                          <span>
+                            {formatHhmmTo12Hour(slotHhmm, isAr ? "ar" : "en")}
+                          </span>
                           {isCurrentSlot && (
                             <span className="rounded bg-black px-1 py-0.5 text-[9px] font-bold leading-none text-white">
-                              {t("common.now")} {formatHhmmTo12Hour(currentTimeHhmm, isAr ? "ar" : "en")}
+                              {t("common.now")}{" "}
+                              {formatHhmmTo12Hour(
+                                currentTimeHhmm,
+                                isAr ? "ar" : "en",
+                              )}
                             </span>
                           )}
                         </div>
@@ -999,7 +1027,9 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                         {slotRes?.isFullDay && (
                                           <Sun className="w-2.5 h-2.5 text-amber-500 shrink-0" />
                                         )}
-                                        <span className="truncate">{reservantName}</span>
+                                        <span className="truncate">
+                                          {reservantName}
+                                        </span>
                                       </span>
                                       <span
                                         className="text-[9px] truncate max-w-full opacity-90"
@@ -1014,8 +1044,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               );
                             }
 
-                            // Regular users: approved slots show a solid box labeled "Booked" or "Full Day"
-                            // No name, no service_name, no reservant-specific color
+                            // Regular users: booked slot labels
                             const isSlotFullDay = Boolean(slotRes?.isFullDay);
                             return (
                               <td
@@ -1028,7 +1057,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                 {isSlotFullDay ? (
                                   <div
                                     className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-stone-900 text-amber-300 border border-amber-500/40 select-none gap-1"
-                                    title={t("calendar.fullDayReserved") || "Full Day Reserved"}
+                                    title={
+                                      t("calendar.fullDayReserved") ||
+                                      "Full Day Reserved"
+                                    }
                                   >
                                     <Sun className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                                     <span className="tracking-wider uppercase text-[9px] font-bold text-amber-200">
@@ -1059,12 +1091,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               }
                               className={`p-1 ${
                                 isAr ? "border-l" : "border-r"
-                              } border-stone-200 cursor-pointer group/cell`}
+                              } border-stone-200 cursor-pointer group/cell touch-manipulation`}
                               title={`Tap to reserve ${inst.name} at ${formatHhmmTo12Hour(slotHhmm, isAr ? "ar" : "en")}`}
                             >
-                              <div className="w-full h-8 rounded-lg bg-white border border-transparent group-hover/cell:border-amber-400 group-hover/cell:bg-amber-50 text-transparent group-hover/cell:text-amber-800 flex items-center justify-center text-xs font-semibold transition-all">
-                                <Plus className={`w-3.5 h-3.5 ${isAr ? "ml-1" : "mr-1"}`} />
-                                <span className="text-[11px]">{t("calendar.reserveSlot")}</span>
+                              <div className="w-full h-8 rounded-lg bg-white border border-transparent group-hover/cell:border-amber-400 group-hover/cell:bg-amber-50 group-active/cell:border-amber-500 group-active/cell:bg-amber-100 text-transparent group-hover/cell:text-amber-800 flex items-center justify-center text-xs font-semibold transition-all">
+                                <Plus
+                                  className={`w-3.5 h-3.5 ${isAr ? "ml-1" : "mr-1"}`}
+                                />
+                                <span className="text-[11px]">
+                                  {t("calendar.reserveSlot")}
+                                </span>
                               </div>
                             </td>
                           );
