@@ -8,21 +8,18 @@ import {
   formatHhmmTo12Hour,
 } from "../lib/date-utils";
 import {
-  Calendar,
-  Clock,
   Music2,
-  DollarSign,
-  Shield,
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
   X,
-  Repeat,
-  Sparkles,
   ArrowRight,
-  Info,
-  CalendarRange,
-  Layers,
+  Calendar as CalendarIcon,
+  Clock,
+  MapPin,
+  DollarSign,
+  User as UserIcon,
+  FileText,
 } from "lucide-react";
 
 export interface EditReservationModalProps {
@@ -76,7 +73,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     (profile as any)?.isSuperAdmin,
   );
 
-  // Derive initial values from reservation
+  // ---- Derive initial values from reservation ----
   const startUtc = new Date(reservation.start_time || reservation.startTime);
   const endUtc = new Date(reservation.end_time || reservation.endTime);
   const initialDateStr =
@@ -116,9 +113,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [musicianName, setMusicianName] = useState<string>(
     reservation.musician_name || reservation.musicianName || "",
   );
-  const [note, setNote] = useState<string>(
-    reservation.note || "",
-  );
+  const [note, setNote] = useState<string>(reservation.note || "");
   const [date, setDate] = useState<string>(initialDateStr);
   const [startTime, setStartTime] = useState<string>(initialTimeStr);
   const [duration, setDuration] = useState<number>(initialDurationHours);
@@ -163,17 +158,14 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       setErrorMsg(t("editReservation.errSignIn"));
       return;
     }
-
     if (!serviceName.trim()) {
       setErrorMsg(t("editReservation.errSpecifyPurpose"));
       return;
     }
-
     if (!musicianName.trim()) {
       setErrorMsg(t("editReservation.musicianNameRequired"));
       return;
     }
-
     if (reservationType === "outside_church" && !feeAcknowledged) {
       setErrorMsg(t("editReservation.errAcknowledgeFee"));
       return;
@@ -183,25 +175,31 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     setErrorMsg(null);
 
     try {
+      // FIX: server derives admin/user identity from the Bearer token.
+      // We only include `userId` for the no-session legacy/self-edit fallback.
+      const body: Record<string, unknown> = {
+        instrumentId: currentInstrument.id,
+        serviceName: serviceName.trim(),
+        musicianName: musicianName.trim(),
+        note: note.trim() || undefined,
+        date,
+        startTime,
+        duration,
+        reservationType,
+        feeAcknowledged:
+          reservationType === "outside_church" ? feeAcknowledged : false,
+      };
+      if (!sessionToken && !isAdmin) {
+        body.userId = profile.id;
+      }
+
       const res = await fetch(`/api/reservations/${reservation.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
         },
-        body: JSON.stringify({
-          userId: profile.id,
-          instrumentId: currentInstrument.id,
-          serviceName: serviceName.trim(),
-          musicianName: musicianName.trim(),
-          note: note.trim() || undefined,
-          date,
-          startTime,
-          duration,
-          reservationType,
-          feeAcknowledged:
-            reservationType === "outside_church" ? feeAcknowledged : false,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -219,63 +217,79 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     }
   };
 
+  const submitDisabled =
+    isSubmitting || !serviceName.trim() || !musicianName.trim();
+
   return (
     <div
       id="edit-reservation-modal-backdrop"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="edit-reservation-modal"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white w-full sm:max-w-xl sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)]"
       >
-        {/* Header */}
-        <div className="bg-stone-900 text-white px-6 py-5 flex items-center justify-between border-b border-stone-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs">
+        {/* ============ STICKY HEADER ============ */}
+        <div className="bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3 border-b border-stone-800 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center shrink-0 shadow-xs">
               <Music2 className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-white leading-tight">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
                 {t("editReservation.headerTitle")}
               </h2>
-              <p className="text-xs text-stone-400">
+              <p className="text-[11px] text-stone-400 truncate">
                 {t("editReservation.headerSubtitle")}
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer"
             aria-label={t("common.close")}
+            className="w-11 h-11 -mr-2 rounded-full text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleEditSubmit} className="p-6 sm:p-7 space-y-6">
-          {errorMsg && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-900 flex items-start gap-3 animate-in fade-in">
+        {/* ============ STICKY INLINE ERROR ============ */}
+        {errorMsg && (
+          <div className="px-4 sm:px-6 pt-3 pb-1 shrink-0">
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 text-red-900 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <div className="space-y-1 text-xs">
+              <div className="space-y-0.5 text-xs min-w-0">
                 <div className="font-bold text-red-950">
                   {t("editReservation.updateBlockedTitle")}
                 </div>
-                <div className="text-red-800 leading-relaxed">{errorMsg}</div>
+                <div className="text-red-800 leading-relaxed break-words">
+                  {errorMsg}
+                </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Instrument Selector */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-stone-700">
-              {t("editReservation.selectInstrumentLabel")}
+        {/* ============ SCROLLABLE FORM ============ */}
+        <form
+          id="edit-reservation-form"
+          onSubmit={handleEditSubmit}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-5"
+        >
+          {/* -------- Instrument -------- */}
+          <section className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
+              <Music2 className="w-4 h-4 text-amber-800" />
+              <span>{t("editReservation.selectInstrumentLabel")}</span>
             </label>
             <select
               value={selectedInstrumentId}
               onChange={(e) => setSelectedInstrumentId(e.target.value)}
-              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 cursor-pointer"
+              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 cursor-pointer touch-manipulation"
             >
               {allInstruments.map((inst) => (
                 <option key={inst.id} value={inst.id}>
@@ -287,92 +301,114 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 </option>
               ))}
             </select>
+
             {willResetToPending && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900">
                 <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <span>{t("editReservation.manualResetWarning")}</span>
+                <span className="leading-relaxed">
+                  {t("editReservation.manualResetWarning")}
+                </span>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Purpose */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-stone-700">
-              {t("editReservation.purposeQuestionLabel")}{" "}
-              <span className="text-amber-800 font-bold">*</span>
+          {/* -------- Purpose -------- */}
+          <section className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
+              <FileText className="w-4 h-4 text-amber-800" />
+              <span>
+                {t("editReservation.purposeQuestionLabel")}{" "}
+                <span className="text-amber-800">*</span>
+              </span>
             </label>
             <input
               type="text"
+              inputMode="text"
+              autoComplete="off"
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
               placeholder={t("editReservation.purposePlaceholder")}
-              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40"
+              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 touch-manipulation"
               required
             />
-          </div>
+          </section>
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-stone-700">
-              {t("editReservation.musicianNameLabel")}{" "}
-              <span className="text-amber-800 font-bold">*</span>
+          {/* -------- Musician -------- */}
+          <section className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
+              <UserIcon className="w-4 h-4 text-amber-800" />
+              <span>
+                {t("editReservation.musicianNameLabel")}{" "}
+                <span className="text-amber-800">*</span>
+              </span>
             </label>
             <input
               type="text"
+              inputMode="text"
+              autoComplete="name"
               value={musicianName}
               onChange={(e) => setMusicianName(e.target.value)}
               placeholder={t("editReservation.musicianNamePlaceholder")}
-              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40"
+              className="w-full min-h-[48px] bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 touch-manipulation"
               required
             />
-          </div>
+          </section>
 
-          {/* Note Input */}
-          <div className="space-y-1.5">
+          {/* -------- Note -------- */}
+          <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-stone-700">
-                {t("reservationForm.leaveANoteLabel") || "Notes / Special Requests"}
+              <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
+                <FileText className="w-4 h-4 text-amber-800" />
+                <span>
+                  {t("reservationForm.leaveANoteLabel") ||
+                    "Notes / Special Requests"}
+                </span>
               </label>
               <span className="text-[11px] text-stone-400 font-medium">
                 {t("common.optional") || "Optional"}
               </span>
             </div>
             <textarea
-              rows={2}
+              rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={t("reservationForm.notePlaceholder")}
-              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 resize-none"
+              className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-4 py-3 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 resize-none touch-manipulation"
             />
-          </div>
+          </section>
 
-          {/* Date & Time Slot Grid */}
-          <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
-            <div className="text-xs font-bold text-stone-900">
-              {t("editReservation.scheduleDurationTitle")}
+          {/* -------- Date & Time -------- */}
+          <section className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
+              <CalendarIcon className="w-4 h-4 text-amber-800" />
+              <span>{t("editReservation.scheduleDurationTitle")}</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                  {t("editReservation.dateLabel")}
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30"
-                  required
-                />
-              </div>
+            {/* Date — full width on mobile (native date pickers need room) */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider">
+                {t("editReservation.dateLabel")}
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-4 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 touch-manipulation"
+                required
+              />
+            </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1">
-                  {t("editReservation.startTimeLabel")}
+            {/* Start time + Duration — two columns on all sizes */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-stone-600 uppercase tracking-wider">
+                  <Clock className="w-3.5 h-3.5 text-stone-500" />
+                  <span>{t("editReservation.startTimeLabel")}</span>
                 </label>
                 <select
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
+                  className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-3 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 cursor-pointer touch-manipulation"
                 >
                   {TIME_SLOTS.map((tm) => (
                     <option key={tm} value={tm}>
@@ -382,8 +418,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-stone-600 mb-1">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-stone-600 uppercase tracking-wider">
                   {t("editReservation.durationUntilLabel", {
                     end: formatHhmmTo12Hour(calculateEndTime()),
                   })}
@@ -391,7 +427,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 <select
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full bg-white border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 cursor-pointer"
+                  className="w-full min-h-[48px] bg-white border border-stone-300 rounded-xl px-3 py-3 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/30 focus:border-amber-800 cursor-pointer touch-manipulation"
                 >
                   {DURATION_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -401,107 +437,137 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 </select>
               </div>
             </div>
-          </div>
 
-          {/* Usage Type */}
-          <div className="space-y-2.5">
-            <label className="block text-xs font-bold text-stone-700">
-              {t("editReservation.usageTypeLabel")}
+            {/* Live end-time summary chip */}
+            <div className="flex items-center justify-center gap-2 text-xs text-stone-600 pt-1">
+              <Clock className="w-3.5 h-3.5 text-stone-500" />
+              <span className="font-semibold text-stone-800">
+                {formatHhmmTo12Hour(startTime)} –{" "}
+                {formatHhmmTo12Hour(calculateEndTime())}
+              </span>
+            </div>
+          </section>
+
+          {/* -------- Usage Type -------- */}
+          <section className="space-y-2.5">
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-700">
+              <MapPin className="w-4 h-4 text-amber-800" />
+              <span>{t("editReservation.usageTypeLabel")}</span>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
+              {/* In-church */}
               <button
                 type="button"
                 onClick={() => setReservationType("in_church")}
-                className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                aria-pressed={reservationType === "in_church"}
+                className={`min-h-[88px] p-4 rounded-2xl border-2 text-start transition cursor-pointer touch-manipulation active:scale-[0.99] ${
                   reservationType === "in_church"
-                    ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/30"
-                    : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
+                    ? "bg-amber-50 border-amber-800 ring-2 ring-amber-800/30"
+                    : "bg-white border-stone-200 hover:bg-stone-50"
                 }`}
               >
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-bold text-xs text-stone-900">
+                <div className="flex items-center justify-between mb-1.5 gap-2">
+                  <span className="font-bold text-sm text-stone-900 truncate">
                     {t("editReservation.inChurchUseLabel")}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
                     {t("editReservation.freeBadge")}
                   </span>
                 </div>
-                <p className="text-[10px] text-stone-500 text-start">
+                <p className="text-[11px] text-stone-500 leading-snug">
                   {t("editReservation.inChurchDesc")}
                 </p>
               </button>
 
+              {/* Outside-church */}
               <button
                 type="button"
                 onClick={() => setReservationType("outside_church")}
-                className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
+                aria-pressed={reservationType === "outside_church"}
+                className={`min-h-[88px] p-4 rounded-2xl border-2 text-start transition cursor-pointer touch-manipulation active:scale-[0.99] ${
                   reservationType === "outside_church"
-                    ? "bg-purple-50/70 border-purple-800 ring-2 ring-purple-800/30"
-                    : "bg-white hover:bg-stone-50 border-stone-200 text-stone-700"
+                    ? "bg-purple-50 border-purple-800 ring-2 ring-purple-800/30"
+                    : "bg-white border-stone-200 hover:bg-stone-50"
                 }`}
               >
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-bold text-xs text-stone-900">
+                <div className="flex items-center justify-between mb-1.5 gap-2">
+                  <span className="font-bold text-sm text-stone-900 truncate">
                     {t("editReservation.outsideChurchLabel")}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 shrink-0 whitespace-nowrap">
                     {t("editReservation.egpPerDayBadge", { fee: feeNumber })}
                   </span>
                 </div>
-                <p className="text-[10px] text-stone-500 text-start">
+                <p className="text-[11px] text-stone-500 leading-snug">
                   {t("editReservation.outsideChurchDesc")}
                 </p>
               </button>
             </div>
 
             {reservationType === "outside_church" && (
-              <label className="flex items-start gap-2.5 p-3 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer select-none">
+              <label className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-2xl cursor-pointer select-none min-h-[56px] touch-manipulation">
                 <input
                   type="checkbox"
                   checked={feeAcknowledged}
                   onChange={(e) => setFeeAcknowledged(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer"
+                  className="mt-0.5 w-5 h-5 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
                 />
-                <span className="text-xs font-semibold text-purple-950">
+                <span className="text-xs sm:text-sm font-semibold text-purple-950 leading-snug">
                   {t("editReservation.feeAcknowledgeLabel", { fee: feeNumber })}
                 </span>
               </label>
             )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="py-3 px-5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-2xl transition cursor-pointer"
-            >
-              {t("editReservation.cancelButton")}
-            </button>
+            {reservationType === "outside_church" && (
+              <div className="flex items-start gap-2 p-3 bg-white border border-purple-200 rounded-xl text-[11px] text-purple-900">
+                <DollarSign className="w-3.5 h-3.5 text-purple-700 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">
+                  {t("reservationDetail.paymentNotice")}
+                </span>
+              </div>
+            )}
+          </section>
 
-            <button
-              type="submit"
-              disabled={isSubmitting || !serviceName.trim()}
-              className={`flex-1 py-3 px-6 rounded-2xl text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer ${
-                isSubmitting || !serviceName.trim()
-                  ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
-                  : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>{t("editReservation.savingChanges")}</span>
-                </>
-              ) : (
-                <>
-                  <span>{t("editReservation.updateButton")}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </div>
+          {/* Bottom spacer so the last field isn't hidden behind the sticky footer */}
+          <div className="h-2" aria-hidden="true" />
         </form>
+
+        {/* ============ STICKY ACTION FOOTER ============ */}
+        <div className="shrink-0 bg-stone-50 border-t border-stone-200 px-4 sm:px-6 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] sm:pb-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="min-h-[48px] px-4 py-3 bg-white hover:bg-stone-100 active:bg-stone-200 border border-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer shrink-0 disabled:opacity-50 touch-manipulation"
+          >
+            {t("editReservation.cancelButton")}
+          </button>
+
+          <button
+            type="submit"
+            form="edit-reservation-form"
+            disabled={submitDisabled}
+            className={`flex-1 min-h-[48px] px-6 py-3 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+              submitDisabled
+                ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
+                : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>{t("editReservation.savingChanges")}</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{t("editReservation.updateButton")}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

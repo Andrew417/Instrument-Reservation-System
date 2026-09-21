@@ -59,6 +59,28 @@ async function extractSessionIdentity(req: Request) {
 }
 
 /**
+ * FIX: Returns true only when the Bearer token belongs to a super_admin session.
+ * Never reads from the request body.
+ */
+async function resolveIsSuperAdmin(req: Request): Promise<boolean> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return false;
+  const token = authHeader.substring(7).trim();
+  try {
+    const { valid, session } = await validateSession(token);
+    if (valid && session) {
+      return (
+        (session as any).role === "super_admin" ||
+        Boolean((session as any).user?.isSuperAdmin)
+      );
+    }
+  } catch {
+    // fall through
+  }
+  return false;
+}
+
+/**
  * 1. Evaluate/Dry-run submission without creating a row
  */
 router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
@@ -155,22 +177,63 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
 
 /**
  * 4. Edit a reservation
+ *
+ * FIX: Actor identity is ALWAYS resolved from the Bearer session token — never
+ * trusted from the request body. This is what lets Admins / Super Admin edit
+ * reservations belonging to other users.
  */
 router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { userId, adminId, isSuperAdmin, ...updates } = req.body;
-    const updated = await editReservation(id, updates, {
-      userId,
-      adminId,
-      isSuperAdmin,
-    });
+
+    // FIX: strip client-supplied identity claims so they can't be spoofed.
+    const rawBody = (req.body ?? {}) as Record<string, unknown>;
+    const updates: Record<string, unknown> = { ...rawBody };
+    delete updates.userId;
+    delete updates.adminId;
+    delete updates.isSuperAdmin;
+
+    const sessionIdentity = await extractSessionIdentity(req);
+
+    // FIX: build the actor from the token; only fall back to a body userId
+    // (never a body adminId) when there is no session at all.
+    const actor: {
+      userId?: string | null;
+      adminId?: string | null;
+      isSuperAdmin?: boolean;
+    } = sessionIdentity
+      ? {
+          userId: sessionIdentity.userId,
+          adminId: sessionIdentity.adminId,
+          isSuperAdmin: await resolveIsSuperAdmin(req),
+        }
+      : {
+          userId: (rawBody.userId as string | undefined) ?? null,
+          adminId: null,
+          isSuperAdmin: false,
+        };
+
+    const updated = await editReservation(
+      id,
+      updates as Parameters<typeof editReservation>[1],
+      actor,
+    );
     res.json({ success: true, reservation: updated });
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    console.error("Reservation edit error:", err);
+    const msg: string = err.message || "Failed to edit reservation.";
+    const status = /not authorized/i.test(msg)
+      ? 403
+      : /not found/i.test(msg)
+        ? 404
+        : /conflicts?/i.test(msg) || /working hours/i.test(msg)
+          ? 400
+          : 500;
+    res.status(status).json({
+      success: false,
+      error: msg,
+      cause: err.cause?.message,
+    });
   }
 });
 
@@ -200,6 +263,7 @@ router.post(
     }
   },
 );
+
 /**
  * Run scheduled status transitions
  */
