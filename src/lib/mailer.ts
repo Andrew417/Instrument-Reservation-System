@@ -687,3 +687,201 @@ function buildAdminNotificationHtml(
     </html>
   `;
 }
+
+// ---------------------------------------------------------------------------
+// 6. Reservation Paid Email (sent to all approved admins when a member
+//    marks an outside-church payment as paid)
+// ---------------------------------------------------------------------------
+
+export interface ReservationPaidEmailData {
+  reservationId: string;
+  instrumentName: string;
+  serviceName?: string;
+  musicianName?: string;
+  memberName: string;
+  memberEmail?: string;
+  memberPhone?: string;
+  reservationType?: string;
+  startTime?: Date | string | null;
+  endTime?: Date | string | null;
+  feeSnapshot?: string | number | null;
+}
+
+function buildReservationPaidEmailHtml(data: ReservationPaidEmailData): string {
+  const portalUrl = getPortalUrl();
+  const formattedSlot = formatSlotDateTime(data.startTime, data.endTime);
+  const feeAmount = data.feeSnapshot ?? "—";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f1eb; margin: 0; padding: 24px; color: #2d2a24; }
+          .card { max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e0dccf; border-radius: 16px; padding: 32px; box-shadow: 0 4px 14px rgba(0,0,0,0.05); }
+          .header { text-align: center; margin-bottom: 20px; }
+          .logo { font-size: 32px; line-height: 1; margin-bottom: 8px; }
+          .brand { font-size: 15px; font-weight: 700; color: #4a3b2a; }
+          .badge-paid { display: inline-block; background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 8px; }
+          .title { font-size: 20px; font-weight: 700; color: #2d2a24; margin: 16px 0 8px; text-align: center; }
+          .body-text { font-size: 14px; line-height: 1.6; color: #4a4438; margin: 12px 0; }
+          .details-card { background: #fbf6ec; border: 1px solid #e0dccf; border-radius: 12px; padding: 16px; margin: 20px 0; }
+          .fee-banner { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 16px; text-align: center; margin: 20px 0; }
+          .fee-label { font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px; }
+          .fee-amount { font-size: 26px; font-weight: 800; color: #047857; margin-top: 4px; }
+          .info-note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; font-size: 12.5px; line-height: 1.5; color: #1e40af; margin: 16px 0; }
+          .cta-btn { display: inline-block; background-color: #7a5c2e; color: #ffffff !important; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; text-decoration: none; margin: 16px 0; text-align: center; }
+          .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #efeae0; font-size: 12px; color: #a39a87; text-align: center; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">
+            <div class="logo">🎵⛪</div>
+            <div class="brand">St. Mark Church • Instrument Reservation</div>
+            <div class="badge-paid">✓ Payment Marked as PAID</div>
+          </div>
+
+          <h2 class="title">Reservation Payment Confirmed</h2>
+
+          <p class="body-text">
+            <strong>${data.memberName}</strong> has marked the outside-church payment as <strong>PAID</strong>.
+            Please verify the receipt in the admin portal.
+          </p>
+
+          <div class="fee-banner">
+            <div class="fee-label">Amount Paid</div>
+            <div class="fee-amount">EGP ${feeAmount}</div>
+          </div>
+
+          <div class="details-card">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Member:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${data.memberName}</td>
+              </tr>
+              ${
+                data.memberPhone
+                  ? `<tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Phone:</td>
+                <td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0;">${data.memberPhone}</td>
+              </tr>`
+                  : ""
+              }
+              ${
+                data.memberEmail
+                  ? `<tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Email:</td>
+                <td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0;">${data.memberEmail}</td>
+              </tr>`
+                  : ""
+              }
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Instrument:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${data.instrumentName}</td>
+              </tr>
+              ${
+                data.serviceName
+                  ? `<tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Service / Purpose:</td>
+                <td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0;">${data.serviceName}</td>
+              </tr>`
+                  : ""
+              }
+              ${
+                data.musicianName
+                  ? `<tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Musician:</td>
+                <td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0;">${data.musicianName}</td>
+              </tr>`
+                  : ""
+              }
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Slot:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${formattedSlot}</td>
+              </tr>
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Reservation ID:</td>
+                <td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0; font-family: monospace;">#${String(data.reservationId).substring(0, 8)}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="info-note">
+            <strong>🔍 Action Required:</strong><br>
+            Log in to the admin portal to review the uploaded payment receipt and confirm the transaction.
+          </div>
+
+          <div style="text-align: center;">
+            <a href="${portalUrl}" class="cta-btn">Open Admin Portal →</a>
+          </div>
+
+          <div class="footer">
+            St. Mark Church • Instrument Reservation System<br>
+            Automated payment confirmation notice
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+/**
+ * Sends a "reservation marked as paid" email to all approved admins.
+ * Recipients: every admin where `approval_status = 'approved'` AND email is set.
+ */
+export async function sendReservationPaidEmail(
+  data: ReservationPaidEmailData,
+): Promise<{ sent: boolean; error?: string; recipientCount?: number }> {
+  const transport = getTransporter();
+  if (!transport) {
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping reservation paid email.",
+    );
+    return { sent: false, error: "Gmail SMTP not configured" };
+  }
+
+  try {
+    const adminRows = await db
+      .select({ email: admins.email })
+      .from(admins)
+      .where(eq(admins.approvalStatus, "approved"));
+    const adminEmails = [
+      ...new Set(
+        adminRows
+          .map((r) => (r.email || "").trim())
+          .filter((e) => e.length > 0),
+      ),
+    ];
+
+    if (adminEmails.length === 0) {
+      return {
+        sent: false,
+        error: "No approved admin email addresses configured",
+        recipientCount: 0,
+      };
+    }
+
+    const subject = `Payment Received — ${data.instrumentName} (${data.memberName})`;
+    const html = buildReservationPaidEmailHtml(data);
+    const text = `Payment Confirmed\n\n${data.memberName} marked the outside-church payment as PAID.\n\nInstrument: ${data.instrumentName}\nService: ${data.serviceName || "—"}\nSlot: ${formatSlotDateTime(data.startTime, data.endTime)}\nAmount: EGP ${data.feeSnapshot ?? "—"}\nMember Phone: ${data.memberPhone || "—"}\nMember Email: ${data.memberEmail || "—"}\n\nReview in the admin portal: ${getPortalUrl()}\n\nSt. Mark Church Administration`;
+
+    await Promise.all(
+      adminEmails.map((email) =>
+        transport.sendMail({
+          from: `"St. Mark Church Instrument Reservation" <${process.env.GMAIL_USER}>`,
+          to: email,
+          subject,
+          html,
+          text,
+        }),
+      ),
+    );
+
+    return { sent: true, recipientCount: adminEmails.length };
+  } catch (err: any) {
+    console.error("Error sending reservation paid email via Gmail SMTP:", err);
+    return { sent: false, error: err.message };
+  }
+}

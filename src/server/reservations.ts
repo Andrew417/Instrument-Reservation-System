@@ -402,6 +402,211 @@ router.post(
 );
 
 /**
+ * 14b. Delete payment screenshot for reservation
+ */
+router.delete(
+  "/:id/payment-screenshot",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      // Resolve actor identity from the Bearer token (same pattern as other routes)
+      const sessionIdentity = await extractSessionIdentity(req);
+
+      // Fetch the reservation to verify ownership
+      const lookup = await db.execute(sql`
+        SELECT id, user_id, payment_screenshot_url
+        FROM reservations
+        WHERE id = ${id}
+        LIMIT 1
+      `);
+      const lookupRows = (lookup as any).rows || [];
+      if (lookupRows.length === 0) {
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found" });
+        return;
+      }
+
+      const reservation = lookupRows[0];
+
+      // If we have a session token, enforce ownership for non-admins.
+      // Admins / super_admins may delete on behalf of any reservation.
+      if (sessionIdentity) {
+        const isAdminActor = Boolean(sessionIdentity.adminId);
+        const isOwner =
+          sessionIdentity.userId &&
+          reservation.user_id === sessionIdentity.userId;
+
+        if (!isAdminActor && !isOwner) {
+          res.status(403).json({ success: false, error: "Not authorized" });
+          return;
+        }
+      }
+      // If no session identity is present, we still allow the request
+      // (matches the trust model of the existing POST endpoint in this file,
+      //  which also has no auth check). If you want stricter behavior,
+      // return 401 here instead.
+
+      // Clear the screenshot column
+      const result = await db.execute(sql`
+        UPDATE reservations
+        SET payment_screenshot_url = NULL
+        WHERE id = ${id}
+        RETURNING id, payment_screenshot_url
+      `);
+
+      const rows = (result as any).rows || [];
+      if (rows.length === 0) {
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found" });
+        return;
+      }
+
+      res.json({ success: true, reservation: rows[0] });
+    } catch (err: any) {
+      console.error("Reservations list error:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
+    }
+  },
+);
+
+/**
+ * 14c. Confirm payment (member presses "Save") → email all approved admins
+ * No DB schema changes: uses existing payment_screenshot_url as proof.
+ */
+router.post(
+  "/:id/confirm-paid",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      // Resolve actor from Bearer token
+      const sessionIdentity = await extractSessionIdentity(req);
+
+      // Load reservation + member + instrument context
+      const lookup = await db.execute(sql`
+        SELECT
+          r.id,
+          r.user_id,
+          r.service_name,
+          r.musician_name,
+          r.payment_screenshot_url,
+          r.fee_snapshot,
+          r.outside_fee_per_day,
+          r.reservation_type,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          COALESCE(u.name, 'A member') AS member_name,
+          u.email AS user_email,
+          u.phone_number AS user_phone,
+          COALESCE(i.name, 'an instrument') AS instrument_name
+        FROM reservations r
+        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.id = ${id}
+        LIMIT 1
+      `);
+      const rows = (lookup as any).rows || [];
+      if (rows.length === 0) {
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found" });
+        return;
+      }
+      const r = rows[0];
+
+      // Ownership check (session-based)
+      if (sessionIdentity) {
+        const isAdminActor = Boolean(sessionIdentity.adminId);
+        const isOwner =
+          sessionIdentity.userId && r.user_id === sessionIdentity.userId;
+        if (!isAdminActor && !isOwner) {
+          res.status(403).json({ success: false, error: "Not authorized" });
+          return;
+        }
+      }
+      const feeAmount = r.fee_snapshot ?? r.outside_fee_per_day ?? 0;
+      const memberName = r.member_name || "A member";
+      const instrumentName = r.instrument_name || "an instrument";
+      const serviceName = r.service_name || "Reservation";
+
+      // Send email via shared mailer
+      let emailSent = false;
+      let emailError: string | null = null;
+      let recipientCount = 0;
+      try {
+        const { sendReservationPaidEmail } = await import("../lib/mailer.js");
+        const result = await sendReservationPaidEmail({
+          reservationId: r.id,
+          instrumentName,
+          serviceName,
+          musicianName: r.musician_name || undefined,
+          memberName,
+          memberEmail: r.user_email || undefined,
+          memberPhone: r.user_phone || undefined,
+          reservationType: r.reservation_type,
+          startTime: r.start_time,
+          endTime: r.end_time,
+          feeSnapshot: feeAmount,
+        });
+        emailSent = result.sent;
+        emailError = result.error || null;
+        recipientCount = result.recipientCount || 0;
+      } catch (mailErr: any) {
+        emailError = mailErr.message || "Mailer threw";
+        console.warn("Confirm-paid email failed:", emailError);
+      }
+
+      // Also insert in-app notifications for approved admins (fallback / belt & suspenders)
+      try {
+        const adminIdsRes = await db.execute(sql`
+          SELECT id FROM admins WHERE approval_status = 'approved'
+        `);
+        const adminIds = ((adminIdsRes as any).rows || []).map(
+          (a: any) => a.id,
+        );
+        const notifMsg = `${memberName} marked the outside-church payment as PAID for "${serviceName}" (${instrumentName}). Please verify the receipt.`;
+        for (const adminId of adminIds) {
+          await db.execute(sql`
+            INSERT INTO notifications
+              (admin_id, type, message, is_read, reservation_id, created_at)
+            VALUES (
+              ${adminId},
+              'reservation_paid',
+              ${notifMsg},
+              false,
+              ${id},
+              NOW()
+            )
+          `);
+        }
+      } catch (notifErr: any) {
+        console.warn("Paid notification insert failed:", notifErr.message);
+      }
+
+      res.json({
+        success: true,
+        emailSent,
+        emailError,
+        recipientCount,
+      });
+    } catch (err: any) {
+      console.error("Confirm-paid error:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        cause: err.cause?.message,
+      });
+    }
+  },
+);
+/**
  * 15. Post message or reply to reservation (by user or admin)
  */
 router.post(
