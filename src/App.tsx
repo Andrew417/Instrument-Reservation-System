@@ -104,7 +104,10 @@ const UserPortalMain: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] =
     useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
-
+  // Bottom nav — which tab is visually active
+  const [activeMobileTab, setActiveMobileTab] = useState<
+    "calendar" | "my_reservations" | "notifications" | "admin_portal"
+  >("calendar");
   const [allInstruments, setAllInstruments] = useState<Instrument[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
@@ -239,7 +242,10 @@ const UserPortalMain: React.FC = () => {
             <button
               id="nav-btn-calendar"
               type="button"
-              onClick={() => setCurrentView("calendar")}
+              onClick={() => {
+                setIsNotificationsOpen(false);
+                setCurrentView("calendar");
+              }}
               className={`px-2.5 lg:px-2 xl:px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 lg:gap-1 xl:gap-1.5 cursor-pointer whitespace-nowrap ${
                 currentView === "calendar"
                   ? "bg-white text-stone-900 shadow-2xs"
@@ -253,7 +259,10 @@ const UserPortalMain: React.FC = () => {
             <button
               id="nav-btn-my-reservations"
               type="button"
-              onClick={() => setCurrentView("my_reservations")}
+              onClick={() => {
+                setIsNotificationsOpen(false);
+                setCurrentView("my_reservations");
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 currentView === "my_reservations"
                   ? "bg-white text-amber-950 shadow-2xs"
@@ -268,7 +277,10 @@ const UserPortalMain: React.FC = () => {
               <button
                 id="nav-btn-admin-portal"
                 type="button"
-                onClick={() => setCurrentView("admin_portal")}
+                onClick={() => {
+                  setIsNotificationsOpen(false);
+                  setCurrentView("admin_portal");
+                }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   currentView === "admin_portal"
                     ? "bg-white text-amber-950 shadow-2xs"
@@ -302,7 +314,7 @@ const UserPortalMain: React.FC = () => {
               id="header-notifications-bell-btn"
               type="button"
               onClick={() => setIsNotificationsOpen(true)}
-              className={`relative p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+              className={`hidden lg:flex relative p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition items-center gap-2 cursor-pointer ${
                 unreadCount > 0
                   ? "bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100"
                   : "border-stone-200 text-stone-700 hover:bg-stone-50"
@@ -330,54 +342,10 @@ const UserPortalMain: React.FC = () => {
             <LanguageProfileDropdown />
           </div>
         </div>
-
-        {/* Mobile/Tablet View Switcher Tabs */}
-        <div
-          className={`lg:hidden grid ${isAdminOrSuperAdmin ? "grid-cols-3" : "grid-cols-2"} border-t border-stone-200 bg-stone-50`}
-        >
-          <button
-            type="button"
-            onClick={() => setCurrentView("calendar")}
-            className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-              currentView === "calendar"
-                ? "border-amber-800 text-amber-900 bg-white"
-                : "border-transparent text-stone-600"
-            }`}
-          >
-            <CalendarDays className="w-3.5 h-3.5" />
-            <span>{t("nav.calendarShort")}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentView("my_reservations")}
-            className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-              currentView === "my_reservations"
-                ? "border-amber-800 text-amber-900 bg-white"
-                : "border-transparent text-stone-600"
-            }`}
-          >
-            <BookmarkCheck className="w-3.5 h-3.5" />
-            <span>{t("nav.bookingsShort")}</span>
-          </button>
-          {isAdminOrSuperAdmin && (
-            <button
-              type="button"
-              onClick={() => setCurrentView("admin_portal")}
-              className={`py-2 text-xs font-bold text-center border-b-2 flex items-center justify-center gap-1.5 ${
-                currentView === "admin_portal"
-                  ? "border-amber-800 text-amber-900 bg-white"
-                  : "border-transparent text-stone-600"
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>{t("nav.adminShort")}</span>
-            </button>
-          )}
-        </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      {/* Main Content Area — extra bottom padding on mobile to clear the bottom nav */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24 lg:pb-8">
         {currentView === "calendar" && (
           <AvailabilityCalendar
             onSelectSlot={handleSelectSlot}
@@ -624,6 +592,186 @@ const UserPortalMain: React.FC = () => {
           onUserUpdated={() => setRefreshTrigger((prev) => prev + 1)}
         />
       )}
+
+      {/* ✅ Mobile Bottom Navigation Bar — polished */}
+      <nav
+        id="mobile-bottom-nav"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-[70] bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] pb-[env(safe-area-inset-bottom)]"
+        dir="ltr"
+      >
+        <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
+          {/* Calendar */}
+          <button
+            type="button"
+            id="bottom-nav-calendar"
+            onClick={() => {
+              setIsNotificationsOpen(false);
+              setActiveMobileTab("calendar");
+              setCurrentView("calendar");
+            }}
+            aria-current={activeMobileTab === "calendar" ? "page" : undefined}
+            className="relative flex-1 flex flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 px-1 transition-all duration-200 cursor-pointer touch-manipulation active:scale-95 group"
+          >
+            {/* Active pill background behind icon */}
+            <div
+              className={`relative flex items-center justify-center w-12 h-7 rounded-full transition-all duration-200 ${
+                activeMobileTab === "calendar"
+                  ? "bg-amber-800 shadow-sm"
+                  : "bg-transparent group-hover:bg-stone-100"
+              }`}
+            >
+              <CalendarDays
+                className={`w-[18px] h-[18px] transition-colors ${
+                  activeMobileTab === "calendar"
+                    ? "text-white"
+                    : "text-stone-500 group-hover:text-stone-700"
+                }`}
+              />
+            </div>
+            <span
+              className={`text-[10px] font-semibold leading-none mt-0.5 transition-colors ${
+                activeMobileTab === "calendar"
+                  ? "text-amber-900"
+                  : "text-stone-500 group-hover:text-stone-700"
+              }`}
+            >
+              {t("nav.calendarShort")}
+            </span>
+          </button>
+
+          {/* My Bookings */}
+          <button
+            type="button"
+            id="bottom-nav-bookings"
+            onClick={() => {
+              setIsNotificationsOpen(false);
+              setActiveMobileTab("my_reservations");
+              setCurrentView("my_reservations");
+            }}
+            aria-current={
+              activeMobileTab === "my_reservations" ? "page" : undefined
+            }
+            className="relative flex-1 flex flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 px-1 transition-all duration-200 cursor-pointer touch-manipulation active:scale-95 group"
+          >
+            <div
+              className={`relative flex items-center justify-center w-12 h-7 rounded-full transition-all duration-200 ${
+                activeMobileTab === "my_reservations"
+                  ? "bg-amber-800 shadow-sm"
+                  : "bg-transparent group-hover:bg-stone-100"
+              }`}
+            >
+              <BookmarkCheck
+                className={`w-[18px] h-[18px] transition-colors ${
+                  activeMobileTab === "my_reservations"
+                    ? "text-white"
+                    : "text-stone-500 group-hover:text-stone-700"
+                }`}
+              />
+            </div>
+            <span
+              className={`text-[10px] font-semibold leading-none mt-0.5 transition-colors ${
+                activeMobileTab === "my_reservations"
+                  ? "text-amber-900"
+                  : "text-stone-500 group-hover:text-stone-700"
+              }`}
+            >
+              {t("nav.bookingsShort")}
+            </span>
+          </button>
+
+          {/* Notifications */}
+          <button
+            type="button"
+            id="bottom-nav-notifications"
+            onClick={() => {
+              setActiveMobileTab("notifications");
+              setIsNotificationsOpen(true);
+            }}
+            aria-current={
+              activeMobileTab === "notifications" ? "page" : undefined
+            }
+            className="relative flex-1 flex flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 px-1 transition-all duration-200 cursor-pointer touch-manipulation active:scale-95 group"
+          >
+            <div
+              className={`relative flex items-center justify-center w-12 h-7 rounded-full transition-all duration-200 ${
+                activeMobileTab === "notifications"
+                  ? "bg-amber-800 shadow-sm"
+                  : "bg-transparent group-hover:bg-stone-100"
+              }`}
+            >
+              <Bell
+                className={`w-[18px] h-[18px] transition-colors ${
+                  activeMobileTab === "notifications"
+                    ? "text-white"
+                    : "text-stone-500 group-hover:text-stone-700"
+                }`}
+              />
+              {unreadCount > 0 && (
+                <span
+                  className={`absolute -top-1 -right-0.5 min-w-[16px] h-[16px] px-1 text-white font-bold text-[9px] rounded-full flex items-center justify-center ring-2 transition-colors ${
+                    activeMobileTab === "notifications"
+                      ? "bg-amber-600 ring-amber-800"
+                      : "bg-amber-600 ring-white"
+                  }`}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </div>
+            <span
+              className={`text-[10px] font-semibold leading-none mt-0.5 transition-colors ${
+                activeMobileTab === "notifications"
+                  ? "text-amber-900"
+                  : "text-stone-500 group-hover:text-stone-700"
+              }`}
+            >
+              {t("nav.alerts")}
+            </span>
+          </button>
+
+          {/* Admin Portal — admins only */}
+          {isAdminOrSuperAdmin && (
+            <button
+              type="button"
+              id="bottom-nav-admin"
+              onClick={() => {
+                setIsNotificationsOpen(false);
+                setActiveMobileTab("admin_portal");
+                setCurrentView("admin_portal");
+              }}
+              aria-current={
+                activeMobileTab === "admin_portal" ? "page" : undefined
+              }
+              className="relative flex-1 flex flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 px-1 transition-all duration-200 cursor-pointer touch-manipulation active:scale-95 group"
+            >
+              <div
+                className={`relative flex items-center justify-center w-12 h-7 rounded-full transition-all duration-200 ${
+                  activeMobileTab === "admin_portal"
+                    ? "bg-amber-800 shadow-sm"
+                    : "bg-transparent group-hover:bg-stone-100"
+                }`}
+              >
+                <Shield
+                  className={`w-[18px] h-[18px] transition-colors ${
+                    activeMobileTab === "admin_portal"
+                      ? "text-white"
+                      : "text-stone-500 group-hover:text-stone-700"
+                  }`}
+                />
+              </div>
+              <span
+                className={`text-[10px] font-semibold leading-none mt-0.5 transition-colors ${
+                  activeMobileTab === "admin_portal"
+                    ? "text-amber-900"
+                    : "text-stone-500 group-hover:text-stone-700"
+                }`}
+              >
+                {t("nav.adminShort")}
+              </span>
+            </button>
+          )}
+        </div>
+      </nav>
     </div>
   );
 };
