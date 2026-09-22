@@ -260,8 +260,8 @@ const UserPortalMain: React.FC = () => {
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 lg:gap-1.5">
           <div className="flex items-center gap-3 min-w-0 shrink-0">
-            {/* ✅ Admin menu trigger — only when in Admin Portal view (mobile) */}
-            {isAdminOrSuperAdmin && currentView === "admin_portal" && (
+            {/* ✅ Admin menu trigger — mobile only (desktop shows the sidebar) */}
+            {isAdminOrSuperAdmin && (
               <button
                 type="button"
                 onClick={() => setIsAdminSidebarOpen(true)}
@@ -823,8 +823,8 @@ const UserPortalMain: React.FC = () => {
         </div>
       </nav>
 
-      {/* ✅ Admin Left Sidebar — only visible in Admin Portal view */}
-      {isAdminOrSuperAdmin && currentView === "admin_portal" && (
+      {/* ✅ Admin Left Sidebar — fixed on desktop, drawer on mobile */}
+      {isAdminOrSuperAdmin && (
         <>
           {/* Backdrop (mobile only) */}
           {isAdminSidebarOpen && (

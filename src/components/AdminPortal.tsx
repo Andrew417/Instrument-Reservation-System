@@ -1854,7 +1854,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   }, []);
 
   return (
-    <div id="admin-portal-root" className="space-y-6">
+    <div id="admin-portal-root" className="space-y-4">
       {/* Feedback Banner */}
       {feedback && (
         <div
@@ -1884,11 +1884,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </button>
         </div>
       )}
-      {/* Top Section Header Card */}
-      <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-bold text-stone-900 leading-tight whitespace-nowrap">
+      {/* ✅ Admin Console Header Card — title row + responsive stat grid */}
+      <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden">
+        {/* Row 1 — title + role + export button */}
+        <div className="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 border-b border-stone-100">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-800 text-white flex items-center justify-center shrink-0 shadow-2xs">
+              <LayoutDashboard className="w-4 h-4" />
+            </div>
+            <h1 className="text-sm sm:text-base font-bold text-stone-900 leading-tight whitespace-nowrap">
               {isSuperAdmin ? t("admin.consoleTitle") : t("admin.adminTitle")}
             </h1>
             <span
@@ -1901,12 +1905,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               {isSuperAdmin ? t("common.superAdmin") : t("common.admin")}
             </span>
           </div>
-          <p className="text-xs text-stone-500 mt-1">
-            {t("admin.consoleSubtitle")}
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap justify-end w-full md:w-auto md:justify-start">
           <button
             id="btn-admin-export-handover"
             type="button"
@@ -1916,130 +1915,173 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               setHandoverDefaultFormat("xlsx");
               setShowHandoverModal(true);
             }}
-            className="px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs"
+            className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
             title="Export confirmed bookings handover sheet for key-holder (XLSX or CSV)"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{t("admin.exportHandover")}</span>
+            <span className="hidden sm:inline">
+              {t("admin.exportHandover")}
+            </span>
+          </button>
+        </div>
+
+        {/* Row 2 — 5 stat cards in a responsive grid (no scroll, wraps on small screens) */}
+        <div className="p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {/* Pending Requests */}
+          <button
+            id="stat-card-pending"
+            type="button"
+            onClick={() => {
+              setActiveTab("review");
+              setFilterQuickTab("pending");
+              setFilterStatus("pending");
+            }}
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-amber-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
+            title={t("admin.dashboard.pendingReviewNote")}
+          >
+            <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200/70 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-amber-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-extrabold text-stone-900 leading-none">
+                {stats.pendingRequests}
+              </div>
+              <div className="text-[11px] font-bold text-amber-900 mt-0.5 truncate group-hover:text-amber-950">
+                {t("admin.pendingRequests")}
+              </div>
+              <div className="text-[10px] text-stone-400 mt-0.5 leading-tight line-clamp-2">
+                {t("admin.dashboard.pendingReviewNote")}
+              </div>
+            </div>
+          </button>
+
+          {/* Account Approvals */}
+          <button
+            id="stat-card-approvals"
+            type="button"
+            onClick={() => setActiveTab("approvals")}
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-amber-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group relative"
+            title={
+              Number(stats.pendingUserApprovals || 0) > 0
+                ? t("admin.dashboard.approvalsPendingNote")
+                : t("admin.dashboard.approvalsAllDoneNote")
+            }
+          >
+            <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200/70 flex items-center justify-center shrink-0 relative">
+              <UserCheck className="w-4 h-4 text-amber-700" />
+              {Number(stats.pendingUserApprovals || 0) > 0 && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500 animate-pulse ring-2 ring-white" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-extrabold text-stone-900 leading-none">
+                {stats.pendingUserApprovals || 0}
+              </div>
+              <div className="text-[11px] font-bold text-amber-900 mt-0.5 truncate group-hover:text-amber-950">
+                {t("admin.accountApprovals")}
+              </div>
+              <div className="text-[10px] text-stone-400 mt-0.5 leading-tight line-clamp-2">
+                {Number(stats.pendingUserApprovals || 0) > 0
+                  ? t("admin.dashboard.approvalsPendingNote")
+                  : t("admin.dashboard.approvalsAllDoneNote")}
+              </div>
+            </div>
+          </button>
+
+          {/* Today's Bookings */}
+          <button
+            id="stat-card-todays-bookings"
+            type="button"
+            onClick={() => setActiveTab("dashboard")}
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-emerald-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
+            title={t("admin.dashboard.todaysBookingsNote")}
+          >
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/70 flex items-center justify-center shrink-0">
+              <CalendarCheck className="w-4 h-4 text-emerald-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-extrabold text-stone-900 leading-none">
+                {stats.todayReservations}
+              </div>
+              <div className="text-[11px] font-bold text-emerald-900 mt-0.5 truncate group-hover:text-emerald-950">
+                {t("admin.todaysBookings")}
+              </div>
+              <div className="text-[10px] text-stone-400 mt-0.5 leading-tight line-clamp-2">
+                {t("admin.dashboard.todaysBookingsNote")}
+              </div>
+            </div>
+          </button>
+
+          {/* Instruments */}
+          <button
+            id="stat-card-instruments"
+            type="button"
+            onClick={() => setActiveTab("instruments")}
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-amber-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
+            title={t("admin.dashboard.totalInstrumentsNote")}
+          >
+            <div className="w-8 h-8 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
+              <Music2 className="w-4 h-4 text-stone-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-extrabold text-stone-900 leading-none">
+                {stats.totalInstruments}
+              </div>
+              <div className="text-[11px] font-bold text-stone-800 mt-0.5 truncate group-hover:text-stone-900">
+                {t("admin.totalInstruments")}
+              </div>
+              <div className="text-[10px] text-stone-400 mt-0.5 leading-tight line-clamp-2">
+                {t("admin.dashboard.totalInstrumentsNote")}
+              </div>
+            </div>
+          </button>
+
+          {/* Active Users */}
+          <button
+            id="stat-card-active-users"
+            type="button"
+            onClick={() => setActiveTab("users")}
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-amber-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group col-span-2 md:col-span-1"
+            title={t("admin.dashboard.activeUsersNote")}
+          >
+            <div className="w-8 h-8 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4 text-stone-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-extrabold text-stone-900 leading-none">
+                {stats.activeUsers}
+              </div>
+              <div className="text-[11px] font-bold text-stone-800 mt-0.5 truncate group-hover:text-stone-900">
+                {t("admin.activeUsers")}
+              </div>
+              <div className="text-[10px] text-stone-400 mt-0.5 leading-tight line-clamp-2">
+                {t("admin.dashboard.activeUsersNote")}
+              </div>
+            </div>
           </button>
         </div>
       </div>
-      {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <button
-          id="stat-card-pending"
-          type="button"
-          onClick={() => {
-            setActiveTab("review");
-            setFilterQuickTab("pending");
-            setFilterStatus("pending");
-          }}
-          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
-        >
-          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-amber-900 flex items-center justify-between">
-            <span>{t("admin.pendingRequests")}</span>
-          </div>
-          <div className="text-2xl font-extrabold text-amber-900 flex items-center justify-between">
-            <span>{stats.pendingRequests}</span>
-            <Clock className="w-5 h-5 text-amber-600/40 group-hover:text-amber-700 transition" />
-          </div>
-          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
-            {t("admin.dashboard.pendingReviewNote")}
-          </div>
-        </button>
-
-        <button
-          id="stat-card-approvals"
-          type="button"
-          onClick={() => setActiveTab("approvals")}
-          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
-        >
-          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-amber-900 flex items-center justify-between">
-            <span>{t("admin.accountApprovals")}</span>
-            {Number(stats.pendingUserApprovals || 0) > 0 && (
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            )}
-          </div>
-          <div className="text-2xl font-extrabold text-amber-900 flex items-center justify-between">
-            <span>{stats.pendingUserApprovals || 0}</span>
-            <UserCheck className="w-5 h-5 text-amber-600/40 group-hover:text-amber-700 transition" />
-          </div>
-          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
-            {Number(stats.pendingUserApprovals || 0) > 0
-              ? t("admin.dashboard.approvalsPendingNote")
-              : t("admin.dashboard.approvalsAllDoneNote")}
-          </div>
-        </button>
-
-        <button
-          id="stat-card-todays-bookings"
-          type="button"
-          onClick={() => {
-            setActiveTab("review");
-            setFilterQuickTab("today");
-            setFilterStatus("all");
-            const today = getTodayDateString();
-            setFilterStartDate(today);
-            setFilterEndDate(today);
-          }}
-          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-emerald-400 hover:shadow-xs transition cursor-pointer group"
-        >
-          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-emerald-900 flex items-center justify-between">
-            <span>{t("admin.todaysBookings")}</span>
-          </div>
-          <div className="text-2xl font-extrabold text-emerald-900 flex items-center justify-between">
-            <span>{stats.todayReservations}</span>
-            <CalendarCheck className="w-5 h-5 text-emerald-600/40 group-hover:text-emerald-700 transition" />
-          </div>
-          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
-            {t("admin.dashboard.todaysBookingsNote")}
-          </div>
-        </button>
-
-        <button
-          id="stat-card-instruments"
-          type="button"
-          onClick={() => setActiveTab("instruments")}
-          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group"
-        >
-          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-stone-900 flex items-center justify-between">
-            <span>{t("admin.totalInstruments")}</span>
-          </div>
-          <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
-            <span>{stats.totalInstruments}</span>
-            <Music2 className="w-5 h-5 text-stone-400 group-hover:text-amber-700 transition" />
-          </div>
-          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
-            {t("admin.dashboard.totalInstrumentsNote")}
-          </div>
-        </button>
-
-        <button
-          id="stat-card-active-users"
-          type="button"
-          onClick={() => setActiveTab("users")}
-          className="bg-white border border-stone-200 p-4 rounded-2xl shadow-2xs text-left hover:border-amber-400 hover:shadow-xs transition cursor-pointer group col-span-2 sm:col-span-1"
-        >
-          <div className="text-stone-500 text-xs font-semibold mb-1 group-hover:text-stone-900 flex items-center justify-between">
-            <span>{t("admin.activeUsers")}</span>
-          </div>
-          <div className="text-2xl font-extrabold text-stone-900 flex items-center justify-between">
-            <span>{stats.activeUsers}</span>
-            <Users className="w-5 h-5 text-stone-400 group-hover:text-amber-700 transition" />
-          </div>
-          <div className="text-[11px] text-stone-400 group-hover:text-stone-600 mt-2">
-            {t("admin.dashboard.activeUsersNote")}
-          </div>
-        </button>
-      </div>
 
       {/* Content Area for active tab */}
-      <main className="flex-1 min-w-0 space-y-6">
+      <main className="flex-1 min-w-0 space-y-4">
+        {/* Current tab breadcrumb — small orientation label */}
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="font-bold uppercase tracking-wider text-stone-400">
+            {isSuperAdmin ? t("common.superAdmin") : t("common.admin")}
+          </span>
+          <span className="text-stone-300">/</span>
+          <span className="font-bold text-stone-700">
+            {operationsTabs.find((tb) => tb.id === activeTab)?.label ||
+              superAdminTabs.find((tb) => tb.id === activeTab)?.label ||
+              t("admin.tabDashboard")}
+          </span>
+        </div>
+
         {/* =============================================================
               TAB 1: DASHBOARD OVERVIEW (read-only)
              ============================================================= */}
         {activeTab === "dashboard" && (
-          <div className="space-y-6">
+          <div>
             {/* Today's Schedule Card */}
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
               <div className="flex items-center justify-between border-b border-stone-100 pb-3">
@@ -2061,8 +2103,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {loadingTodaysReservations ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.dashboard.loading")}
+                <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                  <div className="text-xs">{t("admin.dashboard.loading")}</div>
                 </div>
               ) : todaysReservations.length === 0 ? (
                 <div className="py-12 text-center text-stone-400 text-xs">
@@ -2228,7 +2271,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {selectedReservationIds.length > 0 && (
               <div
                 id="bulk-actions-bar"
-                className="bg-stone-900 text-white rounded-2xl p-3 px-4 shadow-md flex flex-wrap items-center justify-between gap-3 border border-stone-800 animate-in fade-in slide-in-from-top-2 duration-150"
+                className="sticky top-2 z-10 bg-stone-900 text-white rounded-2xl p-3 px-4 shadow-lg flex flex-wrap items-center justify-between gap-3 border border-stone-800"
               >
                 <div className="flex items-center gap-2.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
@@ -2306,8 +2349,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Table */}
             <div className="overflow-x-auto mt-2">
               {loadingReservations ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.review.loading")}
+                <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                  <div className="text-xs">{t("admin.review.loading")}</div>
                 </div>
               ) : reservations.length === 0 ? (
                 <div className="py-12 text-center text-stone-400 text-xs">
@@ -2694,8 +2738,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             {/* Table / List */}
             <div className="p-3 sm:p-4 pt-0">
               {loadingApprovals ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.approvals.loading")}
+                <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                  <div className="text-xs">{t("admin.approvals.loading")}</div>
                 </div>
               ) : approvalsList.length === 0 ? (
                 <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
@@ -3102,8 +3147,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </button>
             </div>
             {loadingInstruments ? (
-              <div className="py-12 text-center text-stone-500 text-xs">
-                {t("admin.instruments.loading")}
+              <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                <div className="text-xs">{t("admin.instruments.loading")}</div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3343,8 +3389,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {loadingUsers ? (
-              <div className="py-12 text-center text-stone-500 text-xs">
-                {t("admin.users.loading")}
+              <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                <div className="text-xs">{t("admin.users.loading")}</div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -3655,8 +3702,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {loadingAdmins ? (
-              <div className="py-12 text-center text-stone-500 text-xs">
-                {t("admin.adminAccounts.loading")}
+              <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                <div className="text-xs">
+                  {t("admin.adminAccounts.loading")}
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -3771,8 +3821,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {loadingAuditLogs ? (
-              <div className="py-12 text-center text-stone-500 text-xs">
-                {t("admin.trustedStatus.loading")}
+              <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                <div className="text-xs">
+                  {t("admin.trustedStatus.loading")}
+                </div>
               </div>
             ) : trustedAuditLogs.length === 0 ? (
               <div className="py-12 text-center text-stone-400 text-xs">
@@ -3854,8 +3907,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             {loadingLimits ? (
-              <div className="py-12 text-center text-stone-500 text-xs">
-                {t("admin.hardLimits.loading")}
+              <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                <div className="text-xs">{t("admin.hardLimits.loading")}</div>
               </div>
             ) : (
               <form onSubmit={handleSaveHardLimits} className="space-y-4">

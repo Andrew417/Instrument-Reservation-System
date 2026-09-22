@@ -41,3 +41,29 @@
   --color-purple-900: #3d0f31;
   --color-purple-950: #26081f;
 }
+
+/* ============================================================
+   Global focus ring — visible only for keyboard navigation
+   ============================================================ */
+@layer base {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--color-amber-700, #b45309);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  /* Remove the default browser outline for mouse/touch users only —
+     keeps keyboard navigation accessible via the rule above */
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible),
+  input:focus:not(:focus-visible),
+  select:focus:not(:focus-visible),
+  textarea:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
