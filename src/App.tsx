@@ -260,8 +260,8 @@ const UserPortalMain: React.FC = () => {
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 lg:gap-1.5">
           <div className="flex items-center gap-3 min-w-0 shrink-0">
-            {/* ✅ Admin menu trigger — mobile only (desktop shows the sidebar) */}
-            {isAdminOrSuperAdmin && (
+            {/* ✅ Admin menu trigger — only in Admin Portal view (mobile) */}
+            {isAdminOrSuperAdmin && currentView === "admin_portal" && (
               <button
                 type="button"
                 onClick={() => setIsAdminSidebarOpen(true)}
@@ -396,7 +396,13 @@ const UserPortalMain: React.FC = () => {
       </header>
 
       {/* Main Content Area — extra bottom padding on mobile to clear the bottom nav */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24 lg:pb-8">
+      <main
+        className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24 lg:pb-8 transition-[padding] ${
+          isAdminOrSuperAdmin && currentView === "admin_portal"
+            ? "lg:pl-72"
+            : ""
+        }`}
+      >
         {currentView === "calendar" && (
           <AvailabilityCalendar
             onSelectSlot={handleSelectSlot}
@@ -823,9 +829,10 @@ const UserPortalMain: React.FC = () => {
         </div>
       </nav>
 
-      {/* ✅ Admin Left Sidebar — fixed on desktop, drawer on mobile */}
-      {isAdminOrSuperAdmin && (
+      {/* ✅ Admin Left Sidebar — only visible in Admin Portal view */}
+      {isAdminOrSuperAdmin && currentView === "admin_portal" && (
         <>
+          {" "}
           {/* Backdrop (mobile only) */}
           {isAdminSidebarOpen && (
             <div
@@ -834,7 +841,6 @@ const UserPortalMain: React.FC = () => {
               aria-hidden="true"
             />
           )}
-
           {/* Sidebar panel */}
           <aside
             className={`fixed top-0 bottom-0 left-0 z-[80] w-72 max-w-[85vw] bg-white border-r border-stone-200 shadow-2xl flex flex-col transition-transform duration-200 lg:translate-x-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
