@@ -19,6 +19,7 @@ import {
   Info,
   User,
   ExternalLink,
+  Inbox,
 } from "lucide-react";
 
 export interface AppNotification {
@@ -88,9 +89,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       const data = await res.json();
       if (data.success && Array.isArray(data.notifications)) {
         setNotifications(data.notifications);
-        if (onUnreadCountChange) {
-          onUnreadCountChange(data.unreadCount || 0);
-        }
+        onUnreadCountChange?.(data.unreadCount || 0);
       }
     } catch (e: any) {
       console.warn("Error fetching notifications:", e.message);
@@ -103,6 +102,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     if (isOpen) {
       fetchNotifications();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -114,15 +114,16 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           },
         });
         const data = await res.json();
-        if (data.success && onUnreadCountChange) {
-          onUnreadCountChange(data.unreadCount || 0);
+        if (data.success) {
+          onUnreadCountChange?.(data.unreadCount || 0);
         }
-      } catch (e) {
-        // silent background check
+      } catch {
+        // silent
       }
     }, 20000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionToken]);
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
@@ -142,9 +143,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       const remainingUnread = notifications.filter(
         (n) => n.id !== id && !n.is_read,
       ).length;
-      if (onUnreadCountChange) {
-        onUnreadCountChange(remainingUnread);
-      }
+      onUnreadCountChange?.(remainingUnread);
     } catch (e: any) {
       console.warn("Could not mark notification as read:", e.message);
     }
@@ -160,9 +159,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       });
 
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      if (onUnreadCountChange) {
-        onUnreadCountChange(0);
-      }
+      onUnreadCountChange?.(0);
       setActionNotice(t("notifications.allCaughtUp"));
       setTimeout(() => setActionNotice(null), 3000);
     } catch (e: any) {
@@ -178,7 +175,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       handleMarkAsRead(notif.id);
     }
     if (notif.reservation_id) {
-      onClose();
       const tab =
         preferredTab ||
         (notif.type === "reservation_message" ? "chat" : "details");
@@ -206,9 +202,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken || ""}`,
         },
-        body: JSON.stringify({
-          adminId: profile?.id,
-        }),
+        body: JSON.stringify({ adminId: profile?.id }),
       });
 
       const data = await res.json();
@@ -330,104 +324,99 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       case "reservation_submitted":
       case "series_submitted":
         return {
-          icon: <Clock className="w-5 h-5 text-amber-600 shrink-0" />,
+          icon: <Clock className="w-4 h-4 text-amber-600 shrink-0" />,
+          iconBg: "bg-amber-100",
           badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
           typeLabel:
             notif.type === "series_submitted" || notif.series_id
               ? t("notifications.typeSeriesRequest")
               : t("notifications.typeReservationRequest"),
-          accentBorder: "border-amber-500",
         };
       case "reservation_approved":
         return {
-          icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
+          icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />,
+          iconBg: "bg-emerald-100",
           badgeBg: "bg-emerald-50 border-emerald-200 text-emerald-900",
           typeLabel: t("notifications.typeReservationApproved"),
-          accentBorder: "border-emerald-500",
         };
       case "reservation_rejected":
         return {
-          icon: <XCircle className="w-5 h-5 text-red-600 shrink-0" />,
+          icon: <XCircle className="w-4 h-4 text-red-600 shrink-0" />,
+          iconBg: "bg-red-100",
           badgeBg: "bg-red-50 border-red-200 text-red-900",
           typeLabel: t("notifications.typeReservationRejected"),
-          accentBorder: "border-red-500",
         };
       case "reservation_auto_rejected":
         return {
-          icon: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
+          icon: <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />,
+          iconBg: "bg-amber-100",
           badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
           typeLabel: t("notifications.typeAutoRejected"),
-          accentBorder: "border-amber-500",
         };
       case "series_rejected":
         return {
-          icon: <XCircle className="w-5 h-5 text-red-600 shrink-0" />,
+          icon: <XCircle className="w-4 h-4 text-red-600 shrink-0" />,
+          iconBg: "bg-red-100",
           badgeBg: "bg-red-50 border-red-200 text-red-900",
           typeLabel: t("notifications.typeSeriesRejected"),
-          accentBorder: "border-red-500",
         };
       case "instrument_removed_cancellation":
         return {
-          icon: <Wrench className="w-5 h-5 text-stone-600 shrink-0" />,
+          icon: <Wrench className="w-4 h-4 text-stone-600 shrink-0" />,
+          iconBg: "bg-stone-200",
           badgeBg: "bg-stone-100 border-stone-300 text-stone-900",
           typeLabel: t("notifications.typeInstrumentRemoved"),
-          accentBorder: "border-stone-500",
         };
       case "admin_message":
         return {
-          icon: <MessageSquare className="w-5 h-5 text-indigo-600 shrink-0" />,
+          icon: <MessageSquare className="w-4 h-4 text-indigo-600 shrink-0" />,
+          iconBg: "bg-indigo-100",
           badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
           typeLabel: t("notifications.typeAdminMessage"),
-          accentBorder: "border-indigo-500",
         };
       case "user_reply":
         return {
-          icon: <MessageSquare className="w-5 h-5 text-indigo-600 shrink-0" />,
+          icon: <MessageSquare className="w-4 h-4 text-indigo-600 shrink-0" />,
+          iconBg: "bg-indigo-100",
           badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
           typeLabel: t("notifications.typeUserReply"),
-          accentBorder: "border-indigo-500",
         };
       case "account_approval_submitted":
         return {
-          icon: <Info className="w-5 h-5 text-indigo-600 shrink-0" />,
+          icon: <Info className="w-4 h-4 text-indigo-600 shrink-0" />,
+          iconBg: "bg-indigo-100",
           badgeBg: "bg-indigo-50 border-indigo-200 text-indigo-900",
           typeLabel: t("notifications.typeAccountApproval"),
-          accentBorder: "border-indigo-500",
         };
       case "trusted_status_granted":
         return {
-          icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />,
+          icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />,
+          iconBg: "bg-emerald-100",
           badgeBg: "bg-emerald-50 border-emerald-200 text-emerald-900",
           typeLabel: t("notifications.typeTrustedGranted"),
-          accentBorder: "border-emerald-500",
         };
       case "trusted_status_revoked":
         return {
-          icon: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
+          icon: <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />,
+          iconBg: "bg-amber-100",
           badgeBg: "bg-amber-50 border-amber-200 text-amber-900",
           typeLabel: t("notifications.typeTrustedRevoked"),
-          accentBorder: "border-amber-500",
         };
       case "reservation_cancelled":
         return {
-          icon: <XCircle className="w-5 h-5 text-stone-600 shrink-0" />,
+          icon: <XCircle className="w-4 h-4 text-stone-600 shrink-0" />,
+          iconBg: "bg-stone-200",
           badgeBg: "bg-stone-100 border-stone-300 text-stone-900",
           typeLabel: t("notifications.typeCancelled"),
-          accentBorder: "border-stone-500",
         };
       default:
         return {
-          icon: <Info className="w-5 h-5 text-stone-600 shrink-0" />,
+          icon: <Info className="w-4 h-4 text-stone-600 shrink-0" />,
+          iconBg: "bg-stone-200",
           badgeBg: "bg-stone-50 border-stone-200 text-stone-900",
           typeLabel: t("notifications.typeGeneric"),
-          accentBorder: "border-stone-300",
         };
     }
-  };
-
-  const LEGACY_MESSAGE_PATTERNS: Record<string, RegExp> = {
-    account_approval_submitted:
-      /^New member registration from (.+) awaiting approval\.$/,
   };
 
   const LEGACY_MESSAGE_RULES: Array<{
@@ -606,7 +595,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         return t(parsed.key, parsed.params || {}) as string;
       }
     } catch {
-      // not JSON — fall through to legacy pattern matching
+      // not JSON
     }
 
     for (const rule of LEGACY_MESSAGE_RULES) {
@@ -644,35 +633,46 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
   };
 
+  const FILTERS: {
+    key: typeof filter;
+    label: string;
+    count?: number;
+  }[] = [
+    {
+      key: "all",
+      label: t("notifications.tabAll"),
+      count: notifications.length,
+    },
+    { key: "unread", label: t("notifications.tabUnread"), count: unreadCount },
+    { key: "requests", label: t("notifications.tabRequests") },
+    { key: "approvals", label: t("notifications.tabApprovals") },
+    { key: "rejections", label: t("notifications.tabRejections") },
+    { key: "messages", label: t("notifications.tabMessages") },
+  ];
+
   return (
     <div
-      id="notifications-modal-overlay"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
-      onClick={onClose}
+      id="screen-7-notifications"
+      className="space-y-4 sm:space-y-6 pb-[env(safe-area-inset-bottom)]"
     >
-      <div
-        id="screen-7-notifications"
-        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-800 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-stone-800 border border-stone-700 text-white flex items-center justify-center relative shrink-0">
-              <Bell className="w-5 h-5 text-amber-400" />
+      {/* ═════════ Header Card — matches AvailabilityCalendar & MyReservations ═════════ */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+            <div className="w-9 h-9 rounded-2xl bg-stone-900 text-amber-400 flex items-center justify-center relative shrink-0">
+              <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-stone-950 font-bold text-[10px] rounded-full flex items-center justify-center ring-2 ring-stone-900">
-                  {unreadCount}
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-600 text-white font-bold text-[9px] rounded-full flex items-center justify-center ring-2 ring-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-bold text-white truncate">
-                  {t("notifications.title")}
-                </h2>
-              </div>
-              <p className="text-[11px] sm:text-xs text-stone-400 truncate">
+              <h1 className="text-base sm:text-xl font-bold text-stone-900 tracking-tight leading-none">
+                {t("notifications.title")}
+              </h1>
+              <p className="text-[11px] sm:text-xs text-stone-500 truncate mt-0.5">
                 {unreadCount > 0
                   ? t("notifications.unreadCount", { count: unreadCount })
                   : t("notifications.allCaughtUp")}
@@ -680,474 +680,404 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="shrink-0 flex items-center gap-1">
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllAsRead}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 active:bg-stone-600 text-stone-200 text-xs font-semibold transition cursor-pointer touch-manipulation"
                 title={t("notifications.markAllReadTooltip")}
+                aria-label={t("notifications.markAllRead")}
+                className="flex items-center gap-1 px-2 py-1 rounded-full text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 active:bg-emerald-100 transition text-[10px] font-semibold touch-manipulation whitespace-nowrap"
               >
-                <CheckCheck className="w-3.5 h-3.5" />
+                <CheckCheck className="w-3.5 h-3.5 shrink-0" />
                 <span>{t("notifications.markAllRead")}</span>
               </button>
             )}
 
             <button
-              id="close-notifications-btn"
-              onClick={onClose}
-              className="shrink-0 w-11 h-11 -mr-2 rounded-full bg-transparent hover:bg-stone-700 active:bg-stone-600 text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer touch-manipulation"
-              aria-label={t("common.close")}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Action Notice Bar */}
-        {actionNotice && (
-          <div className="bg-amber-50 border-b border-amber-200 px-4 sm:px-6 py-2.5 text-xs text-amber-900 font-semibold flex items-center justify-between gap-2 shrink-0 animate-in fade-in">
-            <span className="break-words min-w-0">{actionNotice}</span>
-            <Check className="w-4 h-4 text-amber-700 shrink-0" />
-          </div>
-        )}
-
-        {/* Filter Bar */}
-        <div className="px-3 sm:px-6 py-2.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between gap-2 shrink-0">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5 flex-1 min-w-0">
-            <button
-              type="button"
-              onClick={() => setFilter("all")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
-                filter === "all"
-                  ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
-              }`}
-            >
-              {t("notifications.tabAll")} ({notifications.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter("unread")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
-                filter === "unread"
-                  ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
-              }`}
-            >
-              {t("notifications.tabUnread")} ({unreadCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter("requests")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
-                filter === "requests"
-                  ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
-              }`}
-            >
-              {t("notifications.tabRequests")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter("approvals")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
-                filter === "approvals"
-                  ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
-              }`}
-            >
-              {t("notifications.tabApprovals")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter("rejections")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
-                filter === "rejections"
-                  ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
-              }`}
-            >
-              {t("notifications.tabRejections")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter("messages")}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation ${
-                filter === "messages"
-                  ? "bg-stone-900 text-white shadow-2xs"
-                  : "bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
-              }`}
-            >
-              {t("notifications.tabMessages")}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
               type="button"
               onClick={fetchNotifications}
-              className="p-2 text-stone-500 hover:text-stone-900 active:bg-stone-200 transition rounded-lg cursor-pointer touch-manipulation"
+              disabled={loading}
               title={t("notifications.refreshTooltip")}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition text-[10px] font-semibold touch-manipulation disabled:opacity-60"
             >
               <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+                className={`w-3.5 h-3.5 ${loading ? "animate-spin text-amber-700" : ""}`}
               />
+              <span className="hidden sm:inline">{t("common.refresh")}</span>
             </button>
           </div>
         </div>
 
-        {/* Notifications List Body */}
-        <div className="p-3 sm:p-6 overflow-y-auto overscroll-contain space-y-3 flex-1 min-h-0 bg-stone-100/60">
-          {loading && notifications.length === 0 ? (
-            <div className="py-12 text-center text-xs text-stone-500 flex flex-col items-center justify-center gap-2">
-              <div className="w-6 h-6 border-2 border-stone-400 border-t-amber-800 rounded-full animate-spin" />
-              <span>{t("notifications.loading")}</span>
-            </div>
-          ) : filteredNotifications.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center space-y-3 shadow-2xs">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center mx-auto">
-                <Bell className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-stone-900">
-                  {filter === "unread"
-                    ? t("notifications.emptyUnreadTitle")
-                    : t("notifications.emptyAllTitle")}
-                </h3>
-                <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
-                  {filter === "unread"
-                    ? t("notifications.emptyUnreadDesc")
-                    : t("notifications.emptyAllDesc")}
-                </p>
-              </div>
-            </div>
-          ) : (
-            filteredNotifications.map((notif) => {
-              const visuals = getNotificationVisuals(notif);
-              const timeAgo = formatTimeAgo(notif.created_at);
+        {/* Filter chips row — horizontally scrollable on mobile */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2">
+          {FILTERS.map((f) => {
+            const isActive = filter === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer whitespace-nowrap touch-manipulation active:scale-95 ${
+                  isActive
+                    ? "bg-stone-900 text-white shadow-2xs"
+                    : "bg-stone-50 text-stone-600 border border-stone-200 hover:bg-stone-100 active:bg-stone-200"
+                }`}
+              >
+                <span>{f.label}</span>
+                {typeof f.count === "number" && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold tabular-nums leading-none ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-stone-200 text-stone-600"
+                    }`}
+                  >
+                    {f.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-              return (
-                <div
-                  key={notif.id}
-                  id={`notification-card-${notif.id}`}
-                  onClick={() => handleNotificationClick(notif)}
-                  className={`group relative rounded-2xl p-3 sm:p-4 transition border shadow-2xs cursor-pointer active:scale-[0.995] touch-manipulation ${
-                    notif.is_read
-                      ? "bg-white hover:bg-stone-50 border-stone-200"
-                      : "bg-white hover:bg-amber-50/40 border-amber-300 ring-1 ring-amber-200/50"
-                  }`}
-                >
-                  <div className="flex items-start gap-3 sm:gap-3.5">
-                    <div className="mt-0.5 shrink-0">{visuals.icon}</div>
+      {/* Action notice */}
+      {actionNotice && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2.5 text-xs text-amber-900 font-semibold flex items-center justify-between gap-2 animate-in fade-in">
+          <span className="break-words min-w-0">{actionNotice}</span>
+          <Check className="w-4 h-4 text-amber-700 shrink-0" />
+        </div>
+      )}
 
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex flex-wrap items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider whitespace-nowrap ${visuals.badgeBg}`}
-                          >
-                            {visuals.typeLabel}
-                          </span>
+      {/* ═════════ Notifications List ═════════ */}
+      {loading && notifications.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center space-y-3 shadow-xs">
+          <div className="w-8 h-8 border-3 border-amber-800/20 border-t-amber-800 rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-bold text-stone-600">
+            {t("notifications.loading")}
+          </p>
+        </div>
+      ) : filteredNotifications.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-stone-200 p-10 text-center space-y-3 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center mx-auto">
+            <Inbox className="w-7 h-7" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-stone-900">
+              {filter === "unread"
+                ? t("notifications.emptyUnreadTitle")
+                : t("notifications.emptyAllTitle")}
+            </h3>
+            <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
+              {filter === "unread"
+                ? t("notifications.emptyUnreadDesc")
+                : t("notifications.emptyAllDesc")}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {filteredNotifications.map((notif) => {
+            const visuals = getNotificationVisuals(notif);
+            const timeAgo = formatTimeAgo(notif.created_at);
+            const isUnread = !notif.is_read;
 
-                          {!notif.is_read && (
-                            <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse shrink-0" />
-                          )}
-                        </div>
+            return (
+              <div
+                key={notif.id}
+                id={`notification-card-${notif.id}`}
+                onClick={() => handleNotificationClick(notif)}
+                className={`group relative rounded-2xl transition border shadow-2xs cursor-pointer active:scale-[0.998] touch-manipulation ${
+                  isUnread
+                    ? "bg-white hover:bg-amber-50/40 border-amber-300 ring-1 ring-amber-200/50"
+                    : "bg-white hover:bg-stone-50 border-stone-200"
+                }`}
+              >
+                <div className="p-3 sm:p-4 flex items-start gap-3">
+                  {/* Left icon */}
+                  <div
+                    className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${visuals.iconBg}`}
+                  >
+                    {visuals.icon}
+                  </div>
 
-                        <span className="text-[11px] text-stone-400 font-mono flex items-center gap-1 shrink-0">
-                          <Clock className="w-3 h-3" />
-                          {timeAgo}
+                  {/* Middle content */}
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    {/* Top row: type badge + time + unread dot */}
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider whitespace-nowrap ${visuals.badgeBg}`}
+                        >
+                          {visuals.typeLabel}
                         </span>
+                        {isUnread && (
+                          <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse shrink-0" />
+                        )}
                       </div>
 
-                      <p
-                        className={`text-xs leading-relaxed break-words ${
-                          notif.is_read
-                            ? "text-stone-700"
-                            : "text-stone-900 font-medium"
-                        }`}
-                      >
-                        {getNotificationMessage(notif)}
-                      </p>
+                      <span className="text-[10px] text-stone-400 font-mono flex items-center gap-1 shrink-0">
+                        <Clock className="w-3 h-3" />
+                        {timeAgo}
+                      </span>
+                    </div>
 
-                      {isAdminViewer &&
-                        onOpenUserProfile &&
-                        (() => {
-                          const notifUserId =
-                            notif.reservation_user_id ||
-                            notif.target_user_id ||
-                            (() => {
-                              try {
-                                const p = JSON.parse(notif.message);
-                                return p?.params?.userId || null;
-                              } catch {
-                                return null;
-                              }
-                            })();
-                          const notifUserName =
-                            notif.user_name ||
-                            (() => {
-                              try {
-                                const p = JSON.parse(notif.message);
-                                return p?.params?.name || null;
-                              } catch {
-                                return null;
-                              }
-                            })();
+                    {/* Message */}
+                    <p
+                      className={`text-xs leading-relaxed break-words ${
+                        isUnread
+                          ? "text-stone-900 font-medium"
+                          : "text-stone-700"
+                      }`}
+                    >
+                      {getNotificationMessage(notif)}
+                    </p>
 
-                          if (!notifUserId) return null;
+                    {/* Member profile shortcut (admins only) */}
+                    {isAdminViewer &&
+                      onOpenUserProfile &&
+                      (() => {
+                        const notifUserId =
+                          notif.reservation_user_id ||
+                          notif.target_user_id ||
+                          (() => {
+                            try {
+                              const p = JSON.parse(notif.message);
+                              return p?.params?.userId || null;
+                            } catch {
+                              return null;
+                            }
+                          })();
+                        const notifUserName =
+                          notif.user_name ||
+                          (() => {
+                            try {
+                              const p = JSON.parse(notif.message);
+                              return p?.params?.name || null;
+                            } catch {
+                              return null;
+                            }
+                          })();
 
-                          return (
-                            <div className="mt-1.5 flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onOpenUserProfile(notifUserId);
-                                }}
-                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 hover:text-amber-950 hover:underline bg-amber-50 hover:bg-amber-100 active:bg-amber-200 px-2 py-0.5 rounded-md border border-amber-200 transition cursor-pointer touch-manipulation"
-                                title={
-                                  t("admin.userDetail.viewProfile") ||
-                                  "View Member Profile"
-                                }
-                              >
-                                <User className="w-3 h-3 text-amber-800" />
-                                <span className="truncate max-w-[120px]">
-                                  {notifUserName ||
-                                    t("common.member") ||
-                                    "Member"}
-                                </span>
-                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 shrink-0" />
-                              </button>
-                            </div>
-                          );
-                        })()}
+                        if (!notifUserId) return null;
 
-                      {notif.reservation_id && (
-                        <div className="mt-2 bg-stone-50 group-hover:bg-amber-50/60 p-2.5 rounded-xl border border-stone-200/80 flex items-center justify-between gap-2 text-xs transition">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Music2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                            <span className="font-semibold text-stone-900 truncate">
-                              {notif.service_name ||
-                                t("notifications.reservationFallback")}
-                            </span>
-                            {notif.instrument_name && (
-                              <span className="text-stone-500 text-[11px] truncate hidden sm:inline">
-                                • {notif.instrument_name}
+                        return (
+                          <div className="pt-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenUserProfile(notifUserId);
+                              }}
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-900 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 px-2 py-1 rounded-lg border border-amber-200 transition cursor-pointer touch-manipulation"
+                            >
+                              <User className="w-3 h-3 text-amber-800" />
+                              <span className="truncate max-w-[140px]">
+                                {notifUserName ||
+                                  t("common.member") ||
+                                  "Member"}
                               </span>
-                            )}
+                              <ExternalLink className="w-2.5 h-2.5 text-stone-400 shrink-0" />
+                            </button>
                           </div>
+                        );
+                      })()}
 
-                          <div className="flex items-center gap-1 text-amber-900 font-bold text-[11px] shrink-0">
-                            <span className="hidden sm:inline">
-                              {notif.type === "reservation_message"
-                                ? t("notifications.openChat")
-                                : t("myReservations.viewDetails")}
-                            </span>
-                            <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                          </div>
+                    {/* Reservation context strip */}
+                    {notif.reservation_id && (
+                      <div className="mt-1 bg-stone-50 group-hover:bg-amber-50/60 p-2 rounded-lg border border-stone-200/80 flex items-center justify-between gap-2 text-[11px] transition">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Music2 className="w-3 h-3 text-amber-800 shrink-0" />
+                          <span className="font-semibold text-stone-900 truncate">
+                            {notif.service_name ||
+                              t("notifications.reservationFallback")}
+                          </span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-0.5 text-amber-900 font-bold shrink-0">
+                          <span className="hidden sm:inline">
+                            {notif.type === "reservation_message"
+                              ? t("notifications.openChat")
+                              : t("myReservations.viewDetails")}
+                          </span>
+                          <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform rtl:rotate-180" />
+                        </div>
+                      </div>
+                    )}
 
-                      {isAdminViewer &&
-                        notif.type === "reservation_submitted" &&
-                        notif.reservation_status === "pending" && (
-                          <div
-                            className="mt-3 pt-2.5 border-t border-stone-200/80"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {rejectingId === notif.id ? (
-                              <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200 animate-in fade-in">
-                                <div className="space-y-1">
-                                  <label className="block text-[11px] font-bold text-stone-800">
-                                    {t("notifications.rejectReasonRequired")}
-                                  </label>
-                                  <div className="flex flex-wrap gap-1 pt-0.5">
-                                    {REJECTION_REASON_PRESETS.map((preset) => (
-                                      <button
-                                        key={preset}
-                                        type="button"
-                                        onClick={() => setRejectReason(preset)}
-                                        className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 active:bg-stone-400 text-stone-700 font-medium transition cursor-pointer text-start touch-manipulation"
-                                      >
-                                        {t(
-                                          `presets.rejection.${preset}`,
-                                          preset,
-                                        )}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <textarea
-                                  value={rejectReason}
-                                  onChange={(e) =>
-                                    setRejectReason(e.target.value)
-                                  }
-                                  placeholder={t(
-                                    "notifications.rejectReasonPlaceholder",
-                                  )}
-                                  rows={2}
-                                  className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 bg-white text-stone-900 resize-none"
-                                  autoFocus
-                                />
-                                <div className="flex items-center justify-end gap-2">
+                    {/* Admin inline approve/reject for pending requests */}
+                    {isAdminViewer &&
+                      notif.type === "reservation_submitted" &&
+                      notif.reservation_status === "pending" && (
+                        <div
+                          className="mt-2 pt-2.5 border-t border-stone-200/80"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {rejectingId === notif.id ? (
+                            <div className="space-y-2 bg-stone-50 p-2.5 rounded-xl border border-stone-200 animate-in fade-in">
+                              <label className="block text-[11px] font-bold text-stone-800">
+                                {t("notifications.rejectReasonRequired")}
+                              </label>
+                              <div className="flex flex-wrap gap-1">
+                                {REJECTION_REASON_PRESETS.map((preset) => (
                                   <button
+                                    key={preset}
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRejectingId(null);
-                                      setRejectReason("");
-                                    }}
-                                    disabled={actioningId === notif.id}
-                                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-200 active:bg-stone-300 transition cursor-pointer touch-manipulation"
+                                    onClick={() => setRejectReason(preset)}
+                                    className="text-[10px] px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 active:bg-stone-400 text-stone-700 font-medium transition cursor-pointer text-start touch-manipulation"
                                   >
-                                    {t("common.cancel")}
+                                    {t(`presets.rejection.${preset}`, preset)}
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) =>
-                                      handleConfirmReject(notif, e)
-                                    }
-                                    disabled={
-                                      !rejectReason.trim() ||
-                                      actioningId === notif.id
-                                    }
-                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5 touch-manipulation"
-                                  >
-                                    {actioningId === notif.id ? (
-                                      <>
-                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        <span>
-                                          {t("notifications.rejecting")}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <span>
-                                        {notif.series_id
-                                          ? t(
-                                              "notifications.confirmRejectSeries",
-                                            )
-                                          : t("notifications.confirmReject")}
-                                      </span>
-                                    )}
-                                  </button>
-                                </div>
+                                ))}
                               </div>
-                            ) : (
-                              <div className="flex items-center gap-2 flex-wrap">
+                              <textarea
+                                value={rejectReason}
+                                onChange={(e) =>
+                                  setRejectReason(e.target.value)
+                                }
+                                placeholder={t(
+                                  "notifications.rejectReasonPlaceholder",
+                                )}
+                                rows={2}
+                                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-stone-300 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-600 bg-white text-stone-900 resize-none"
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-end gap-2">
                                 <button
                                   type="button"
-                                  onClick={(e) =>
-                                    handleApproveFromNotification(notif, e)
-                                  }
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRejectingId(null);
+                                    setRejectReason("");
+                                  }}
                                   disabled={actioningId === notif.id}
-                                  className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 touch-manipulation"
+                                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-stone-600 hover:bg-stone-200 active:bg-stone-300 transition cursor-pointer touch-manipulation"
+                                >
+                                  {t("common.cancel")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleConfirmReject(notif, e)}
+                                  disabled={
+                                    !rejectReason.trim() ||
+                                    actioningId === notif.id
+                                  }
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5 touch-manipulation"
                                 >
                                   {actioningId === notif.id ? (
                                     <>
                                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                       <span>
-                                        {t("notifications.approving")}
+                                        {t("notifications.rejecting")}
                                       </span>
                                     </>
                                   ) : (
-                                    <>
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                      <span>
-                                        {notif.series_id
-                                          ? t("notifications.approveSeries")
-                                          : t("notifications.approve")}
-                                      </span>
-                                    </>
+                                    <span>
+                                      {notif.series_id
+                                        ? t("notifications.confirmRejectSeries")
+                                        : t("notifications.confirmReject")}
+                                    </span>
                                   )}
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setRejectingId(notif.id);
-                                    setRejectReason("");
-                                  }}
-                                  disabled={actioningId === notif.id}
-                                  className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-red-50 active:bg-red-100 text-stone-700 hover:text-red-700 border border-stone-200 hover:border-red-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 touch-manipulation"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>
-                                    {notif.series_id
-                                      ? t("notifications.rejectSeries")
-                                      : t("notifications.reject")}
-                                  </span>
-                                </button>
                               </div>
-                            )}
-                          </div>
-                        )}
-
-                      {isAdminViewer &&
-                        notif.type === "reservation_submitted" &&
-                        notif.reservation_status &&
-                        notif.reservation_status !== "pending" && (
-                          <div className="mt-2.5 pt-2 border-t border-stone-100 flex items-center gap-1.5 text-xs">
-                            {notif.reservation_status === "approved" ? (
-                              <div className="flex items-center gap-1 text-emerald-700 font-semibold">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>{t("common.approved")}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-red-700 font-semibold">
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleApproveFromNotification(notif, e)
+                                }
+                                disabled={actioningId === notif.id}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-2xs disabled:opacity-50 touch-manipulation"
+                              >
+                                {actioningId === notif.id ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>{t("notifications.approving")}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>
+                                      {notif.series_id
+                                        ? t("notifications.approveSeries")
+                                        : t("notifications.approve")}
+                                    </span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRejectingId(notif.id);
+                                  setRejectReason("");
+                                }}
+                                disabled={actioningId === notif.id}
+                                className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-red-50 active:bg-red-100 text-stone-700 hover:text-red-700 border border-stone-200 hover:border-red-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 touch-manipulation"
+                              >
                                 <XCircle className="w-3.5 h-3.5" />
-                                <span className="break-words">
-                                  {notif.rejection_reason
-                                    ? t(
-                                        "notifications.statusRejectedWithReason",
-                                        {
-                                          reason: notif.rejection_reason,
-                                        },
-                                      )
-                                    : t("common.rejected")}
+                                <span>
+                                  {notif.series_id
+                                    ? t("notifications.rejectSeries")
+                                    : t("notifications.reject")}
                                 </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                    </div>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                    {!notif.is_read && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleMarkAsRead(notif.id, e)}
-                        className="shrink-0 w-9 h-9 -mr-1 -mt-1 flex items-center justify-center text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 rounded-full transition cursor-pointer touch-manipulation"
-                        title={t("notifications.markAsReadTooltip")}
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                    )}
+                    {/* Resolved status strip for admins */}
+                    {isAdminViewer &&
+                      notif.type === "reservation_submitted" &&
+                      notif.reservation_status &&
+                      notif.reservation_status !== "pending" && (
+                        <div className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center gap-1.5 text-[11px]">
+                          {notif.reservation_status === "approved" ? (
+                            <div className="flex items-center gap-1 text-emerald-700 font-semibold">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{t("common.approved")}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-red-700 font-semibold">
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span className="break-words">
+                                {notif.rejection_reason
+                                  ? t(
+                                      "notifications.statusRejectedWithReason",
+                                      {
+                                        reason: notif.rejection_reason,
+                                      },
+                                    )
+                                  : t("common.rejected")}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                   </div>
+
+                  {/* Right column: mark-as-read button */}
+                  {isUnread && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleMarkAsRead(notif.id, e)}
+                      className="shrink-0 w-8 h-8 flex items-center justify-center text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 rounded-full transition cursor-pointer touch-manipulation"
+                      title={t("notifications.markAsReadTooltip")}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-              );
-            })
-          )}
+              </div>
+            );
+          })}
         </div>
-
-        {/* Footer */}
-        <div className="p-3 sm:p-4 bg-white border-t border-stone-200 flex items-center justify-between gap-2 text-xs text-stone-500 shrink-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-            <span className="truncate">
-              {t("notifications.realtimeActive")}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 font-bold text-xs transition cursor-pointer shrink-0 touch-manipulation"
-          >
-            {t("notifications.done")}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
+
+export default NotificationsModal;
