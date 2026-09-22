@@ -157,6 +157,8 @@
     "cancelProcessError": "حدث خطأ أثناء معالجة الإلغاء."
   },
   "reservationDetail": {
+    "pay": "ادفع الان",
+    "payNow": "ادفع الان",
     "pendingSave": "بانتظار الحفظ",
     "pendingSaveHint": "لم يتم الحفظ بعد — اضغط حفظ لرفع الصورة وإخطار الإدارة.",
     "title": "تفاصيل الحجز",

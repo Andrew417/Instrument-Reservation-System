@@ -340,22 +340,24 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         </div>
       </div>
 
-      {/* Tabs Bar */}
-      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1.5 shadow-2xs overflow-x-auto overscroll-contain scrollbar-hide">
-        <div className="grid grid-cols-3 gap-1.5 min-w-[340px]">
+      {/* Tabs Bar — App.tsx style pill switcher */}
+      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1 shadow-2xs">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             id="tab-upcoming-reservations"
             onClick={() => setActiveTab("upcoming")}
-            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
+            className={`flex-1 h-9 rounded-xl px-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap ${
               activeTab === "upcoming"
-                ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
-                : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                ? "bg-white text-amber-950 shadow-2xs"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
             <CheckCircle2
               className={`w-3.5 h-3.5 shrink-0 ${
-                activeTab === "upcoming" ? "text-white" : "text-emerald-600"
+                activeTab === "upcoming"
+                  ? "text-emerald-600"
+                  : "text-emerald-600/70"
               }`}
             />
             <span className="text-[11px] font-bold truncate">
@@ -364,8 +366,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "upcoming"
-                  ? "bg-amber-900/30 text-white"
-                  : "bg-stone-100 text-stone-600"
+                  ? "bg-amber-100 text-amber-900"
+                  : "bg-stone-200 text-stone-600"
               }`}
             >
               {categorizedData.upcomingList.length}
@@ -376,15 +378,15 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-pending-reservations"
             onClick={() => setActiveTab("pending")}
-            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
+            className={`flex-1 h-9 rounded-xl px-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap ${
               activeTab === "pending"
-                ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
-                : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                ? "bg-white text-amber-950 shadow-2xs"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
             <Clock
               className={`w-3.5 h-3.5 shrink-0 ${
-                activeTab === "pending" ? "text-white" : "text-amber-600"
+                activeTab === "pending" ? "text-amber-600" : "text-amber-600/70"
               }`}
             />
             <span className="text-[11px] font-bold truncate">
@@ -393,8 +395,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "pending"
-                  ? "bg-amber-900/30 text-white"
-                  : "bg-stone-100 text-stone-600"
+                  ? "bg-amber-100 text-amber-900"
+                  : "bg-stone-200 text-stone-600"
               }`}
             >
               {categorizedData.pendingList.length}
@@ -405,15 +407,15 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             type="button"
             id="tab-past-reservations"
             onClick={() => setActiveTab("past")}
-            className={`h-9 w-full rounded-xl px-2 py-1 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation ${
+            className={`flex-1 h-9 rounded-xl px-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap ${
               activeTab === "past"
-                ? "bg-amber-800 text-white shadow-sm ring-1 ring-amber-900/20"
-                : "bg-white text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                ? "bg-white text-amber-950 shadow-2xs"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
             <CalendarRange
               className={`w-3.5 h-3.5 shrink-0 ${
-                activeTab === "past" ? "text-white" : "text-stone-400"
+                activeTab === "past" ? "text-stone-500" : "text-stone-400"
               }`}
             />
             <span className="text-[11px] font-bold truncate">
@@ -422,8 +424,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <span
               className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "past"
-                  ? "bg-amber-900/30 text-white"
-                  : "bg-stone-100 text-stone-600"
+                  ? "bg-amber-100 text-amber-900"
+                  : "bg-stone-200 text-stone-600"
               }`}
             >
               {categorizedData.pastList.length}
@@ -577,128 +579,162 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               return (
                 <div
                   key={res.id}
-                  className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-xs transition p-4 sm:p-5 space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-xs transition overflow-hidden"
                 >
-                  {/* Left: Instrument & Purpose */}
+                  {/* Top row: card body (clickable to open details) */}
                   <div
                     onClick={() => onSelectReservationDetail(res.id)}
-                    className="flex items-start gap-3.5 cursor-pointer flex-1 min-w-0 group touch-manipulation"
+                    className="p-4 sm:p-5 cursor-pointer group touch-manipulation"
                   >
-                    <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 mt-0.5 group-hover:bg-amber-100 transition">
-                      <Music2 className="w-5 h-5" />
-                    </div>
-
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span
-                          className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate max-w-full"
-                          title={
-                            res.service_name ||
-                            res.serviceName ||
-                            t("myReservations.churchServiceFallback")
-                          }
-                        >
-                          {res.service_name ||
-                            res.serviceName ||
-                            t("myReservations.churchServiceFallback")}
-                        </span>
-
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${getStatusColor(res.status)}`}
-                        >
-                          {STATUS_LABEL_KEYS[res.status]
-                            ? String(t(STATUS_LABEL_KEYS[res.status] as any))
-                            : res.status}
-                        </span>
-
-                        {res.is_no_show && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
-                            {t("common.noShow")}
-                          </span>
-                        )}
-
-                        {res.reservation_type === "outside_church" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
-                            <DollarSign className="w-3 h-3" />
-                            {t("common.outsideChurch")}
-                          </span>
-                        )}
-
-                        {isFullDayItem && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
-                            <Sun className="w-3 h-3 text-amber-700" />
-                            {t("common.fullDay")}
-                          </span>
-                        )}
+                    <div className="flex items-start gap-3.5">
+                      {/* Instrument avatar */}
+                      <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 group-hover:bg-amber-100 transition">
+                        <Music2 className="w-5 h-5" />
                       </div>
 
-                      {isAdminBooked && (
-                        <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
-                          <Shield className="w-3 h-3 shrink-0 mt-0.5" />
-                          <span className="break-words min-w-0">
-                            {t("common.adminBooked")}
+                      {/* Title + meta */}
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-start gap-2">
+                          <span
+                            className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate flex-1 min-w-0"
+                            title={
+                              res.service_name ||
+                              res.serviceName ||
+                              t("myReservations.churchServiceFallback")
+                            }
+                          >
+                            {res.service_name ||
+                              res.serviceName ||
+                              t("myReservations.churchServiceFallback")}
+                          </span>
+
+                          {/* Top-right corner actions: Full Day (icon) + Cancel (icon) */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isFullDayItem && (
+                              <span
+                                onClick={(e) => e.stopPropagation()}
+                                title={t("common.fullDay")}
+                                aria-label={t("common.fullDay")}
+                                className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center cursor-default select-none pointer-events-none"
+                              >
+                                <Sun className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+
+                            {!isPast && !isCancelled && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCancellingItem({
+                                    id: res.id,
+                                    mode: "single",
+                                    title: t(
+                                      "myReservations.cancelSingleItemTitle",
+                                      {
+                                        instrument: res.instrument_name,
+                                        date: dateStr,
+                                      },
+                                    ),
+                                  });
+                                }}
+                                title={t("common.cancel")}
+                                aria-label={t("common.cancel")}
+                                className="w-6 h-6 rounded-lg bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 border border-red-200 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status + type badges */}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 ${getStatusColor(res.status)}`}
+                          >
+                            {STATUS_LABEL_KEYS[res.status]
+                              ? String(t(STATUS_LABEL_KEYS[res.status] as any))
+                              : res.status}
+                          </span>
+
+                          {res.is_no_show && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
+                              {t("common.noShow")}
+                            </span>
+                          )}
+
+                          {res.reservation_type === "outside_church" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
+                              <DollarSign className="w-3 h-3" />
+                              {t("common.outsideChurch")}
+                            </span>
+                          )}
+                        </div>
+
+                        {isAdminBooked && (
+                          <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
+                            <Shield className="w-3 h-3 shrink-0 mt-0.5" />
+                            <span className="break-words min-w-0">
+                              {t("common.adminBooked")}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Instrument + date/time */}
+                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-semibold text-stone-800 truncate max-w-full">
+                            {res.instrument_name}
+                          </span>
+                          <span className="text-stone-500 font-medium whitespace-nowrap">
+                            {dateStr} ({timeStr})
                           </span>
                         </div>
-                      )}
-
-                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="font-semibold text-stone-800 truncate max-w-full">
-                          {res.instrument_name}
-                        </span>
-                        <span className="text-stone-500 font-medium whitespace-nowrap">
-                          {dateStr} ({timeStr})
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions row — grid on mobile, flex on desktop; original button sizes */}
-                  <div
-                    className={`grid gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100 ${
-                      !isPast && !isCancelled ? "grid-cols-3" : "grid-cols-1"
-                    }`}
-                  >
+                  {/* Bottom action row: Edit | Pay | View Details */}
+                  <div className="px-4 sm:px-5 py-3 bg-stone-50/70 border-t border-stone-100 flex items-center gap-2">
                     {!isPast && !isCancelled && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onEditReservation(res)}
-                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden touch-manipulation"
-                          title={t("common.edit")}
-                        >
-                          <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                          <span className="truncate">{t("common.edit")}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCancellingItem({
-                              id: res.id,
-                              mode: "single",
-                              title: t("myReservations.cancelSingleItemTitle", {
-                                instrument: res.instrument_name,
-                                date: dateStr,
-                              }),
-                            })
-                          }
-                          className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden touch-manipulation"
-                          title={t("common.cancel")}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                          <span className="truncate">{t("common.cancel")}</span>
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => onEditReservation(res)}
+                        className="h-9 px-3 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                        title={t("common.edit")}
+                      >
+                        <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                        <span>{t("common.edit")}</span>
+                      </button>
                     )}
+
+                    {isApproved &&
+                      !isPast &&
+                      !isCancelled &&
+                      res.reservation_type === "outside_church" &&
+                      Number(
+                        res.fee_snapshot ||
+                          res.outside_fee_per_day ||
+                          res.outsideFeePerDay ||
+                          0,
+                      ) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onSelectReservationDetail(res.id)}
+                          title={t("reservationDetail.payNow") || "Pay"}
+                          className="h-9 px-3 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation shadow-2xs"
+                        >
+                          <DollarSign className="w-3.5 h-3.5 shrink-0" />
+                          <span>{t("reservationDetail.pay") || "Pay"}</span>
+                        </button>
+                      )}
 
                     <button
                       type="button"
                       onClick={() => onSelectReservationDetail(res.id)}
-                      className="min-w-0 px-1.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-[11px] sm:text-xs font-bold rounded-xl transition cursor-pointer whitespace-nowrap overflow-hidden touch-manipulation"
+                      className="flex-1 h-9 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-lg transition cursor-pointer whitespace-nowrap touch-manipulation"
                     >
-                      <span className="truncate block">
-                        {t("myReservations.viewDetails")}
-                      </span>
+                      {t("myReservations.viewDetails")}
                     </button>
                   </div>
                 </div>
@@ -766,25 +802,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                     {/* Series Header Actions */}
                     <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCancellingItem({
-                            id: firstOcc?.id,
-                            mode: "series",
-                            title: t("myReservations.cancelSeriesFullTitle", {
-                              name: sg.serviceName,
-                              count: sg.occurrences.length,
-                            }),
-                          })
-                        }
-                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
-                        title={t("myReservations.cancelEntireSeries")}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        <span>{t("myReservations.cancelEntireSeries")}</span>
-                      </button>
-
                       <button
                         type="button"
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}

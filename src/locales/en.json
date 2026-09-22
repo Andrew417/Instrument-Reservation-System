@@ -612,6 +612,8 @@
     "exportErrorFallback": "Failed to generate export file."
   },
   "reservationDetail": {
+    "pay": "Pay Now",
+    "payNow": "Pay Now",
     "pendingSave": "Pending Save",
     "pendingSaveHint": "Not saved yet — press Save to upload and notify administration.",
     "title": "Reservation Detail",
