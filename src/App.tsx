@@ -27,6 +27,15 @@ import {
   CheckCircle2,
   Bell,
   HelpCircle,
+  Menu,
+  LayoutDashboard,
+  CalendarCheck,
+  MessageSquare as MessageSquareIcon,
+  ShieldCheck,
+  Sliders,
+  CreditCard,
+  Users as UsersIcon,
+  UserCheck,
   Clock,
   Music2,
   DollarSign,
@@ -56,7 +65,34 @@ interface SeriesPrefillInfo {
   note?: string;
 }
 
+// Simple event bus so AdminPortal can publish its tab list to the App
+// for the left sidebar. No external state library required.
+const ADMIN_TABS_EVENT = "admin-tabs:update";
+interface AdminTabInfo {
+  id: string;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  count?: number;
+  section: "operations" | "super_admin";
+}
+
 const UserPortalMain: React.FC = () => {
+  // Admin tab list (published by AdminPortal via event bus)
+  const [adminTabs, setAdminTabs] = useState<AdminTabInfo[]>([]);
+  const [activeAdminTabId, setActiveAdminTabId] = useState<string>("dashboard");
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        tabs: AdminTabInfo[];
+        activeTabId: string;
+      };
+      if (detail?.tabs) setAdminTabs(detail.tabs);
+      if (detail?.activeTabId) setActiveAdminTabId(detail.activeTabId);
+    };
+    window.addEventListener(ADMIN_TABS_EVENT, handler);
+    return () => window.removeEventListener(ADMIN_TABS_EVENT, handler);
+  }, []);
   const { profile, logout, sessionToken } = useAuth();
   const { t } = useTranslation();
   const isAdminOrSuperAdmin =
@@ -67,7 +103,7 @@ const UserPortalMain: React.FC = () => {
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
   // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'admin_portal'
   const [currentView, setCurrentView] = useState<
-    "calendar" | "my_reservations" | "admin_portal"
+    "calendar" | "my_reservations" | "admin_portal" | "notifications"
   >("calendar");
 
   // Modals & Active Selections
@@ -108,6 +144,8 @@ const UserPortalMain: React.FC = () => {
   const [activeMobileTab, setActiveMobileTab] = useState<
     "calendar" | "my_reservations" | "notifications" | "admin_portal"
   >("calendar");
+  // Admin sidebar (left menu) — opens as drawer on mobile, fixed on desktop
+  const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState<boolean>(false);
   const [allInstruments, setAllInstruments] = useState<Instrument[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
@@ -222,6 +260,19 @@ const UserPortalMain: React.FC = () => {
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 lg:gap-1.5">
           <div className="flex items-center gap-3 min-w-0 shrink-0">
+            {/* ✅ Admin menu trigger — only when in Admin Portal view (mobile) */}
+            {isAdminOrSuperAdmin && currentView === "admin_portal" && (
+              <button
+                type="button"
+                onClick={() => setIsAdminSidebarOpen(true)}
+                className="lg:hidden p-2 -ml-1 rounded-xl text-stone-700 hover:text-amber-900 hover:bg-amber-50 active:bg-amber-100 transition cursor-pointer shrink-0"
+                title="Open admin menu"
+                aria-label="Open admin menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+
             <img
               src="/logo.png"
               alt="Church logo"
@@ -313,7 +364,7 @@ const UserPortalMain: React.FC = () => {
             <button
               id="header-notifications-bell-btn"
               type="button"
-              onClick={() => setIsNotificationsOpen(true)}
+              onClick={() => setCurrentView("notifications")}
               className={`hidden lg:flex relative p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition items-center gap-2 cursor-pointer ${
                 unreadCount > 0
                   ? "bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100"
@@ -352,6 +403,23 @@ const UserPortalMain: React.FC = () => {
             onSelectInstrument={handleSelectInstrument}
             refreshTrigger={refreshTrigger}
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
+          />
+        )}
+        {currentView === "notifications" && (
+          <NotificationsModal
+            isOpen={true}
+            onClose={() => setCurrentView("calendar")}
+            onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
+            onSelectReservation={(reservationId, initialTab) => {
+              setSelectedReservationDetailId(reservationId);
+              setReservationDetailInitialTab(initialTab || "details");
+              setReservationDetailFromNotifications(true);
+              setReservationDetailFromUserProfile(false);
+              setModalStackOrder("reservation_over_user");
+            }}
+            onOpenUserProfile={
+              isAdminOrSuperAdmin ? handleOpenUserProfile : undefined
+            }
           />
         )}
         {currentView === "my_reservations" && (
@@ -551,24 +619,6 @@ const UserPortalMain: React.FC = () => {
         onClose={() => setIsPolicyModalOpen(false)}
       />
 
-      {/* Screen 7: Notifications Modal */}
-      <NotificationsModal
-        isOpen={isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
-        onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
-        onSelectReservation={(reservationId, initialTab) => {
-          setIsNotificationsOpen(false);
-          setSelectedReservationDetailId(reservationId);
-          setReservationDetailInitialTab(initialTab || "details");
-          setReservationDetailFromNotifications(true);
-          setReservationDetailFromUserProfile(false);
-          setModalStackOrder("reservation_over_user");
-        }}
-        onOpenUserProfile={
-          isAdminOrSuperAdmin ? handleOpenUserProfile : undefined
-        }
-      />
-
       {/* User Profile Modal (Admin / Super Admin) */}
       {selectedUserId && isAdminOrSuperAdmin && (
         <UserDetailModal
@@ -685,7 +735,7 @@ const UserPortalMain: React.FC = () => {
             id="bottom-nav-notifications"
             onClick={() => {
               setActiveMobileTab("notifications");
-              setIsNotificationsOpen(true);
+              setCurrentView("notifications");
             }}
             aria-current={
               activeMobileTab === "notifications" ? "page" : undefined
@@ -772,6 +822,158 @@ const UserPortalMain: React.FC = () => {
           )}
         </div>
       </nav>
+
+      {/* ✅ Admin Left Sidebar — only visible in Admin Portal view */}
+      {isAdminOrSuperAdmin && currentView === "admin_portal" && (
+        <>
+          {/* Backdrop (mobile only) */}
+          {isAdminSidebarOpen && (
+            <div
+              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in duration-150"
+              onClick={() => setIsAdminSidebarOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* Sidebar panel */}
+          <aside
+            className={`fixed top-0 bottom-0 left-0 z-[80] w-72 max-w-[85vw] bg-white border-r border-stone-200 shadow-2xl flex flex-col transition-transform duration-200 lg:translate-x-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
+              isAdminSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+            aria-label="Admin navigation"
+          >
+            {/* Header inside sidebar */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-2xl bg-amber-800 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <LayoutDashboard className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-stone-900 truncate">
+                    {profile?.role === "super_admin"
+                      ? t("admin.consoleTitle")
+                      : t("admin.adminTitle")}
+                  </div>
+                  <div className="text-[10px] text-stone-500 truncate">
+                    {t("admin.consoleSubtitle")}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAdminSidebarOpen(false)}
+                className="lg:hidden shrink-0 p-2 -mr-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                aria-label="Close admin menu"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex-1 overflow-y-auto py-2 px-2">
+              {/* Operations section */}
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                {t("admin.sidebar.operationsSection")}
+              </div>
+              <nav className="space-y-0.5 mb-2">
+                {adminTabs
+                  .filter((tab) => tab.section === "operations")
+                  .map((tab) => {
+                    const isActive =
+                      currentView === "admin_portal" &&
+                      activeAdminTabId === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent(ADMIN_TABS_EVENT + ":select", {
+                              detail: { id: tab.id },
+                            }),
+                          );
+                          setActiveAdminTabId(tab.id);
+                          setCurrentView("admin_portal");
+                          setActiveMobileTab("admin_portal");
+                          setIsNotificationsOpen(false);
+                          setIsAdminSidebarOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                          isActive
+                            ? "bg-amber-50 text-amber-950 border border-amber-200 shadow-2xs"
+                            : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <tab.Icon className="w-4 h-4 text-amber-800 shrink-0" />
+                          <span className="truncate">{tab.label}</span>
+                        </div>
+                        {typeof tab.count === "number" && tab.count > 0 && (
+                          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-200">
+                            {tab.count > 9 ? "9+" : tab.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+              </nav>
+
+              {/* Super Admin section */}
+              {profile?.role === "super_admin" && (
+                <>
+                  <div className="px-2 py-1 mt-2 text-[10px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-amber-700" />
+                    <span>{t("admin.sidebar.superAdminSection")}</span>
+                  </div>
+                  <nav className="space-y-0.5">
+                    {adminTabs
+                      .filter((tab) => tab.section === "super_admin")
+                      .map((tab) => {
+                        const isActive =
+                          currentView === "admin_portal" &&
+                          activeAdminTabId === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => {
+                              window.dispatchEvent(
+                                new CustomEvent(ADMIN_TABS_EVENT + ":select", {
+                                  detail: { id: tab.id },
+                                }),
+                              );
+                              setActiveAdminTabId(tab.id);
+                              setCurrentView("admin_portal");
+                              setActiveMobileTab("admin_portal");
+                              setIsNotificationsOpen(false);
+                              setIsAdminSidebarOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                              isActive
+                                ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
+                                : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <tab.Icon className="w-4 h-4 text-amber-800 shrink-0" />
+                              <span className="truncate">{tab.label}</span>
+                            </div>
+                            {typeof tab.count === "number" && tab.count > 0 && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/60 text-amber-950 border border-amber-300/60">
+                                {tab.count > 9 ? "9+" : tab.count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </nav>
+                </>
+              )}
+            </div>
+          </aside>
+        </>
+      )}
     </div>
   );
 };

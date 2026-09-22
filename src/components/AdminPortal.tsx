@@ -137,14 +137,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const isAr = i18n.language === "ar";
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
 
+  const ADMIN_TABS_EVENT = "admin-tabs:update";
+
   const [internalSelectedUserId, setInternalSelectedUserId] = useState<
     string | null
   >(null);
   const [internalSelectedEntityType, setInternalSelectedEntityType] = useState<
     "user" | "admin"
   >("user");
-
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const openUserProfile = (
     userId: string,
@@ -1816,13 +1816,43 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     },
   ];
 
-  const totalPending =
-    (stats.pendingRequests || 0) + (stats.pendingUserApprovals || 0);
+  // ✅ Publish tabs to App header via event bus
+  useEffect(() => {
+    const allTabs = [
+      ...operationsTabs.map((tb) => ({
+        id: tb.id,
+        label: tb.label,
+        Icon: tb.Icon,
+        count: tb.count,
+        section: "operations" as const,
+      })),
+      ...superAdminTabs.map((tb) => ({
+        id: tb.id,
+        label: tb.label,
+        Icon: tb.Icon,
+        count: tb.count,
+        section: "super_admin" as const,
+      })),
+    ];
+    window.dispatchEvent(
+      new CustomEvent(ADMIN_TABS_EVENT, {
+        detail: { tabs: allTabs, activeTabId: activeTab },
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, stats, adminAccountsList.length, i18n.language]);
 
-  const handleMobileTabSelect = (tabId: AdminTab) => {
-    setActiveTab(tabId);
-    setMobileNavOpen(false);
-  };
+  // ✅ Listen for tab select events coming from the App header
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { id: string };
+      if (detail?.id) setActiveTab(detail.id as AdminTab);
+    };
+    window.addEventListener(ADMIN_TABS_EVENT + ":select", handler);
+    return () =>
+      window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
+  }, []);
+
   return (
     <div id="admin-portal-root" className="space-y-6">
       {/* Feedback Banner */}
@@ -1877,22 +1907,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap justify-end w-full md:w-auto md:justify-start">
-          {/* Mobile navigation trigger — Bottom Sheet */}
-          <button
-            type="button"
-            onClick={() => setMobileNavOpen(true)}
-            className="lg:hidden relative p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 transition cursor-pointer shrink-0"
-            title="Open navigation"
-            aria-label="Open admin navigation"
-          >
-            <Menu className="w-4 h-4" />
-            {totalPending > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-amber-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                {totalPending > 9 ? "9+" : totalPending}
-              </span>
-            )}
-          </button>
-
           <button
             id="btn-admin-export-handover"
             type="button"
@@ -2018,983 +2032,1472 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         </button>
       </div>
-      {/* Main Admin Layout: Navigation & Content */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Navigation Sidebar */}
-        <aside className="hidden lg:block w-full md:w-64 shrink-0 space-y-4">
-          {" "}
-          <div className="bg-white border border-stone-200 rounded-2xl p-3 shadow-2xs">
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-              {t("admin.sidebar.operationsSection")}
-            </div>
-            <nav className="space-y-1 mt-1">
-              <button
-                id="admin-tab-dashboard"
-                onClick={() => setActiveTab("dashboard")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  activeTab === "dashboard"
-                    ? "bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <LayoutDashboard className="w-4 h-4 text-amber-800" />
-                  <span>{t("admin.tabDashboard")}</span>
-                </div>
-              </button>
 
-              <button
-                id="admin-tab-review"
-                onClick={() => setActiveTab("review")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  activeTab === "review"
-                    ? "bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <CalendarCheck className="w-4 h-4 text-amber-800" />
-                  <span>{t("admin.tabReview")}</span>
-                </div>
-                {stats.pendingRequests > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-200">
-                    {stats.pendingRequests}
-                  </span>
-                )}
-              </button>
-
-              <button
-                id="admin-tab-approvals"
-                onClick={() => setActiveTab("approvals")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  activeTab === "approvals"
-                    ? "bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <UserCheck className="w-4 h-4 text-amber-800" />
-                  <span>{t("admin.tabApprovals")}</span>
-                </div>
-                {Number(stats.pendingUserApprovals || 0) > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-extrabold border border-amber-300">
-                    {stats.pendingUserApprovals}
-                  </span>
-                )}
-              </button>
-
-              <button
-                id="admin-tab-instruments"
-                onClick={() => setActiveTab("instruments")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  activeTab === "instruments"
-                    ? "bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Music2 className="w-4 h-4 text-amber-800" />
-                  <span>{t("admin.tabInstruments")}</span>
-                </div>
-                <span className="text-[10px] text-stone-400 font-semibold">
-                  {stats.totalInstruments}
-                </span>
-              </button>
-
-              <button
-                id="admin-tab-users"
-                onClick={() => setActiveTab("users")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  activeTab === "users"
-                    ? "bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Users className="w-4 h-4 text-amber-800" />
-                  <span>{t("admin.tabUsers")}</span>
-                </div>
-                <span className="text-[10px] text-stone-400 font-semibold">
-                  {stats.activeUsers}
-                </span>
-              </button>
-
-              <button
-                id="admin-tab-messaging"
-                onClick={() => setActiveTab("messaging")}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  activeTab === "messaging"
-                    ? "bg-amber-50 text-amber-950 border border-amber-200/80 shadow-2xs"
-                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <MessageSquare className="w-4 h-4 text-amber-800" />
-                  <span>{t("admin.tabMessaging")}</span>
-                </div>
-              </button>
-            </nav>
-
-            {/* Super Admin Section */}
-            {isSuperAdmin && (
-              <div className="mt-4 pt-4 border-t border-stone-200">
-                <div className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-amber-700" />
-                  <span>{t("admin.sidebar.superAdminSection")}</span>
-                </div>
-                <nav className="space-y-1 mt-1">
-                  <button
-                    id="admin-tab-admin-accounts"
-                    onClick={() => setActiveTab("admin_accounts")}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      activeTab === "admin_accounts"
-                        ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
-                        : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <ShieldCheck className="w-4 h-4 text-amber-800" />
-                      <span>{t("admin.tabAdminAccounts")}</span>{" "}
-                    </div>
-                    <span className="text-[10px] bg-amber-200/60 text-amber-950 px-1.5 py-0.5 rounded font-mono">
-                      {adminAccountsList.length}
-                    </span>
-                  </button>
-
-                  <button
-                    id="admin-tab-trusted-status"
-                    onClick={() => setActiveTab("trusted_status")}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      activeTab === "trusted_status"
-                        ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
-                        : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
-                    }`}
-                  >
-                    <UserCheck className="w-4 h-4 text-amber-800" />
-                    <span>{t("admin.tabTrustedStatus")}</span>
-                  </button>
-
-                  <button
-                    id="admin-tab-hard-limits"
-                    onClick={() => setActiveTab("hard_limits")}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      activeTab === "hard_limits"
-                        ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
-                        : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
-                    }`}
-                  >
-                    <Sliders className="w-4 h-4 text-amber-800" />
-                    <span>{t("admin.tabHardLimits")}</span>
-                  </button>
-
-                  <button
-                    id="admin-tab-payment-settings"
-                    onClick={() => setActiveTab("payment_settings")}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      activeTab === "payment_settings"
-                        ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
-                        : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4 text-amber-800" />
-                    <span>{t("admin.tabPaymentSettings")}</span>
-                  </button>
-                  <button
-                    id="admin-tab-notification-settings"
-                    onClick={() => setActiveTab("notification_settings")}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      activeTab === "notification_settings"
-                        ? "bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs"
-                        : "text-stone-600 hover:text-amber-950 hover:bg-amber-50/60"
-                    }`}
-                  >
-                    <Bell className="w-4 h-4 text-amber-800" />
-                    <span>{t("admin.tabNotificationSettings")}</span>
-                  </button>
-                </nav>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Content Area for active tab */}
-        <main className="flex-1 min-w-0 space-y-6">
-          {/* =============================================================
+      {/* Content Area for active tab */}
+      <main className="flex-1 min-w-0 space-y-6">
+        {/* =============================================================
               TAB 1: DASHBOARD OVERVIEW (read-only)
              ============================================================= */}
-          {activeTab === "dashboard" && (
-            <div className="space-y-6">
-              {/* Today's Schedule Card */}
-              <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                  <div>
-                    <h2 className="font-bold text-stone-900 text-sm">
-                      {t("admin.dashboard.todaysScheduleTitle")}
-                    </h2>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      {t("admin.dashboard.todaysScheduleDesc")}
-                    </p>
-                  </div>
-                  <button
-                    onClick={fetchTodaysReservations}
-                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                    title={t("admin.dashboard.refreshTooltip")}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {loadingTodaysReservations ? (
-                  <div className="py-12 text-center text-stone-500 text-xs">
-                    {t("admin.dashboard.loading")}
-                  </div>
-                ) : todaysReservations.length === 0 ? (
-                  <div className="py-12 text-center text-stone-400 text-xs">
-                    {t("admin.dashboard.empty")}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {todaysReservations.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50"
-                      >
-                        <div className="min-w-0">
-                          <div className="font-semibold text-stone-900 text-xs truncate">
-                            {r.instrument_name} — {r.service_name}
-                          </div>
-                          <div className="text-[11px] text-stone-500">
-                            {r.user_name || "Member"} ·{" "}
-                            {new Date(r.start_time).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            -{" "}
-                            {new Date(r.end_time).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-                        <span
-                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            r.status === "approved"
-                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                              : r.status === "pending"
-                                ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                : r.status === "rejected"
-                                  ? "bg-red-50 text-red-800 border border-red-200"
-                                  : r.status === "auto_rejected"
-                                    ? "bg-orange-50 text-orange-800 border border-orange-200"
-                                    : r.status === "expired"
-                                      ? "bg-stone-100 text-stone-500 border border-stone-300"
-                                      : r.status === "cancelled"
-                                        ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                        : r.status === "ongoing"
-                                          ? "bg-sky-50 text-sky-800 border border-sky-200"
-                                          : r.status === "completed"
-                                            ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                            : "bg-stone-100 text-stone-700"
-                          }`}
-                        >
-                          {translateStatus(r.status)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* =============================================================
-              TAB 2: REVIEW REQUESTS (actionable queue)
-             ============================================================= */}
-          {activeTab === "review" && (
+        {activeTab === "dashboard" && (
+          <div className="space-y-6">
+            {/* Today's Schedule Card */}
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
-                <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1">
-                  <button
-                    onClick={() => setFilterQuickTab("pending")}
-                    className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      filterQuickTab === "pending"
-                        ? "bg-amber-800 text-white shadow-xs"
-                        : "bg-stone-100 text-stone-600 hover:text-stone-900"
-                    }`}
-                  >
-                    {t("admin.review.pendingTab", {
-                      count: stats.pendingRequests,
-                    })}
-                  </button>
-                  <button
-                    onClick={() => setFilterQuickTab("all")}
-                    className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      filterQuickTab === "all"
-                        ? "bg-amber-800 text-white shadow-xs"
-                        : "bg-stone-100 text-stone-600 hover:text-stone-900"
-                    }`}
-                  >
-                    {t("common.all")}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={fetchReservations}
-                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                    title={t("admin.review.refreshTooltip")}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    {t("admin.review.searchLabel")}
-                  </label>
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder={t("admin.review.searchPlaceholder")}
-                      value={filterSearch}
-                      onChange={(e) => setFilterSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700"
-                    />
-                  </div>
+                  <h2 className="font-bold text-stone-900 text-sm">
+                    {t("admin.dashboard.todaysScheduleTitle")}
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    {t("admin.dashboard.todaysScheduleDesc")}
+                  </p>
                 </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    {t("admin.review.instrumentLabel")}
-                  </label>
-                  <select
-                    value={filterInstrument}
-                    onChange={(e) => setFilterInstrument(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                  >
-                    <option value="all">
-                      {t("admin.review.allInstruments")}
-                    </option>
-                    {instrumentsList.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    {t("common.status")}
-                  </label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                  >
-                    <option value="all">{t("admin.review.allStatuses")}</option>
-                    <option value="pending">{t("common.pending")}</option>
-                    <option value="approved">{t("common.approved")}</option>
-                    <option value="ongoing">{t("common.ongoing")}</option>
-                    <option value="completed">{t("common.completed")}</option>
-                    <option value="expired">{t("common.expired")}</option>
-                    <option value="rejected">{t("common.rejected")}</option>
-                    <option value="cancelled">{t("common.cancelled")}</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Contextual Bulk Actions Bar */}
-              {selectedReservationIds.length > 0 && (
-                <div
-                  id="bulk-actions-bar"
-                  className="bg-stone-900 text-white rounded-2xl p-3 px-4 shadow-md flex flex-wrap items-center justify-between gap-3 border border-stone-800 animate-in fade-in slide-in-from-top-2 duration-150"
+                <button
+                  onClick={fetchTodaysReservations}
+                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                  title={t("admin.dashboard.refreshTooltip")}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                    <span className="text-xs font-bold">
-                      {selectedReservationIds.length}{" "}
-                      {t(
-                        selectedReservationIds.length === 1
-                          ? "admin.review.reservationSingular"
-                          : "admin.review.reservationPlural",
-                      )}{" "}
-                      {t("admin.review.selectedSuffix")}
-                    </span>
-                    {selectedReservationIds.length < reservations.length && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const allIds = Array.from(
-                            new Set([
-                              ...selectedReservationIds,
-                              ...reservations.map((r) => r.id),
-                            ]),
-                          );
-                          setSelectedReservationIds(allIds);
-                        }}
-                        className="text-[11px] text-amber-300 hover:text-amber-200 underline cursor-pointer ml-1"
-                      >
-                        {t("admin.review.selectAllVisible", {
-                          count: reservations.length,
-                        })}{" "}
-                      </button>
-                    )}
-                  </div>
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Cancel Selected — Available to all admins */}
-                    <button
-                      id="btn-bulk-cancel-selected"
-                      type="button"
-                      onClick={handleTriggerBulkCancel}
-                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Cancel selected reservations"
+              {loadingTodaysReservations ? (
+                <div className="py-12 text-center text-stone-500 text-xs">
+                  {t("admin.dashboard.loading")}
+                </div>
+              ) : todaysReservations.length === 0 ? (
+                <div className="py-12 text-center text-stone-400 text-xs">
+                  {t("admin.dashboard.empty")}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {todaysReservations.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50"
                     >
-                      <XCircle className="w-3.5 h-3.5" />
-                      <span>{t("admin.review.cancelSelected")}</span>
-                    </button>
-
-                    {/* Delete Selected — Super Admin ONLY */}
-                    {isSuperAdmin && (
-                      <button
-                        id="btn-bulk-delete-selected"
-                        type="button"
-                        onClick={handleTriggerBulkDelete}
-                        className="px-3 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                        title="Permanently delete selected reservations from database"
+                      <div className="min-w-0">
+                        <div className="font-semibold text-stone-900 text-xs truncate">
+                          {r.instrument_name} — {r.service_name}
+                        </div>
+                        <div className="text-[11px] text-stone-500">
+                          {r.user_name || "Member"} ·{" "}
+                          {new Date(r.start_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          -{" "}
+                          {new Date(r.end_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </div>
+                      <span
+                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          r.status === "approved"
+                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            : r.status === "pending"
+                              ? "bg-amber-50 text-amber-800 border border-amber-200"
+                              : r.status === "rejected"
+                                ? "bg-red-50 text-red-800 border border-red-200"
+                                : r.status === "auto_rejected"
+                                  ? "bg-orange-50 text-orange-800 border border-orange-200"
+                                  : r.status === "expired"
+                                    ? "bg-stone-100 text-stone-500 border border-stone-300"
+                                    : r.status === "cancelled"
+                                      ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                      : r.status === "ongoing"
+                                        ? "bg-sky-50 text-sky-800 border border-sky-200"
+                                        : r.status === "completed"
+                                          ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                          : "bg-stone-100 text-stone-700"
+                        }`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>{t("admin.review.deleteSelected")}</span>
-                      </button>
-                    )}
-
-                    {/* Clear Selection */}
-                    <button
-                      id="btn-clear-selection"
-                      type="button"
-                      onClick={() => setSelectedReservationIds([])}
-                      className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium transition cursor-pointer border border-stone-700"
-                      title="Clear selection"
-                    >
-                      <span>{t("admin.review.clearSelection")}</span>
-                    </button>
-                  </div>
+                        {translateStatus(r.status)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
 
-              {/* Table */}
-              <div className="overflow-x-auto mt-2">
-                {loadingReservations ? (
-                  <div className="py-12 text-center text-stone-500 text-xs">
-                    {t("admin.review.loading")}
-                  </div>
-                ) : reservations.length === 0 ? (
-                  <div className="py-12 text-center text-stone-400 text-xs">
-                    {t("admin.review.empty")}
-                  </div>
-                ) : (
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3 w-10 text-center">
-                          <input
-                            id="select-all-reservations-checkbox"
-                            type="checkbox"
-                            aria-label="Select all visible reservations"
-                            checked={
-                              reservations.length > 0 &&
-                              reservations.every((r) =>
-                                selectedReservationIds.includes(r.id),
-                              )
-                            }
-                            ref={(el) => {
-                              if (el) {
-                                const someSelected =
-                                  reservations.some((r) =>
-                                    selectedReservationIds.includes(r.id),
-                                  ) &&
-                                  !reservations.every((r) =>
-                                    selectedReservationIds.includes(r.id),
-                                  );
-                                el.indeterminate = someSelected;
-                              }
-                            }}
-                            onChange={handleToggleSelectAllReservations}
-                            className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
-                          />
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.review.colDateSlot")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.review.instrumentLabel")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.review.colMemberService")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.review.colMusicianName")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.review.colTypeMode")}
-                        </th>
-                        <th className="py-2.5 px-3">{t("common.status")}</th>
-                        <th className="py-2.5 px-3 text-right">
-                          {t("common.actions")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {reservations.map((r) => {
-                        const isPending = r.status === "pending";
-                        const isSelected = selectedReservationIds.includes(
-                          r.id,
-                        );
-                        return (
-                          <tr
-                            key={r.id}
-                            className={`transition ${
-                              isSelected
-                                ? "bg-amber-50/60 hover:bg-amber-50/80"
-                                : "hover:bg-stone-50/60"
-                            }`}
-                          >
-                            <td
-                              className="py-3 px-3 w-10 text-center"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input
-                                id={`select-reservation-${r.id}`}
-                                type="checkbox"
-                                aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
-                                checked={isSelected}
-                                onChange={() =>
-                                  handleToggleSelectReservation(r.id)
-                                }
-                                className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
-                              />
-                            </td>
+        {/* =============================================================
+              TAB 2: REVIEW REQUESTS (actionable queue)
+             ============================================================= */}
+        {activeTab === "review" && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1">
+                <button
+                  onClick={() => setFilterQuickTab("pending")}
+                  className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    filterQuickTab === "pending"
+                      ? "bg-amber-800 text-white shadow-xs"
+                      : "bg-stone-100 text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  {t("admin.review.pendingTab", {
+                    count: stats.pendingRequests,
+                  })}
+                </button>
+                <button
+                  onClick={() => setFilterQuickTab("all")}
+                  className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    filterQuickTab === "all"
+                      ? "bg-amber-800 text-white shadow-xs"
+                      : "bg-stone-100 text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  {t("common.all")}
+                </button>
+              </div>
 
-                            <td className="py-3 px-3 whitespace-nowrap">
-                              <div className="font-semibold text-stone-900">
-                                {new Date(r.start_time).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                  },
-                                )}
-                              </div>
-                              <div className="text-[11px] text-stone-500">
-                                {new Date(r.start_time).toLocaleTimeString([], {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                  hour12: true,
-                                })}
-                                {" – "}
-                                {new Date(r.end_time).toLocaleTimeString([], {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                  hour12: true,
-                                })}
-                              </div>
-                              {(r.is_full_day ||
-                                (r.start_hhmm === "09:00" &&
-                                  r.end_hhmm === "22:00")) && (
-                                <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                  <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                                  <span>{t("common.fullDay")}</span>
-                                </span>
-                              )}
-                            </td>
-
-                            <td className="py-3 px-3">
-                              <div className="font-medium text-stone-900">
-                                {r.instrument_name}
-                              </div>
-                              <div className="text-[10px] text-stone-400">
-                                {r.instrument_type}
-                              </div>
-                            </td>
-
-                            <td className="py-3 px-3">
-                              {r.user_id ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openUserProfile(r.user_id);
-                                  }}
-                                  className="font-medium text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                  title={
-                                    t("admin.userDetail.viewProfile") ||
-                                    "View Member Profile"
-                                  }
-                                >
-                                  <span>{r.user_name || "Member"}</span>
-                                  <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
-                                </button>
-                              ) : (
-                                <div className="font-medium text-stone-900">
-                                  {r.user_name || r.admin_name || "Member"}
-                                </div>
-                              )}
-                              <div className="text-[11px] text-stone-500 font-medium">
-                                {r.service_name}
-                              </div>
-                            </td>
-
-                            <td className="py-3 px-3">
-                              <div className="font-medium text-stone-800">
-                                {r.musician_name || (
-                                  <span className="text-stone-300">—</span>
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="py-3 px-3">
-                              <span
-                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  r.reservation_type === "outside_church"
-                                    ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                    : "bg-stone-100 text-stone-700"
-                                }`}
-                              >
-                                {r.reservation_type === "outside_church"
-                                  ? t("admin.review.outsideBadge")
-                                  : t("admin.review.inChurchBadge")}
-                              </span>
-                              {r.series_id && (
-                                <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                  <Repeat className="w-2.5 h-2.5" />{" "}
-                                  {t("admin.review.seriesBadge")}
-                                </span>
-                              )}
-                            </td>
-
-                            <td className="py-3 px-3">
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  r.status === "approved"
-                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                    : r.status === "pending"
-                                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                      : r.status === "rejected"
-                                        ? "bg-red-50 text-red-800 border border-red-200"
-                                        : r.status === "auto_rejected"
-                                          ? "bg-orange-50 text-orange-800 border border-orange-200"
-                                          : r.status === "expired"
-                                            ? "bg-stone-100 text-stone-500 border border-stone-300"
-                                            : r.status === "cancelled"
-                                              ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                              : r.status === "ongoing"
-                                                ? "bg-sky-50 text-sky-800 border border-sky-200"
-                                                : r.status === "completed"
-                                                  ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                                  : "bg-stone-100 text-stone-700"
-                                }`}
-                              >
-                                {translateStatus(r.status)}
-                              </span>
-                              {r.is_no_show && (
-                                <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                  {t("common.noShow")}
-                                </span>
-                              )}
-                            </td>
-
-                            <td className="py-3 px-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {isPending && (
-                                  <>
-                                    <button
-                                      onClick={() => handleApprove(r.id)}
-                                      className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1"
-                                      title="Approve request"
-                                    >
-                                      <Check className="w-3 h-3" />
-                                      <span>
-                                        {t("admin.review.approveBtn")}
-                                      </span>
-                                    </button>
-                                    <button
-                                      onClick={() => openRejectModal(r)}
-                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                                      title="Reject request"
-                                    >
-                                      <X className="w-3 h-3" />
-                                      <span>{t("admin.review.rejectBtn")}</span>
-                                    </button>
-                                  </>
-                                )}
-
-                                {r.status === "completed" &&
-                                  (r.is_no_show ? (
-                                    <button
-                                      onClick={() => handleUnmarkNoShow(r.id)}
-                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                      title={t("common.unmarkNoShow")}
-                                    >
-                                      <span>{t("common.unmarkNoShow")}</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => handleMarkNoShow(r.id)}
-                                      className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                      title={t("common.markNoShow")}
-                                    >
-                                      <span>{t("common.markNoShow")}</span>
-                                    </button>
-                                  ))}
-
-                                {onOpenReservationDetail && (
-                                  <button
-                                    onClick={() =>
-                                      onOpenReservationDetail(r.id)
-                                    }
-                                    className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-stone-700 hover:text-amber-900 border border-stone-200 hover:border-amber-300 transition cursor-pointer text-xs font-semibold flex items-center gap-1.5"
-                                    title="View conversation, details, and replies"
-                                  >
-                                    <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
-                                    <span>
-                                      {t("admin.review.detailsChatBtn")}
-                                    </span>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchReservations}
+                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                  title={t("admin.review.refreshTooltip")}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          )}
 
-          {/* =============================================================
-              TAB: ACCOUNT APPROVALS (New Member Registrations)
-             ============================================================= */}
-          {activeTab === "approvals" && (
-            <div
-              id="admin-section-approvals"
-              className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden"
-            >
-              <div className="p-3 sm:p-4 border-b border-stone-100">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
-                      {t("admin.accountApprovals")}
-                    </h2>
-                    {approvalCounts.pending > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
-                        {approvalCounts.pending} new
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    id="btn-refresh-approvals"
-                    type="button"
-                    onClick={fetchApprovals}
-                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                    title={t("admin.approvals.refreshTooltip")}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-
+            {/* Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                  {t("admin.review.searchLabel")}
+                </label>
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
                   <input
-                    id="approvals-search-input"
                     type="text"
-                    placeholder={t("admin.approvals.searchPlaceholder")}
-                    value={approvalSearch}
-                    onChange={(e) => setApprovalSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                    placeholder={t("admin.review.searchPlaceholder")}
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700"
                   />
-                </div>
-
-                <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto -mx-1 px-1 pb-2 scrollbar-hide">
-                  {" "}
-                  {(
-                    [
-                      {
-                        key: "pending" as const,
-                        label: t("common.pending"),
-                        count: approvalCounts.pending,
-                        Icon: Clock,
-                      },
-                      {
-                        key: "approved" as const,
-                        label: t("common.approved"),
-                        count: approvalCounts.approved,
-                        Icon: Check,
-                      },
-                      {
-                        key: "rejected" as const,
-                        label: t("common.rejected"),
-                        count: approvalCounts.rejected,
-                        Icon: X,
-                      },
-                      {
-                        key: "all" as const,
-                        label: t("common.all"),
-                        count: approvalCounts.total,
-                        Icon: null,
-                      },
-                    ] as const
-                  ).map((tab) => {
-                    const isActive = approvalFilterStatus === tab.key;
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setApprovalFilterStatus(tab.key)}
-                        className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${
-                          isActive
-                            ? "bg-amber-800 text-white shadow-xs"
-                            : "bg-stone-100 text-stone-600 hover:bg-stone-200/70"
-                        }`}
-                      >
-                        {tab.Icon && <tab.Icon className="w-3 h-3" />}
-                        <span>{tab.label}</span>
-                        <span
-                          className={`px-1.5 rounded-full text-[10px] font-extrabold ${
-                            isActive
-                              ? "bg-amber-900 text-amber-100"
-                              : "bg-stone-200 text-stone-700"
-                          }`}
-                        >
-                          {tab.count}
-                        </span>
-                      </button>
-                    );
-                  })}
                 </div>
               </div>
 
-              {/* Table / List */}
-              <div className="p-3 sm:p-4 pt-0">
-                {loadingApprovals ? (
-                  <div className="py-12 text-center text-stone-500 text-xs">
-                    {t("admin.approvals.loading")}
-                  </div>
-                ) : approvalsList.length === 0 ? (
-                  <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
-                    <UserCheck className="w-8 h-8 text-stone-300 mx-auto mb-2" />
-                    <div className="font-bold text-stone-700 text-xs">
-                      {approvalFilterStatus === "pending"
-                        ? t("admin.approvals.emptyPendingTitle")
-                        : t("admin.approvals.emptyFilteredTitle")}
-                    </div>
-                    <p className="text-[11px] text-stone-400 mt-1 max-w-sm mx-auto">
-                      {approvalFilterStatus === "pending"
-                        ? t("admin.approvals.emptyPendingDesc")
-                        : t("admin.approvals.emptyFilteredDesc")}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Mobile card list (< sm) */}
-                    <div className="sm:hidden space-y-2">
-                      {approvalsList.map((u) => {
-                        const status =
-                          u.approvalStatus ||
-                          u.approval_status ||
-                          (u.isActive ? "approved" : "pending");
-                        const isActioning = approvalActionId === u.id;
-                        const rawPhone = u.phoneNumber || u.phone_number || "";
-                        const whatsappNumber = rawPhone
-                          .replace(/[^\d]/g, "")
-                          .replace(/^0/, "20");
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                  {t("admin.review.instrumentLabel")}
+                </label>
+                <select
+                  value={filterInstrument}
+                  onChange={(e) => setFilterInstrument(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                >
+                  <option value="all">
+                    {t("admin.review.allInstruments")}
+                  </option>
+                  {instrumentsList.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                        return (
-                          <div
-                            key={u.id}
-                            className="border border-stone-200 rounded-xl p-3 bg-white space-y-2"
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                  {t("common.status")}
+                </label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                >
+                  <option value="all">{t("admin.review.allStatuses")}</option>
+                  <option value="pending">{t("common.pending")}</option>
+                  <option value="approved">{t("common.approved")}</option>
+                  <option value="ongoing">{t("common.ongoing")}</option>
+                  <option value="completed">{t("common.completed")}</option>
+                  <option value="expired">{t("common.expired")}</option>
+                  <option value="rejected">{t("common.rejected")}</option>
+                  <option value="cancelled">{t("common.cancelled")}</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Contextual Bulk Actions Bar */}
+            {selectedReservationIds.length > 0 && (
+              <div
+                id="bulk-actions-bar"
+                className="bg-stone-900 text-white rounded-2xl p-3 px-4 shadow-md flex flex-wrap items-center justify-between gap-3 border border-stone-800 animate-in fade-in slide-in-from-top-2 duration-150"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <span className="text-xs font-bold">
+                    {selectedReservationIds.length}{" "}
+                    {t(
+                      selectedReservationIds.length === 1
+                        ? "admin.review.reservationSingular"
+                        : "admin.review.reservationPlural",
+                    )}{" "}
+                    {t("admin.review.selectedSuffix")}
+                  </span>
+                  {selectedReservationIds.length < reservations.length && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allIds = Array.from(
+                          new Set([
+                            ...selectedReservationIds,
+                            ...reservations.map((r) => r.id),
+                          ]),
+                        );
+                        setSelectedReservationIds(allIds);
+                      }}
+                      className="text-[11px] text-amber-300 hover:text-amber-200 underline cursor-pointer ml-1"
+                    >
+                      {t("admin.review.selectAllVisible", {
+                        count: reservations.length,
+                      })}{" "}
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Cancel Selected — Available to all admins */}
+                  <button
+                    id="btn-bulk-cancel-selected"
+                    type="button"
+                    onClick={handleTriggerBulkCancel}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    title="Cancel selected reservations"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>{t("admin.review.cancelSelected")}</span>
+                  </button>
+
+                  {/* Delete Selected — Super Admin ONLY */}
+                  {isSuperAdmin && (
+                    <button
+                      id="btn-bulk-delete-selected"
+                      type="button"
+                      onClick={handleTriggerBulkDelete}
+                      className="px-3 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Permanently delete selected reservations from database"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t("admin.review.deleteSelected")}</span>
+                    </button>
+                  )}
+
+                  {/* Clear Selection */}
+                  <button
+                    id="btn-clear-selection"
+                    type="button"
+                    onClick={() => setSelectedReservationIds([])}
+                    className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium transition cursor-pointer border border-stone-700"
+                    title="Clear selection"
+                  >
+                    <span>{t("admin.review.clearSelection")}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Table */}
+            <div className="overflow-x-auto mt-2">
+              {loadingReservations ? (
+                <div className="py-12 text-center text-stone-500 text-xs">
+                  {t("admin.review.loading")}
+                </div>
+              ) : reservations.length === 0 ? (
+                <div className="py-12 text-center text-stone-400 text-xs">
+                  {t("admin.review.empty")}
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                      <th className="py-2.5 px-3 w-10 text-center">
+                        <input
+                          id="select-all-reservations-checkbox"
+                          type="checkbox"
+                          aria-label="Select all visible reservations"
+                          checked={
+                            reservations.length > 0 &&
+                            reservations.every((r) =>
+                              selectedReservationIds.includes(r.id),
+                            )
+                          }
+                          ref={(el) => {
+                            if (el) {
+                              const someSelected =
+                                reservations.some((r) =>
+                                  selectedReservationIds.includes(r.id),
+                                ) &&
+                                !reservations.every((r) =>
+                                  selectedReservationIds.includes(r.id),
+                                );
+                              el.indeterminate = someSelected;
+                            }
+                          }}
+                          onChange={handleToggleSelectAllReservations}
+                          className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                        />
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.review.colDateSlot")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.review.instrumentLabel")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.review.colMemberService")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.review.colMusicianName")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.review.colTypeMode")}
+                      </th>
+                      <th className="py-2.5 px-3">{t("common.status")}</th>
+                      <th className="py-2.5 px-3 text-right">
+                        {t("common.actions")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {reservations.map((r) => {
+                      const isPending = r.status === "pending";
+                      const isSelected = selectedReservationIds.includes(r.id);
+                      return (
+                        <tr
+                          key={r.id}
+                          className={`transition ${
+                            isSelected
+                              ? "bg-amber-50/60 hover:bg-amber-50/80"
+                              : "hover:bg-stone-50/60"
+                          }`}
+                        >
+                          <td
+                            className="py-3 px-3 w-10 text-center"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openUserProfile(u.id)}
-                                className="font-bold text-stone-900 hover:text-amber-900 text-left text-[13px] cursor-pointer truncate flex items-center gap-1 group min-w-0"
-                              >
-                                <span className="truncate">{u.name}</span>
-                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
-                              </button>
+                            <input
+                              id={`select-reservation-${r.id}`}
+                              type="checkbox"
+                              aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
+                              checked={isSelected}
+                              onChange={() =>
+                                handleToggleSelectReservation(r.id)
+                              }
+                              className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                            />
+                          </td>
 
-                              {status === "pending" && (
-                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                                  <Clock className="w-2.5 h-2.5" />
-                                  {t("common.pending")}
-                                </span>
-                              )}
-                              {status === "approved" && (
-                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  <Check className="w-2.5 h-2.5" />
-                                  {t("common.approved")}
-                                </span>
-                              )}
-                              {status === "rejected" && (
-                                <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                                  <X className="w-2.5 h-2.5" />
-                                  {t("common.rejected")}
-                                </span>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <div className="font-semibold text-stone-900">
+                              {new Date(r.start_time).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                },
                               )}
                             </div>
+                            <div className="text-[11px] text-stone-500">
+                              {new Date(r.start_time).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}
+                              {" – "}
+                              {new Date(r.end_time).toLocaleTimeString([], {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}
+                            </div>
+                            {(r.is_full_day ||
+                              (r.start_hhmm === "09:00" &&
+                                r.end_hhmm === "22:00")) && (
+                              <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                <span>{t("common.fullDay")}</span>
+                              </span>
+                            )}
+                          </td>
 
-                            <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
-                              {whatsappNumber ? (
-                                <a
-                                  href={`https://wa.me/${whatsappNumber}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-mono truncate"
-                                >
-                                  <MessageCircle className="w-3 h-3 shrink-0" />
-                                  {rawPhone}
-                                </a>
-                              ) : (
+                          <td className="py-3 px-3">
+                            <div className="font-medium text-stone-900">
+                              {r.instrument_name}
+                            </div>
+                            <div className="text-[10px] text-stone-400">
+                              {r.instrument_type}
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            {r.user_id ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openUserProfile(r.user_id);
+                                }}
+                                className="font-medium text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
+                                title={
+                                  t("admin.userDetail.viewProfile") ||
+                                  "View Member Profile"
+                                }
+                              >
+                                <span>{r.user_name || "Member"}</span>
+                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
+                              </button>
+                            ) : (
+                              <div className="font-medium text-stone-900">
+                                {r.user_name || r.admin_name || "Member"}
+                              </div>
+                            )}
+                            <div className="text-[11px] text-stone-500 font-medium">
+                              {r.service_name}
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <div className="font-medium text-stone-800">
+                              {r.musician_name || (
                                 <span className="text-stone-300">—</span>
                               )}
-                              <span className="shrink-0 font-mono text-stone-400">
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                r.reservation_type === "outside_church"
+                                  ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                  : "bg-stone-100 text-stone-700"
+                              }`}
+                            >
+                              {r.reservation_type === "outside_church"
+                                ? t("admin.review.outsideBadge")
+                                : t("admin.review.inChurchBadge")}
+                            </span>
+                            {r.series_id && (
+                              <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                <Repeat className="w-2.5 h-2.5" />{" "}
+                                {t("admin.review.seriesBadge")}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                r.status === "approved"
+                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                  : r.status === "pending"
+                                    ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                    : r.status === "rejected"
+                                      ? "bg-red-50 text-red-800 border border-red-200"
+                                      : r.status === "auto_rejected"
+                                        ? "bg-orange-50 text-orange-800 border border-orange-200"
+                                        : r.status === "expired"
+                                          ? "bg-stone-100 text-stone-500 border border-stone-300"
+                                          : r.status === "cancelled"
+                                            ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                            : r.status === "ongoing"
+                                              ? "bg-sky-50 text-sky-800 border border-sky-200"
+                                              : r.status === "completed"
+                                                ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                                : "bg-stone-100 text-stone-700"
+                              }`}
+                            >
+                              {translateStatus(r.status)}
+                            </span>
+                            {r.is_no_show && (
+                              <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                {t("common.noShow")}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isPending && (
+                                <>
+                                  <button
+                                    onClick={() => handleApprove(r.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1"
+                                    title="Approve request"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>{t("admin.review.approveBtn")}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => openRejectModal(r)}
+                                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                                    title="Reject request"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    <span>{t("admin.review.rejectBtn")}</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {r.status === "completed" &&
+                                (r.is_no_show ? (
+                                  <button
+                                    onClick={() => handleUnmarkNoShow(r.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                    title={t("common.unmarkNoShow")}
+                                  >
+                                    <span>{t("common.unmarkNoShow")}</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleMarkNoShow(r.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                    title={t("common.markNoShow")}
+                                  >
+                                    <span>{t("common.markNoShow")}</span>
+                                  </button>
+                                ))}
+
+                              {onOpenReservationDetail && (
+                                <button
+                                  onClick={() => onOpenReservationDetail(r.id)}
+                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-stone-700 hover:text-amber-900 border border-stone-200 hover:border-amber-300 transition cursor-pointer text-xs font-semibold flex items-center gap-1.5"
+                                  title="View conversation, details, and replies"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
+                                  <span>
+                                    {t("admin.review.detailsChatBtn")}
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =============================================================
+              TAB: ACCOUNT APPROVALS (New Member Registrations)
+             ============================================================= */}
+        {activeTab === "approvals" && (
+          <div
+            id="admin-section-approvals"
+            className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden"
+          >
+            <div className="p-3 sm:p-4 border-b border-stone-100">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
+                    {t("admin.accountApprovals")}
+                  </h2>
+                  {approvalCounts.pending > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
+                      {approvalCounts.pending} new
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  id="btn-refresh-approvals"
+                  type="button"
+                  onClick={fetchApprovals}
+                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                  title={t("admin.approvals.refreshTooltip")}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
+                <input
+                  id="approvals-search-input"
+                  type="text"
+                  placeholder={t("admin.approvals.searchPlaceholder")}
+                  value={approvalSearch}
+                  onChange={(e) => setApprovalSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto -mx-1 px-1 pb-2 scrollbar-hide">
+                {" "}
+                {(
+                  [
+                    {
+                      key: "pending" as const,
+                      label: t("common.pending"),
+                      count: approvalCounts.pending,
+                      Icon: Clock,
+                    },
+                    {
+                      key: "approved" as const,
+                      label: t("common.approved"),
+                      count: approvalCounts.approved,
+                      Icon: Check,
+                    },
+                    {
+                      key: "rejected" as const,
+                      label: t("common.rejected"),
+                      count: approvalCounts.rejected,
+                      Icon: X,
+                    },
+                    {
+                      key: "all" as const,
+                      label: t("common.all"),
+                      count: approvalCounts.total,
+                      Icon: null,
+                    },
+                  ] as const
+                ).map((tab) => {
+                  const isActive = approvalFilterStatus === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setApprovalFilterStatus(tab.key)}
+                      className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${
+                        isActive
+                          ? "bg-amber-800 text-white shadow-xs"
+                          : "bg-stone-100 text-stone-600 hover:bg-stone-200/70"
+                      }`}
+                    >
+                      {tab.Icon && <tab.Icon className="w-3 h-3" />}
+                      <span>{tab.label}</span>
+                      <span
+                        className={`px-1.5 rounded-full text-[10px] font-extrabold ${
+                          isActive
+                            ? "bg-amber-900 text-amber-100"
+                            : "bg-stone-200 text-stone-700"
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Table / List */}
+            <div className="p-3 sm:p-4 pt-0">
+              {loadingApprovals ? (
+                <div className="py-12 text-center text-stone-500 text-xs">
+                  {t("admin.approvals.loading")}
+                </div>
+              ) : approvalsList.length === 0 ? (
+                <div className="py-12 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
+                  <UserCheck className="w-8 h-8 text-stone-300 mx-auto mb-2" />
+                  <div className="font-bold text-stone-700 text-xs">
+                    {approvalFilterStatus === "pending"
+                      ? t("admin.approvals.emptyPendingTitle")
+                      : t("admin.approvals.emptyFilteredTitle")}
+                  </div>
+                  <p className="text-[11px] text-stone-400 mt-1 max-w-sm mx-auto">
+                    {approvalFilterStatus === "pending"
+                      ? t("admin.approvals.emptyPendingDesc")
+                      : t("admin.approvals.emptyFilteredDesc")}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile card list (< sm) */}
+                  <div className="sm:hidden space-y-2">
+                    {approvalsList.map((u) => {
+                      const status =
+                        u.approvalStatus ||
+                        u.approval_status ||
+                        (u.isActive ? "approved" : "pending");
+                      const isActioning = approvalActionId === u.id;
+                      const rawPhone = u.phoneNumber || u.phone_number || "";
+                      const whatsappNumber = rawPhone
+                        .replace(/[^\d]/g, "")
+                        .replace(/^0/, "20");
+
+                      return (
+                        <div
+                          key={u.id}
+                          className="border border-stone-200 rounded-xl p-3 bg-white space-y-2"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openUserProfile(u.id)}
+                              className="font-bold text-stone-900 hover:text-amber-900 text-left text-[13px] cursor-pointer truncate flex items-center gap-1 group min-w-0"
+                            >
+                              <span className="truncate">{u.name}</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
+                            </button>
+
+                            {status === "pending" && (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                <Clock className="w-2.5 h-2.5" />
+                                {t("common.pending")}
+                              </span>
+                            )}
+                            {status === "approved" && (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <Check className="w-2.5 h-2.5" />
+                                {t("common.approved")}
+                              </span>
+                            )}
+                            {status === "rejected" && (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                <X className="w-2.5 h-2.5" />
+                                {t("common.rejected")}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
+                            {whatsappNumber ? (
+                              <a
+                                href={`https://wa.me/${whatsappNumber}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-mono truncate"
+                              >
+                                <MessageCircle className="w-3 h-3 shrink-0" />
+                                {rawPhone}
+                              </a>
+                            ) : (
+                              <span className="text-stone-300">—</span>
+                            )}
+                            <span className="shrink-0 font-mono text-stone-400">
+                              {new Date(
+                                u.createdAt || u.created_at,
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 pt-1">
+                            {status === "pending" && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={isActioning}
+                                  onClick={() =>
+                                    handleApproveRegistration(u.id, u.name)
+                                  }
+                                  className="flex-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                >
+                                  <Check className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{t("admin.approvals.approveBtn")}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isActioning}
+                                  onClick={() => triggerRejectUser(u)}
+                                  className="flex-1 px-3 py-2 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                >
+                                  <X className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{t("admin.approvals.rejectBtn")}</span>
+                                </button>
+                              </>
+                            )}
+
+                            {status === "rejected" && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={isActioning}
+                                  onClick={() =>
+                                    handleApproveRegistration(u.id, u.name)
+                                  }
+                                  className="flex-1 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                >
+                                  <Check className="w-3.5 h-3.5 shrink-0" />
+                                  <span>
+                                    {t("admin.approvals.reApproveBtn")}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isActioning}
+                                  onClick={() =>
+                                    triggerDeleteUserPermanently(u)
+                                  }
+                                  className="px-3 py-2 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 cursor-pointer"
+                                  title="Delete permanently"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+
+                            {status === "approved" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setUserSearch(u.name);
+                                  setActiveTab("users");
+                                }}
+                                className="w-full px-3 py-2 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                              >
+                                <Users className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                                <span>
+                                  {t("admin.approvals.viewInDirectoryBtn")}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop table (≥ sm) */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                          <th className="py-2.5 px-3">
+                            {t("admin.approvals.colApplicantName")}
+                          </th>
+                          <th className="py-2.5 px-3 w-[140px]">
+                            {t("admin.approvals.colPhoneNumber")}
+                          </th>
+                          <th className="py-2.5 px-3 w-[110px]">
+                            {t("admin.approvals.colRegistrationDate")}
+                          </th>
+                          <th className="py-2.5 px-3 w-[110px]">
+                            {t("admin.approvals.colApprovalStatus")}
+                          </th>
+                          <th className="py-2.5 px-3 text-right w-[200px]">
+                            {t("common.actions")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {approvalsList.map((u) => {
+                          const status =
+                            u.approvalStatus ||
+                            u.approval_status ||
+                            (u.isActive ? "approved" : "pending");
+                          const isActioning = approvalActionId === u.id;
+                          const rawPhone =
+                            u.phoneNumber || u.phone_number || "";
+                          const whatsappNumber = rawPhone
+                            .replace(/[^\d]/g, "")
+                            .replace(/^0/, "20");
+
+                          return (
+                            <tr
+                              key={u.id}
+                              className="hover:bg-stone-50/60 transition"
+                            >
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openUserProfile(u.id);
+                                    }}
+                                    className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group whitespace-nowrap"
+                                  >
+                                    <span className="truncate max-w-[200px]">
+                                      {u.name}
+                                    </span>
+                                    <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
+                                  </button>
+                                  {u.isTrusted && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                      <Sparkles className="w-2.5 h-2.5 text-amber-700" />
+                                      {t("common.trusted")}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-3 font-mono text-stone-600 whitespace-nowrap">
+                                {whatsappNumber ? (
+                                  <a
+                                    href={`https://wa.me/${whatsappNumber}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 hover:underline transition"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate max-w-[110px]">
+                                      {rawPhone}
+                                    </span>
+                                  </a>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+
+                              <td className="py-3 px-3 text-stone-500 text-[11px] whitespace-nowrap">
                                 {new Date(
                                   u.createdAt || u.created_at,
                                 ).toLocaleDateString()}
+                              </td>
+
+                              <td className="py-3 px-3">
+                                {status === "pending" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 whitespace-nowrap">
+                                    <Clock className="w-3 h-3" />
+                                    {t("common.pending")}
+                                  </span>
+                                )}
+                                {status === "approved" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                    <Check className="w-3 h-3" />
+                                    {t("common.approved")}
+                                  </span>
+                                )}
+                                {status === "rejected" && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 whitespace-nowrap">
+                                    <X className="w-3 h-3" />
+                                    {t("common.rejected")}
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                                  {status === "pending" && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={isActioning}
+                                        onClick={() =>
+                                          handleApproveRegistration(
+                                            u.id,
+                                            u.name,
+                                          )
+                                        }
+                                        className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+                                      >
+                                        <Check className="w-3 h-3 shrink-0" />
+                                        <span>
+                                          {t("admin.approvals.approveBtn")}
+                                        </span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={isActioning}
+                                        onClick={() => triggerRejectUser(u)}
+                                        className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                      >
+                                        <X className="w-3 h-3 shrink-0" />
+                                        <span>
+                                          {t("admin.approvals.rejectBtn")}
+                                        </span>
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {status === "rejected" && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={isActioning}
+                                        onClick={() =>
+                                          handleApproveRegistration(
+                                            u.id,
+                                            u.name,
+                                          )
+                                        }
+                                        className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-emerald-50 text-emerald-800 border border-stone-200 hover:border-emerald-200 disabled:opacity-50 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                      >
+                                        <Check className="w-3 h-3 text-emerald-700 shrink-0" />
+                                        <span>
+                                          {t("admin.approvals.reApproveBtn")}
+                                        </span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={isActioning}
+                                        onClick={() =>
+                                          triggerDeleteUserPermanently(u)
+                                        }
+                                        className="p-1.5 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 transition cursor-pointer shrink-0"
+                                        title="Delete permanently"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {status === "approved" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setUserSearch(u.name);
+                                        setActiveTab("users");
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                    >
+                                      <Users className="w-3 h-3 text-amber-800 shrink-0" />
+                                      <span>
+                                        {t(
+                                          "admin.approvals.viewInDirectoryBtn",
+                                        )}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* =============================================================
+              TAB 3: INSTRUMENTS INVENTORY
+             ============================================================= */}
+        {activeTab === "instruments" && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-100 pb-4">
+              <div className="min-w-0">
+                <h2 className="font-bold text-stone-900 text-sm">
+                  {t("admin.instruments.title")}
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {t("admin.instruments.subtitle")}
+                </p>
+              </div>
+              <button
+                id="btn-add-new-instrument"
+                onClick={() => {
+                  setEditingInstrument(null);
+                  setInstrumentForm({
+                    name: "",
+                    type: "Keyboards",
+                    photoUrl: "",
+                    description: "",
+                    outsideFeePerDay: "0.00",
+                    bookingMode: "instant",
+                  });
+                  setPhotoUploadError(null);
+                  setShowUrlInput(false);
+                  setShowInstrumentModal(true);
+                }}
+                className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span>{t("admin.instruments.addButton")}</span>
+              </button>
+            </div>
+            {loadingInstruments ? (
+              <div className="py-12 text-center text-stone-500 text-xs">
+                {t("admin.instruments.loading")}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {instrumentsList.map((inst) => {
+                  const currentMode =
+                    inst.bookingMode || inst.booking_mode || "instant";
+                  const isInstant = currentMode === "instant";
+                  const isDecommissioned = Boolean(
+                    inst.isRemoved ?? inst.is_removed,
+                  );
+                  const instPhoto = inst.photoUrl || inst.photo_url;
+
+                  return (
+                    <div
+                      key={inst.id}
+                      className={`p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
+                        isDecommissioned
+                          ? "bg-stone-50/60 border-stone-200 opacity-60"
+                          : "bg-white border-stone-200 hover:border-amber-300"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
+                            {instPhoto ? (
+                              <img
+                                src={instPhoto}
+                                alt={inst.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Music2 className="w-5 h-5 text-amber-800" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-stone-900 text-sm flex items-center gap-2 flex-wrap">
+                              <span className="truncate">{inst.name}</span>
+                            </div>
+                            <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 flex-wrap">
+                              <span>{inst.type}</span>
+                              <span className="text-stone-300">•</span>
+                              <span>
+                                {t("admin.instruments.bookingsCount", {
+                                  count:
+                                    inst.totalReservations ??
+                                    inst.total_reservations ??
+                                    0,
+                                })}
                               </span>
                             </div>
+                          </div>
+                        </div>
 
-                            <div className="flex items-center gap-1.5 pt-1">
-                              {status === "pending" && (
+                        <div className="shrink-0">
+                          {isDecommissioned ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-200">
+                              {t("admin.instruments.retiredBadge")}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-200">
+                              {t("admin.instruments.activeBadge")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2 gap-2">
+                        <span
+                          id={`admin-instrument-mode-badge-${inst.id}`}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                            isInstant
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              : "bg-amber-50 text-amber-800 border border-amber-200"
+                          }`}
+                        >
+                          {isInstant
+                            ? t("admin.instruments.instantBooking")
+                            : t("admin.instruments.manualReview")}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-purple-50 text-purple-800 border border-purple-200">
+                          $
+                          {inst.outsideFeePerDay ??
+                            inst.outside_fee_per_day ??
+                            "0.00"}
+                          /day
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-stone-600 my-3 line-clamp-2">
+                        {inst.description ||
+                          t("admin.instruments.noDescription")}
+                      </p>
+
+                      <div className="pt-3 border-t border-stone-100 text-xs">
+                        <div
+                          className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
+                        >
+                          {!isDecommissioned ? (
+                            <>
+                              <button
+                                id={`btn-edit-instrument-${inst.id}`}
+                                onClick={() => {
+                                  setEditingInstrument(inst);
+                                  setInstrumentForm({
+                                    name: inst.name,
+                                    type: inst.type,
+                                    photoUrl: instPhoto || "",
+                                    description: inst.description || "",
+                                    outsideFeePerDay:
+                                      inst.outsideFeePerDay ??
+                                      inst.outside_fee_per_day ??
+                                      "0.00",
+                                    bookingMode: currentMode as
+                                      | "instant"
+                                      | "manual",
+                                  });
+                                  setPhotoUploadError(null);
+                                  setShowUrlInput(false);
+                                  setShowInstrumentModal(true);
+                                }}
+                                className="px-2 py-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
+                                title={t("admin.instruments.editTooltip")}
+                              >
+                                <Edit className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {t("admin.instruments.edit")}
+                                </span>
+                              </button>
+                              <button
+                                id={`btn-mark-unavailable-instrument-${inst.id}`}
+                                onClick={() => {
+                                  setRemovingInstrument(inst);
+                                  setRemoveConfirmForce(false);
+                                }}
+                                className="px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
+                                title={t("admin.instruments.retireTooltip")}
+                              >
+                                <Archive className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {t("admin.instruments.retire")}
+                                </span>
+                              </button>
+                              <button
+                                id={`btn-delete-instrument-${inst.id}`}
+                                onClick={() => {
+                                  setDeletingInstrument(inst);
+                                  setDeleteConfirmChecked(false);
+                                }}
+                                className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
+                                title={t("admin.instruments.deleteTooltip")}
+                              >
+                                <Trash2 className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {t("admin.instruments.delete")}
+                                </span>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                id={`btn-restore-instrument-${inst.id}`}
+                                onClick={() => triggerRestoreInstrument(inst)}
+                                className="px-2 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
+                                title={t("admin.instruments.restoreTooltip")}
+                              >
+                                <RefreshCw className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {t("admin.instruments.restore")}
+                                </span>
+                              </button>
+                              <button
+                                id={`btn-delete-instrument-${inst.id}`}
+                                onClick={() => {
+                                  setDeletingInstrument(inst);
+                                  setDeleteConfirmChecked(false);
+                                }}
+                                className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
+                                title={t("admin.instruments.deleteTooltip")}
+                              >
+                                <Trash2 className="w-3 h-3 shrink-0" />
+                                <span className="truncate">
+                                  {t("admin.instruments.delete")}
+                                </span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {!isDecommissioned && (
+                          <p className="text-[10px] text-stone-400 mt-1.5 text-center">
+                            {t("admin.instruments.footerNote")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =============================================================
+              TAB 4: USER MANAGEMENT
+             ============================================================= */}
+        {activeTab === "users" && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="flex flex-col gap-2 pb-3">
+              <div className="min-w-0">
+                <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
+                  {t("admin.users.title")}
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {t("admin.users.subtitle")}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 min-w-0">
+                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder={t("admin.users.searchPlaceholder")}
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                  />
+                </div>
+                <button
+                  onClick={fetchUsers}
+                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {loadingUsers ? (
+              <div className="py-12 text-center text-stone-500 text-xs">
+                {t("admin.users.loading")}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                      <th className="py-2.5 px-3 whitespace-nowrap w-[220px]">
+                        {t("admin.users.colMember")}
+                      </th>
+                      <th className="py-2.5 px-3 whitespace-nowrap w-[140px]">
+                        {t("admin.users.colPhone")}
+                      </th>
+                      <th className="py-2.5 px-3 whitespace-nowrap w-[110px]">
+                        {t("admin.users.colStatus")}
+                      </th>
+                      <th className="py-2.5 px-3 whitespace-nowrap w-[130px]">
+                        {t("admin.users.colTrusted")}
+                      </th>
+                      <th className="py-2.5 px-3 text-right whitespace-nowrap w-[180px]">
+                        {t("admin.users.colActions")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {usersList.map((u) => {
+                      const rawPhone = u.phoneNumber || u.phone_number || "";
+                      const whatsappNumber = rawPhone
+                        .replace(/[^\d]/g, "")
+                        .replace(/^0/, "20");
+
+                      return (
+                        <tr
+                          key={u.id}
+                          className="hover:bg-stone-50/60 transition"
+                        >
+                          {/* Member */}
+                          <td className="py-3 px-3">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openUserProfile(u.id);
+                              }}
+                              className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group whitespace-nowrap"
+                              title={
+                                t("admin.userDetail.viewProfile") ||
+                                "View Member Profile"
+                              }
+                            >
+                              <span className="truncate max-w-[220px]">
+                                {u.name}
+                              </span>
+                              <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
+                            </button>
+                          </td>
+
+                          {/* Phone (WhatsApp clickable) */}
+                          <td className="py-3 px-3 font-mono text-stone-600">
+                            {whatsappNumber ? (
+                              <a
+                                href={`https://wa.me/${whatsappNumber}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 hover:underline transition"
+                                title={`Chat with ${u.name} on WhatsApp`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span>{rawPhone}</span>
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3 px-3">
+                            {u.approval_status === "pending" ||
+                            u.approvalStatus === "pending" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                {t("admin.users.pendingApproval")}
+                              </span>
+                            ) : u.approval_status === "rejected" ||
+                              u.approvalStatus === "rejected" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                <X className="w-2.5 h-2.5 text-rose-700" />
+                                {t("admin.users.rejected")}
+                              </span>
+                            ) : (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  u.isActive
+                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                    : "bg-stone-100 text-stone-600 border border-stone-200"
+                                }`}
+                              >
+                                {u.isActive
+                                  ? t("admin.users.active")
+                                  : t("admin.users.deactivated")}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Trusted */}
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {u.isTrusted ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                  <Sparkles className="w-2.5 h-2.5 text-amber-700" />
+                                  {t("admin.users.trustedMember")}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-stone-400 font-medium">
+                                  {t("admin.users.standard")}
+                                </span>
+                              )}
+                              {Number(u.noShowCount || 0) > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200"
+                                  title={`${u.noShowCount} no-show reservation(s)`}
+                                >
+                                  {u.noShowCount} {t("common.noShow")}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                              {(u.approval_status === "pending" ||
+                                u.approvalStatus === "pending") && (
                                 <>
                                   <button
                                     type="button"
-                                    disabled={isActioning}
                                     onClick={() =>
                                       handleApproveRegistration(u.id, u.name)
                                     }
-                                    className="flex-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
+                                    title={t("admin.users.approveTooltip")}
                                   >
-                                    <Check className="w-3.5 h-3.5 shrink-0" />
-                                    <span>
-                                      {t("admin.approvals.approveBtn")}
-                                    </span>
+                                    <Check className="w-3 h-3 shrink-0" />
+                                    <span>{t("admin.users.approve")}</span>
                                   </button>
+
                                   <button
                                     type="button"
-                                    disabled={isActioning}
                                     onClick={() => triggerRejectUser(u)}
-                                    className="flex-1 px-3 py-2 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
+                                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                    title="Reject registration (account preserved in audit database)"
                                   >
-                                    <X className="w-3.5 h-3.5 shrink-0" />
+                                    <X className="w-3 h-3 shrink-0" />
                                     <span>
                                       {t("admin.approvals.rejectBtn")}
                                     </span>
@@ -3002,1460 +3505,760 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 </>
                               )}
 
-                              {status === "rejected" && (
-                                <>
-                                  <button
-                                    type="button"
-                                    disabled={isActioning}
-                                    onClick={() =>
-                                      handleApproveRegistration(u.id, u.name)
-                                    }
-                                    className="flex-1 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 disabled:opacity-50 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer whitespace-nowrap"
-                                  >
-                                    <Check className="w-3.5 h-3.5 shrink-0" />
-                                    <span>
-                                      {t("admin.approvals.reApproveBtn")}
-                                    </span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={isActioning}
-                                    onClick={() =>
-                                      triggerDeleteUserPermanently(u)
-                                    }
-                                    className="px-3 py-2 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 cursor-pointer"
-                                    title="Delete permanently"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </>
-                              )}
-
-                              {status === "approved" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setUserSearch(u.name);
-                                    setActiveTab("users");
-                                  }}
-                                  className="w-full px-3 py-2 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-                                >
-                                  <Users className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                                  <span>
-                                    {t("admin.approvals.viewInDirectoryBtn")}
-                                  </span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Desktop table (≥ sm) */}
-                    <div className="hidden sm:block overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                            <th className="py-2.5 px-3">
-                              {t("admin.approvals.colApplicantName")}
-                            </th>
-                            <th className="py-2.5 px-3 w-[140px]">
-                              {t("admin.approvals.colPhoneNumber")}
-                            </th>
-                            <th className="py-2.5 px-3 w-[110px]">
-                              {t("admin.approvals.colRegistrationDate")}
-                            </th>
-                            <th className="py-2.5 px-3 w-[110px]">
-                              {t("admin.approvals.colApprovalStatus")}
-                            </th>
-                            <th className="py-2.5 px-3 text-right w-[200px]">
-                              {t("common.actions")}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                          {approvalsList.map((u) => {
-                            const status =
-                              u.approvalStatus ||
-                              u.approval_status ||
-                              (u.isActive ? "approved" : "pending");
-                            const isActioning = approvalActionId === u.id;
-                            const rawPhone =
-                              u.phoneNumber || u.phone_number || "";
-                            const whatsappNumber = rawPhone
-                              .replace(/[^\d]/g, "")
-                              .replace(/^0/, "20");
-
-                            return (
-                              <tr
-                                key={u.id}
-                                className="hover:bg-stone-50/60 transition"
+                              <button
+                                onClick={() => setBookOnBehalfUser(u)}
+                                className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                                title={t("admin.users.bookForTooltip")}
                               >
-                                <td className="py-3 px-3">
-                                  <div className="flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openUserProfile(u.id);
-                                      }}
-                                      className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group whitespace-nowrap"
-                                    >
-                                      <span className="truncate max-w-[200px]">
-                                        {u.name}
-                                      </span>
-                                      <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
-                                    </button>
-                                    {u.isTrusted && (
-                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                        <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                        {t("common.trusted")}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
+                                <Plus className="w-3 h-3 text-amber-800 shrink-0" />
+                                <span>{t("admin.users.bookFor")}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-                                <td className="py-3 px-3 font-mono text-stone-600 whitespace-nowrap">
-                                  {whatsappNumber ? (
-                                    <a
-                                      href={`https://wa.me/${whatsappNumber}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 hover:underline transition"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                                      <span className="truncate max-w-[110px]">
-                                        {rawPhone}
-                                      </span>
-                                    </a>
-                                  ) : (
-                                    "—"
-                                  )}
-                                </td>
+        {/* =============================================================
+              TAB 5: RESERVATION MESSAGING
+             ============================================================= */}
+        {activeTab === "messaging" && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="border-b border-stone-100 pb-3">
+              <h2 className="font-bold text-stone-900 text-sm">
+                {t("admin.messaging.title")}
+              </h2>
+              <p className="text-xs text-stone-500">
+                {t("admin.messaging.subtitle")}
+              </p>
+            </div>
 
-                                <td className="py-3 px-3 text-stone-500 text-[11px] whitespace-nowrap">
-                                  {new Date(
-                                    u.createdAt || u.created_at,
-                                  ).toLocaleDateString()}
-                                </td>
-
-                                <td className="py-3 px-3">
-                                  {status === "pending" && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 whitespace-nowrap">
-                                      <Clock className="w-3 h-3" />
-                                      {t("common.pending")}
-                                    </span>
-                                  )}
-                                  {status === "approved" && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
-                                      <Check className="w-3 h-3" />
-                                      {t("common.approved")}
-                                    </span>
-                                  )}
-                                  {status === "rejected" && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 whitespace-nowrap">
-                                      <X className="w-3 h-3" />
-                                      {t("common.rejected")}
-                                    </span>
-                                  )}
-                                </td>
-
-                                <td className="py-3 px-3 text-right">
-                                  <div className="flex items-center justify-end gap-1.5 flex-nowrap">
-                                    {status === "pending" && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          disabled={isActioning}
-                                          onClick={() =>
-                                            handleApproveRegistration(
-                                              u.id,
-                                              u.name,
-                                            )
-                                          }
-                                          className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
-                                        >
-                                          <Check className="w-3 h-3 shrink-0" />
-                                          <span>
-                                            {t("admin.approvals.approveBtn")}
-                                          </span>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={isActioning}
-                                          onClick={() => triggerRejectUser(u)}
-                                          className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 disabled:opacity-50 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                                        >
-                                          <X className="w-3 h-3 shrink-0" />
-                                          <span>
-                                            {t("admin.approvals.rejectBtn")}
-                                          </span>
-                                        </button>
-                                      </>
-                                    )}
-
-                                    {status === "rejected" && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          disabled={isActioning}
-                                          onClick={() =>
-                                            handleApproveRegistration(
-                                              u.id,
-                                              u.name,
-                                            )
-                                          }
-                                          className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-emerald-50 text-emerald-800 border border-stone-200 hover:border-emerald-200 disabled:opacity-50 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                                        >
-                                          <Check className="w-3 h-3 text-emerald-700 shrink-0" />
-                                          <span>
-                                            {t("admin.approvals.reApproveBtn")}
-                                          </span>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={isActioning}
-                                          onClick={() =>
-                                            triggerDeleteUserPermanently(u)
-                                          }
-                                          className="p-1.5 rounded-lg bg-stone-50 hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-200 hover:border-rose-200 transition cursor-pointer shrink-0"
-                                          title="Delete permanently"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      </>
-                                    )}
-
-                                    {status === "approved" && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setUserSearch(u.name);
-                                          setActiveTab("users");
-                                        }}
-                                        className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                                      >
-                                        <Users className="w-3 h-3 text-amber-800 shrink-0" />
-                                        <span>
-                                          {t(
-                                            "admin.approvals.viewInDirectoryBtn",
-                                          )}
-                                        </span>
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-2 max-h-96 overflow-y-auto">
+                <div className="text-[11px] font-bold uppercase text-stone-500">
+                  {t("admin.messaging.selectReservation")}
+                </div>
+                {reservations.slice(0, 15).map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSelectedMsgReservation(r)}
+                    className={`w-full text-left p-2.5 rounded-xl border text-xs transition cursor-pointer ${
+                      selectedMsgReservation?.id === r.id
+                        ? "bg-amber-50 border-amber-300 text-amber-950 shadow-2xs font-semibold"
+                        : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"
+                    }`}
+                  >
+                    <div className="font-bold text-stone-900">
+                      {r.service_name}
                     </div>
-                  </>
+                    <div className="text-[11px] text-stone-500">
+                      {r.user_name} • {r.instrument_name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="md:col-span-2 border border-stone-200 rounded-xl p-4 bg-white space-y-3">
+                {selectedMsgReservation ? (
+                  <form onSubmit={handleSendMessage} className="space-y-3">
+                    <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1">
+                      <div className="font-bold text-stone-900">
+                        {t("admin.messaging.recipientLabel", {
+                          name: selectedMsgReservation.user_name,
+                          phone: selectedMsgReservation.user_phone,
+                        })}
+                      </div>
+                      <div className="text-stone-500">
+                        {t("admin.messaging.bookingLabel", {
+                          service: selectedMsgReservation.service_name,
+                          instrument: selectedMsgReservation.instrument_name,
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                        {t("admin.messaging.messageContentLabel")}
+                      </label>
+                      <textarea
+                        rows={4}
+                        required
+                        value={messageText}
+                        onChange={(e) => setMessageText(e.target.value)}
+                        placeholder={t("admin.messaging.messagePlaceholder")}
+                        className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={sendingMessage || !messageText.trim()}
+                      className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{t("admin.messaging.sendButton")}</span>
+                    </button>
+                  </form>
+                ) : (
+                  <div className="py-16 text-center text-stone-400 text-xs">
+                    {t("admin.messaging.emptyState")}
+                  </div>
                 )}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* =============================================================
-              TAB 3: INSTRUMENTS INVENTORY
-             ============================================================= */}
-          {activeTab === "instruments" && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-100 pb-4">
-                <div className="min-w-0">
-                  <h2 className="font-bold text-stone-900 text-sm">
-                    {t("admin.instruments.title")}
-                  </h2>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {t("admin.instruments.subtitle")}
-                  </p>
-                </div>
-                <button
-                  id="btn-add-new-instrument"
-                  onClick={() => {
-                    setEditingInstrument(null);
-                    setInstrumentForm({
-                      name: "",
-                      type: "Keyboards",
-                      photoUrl: "",
-                      description: "",
-                      outsideFeePerDay: "0.00",
-                      bookingMode: "instant",
-                    });
-                    setPhotoUploadError(null);
-                    setShowUrlInput(false);
-                    setShowInstrumentModal(true);
-                  }}
-                  className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t("admin.instruments.addButton")}</span>
-                </button>
-              </div>
-              {loadingInstruments ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.instruments.loading")}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {instrumentsList.map((inst) => {
-                    const currentMode =
-                      inst.bookingMode || inst.booking_mode || "instant";
-                    const isInstant = currentMode === "instant";
-                    const isDecommissioned = Boolean(
-                      inst.isRemoved ?? inst.is_removed,
-                    );
-                    const instPhoto = inst.photoUrl || inst.photo_url;
-
-                    return (
-                      <div
-                        key={inst.id}
-                        className={`p-4 rounded-2xl border transition shadow-2xs flex flex-col justify-between ${
-                          isDecommissioned
-                            ? "bg-stone-50/60 border-stone-200 opacity-60"
-                            : "bg-white border-stone-200 hover:border-amber-300"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/70 text-amber-900 flex items-center justify-center font-bold overflow-hidden shrink-0 shadow-2xs">
-                              {instPhoto ? (
-                                <img
-                                  src={instPhoto}
-                                  alt={inst.name}
-                                  referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <Music2 className="w-5 h-5 text-amber-800" />
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-bold text-stone-900 text-sm flex items-center gap-2 flex-wrap">
-                                <span className="truncate">{inst.name}</span>
-                              </div>
-                              <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 flex-wrap">
-                                <span>{inst.type}</span>
-                                <span className="text-stone-300">•</span>
-                                <span>
-                                  {t("admin.instruments.bookingsCount", {
-                                    count:
-                                      inst.totalReservations ??
-                                      inst.total_reservations ??
-                                      0,
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="shrink-0">
-                            {isDecommissioned ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-red-100 text-red-900 border border-red-200">
-                                {t("admin.instruments.retiredBadge")}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-200">
-                                {t("admin.instruments.activeBadge")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between mt-2 gap-2">
-                          <span
-                            id={`admin-instrument-mode-badge-${inst.id}`}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
-                              isInstant
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                : "bg-amber-50 text-amber-800 border border-amber-200"
-                            }`}
-                          >
-                            {isInstant
-                              ? t("admin.instruments.instantBooking")
-                              : t("admin.instruments.manualReview")}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-purple-50 text-purple-800 border border-purple-200">
-                            $
-                            {inst.outsideFeePerDay ??
-                              inst.outside_fee_per_day ??
-                              "0.00"}
-                            /day
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-stone-600 my-3 line-clamp-2">
-                          {inst.description ||
-                            t("admin.instruments.noDescription")}
-                        </p>
-
-                        <div className="pt-3 border-t border-stone-100 text-xs">
-                          <div
-                            className={`grid gap-1.5 ${!isDecommissioned ? "grid-cols-3" : "grid-cols-2"}`}
-                          >
-                            {!isDecommissioned ? (
-                              <>
-                                <button
-                                  id={`btn-edit-instrument-${inst.id}`}
-                                  onClick={() => {
-                                    setEditingInstrument(inst);
-                                    setInstrumentForm({
-                                      name: inst.name,
-                                      type: inst.type,
-                                      photoUrl: instPhoto || "",
-                                      description: inst.description || "",
-                                      outsideFeePerDay:
-                                        inst.outsideFeePerDay ??
-                                        inst.outside_fee_per_day ??
-                                        "0.00",
-                                      bookingMode: currentMode as
-                                        | "instant"
-                                        | "manual",
-                                    });
-                                    setPhotoUploadError(null);
-                                    setShowUrlInput(false);
-                                    setShowInstrumentModal(true);
-                                  }}
-                                  className="px-2 py-1.5 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title={t("admin.instruments.editTooltip")}
-                                >
-                                  <Edit className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">
-                                    {t("admin.instruments.edit")}
-                                  </span>
-                                </button>
-                                <button
-                                  id={`btn-mark-unavailable-instrument-${inst.id}`}
-                                  onClick={() => {
-                                    setRemovingInstrument(inst);
-                                    setRemoveConfirmForce(false);
-                                  }}
-                                  className="px-2 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title={t("admin.instruments.retireTooltip")}
-                                >
-                                  <Archive className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">
-                                    {t("admin.instruments.retire")}
-                                  </span>
-                                </button>
-                                <button
-                                  id={`btn-delete-instrument-${inst.id}`}
-                                  onClick={() => {
-                                    setDeletingInstrument(inst);
-                                    setDeleteConfirmChecked(false);
-                                  }}
-                                  className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title={t("admin.instruments.deleteTooltip")}
-                                >
-                                  <Trash2 className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">
-                                    {t("admin.instruments.delete")}
-                                  </span>
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  id={`btn-restore-instrument-${inst.id}`}
-                                  onClick={() => triggerRestoreInstrument(inst)}
-                                  className="px-2 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title={t("admin.instruments.restoreTooltip")}
-                                >
-                                  <RefreshCw className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">
-                                    {t("admin.instruments.restore")}
-                                  </span>
-                                </button>
-                                <button
-                                  id={`btn-delete-instrument-${inst.id}`}
-                                  onClick={() => {
-                                    setDeletingInstrument(inst);
-                                    setDeleteConfirmChecked(false);
-                                  }}
-                                  className="px-2 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold flex items-center justify-center gap-1 cursor-pointer transition"
-                                  title={t("admin.instruments.deleteTooltip")}
-                                >
-                                  <Trash2 className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">
-                                    {t("admin.instruments.delete")}
-                                  </span>
-                                </button>
-                              </>
-                            )}
-                          </div>
-
-                          {!isDecommissioned && (
-                            <p className="text-[10px] text-stone-400 mt-1.5 text-center">
-                              {t("admin.instruments.footerNote")}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* =============================================================
-              TAB 4: USER MANAGEMENT
-             ============================================================= */}
-          {activeTab === "users" && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex flex-col gap-2 pb-3">
-                <div className="min-w-0">
-                  <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
-                    {t("admin.users.title")}
-                  </h2>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {t("admin.users.subtitle")}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1 min-w-0">
-                    <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder={t("admin.users.searchPlaceholder")}
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
-                    />
-                  </div>
-                  <button
-                    onClick={fetchUsers}
-                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {loadingUsers ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.users.loading")}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3 whitespace-nowrap w-[220px]">
-                          {t("admin.users.colMember")}
-                        </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap w-[140px]">
-                          {t("admin.users.colPhone")}
-                        </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap w-[110px]">
-                          {t("admin.users.colStatus")}
-                        </th>
-                        <th className="py-2.5 px-3 whitespace-nowrap w-[130px]">
-                          {t("admin.users.colTrusted")}
-                        </th>
-                        <th className="py-2.5 px-3 text-right whitespace-nowrap w-[180px]">
-                          {t("admin.users.colActions")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {usersList.map((u) => {
-                        const rawPhone = u.phoneNumber || u.phone_number || "";
-                        const whatsappNumber = rawPhone
-                          .replace(/[^\d]/g, "")
-                          .replace(/^0/, "20");
-
-                        return (
-                          <tr
-                            key={u.id}
-                            className="hover:bg-stone-50/60 transition"
-                          >
-                            {/* Member */}
-                            <td className="py-3 px-3">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openUserProfile(u.id);
-                                }}
-                                className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group whitespace-nowrap"
-                                title={
-                                  t("admin.userDetail.viewProfile") ||
-                                  "View Member Profile"
-                                }
-                              >
-                                <span className="truncate max-w-[220px]">
-                                  {u.name}
-                                </span>
-                                <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
-                              </button>
-                            </td>
-
-                            {/* Phone (WhatsApp clickable) */}
-                            <td className="py-3 px-3 font-mono text-stone-600">
-                              {whatsappNumber ? (
-                                <a
-                                  href={`https://wa.me/${whatsappNumber}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-emerald-700 hover:text-emerald-900 hover:underline transition"
-                                  title={`Chat with ${u.name} on WhatsApp`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <MessageCircle className="w-3.5 h-3.5" />
-                                  <span>{rawPhone}</span>
-                                </a>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-
-                            {/* Status */}
-                            <td className="py-3 px-3">
-                              {u.approval_status === "pending" ||
-                              u.approvalStatus === "pending" ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                                  <Clock className="w-2.5 h-2.5 text-amber-700" />
-                                  {t("admin.users.pendingApproval")}
-                                </span>
-                              ) : u.approval_status === "rejected" ||
-                                u.approvalStatus === "rejected" ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                                  <X className="w-2.5 h-2.5 text-rose-700" />
-                                  {t("admin.users.rejected")}
-                                </span>
-                              ) : (
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    u.isActive
-                                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                      : "bg-stone-100 text-stone-600 border border-stone-200"
-                                  }`}
-                                >
-                                  {u.isActive
-                                    ? t("admin.users.active")
-                                    : t("admin.users.deactivated")}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Trusted */}
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {u.isTrusted ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                    <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                    {t("admin.users.trustedMember")}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-stone-400 font-medium">
-                                    {t("admin.users.standard")}
-                                  </span>
-                                )}
-                                {Number(u.noShowCount || 0) > 0 && (
-                                  <span
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200"
-                                    title={`${u.noShowCount} no-show reservation(s)`}
-                                  >
-                                    {u.noShowCount} {t("common.noShow")}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* Actions */}
-                            <td className="py-3 px-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5 flex-nowrap">
-                                {(u.approval_status === "pending" ||
-                                  u.approvalStatus === "pending") && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleApproveRegistration(u.id, u.name)
-                                      }
-                                      className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
-                                      title={t("admin.users.approveTooltip")}
-                                    >
-                                      <Check className="w-3 h-3 shrink-0" />
-                                      <span>{t("admin.users.approve")}</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => triggerRejectUser(u)}
-                                      className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-rose-50 text-rose-700 border border-stone-200 hover:border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                                      title="Reject registration (account preserved in audit database)"
-                                    >
-                                      <X className="w-3 h-3 shrink-0" />
-                                      <span>
-                                        {t("admin.approvals.rejectBtn")}
-                                      </span>
-                                    </button>
-                                  </>
-                                )}
-
-                                <button
-                                  onClick={() => setBookOnBehalfUser(u)}
-                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
-                                  title={t("admin.users.bookForTooltip")}
-                                >
-                                  <Plus className="w-3 h-3 text-amber-800 shrink-0" />
-                                  <span>{t("admin.users.bookFor")}</span>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* =============================================================
-              TAB 5: RESERVATION MESSAGING
-             ============================================================= */}
-          {activeTab === "messaging" && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="border-b border-stone-100 pb-3">
-                <h2 className="font-bold text-stone-900 text-sm">
-                  {t("admin.messaging.title")}
-                </h2>
-                <p className="text-xs text-stone-500">
-                  {t("admin.messaging.subtitle")}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-2 max-h-96 overflow-y-auto">
-                  <div className="text-[11px] font-bold uppercase text-stone-500">
-                    {t("admin.messaging.selectReservation")}
-                  </div>
-                  {reservations.slice(0, 15).map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => setSelectedMsgReservation(r)}
-                      className={`w-full text-left p-2.5 rounded-xl border text-xs transition cursor-pointer ${
-                        selectedMsgReservation?.id === r.id
-                          ? "bg-amber-50 border-amber-300 text-amber-950 shadow-2xs font-semibold"
-                          : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"
-                      }`}
-                    >
-                      <div className="font-bold text-stone-900">
-                        {r.service_name}
-                      </div>
-                      <div className="text-[11px] text-stone-500">
-                        {r.user_name} • {r.instrument_name}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="md:col-span-2 border border-stone-200 rounded-xl p-4 bg-white space-y-3">
-                  {selectedMsgReservation ? (
-                    <form onSubmit={handleSendMessage} className="space-y-3">
-                      <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1">
-                        <div className="font-bold text-stone-900">
-                          {t("admin.messaging.recipientLabel", {
-                            name: selectedMsgReservation.user_name,
-                            phone: selectedMsgReservation.user_phone,
-                          })}
-                        </div>
-                        <div className="text-stone-500">
-                          {t("admin.messaging.bookingLabel", {
-                            service: selectedMsgReservation.service_name,
-                            instrument: selectedMsgReservation.instrument_name,
-                          })}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                          {t("admin.messaging.messageContentLabel")}
-                        </label>
-                        <textarea
-                          rows={4}
-                          required
-                          value={messageText}
-                          onChange={(e) => setMessageText(e.target.value)}
-                          placeholder={t("admin.messaging.messagePlaceholder")}
-                          className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
-                        />
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={sendingMessage || !messageText.trim()}
-                        className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>{t("admin.messaging.sendButton")}</span>
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="py-16 text-center text-stone-400 text-xs">
-                      {t("admin.messaging.emptyState")}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =============================================================
+        {/* =============================================================
               SUPER ADMIN TAB 6: ADMIN ACCOUNTS (Add/Manage Admins)
              ============================================================= */}
-          {activeTab === "admin_accounts" && isSuperAdmin && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
-                      {t("admin.adminAccounts.title")}
-                    </h2>
-                    <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200 whitespace-nowrap">
-                      {t("admin.adminAccounts.badge")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {t("admin.adminAccounts.subtitle")}
-                  </p>
+        {activeTab === "admin_accounts" && isSuperAdmin && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
+                    {t("admin.adminAccounts.title")}
+                  </h2>
+                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-extrabold border border-amber-200 whitespace-nowrap">
+                    {t("admin.adminAccounts.badge")}
+                  </span>
                 </div>
-
-                <button
-                  id="btn-open-create-admin-modal"
-                  onClick={() => {
-                    setNewAdminForm({
-                      name: "",
-                      email: "",
-                      phoneNumber: "",
-                      password: "",
-                      isSuperAdmin: false,
-                    });
-                    setShowNewAdminModal(true);
-                  }}
-                  className="self-start sm:self-auto shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
-                >
-                  <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t("admin.adminAccounts.addButton")}</span>
-                </button>
-              </div>
-
-              {loadingAdmins ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.adminAccounts.loading")}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3">
-                          {t("admin.adminAccounts.colAdministrator")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.adminAccounts.colRole")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.adminAccounts.colCreated")}
-                        </th>
-                        <th className="py-2.5 px-3 text-right">
-                          {t("admin.adminAccounts.colActions")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {adminAccountsList.map((adm) => {
-                        const isCurrentAdmin =
-                          (adm.email &&
-                            profile?.email &&
-                            adm.email.toLowerCase() ===
-                              profile.email.toLowerCase()) ||
-                          adm.id === profile?.id ||
-                          adm.phoneNumber === profile?.phoneNumber;
-                        const isHardcodedSuperAdmin =
-                          adm.email?.toLowerCase() ===
-                          "andrewehab417@gmail.com";
-                        return (
-                          <tr
-                            key={adm.id}
-                            className="hover:bg-stone-50/60 transition"
-                          >
-                            <td className="py-3 px-3 align-middle">
-                              <button
-                                type="button"
-                                onClick={() => openUserProfile(adm.id, "admin")}
-                                className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
-                                title="View Administrator Profile"
-                              >
-                                <Shield className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                                <span className="truncate">{adm.name}</span>
-                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
-                              </button>
-                            </td>
-                            <td className="py-3 px-3">
-                              <span
-                                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
-                                  adm.isSuperAdmin
-                                    ? "bg-amber-100 text-amber-950 border border-amber-300"
-                                    : "bg-stone-100 text-stone-700 border border-stone-200"
-                                }`}
-                              >
-                                {adm.isSuperAdmin
-                                  ? t("admin.adminAccounts.superAdminBadge")
-                                  : t("admin.adminAccounts.adminBadge")}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-stone-500">
-                              {new Date(adm.createdAt).toLocaleDateString()}
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              {!isCurrentAdmin && !isHardcodedSuperAdmin ? (
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    onClick={() =>
-                                      handleDemoteAdmin(adm.id, adm.name)
-                                    }
-                                    className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold cursor-pointer"
-                                  >
-                                    {t("admin.adminAccounts.demote")}
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleRemoveAdmin(adm.id, adm.name)
-                                    }
-                                    className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold cursor-pointer"
-                                  >
-                                    {t("admin.adminAccounts.delete")}
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-[10px] text-stone-400 italic">
-                                  {isHardcodedSuperAdmin
-                                    ? t("admin.adminAccounts.protectedAccount")
-                                    : t("admin.adminAccounts.currentSession")}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "trusted_status" && isSuperAdmin && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="border-b border-stone-100 pb-3">
-                <h2 className="font-bold text-stone-900 text-sm">
-                  {t("admin.trustedStatus.title")}
-                </h2>
-                <p className="text-xs text-stone-500">
-                  {t("admin.trustedStatus.subtitle")}
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {t("admin.adminAccounts.subtitle")}
                 </p>
               </div>
 
-              {loadingAuditLogs ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.trustedStatus.loading")}
-                </div>
-              ) : trustedAuditLogs.length === 0 ? (
-                <div className="py-12 text-center text-stone-400 text-xs">
-                  {t("admin.trustedStatus.empty")}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                        <th className="py-2.5 px-3">
-                          {t("admin.trustedStatus.colDateTime")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.trustedStatus.colAction")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.trustedStatus.colTargetMember")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.trustedStatus.colAuthorizedBy")}
-                        </th>
-                        <th className="py-2.5 px-3">
-                          {t("admin.trustedStatus.colNote")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {trustedAuditLogs.map((log) => (
+              <button
+                id="btn-open-create-admin-modal"
+                onClick={() => {
+                  setNewAdminForm({
+                    name: "",
+                    email: "",
+                    phoneNumber: "",
+                    password: "",
+                    isSuperAdmin: false,
+                  });
+                  setShowNewAdminModal(true);
+                }}
+                className="self-start sm:self-auto shrink-0 px-3.5 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
+              >
+                <UserPlus className="w-3.5 h-3.5 shrink-0" />
+                <span>{t("admin.adminAccounts.addButton")}</span>
+              </button>
+            </div>
+
+            {loadingAdmins ? (
+              <div className="py-12 text-center text-stone-500 text-xs">
+                {t("admin.adminAccounts.loading")}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                      <th className="py-2.5 px-3">
+                        {t("admin.adminAccounts.colAdministrator")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.adminAccounts.colRole")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.adminAccounts.colCreated")}
+                      </th>
+                      <th className="py-2.5 px-3 text-right">
+                        {t("admin.adminAccounts.colActions")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {adminAccountsList.map((adm) => {
+                      const isCurrentAdmin =
+                        (adm.email &&
+                          profile?.email &&
+                          adm.email.toLowerCase() ===
+                            profile.email.toLowerCase()) ||
+                        adm.id === profile?.id ||
+                        adm.phoneNumber === profile?.phoneNumber;
+                      const isHardcodedSuperAdmin =
+                        adm.email?.toLowerCase() === "andrewehab417@gmail.com";
+                      return (
                         <tr
-                          key={log.id}
+                          key={adm.id}
                           className="hover:bg-stone-50/60 transition"
                         >
-                          <td className="py-3 px-3 text-stone-600 font-mono text-[11px]">
-                            {new Date(log.created_at).toLocaleString([], {
-                              hour12: true,
-                            })}{" "}
+                          <td className="py-3 px-3 align-middle">
+                            <button
+                              type="button"
+                              onClick={() => openUserProfile(adm.id, "admin")}
+                              className="font-semibold text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1.5 group"
+                              title="View Administrator Profile"
+                            >
+                              <Shield className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                              <span className="truncate">{adm.name}</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
+                            </button>
                           </td>
                           <td className="py-3 px-3">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                log.action === "granted"
-                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                  : "bg-red-50 text-red-800 border border-red-200"
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                                adm.isSuperAdmin
+                                  ? "bg-amber-100 text-amber-950 border border-amber-300"
+                                  : "bg-stone-100 text-stone-700 border border-stone-200"
                               }`}
                             >
-                              {log.action === "granted"
-                                ? t("admin.trustedStatus.granted")
-                                : t("admin.trustedStatus.revoked")}
+                              {adm.isSuperAdmin
+                                ? t("admin.adminAccounts.superAdminBadge")
+                                : t("admin.adminAccounts.adminBadge")}
                             </span>
                           </td>
-                          <td className="py-3 px-3 font-medium text-stone-900">
-                            {log.target_user_name || "Member"}
-                          </td>
-                          <td className="py-3 px-3 text-stone-700">
-                            {log.granted_by_admin_name || "Administrator"}
-                          </td>
                           <td className="py-3 px-3 text-stone-500">
-                            {log.reason ||
-                              t("admin.trustedStatus.defaultReason")}
+                            {new Date(adm.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            {!isCurrentAdmin && !isHardcodedSuperAdmin ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    handleDemoteAdmin(adm.id, adm.name)
+                                  }
+                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold cursor-pointer"
+                                >
+                                  {t("admin.adminAccounts.demote")}
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleRemoveAdmin(adm.id, adm.name)
+                                  }
+                                  className="px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold cursor-pointer"
+                                >
+                                  {t("admin.adminAccounts.delete")}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-stone-400 italic">
+                                {isHardcodedSuperAdmin
+                                  ? t("admin.adminAccounts.protectedAccount")
+                                  : t("admin.adminAccounts.currentSession")}
+                              </span>
+                            )}
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "hard_limits" && isSuperAdmin && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="border-b border-stone-100 pb-3">
-                <h2 className="font-bold text-stone-900 text-sm">
-                  {t("admin.hardLimits.title")}
-                </h2>
-                <p className="text-xs text-stone-500">
-                  {t("admin.hardLimits.subtitle")}
-                </p>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
+            )}
+          </div>
+        )}
 
-              {loadingLimits ? (
-                <div className="py-12 text-center text-stone-500 text-xs">
-                  {t("admin.hardLimits.loading")}
-                </div>
-              ) : (
-                <form onSubmit={handleSaveHardLimits} className="space-y-4">
-                  <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
-                    <div>
-                      <div className="font-bold text-stone-800 text-xs">
-                        {t("admin.hardLimits.bypassTitle")}
-                      </div>
-                      <div className="text-[11px] text-stone-500">
-                        {hardLimitsState.bypassHardLimits
-                          ? t("admin.hardLimits.bypassOffDesc")
-                          : t("admin.hardLimits.bypassOnDesc")}
-                      </div>
+        {activeTab === "trusted_status" && isSuperAdmin && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="border-b border-stone-100 pb-3">
+              <h2 className="font-bold text-stone-900 text-sm">
+                {t("admin.trustedStatus.title")}
+              </h2>
+              <p className="text-xs text-stone-500">
+                {t("admin.trustedStatus.subtitle")}
+              </p>
+            </div>
+
+            {loadingAuditLogs ? (
+              <div className="py-12 text-center text-stone-500 text-xs">
+                {t("admin.trustedStatus.loading")}
+              </div>
+            ) : trustedAuditLogs.length === 0 ? (
+              <div className="py-12 text-center text-stone-400 text-xs">
+                {t("admin.trustedStatus.empty")}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
+                      <th className="py-2.5 px-3">
+                        {t("admin.trustedStatus.colDateTime")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.trustedStatus.colAction")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.trustedStatus.colTargetMember")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.trustedStatus.colAuthorizedBy")}
+                      </th>
+                      <th className="py-2.5 px-3">
+                        {t("admin.trustedStatus.colNote")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {trustedAuditLogs.map((log) => (
+                      <tr
+                        key={log.id}
+                        className="hover:bg-stone-50/60 transition"
+                      >
+                        <td className="py-3 px-3 text-stone-600 font-mono text-[11px]">
+                          {new Date(log.created_at).toLocaleString([], {
+                            hour12: true,
+                          })}{" "}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              log.action === "granted"
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                : "bg-red-50 text-red-800 border border-red-200"
+                            }`}
+                          >
+                            {log.action === "granted"
+                              ? t("admin.trustedStatus.granted")
+                              : t("admin.trustedStatus.revoked")}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-medium text-stone-900">
+                          {log.target_user_name || "Member"}
+                        </td>
+                        <td className="py-3 px-3 text-stone-700">
+                          {log.granted_by_admin_name || "Administrator"}
+                        </td>
+                        <td className="py-3 px-3 text-stone-500">
+                          {log.reason || t("admin.trustedStatus.defaultReason")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "hard_limits" && isSuperAdmin && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="border-b border-stone-100 pb-3">
+              <h2 className="font-bold text-stone-900 text-sm">
+                {t("admin.hardLimits.title")}
+              </h2>
+              <p className="text-xs text-stone-500">
+                {t("admin.hardLimits.subtitle")}
+              </p>
+            </div>
+
+            {loadingLimits ? (
+              <div className="py-12 text-center text-stone-500 text-xs">
+                {t("admin.hardLimits.loading")}
+              </div>
+            ) : (
+              <form onSubmit={handleSaveHardLimits} className="space-y-4">
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+                  <div>
+                    <div className="font-bold text-stone-800 text-xs">
+                      {t("admin.hardLimits.bypassTitle")}
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Toggle hard limit bypass"
-                      onClick={() =>
+                    <div className="text-[11px] text-stone-500">
+                      {hardLimitsState.bypassHardLimits
+                        ? t("admin.hardLimits.bypassOffDesc")
+                        : t("admin.hardLimits.bypassOnDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle hard limit bypass"
+                    onClick={() =>
+                      setHardLimitsState({
+                        ...hardLimitsState,
+                        bypassHardLimits: !hardLimitsState.bypassHardLimits,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                      hardLimitsState.bypassHardLimits
+                        ? "bg-stone-300"
+                        : "bg-amber-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        hardLimitsState.bypassHardLimits
+                          ? "translate-x-1"
+                          : "translate-x-6"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-active-reservations"
+                        className="font-bold text-stone-700"
+                      >
+                        {t("admin.hardLimits.maxActiveReservations")}
+                      </label>
+                      {renderLimitHelpToggle("activeReservations")}
+                    </div>
+                    <input
+                      id="input-max-active-reservations"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={hardLimitsState.maxActiveReservations ?? ""}
+                      onChange={(e) =>
                         setHardLimitsState({
                           ...hardLimitsState,
-                          bypassHardLimits: !hardLimitsState.bypassHardLimits,
+                          maxActiveReservations:
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value, 10),
                         })
                       }
-                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                        hardLimitsState.bypassHardLimits
-                          ? "bg-stone-300"
-                          : "bg-amber-700"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                          hardLimitsState.bypassHardLimits
-                            ? "translate-x-1"
-                            : "translate-x-6"
-                        }`}
-                      />
-                    </button>
+                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                    />
+                    {renderLimitHelp("activeReservations")}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label
-                          htmlFor="input-max-active-reservations"
-                          className="font-bold text-stone-700"
-                        >
-                          {t("admin.hardLimits.maxActiveReservations")}
-                        </label>
-                        {renderLimitHelpToggle("activeReservations")}
-                      </div>
-                      <input
-                        id="input-max-active-reservations"
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={hardLimitsState.maxActiveReservations ?? ""}
-                        onChange={(e) =>
-                          setHardLimitsState({
-                            ...hardLimitsState,
-                            maxActiveReservations:
-                              e.target.value === ""
-                                ? ""
-                                : parseInt(e.target.value, 10),
-                          })
-                        }
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                      />
-                      {renderLimitHelp("activeReservations")}
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-reservations-per-day"
+                        className="font-bold text-stone-700"
+                      >
+                        {t("admin.hardLimits.maxReservationsPerDay")}
+                      </label>
+                      {renderLimitHelpToggle("reservationsPerDay")}
                     </div>
-
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label
-                          htmlFor="input-max-reservations-per-day"
-                          className="font-bold text-stone-700"
-                        >
-                          {t("admin.hardLimits.maxReservationsPerDay")}
-                        </label>
-                        {renderLimitHelpToggle("reservationsPerDay")}
-                      </div>
-                      <input
-                        id="input-max-reservations-per-day"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={hardLimitsState.maxReservationsPerDay ?? ""}
-                        onChange={(e) =>
-                          setHardLimitsState({
-                            ...hardLimitsState,
-                            maxReservationsPerDay:
-                              e.target.value === ""
-                                ? ""
-                                : parseInt(e.target.value, 10),
-                          })
-                        }
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                      />
-                      {renderLimitHelp("reservationsPerDay")}
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label
-                          htmlFor="input-max-duration-hours"
-                          className="font-bold text-stone-700"
-                        >
-                          {t("admin.hardLimits.maxDurationHours")}
-                        </label>
-                        {renderLimitHelpToggle("durationHours")}
-                      </div>
-                      <input
-                        id="input-max-duration-hours"
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={hardLimitsState.maxDurationHours ?? ""}
-                        onChange={(e) =>
-                          setHardLimitsState({
-                            ...hardLimitsState,
-                            maxDurationHours:
-                              e.target.value === ""
-                                ? ""
-                                : parseInt(e.target.value, 10),
-                          })
-                        }
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                      />
-                      {renderLimitHelp("durationHours")}
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label
-                          htmlFor="input-max-concurrent-per-type"
-                          className="font-bold text-stone-700"
-                        >
-                          {t("admin.hardLimits.maxConcurrentPerType")}
-                        </label>
-                        {renderLimitHelpToggle("concurrentPerType")}
-                      </div>
-                      <input
-                        id="input-max-concurrent-per-type"
-                        type="number"
-                        min="1"
-                        max="5"
-                        value={hardLimitsState.maxConcurrentPerType ?? ""}
-                        onChange={(e) =>
-                          setHardLimitsState({
-                            ...hardLimitsState,
-                            maxConcurrentPerType:
-                              e.target.value === ""
-                                ? ""
-                                : parseInt(e.target.value, 10),
-                          })
-                        }
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                      />
-                      {renderLimitHelp("concurrentPerType")}
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label
-                          htmlFor="input-max-series-occurrences"
-                          className="font-bold text-stone-700"
-                        >
-                          {t("admin.hardLimits.maxSeriesOccurrences")}
-                        </label>
-                        {renderLimitHelpToggle("seriesOccurrences")}
-                      </div>
-                      <input
-                        id="input-max-series-occurrences"
-                        type="number"
-                        min="2"
-                        max="20"
-                        value={hardLimitsState.maxSeriesOccurrences ?? ""}
-                        onChange={(e) =>
-                          setHardLimitsState({
-                            ...hardLimitsState,
-                            maxSeriesOccurrences:
-                              e.target.value === ""
-                                ? ""
-                                : parseInt(e.target.value, 10),
-                          })
-                        }
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                      />
-                      {renderLimitHelp("seriesOccurrences")}
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <label
-                          htmlFor="input-max-submissions-per-hour"
-                          className="font-bold text-stone-700"
-                        >
-                          {t("admin.hardLimits.maxSubmissionsPerHour")}
-                        </label>
-                        {renderLimitHelpToggle("submissionsPerHour")}
-                      </div>
-                      <input
-                        id="input-max-submissions-per-hour"
-                        type="number"
-                        min="5"
-                        max="50"
-                        value={hardLimitsState.maxSubmissionsPerHour ?? ""}
-                        onChange={(e) =>
-                          setHardLimitsState({
-                            ...hardLimitsState,
-                            maxSubmissionsPerHour:
-                              e.target.value === ""
-                                ? ""
-                                : parseInt(e.target.value, 10),
-                          })
-                        }
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
-                      />
-                      {renderLimitHelp("submissionsPerHour")}
-                    </div>
+                    <input
+                      id="input-max-reservations-per-day"
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={hardLimitsState.maxReservationsPerDay ?? ""}
+                      onChange={(e) =>
+                        setHardLimitsState({
+                          ...hardLimitsState,
+                          maxReservationsPerDay:
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value, 10),
+                        })
+                      }
+                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                    />
+                    {renderLimitHelp("reservationsPerDay")}
                   </div>
 
-                  <div className="pt-3 border-t border-stone-100 flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={savingLimits}
-                      className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
-                    >
-                      {savingLimits
-                        ? t("admin.hardLimits.saving")
-                        : t("admin.hardLimits.saveButton")}
-                    </button>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-duration-hours"
+                        className="font-bold text-stone-700"
+                      >
+                        {t("admin.hardLimits.maxDurationHours")}
+                      </label>
+                      {renderLimitHelpToggle("durationHours")}
+                    </div>
+                    <input
+                      id="input-max-duration-hours"
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={hardLimitsState.maxDurationHours ?? ""}
+                      onChange={(e) =>
+                        setHardLimitsState({
+                          ...hardLimitsState,
+                          maxDurationHours:
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value, 10),
+                        })
+                      }
+                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                    />
+                    {renderLimitHelp("durationHours")}
                   </div>
-                </form>
-              )}
-            </div>
-          )}
-          {activeTab === "payment_settings" && isSuperAdmin && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="border-b border-stone-100 pb-3">
-                <h2 className="font-bold text-stone-900 text-sm">
-                  {t("admin.paymentSettings.title")}
-                </h2>
-                <p className="text-xs text-stone-500">
-                  {t("admin.paymentSettings.subtitle")}
-                </p>
-              </div>
 
-              <form
-                onSubmit={handleSavePaymentSettings}
-                className="space-y-4 text-xs"
-              >
-                <div>
-                  <label className="block font-bold text-stone-700 mb-1">
-                    {t("admin.paymentSettings.numberLabel")}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={t("admin.paymentSettings.numberPlaceholder")}
-                    value={paymentSettingsState.instapayNumber}
-                    onChange={(e) =>
-                      setPaymentSettingsState({
-                        ...paymentSettingsState,
-                        instapayNumber: e.target.value,
-                      })
-                    }
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                  />
-                </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-concurrent-per-type"
+                        className="font-bold text-stone-700"
+                      >
+                        {t("admin.hardLimits.maxConcurrentPerType")}
+                      </label>
+                      {renderLimitHelpToggle("concurrentPerType")}
+                    </div>
+                    <input
+                      id="input-max-concurrent-per-type"
+                      type="number"
+                      min="1"
+                      max="5"
+                      value={hardLimitsState.maxConcurrentPerType ?? ""}
+                      onChange={(e) =>
+                        setHardLimitsState({
+                          ...hardLimitsState,
+                          maxConcurrentPerType:
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value, 10),
+                        })
+                      }
+                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                    />
+                    {renderLimitHelp("concurrentPerType")}
+                  </div>
 
-                <div>
-                  <label className="block font-bold text-stone-700 mb-1">
-                    {t("admin.paymentSettings.linkLabel")}
-                  </label>
-                  <input
-                    type="url"
-                    placeholder={t("admin.paymentSettings.linkPlaceholder")}
-                    value={paymentSettingsState.instapayLink}
-                    onChange={(e) =>
-                      setPaymentSettingsState({
-                        ...paymentSettingsState,
-                        instapayLink: e.target.value,
-                      })
-                    }
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                  />
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-series-occurrences"
+                        className="font-bold text-stone-700"
+                      >
+                        {t("admin.hardLimits.maxSeriesOccurrences")}
+                      </label>
+                      {renderLimitHelpToggle("seriesOccurrences")}
+                    </div>
+                    <input
+                      id="input-max-series-occurrences"
+                      type="number"
+                      min="2"
+                      max="20"
+                      value={hardLimitsState.maxSeriesOccurrences ?? ""}
+                      onChange={(e) =>
+                        setHardLimitsState({
+                          ...hardLimitsState,
+                          maxSeriesOccurrences:
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value, 10),
+                        })
+                      }
+                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                    />
+                    {renderLimitHelp("seriesOccurrences")}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <label
+                        htmlFor="input-max-submissions-per-hour"
+                        className="font-bold text-stone-700"
+                      >
+                        {t("admin.hardLimits.maxSubmissionsPerHour")}
+                      </label>
+                      {renderLimitHelpToggle("submissionsPerHour")}
+                    </div>
+                    <input
+                      id="input-max-submissions-per-hour"
+                      type="number"
+                      min="5"
+                      max="50"
+                      value={hardLimitsState.maxSubmissionsPerHour ?? ""}
+                      onChange={(e) =>
+                        setHardLimitsState({
+                          ...hardLimitsState,
+                          maxSubmissionsPerHour:
+                            e.target.value === ""
+                              ? ""
+                              : parseInt(e.target.value, 10),
+                        })
+                      }
+                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900"
+                    />
+                    {renderLimitHelp("submissionsPerHour")}
+                  </div>
                 </div>
 
                 <div className="pt-3 border-t border-stone-100 flex justify-end">
                   <button
                     type="submit"
-                    disabled={savingPayment}
+                    disabled={savingLimits}
                     className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
                   >
-                    {savingPayment
-                      ? t("admin.paymentSettings.saving")
-                      : t("admin.paymentSettings.saveButton")}
+                    {savingLimits
+                      ? t("admin.hardLimits.saving")
+                      : t("admin.hardLimits.saveButton")}
                   </button>
                 </div>
               </form>
+            )}
+          </div>
+        )}
+        {activeTab === "payment_settings" && isSuperAdmin && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="border-b border-stone-100 pb-3">
+              <h2 className="font-bold text-stone-900 text-sm">
+                {t("admin.paymentSettings.title")}
+              </h2>
+              <p className="text-xs text-stone-500">
+                {t("admin.paymentSettings.subtitle")}
+              </p>
             </div>
-          )}
 
-          {activeTab === "notification_settings" && isSuperAdmin && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="border-b border-stone-100 pb-3">
-                <h2 className="font-bold text-stone-900 text-sm">
-                  {t("admin.notificationSettings.title")}
-                </h2>
-                <p className="text-xs text-stone-500">
-                  {t("admin.notificationSettings.subtitle")}
-                </p>
+            <form
+              onSubmit={handleSavePaymentSettings}
+              className="space-y-4 text-xs"
+            >
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">
+                  {t("admin.paymentSettings.numberLabel")}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={t("admin.paymentSettings.numberPlaceholder")}
+                  value={paymentSettingsState.instapayNumber}
+                  onChange={(e) =>
+                    setPaymentSettingsState({
+                      ...paymentSettingsState,
+                      instapayNumber: e.target.value,
+                    })
+                  }
+                  className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                />
               </div>
 
-              <form
-                onSubmit={handleSaveNotificationSettings}
-                className="space-y-3"
-              >
-                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                  <div className="pr-4">
-                    <div className="font-bold text-stone-800 text-xs">
-                      {t("admin.notificationSettings.approvalEmailsTitle")}
-                    </div>
-                    <div className="text-[11px] text-stone-500 mt-0.5">
-                      {t("admin.notificationSettings.approvalEmailsDesc")}
-                    </div>
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">
+                  {t("admin.paymentSettings.linkLabel")}
+                </label>
+                <input
+                  type="url"
+                  placeholder={t("admin.paymentSettings.linkPlaceholder")}
+                  value={paymentSettingsState.instapayLink}
+                  onChange={(e) =>
+                    setPaymentSettingsState({
+                      ...paymentSettingsState,
+                      instapayLink: e.target.value,
+                    })
+                  }
+                  className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-stone-100 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingPayment}
+                  className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                >
+                  {savingPayment
+                    ? t("admin.paymentSettings.saving")
+                    : t("admin.paymentSettings.saveButton")}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {activeTab === "notification_settings" && isSuperAdmin && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+            <div className="border-b border-stone-100 pb-3">
+              <h2 className="font-bold text-stone-900 text-sm">
+                {t("admin.notificationSettings.title")}
+              </h2>
+              <p className="text-xs text-stone-500">
+                {t("admin.notificationSettings.subtitle")}
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleSaveNotificationSettings}
+              className="space-y-3"
+            >
+              <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                <div className="pr-4">
+                  <div className="font-bold text-stone-800 text-xs">
+                    {t("admin.notificationSettings.approvalEmailsTitle")}
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Toggle account approval emails"
-                    onClick={() =>
-                      setNotificationSettingsState({
-                        ...notificationSettingsState,
-                        muteAccountApprovalEmails:
-                          !notificationSettingsState.muteAccountApprovalEmails,
-                      })
-                    }
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                  <div className="text-[11px] text-stone-500 mt-0.5">
+                    {t("admin.notificationSettings.approvalEmailsDesc")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Toggle account approval emails"
+                  onClick={() =>
+                    setNotificationSettingsState({
+                      ...notificationSettingsState,
+                      muteAccountApprovalEmails:
+                        !notificationSettingsState.muteAccountApprovalEmails,
+                    })
+                  }
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                    notificationSettingsState.muteAccountApprovalEmails
+                      ? "bg-stone-300"
+                      : "bg-amber-700"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
                       notificationSettingsState.muteAccountApprovalEmails
-                        ? "bg-stone-300"
-                        : "bg-amber-700"
+                        ? "translate-x-1"
+                        : "translate-x-6"
                     }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                        notificationSettingsState.muteAccountApprovalEmails
-                          ? "translate-x-1"
-                          : "translate-x-6"
-                      }`}
-                    />
-                  </button>
-                </div>
+                  />
+                </button>
+              </div>
 
-                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                  <div className="pr-4">
-                    <div className="font-bold text-stone-800 text-xs">
-                      {t("admin.notificationSettings.requestEmailsTitle")}
-                    </div>
-                    <div className="text-[11px] text-stone-500 mt-0.5">
-                      {t("admin.notificationSettings.requestEmailsDesc")}
-                    </div>
+              <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                <div className="pr-4">
+                  <div className="font-bold text-stone-800 text-xs">
+                    {t("admin.notificationSettings.requestEmailsTitle")}
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Toggle reservation request emails"
-                    onClick={() =>
-                      setNotificationSettingsState({
-                        ...notificationSettingsState,
-                        muteReservationRequestEmails:
-                          !notificationSettingsState.muteReservationRequestEmails,
-                      })
-                    }
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                  <div className="text-[11px] text-stone-500 mt-0.5">
+                    {t("admin.notificationSettings.requestEmailsDesc")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Toggle reservation request emails"
+                  onClick={() =>
+                    setNotificationSettingsState({
+                      ...notificationSettingsState,
+                      muteReservationRequestEmails:
+                        !notificationSettingsState.muteReservationRequestEmails,
+                    })
+                  }
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                    notificationSettingsState.muteReservationRequestEmails
+                      ? "bg-stone-300"
+                      : "bg-amber-700"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
                       notificationSettingsState.muteReservationRequestEmails
-                        ? "bg-stone-300"
-                        : "bg-amber-700"
+                        ? "translate-x-1"
+                        : "translate-x-6"
                     }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                        notificationSettingsState.muteReservationRequestEmails
-                          ? "translate-x-1"
-                          : "translate-x-6"
-                      }`}
-                    />
-                  </button>
-                </div>
+                  />
+                </button>
+              </div>
 
-                <div className="pt-3 border-t border-stone-100 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={savingNotificationSettings}
-                    className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
-                  >
-                    {savingNotificationSettings
-                      ? t("admin.notificationSettings.saving")
-                      : t("admin.notificationSettings.saveButton")}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-        </main>
-      </div>
+              <div className="pt-3 border-t border-stone-100 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingNotificationSettings}
+                  className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                >
+                  {savingNotificationSettings
+                    ? t("admin.notificationSettings.saving")
+                    : t("admin.notificationSettings.saveButton")}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </main>
       {/* =============================================================
           MODAL 1: Add / Edit Instrument
           ============================================================= */}
@@ -5822,169 +5625,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           onDeleteUser={handleDeleteUser}
         />
       )}
-      {/* =============================================================
-    MOBILE NAVIGATION — Bottom Sheet
-    ============================================================= */}
-      {mobileNavOpen && (
-        <div
-          className="fixed inset-0 z-[90] lg:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Admin navigation"
-        >
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
-            onClick={() => setMobileNavOpen(false)}
-            aria-hidden="true"
-          />
-
-          {/* Sheet */}
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-200 pb-[env(safe-area-inset-bottom)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Drag handle + header */}
-            <div className="sticky top-0 bg-white/95 backdrop-blur-xs pt-2 pb-2 px-4 border-b border-stone-100 z-10">
-              <div className="w-12 h-1.5 bg-stone-300 rounded-full mx-auto mb-2" />
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-stone-900 truncate">
-                    {isSuperAdmin
-                      ? t("admin.consoleTitle")
-                      : t("admin.adminTitle")}
-                  </div>
-                  <div className="text-[11px] text-stone-500 truncate">
-                    {operationsTabs.find((t2) => t2.id === activeTab)?.label ||
-                      superAdminTabs.find((t2) => t2.id === activeTab)?.label ||
-                      t("admin.consoleSubtitle")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileNavOpen(false)}
-                  className="shrink-0 p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer"
-                  aria-label="Close navigation"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Operations & Management */}
-            <div className="px-2 pt-2 pb-1.5">
-              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                {t("admin.sidebar.operationsSection")}
-              </div>
-              <nav className="space-y-0">
-                {" "}
-                {operationsTabs.map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => handleMobileTabSelect(tab.id)}
-                      className={`relative w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                        isActive
-                          ? "bg-amber-100 text-amber-950 border border-amber-300"
-                          : "text-stone-700 hover:bg-amber-50/60"
-                      }`}
-                    >
-                      {isActive && (
-                        <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-amber-700" />
-                      )}
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                            isActive
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-stone-100 text-stone-600"
-                          }`}
-                        >
-                          <tab.Icon className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="truncate">{tab.label}</span>
-                      </div>
-                      {tab.count > 0 && (
-                        <span
-                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                            isActive
-                              ? "bg-amber-100 text-amber-900 border-amber-200"
-                              : "bg-stone-100 text-stone-700 border-stone-200"
-                          }`}
-                        >
-                          {tab.count}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-
-            {/* Super Admin Tools */}
-            {isSuperAdmin && (
-              <div className="px-2 pt-3 pb-1.5 mt-1 border-t border-stone-100">
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-amber-700" />
-                  <span>{t("admin.sidebar.superAdminSection")}</span>
-                </div>
-                <nav className="space-y-0">
-                  {" "}
-                  {superAdminTabs.map((tab) => {
-                    const isActive = activeTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => handleMobileTabSelect(tab.id)}
-                        className={`relative w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                          isActive
-                            ? "bg-amber-100 text-amber-950 border border-amber-300"
-                            : "text-stone-700 hover:bg-amber-50/60"
-                        }`}
-                      >
-                        {isActive && (
-                          <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-amber-700" />
-                        )}
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                              isActive
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-stone-100 text-stone-600"
-                            }`}
-                          >
-                            <tab.Icon className="w-3.5 h-3.5" />
-                          </div>
-                          <span className="truncate">{tab.label}</span>
-                        </div>
-                        {tab.count > 0 && (
-                          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-200/60 text-amber-950 border border-amber-300/60">
-                            {tab.count}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-            )}
-
-            {/* Close */}
-            <div className="px-3 pt-1 pb-3">
-              <button
-                type="button"
-                onClick={() => setMobileNavOpen(false)}
-                className="w-full py-2 rounded-xl text-[13px] font-bold text-stone-500 hover:text-stone-800 hover:bg-stone-50 transition cursor-pointer"
-              >
-                {t("common.close") || "Close"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}{" "}
     </div>
   );
 };
