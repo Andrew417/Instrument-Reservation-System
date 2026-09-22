@@ -455,19 +455,35 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               />
             </div>
 
-            {/* 3. Date Selection */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-stone-700">
-                {t("editReservation.dateLabel")}
-              </label>
-              <input
-                id="input-edit-reservation-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
-                required
-              />
+            {/* 3. Date (left half) + Duration preview (right half) — same grid as below */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="input-edit-reservation-date"
+                  className="block text-xs font-bold text-stone-700"
+                >
+                  {t("editReservation.dateLabel")}
+                </label>
+                <input
+                  id="input-edit-reservation-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full bg-stone-50 border border-stone-300 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                  required
+                />
+              </div>
+
+              {/* Preview chip sits in the same cell width as the Duration dropdown below */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-stone-700 opacity-0 select-none">
+                  &nbsp;
+                </label>
+                <div className="w-full h-[42px] flex items-center justify-center text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-2xl px-2 whitespace-nowrap">
+                  {formatHhmmTo12Hour(startTime)} →{" "}
+                  {formatHhmmTo12Hour(endTimeStr)}
+                </div>
+              </div>
             </div>
 
             {/* 4. Start Time & Duration — same row, both dropdowns */}
@@ -531,23 +547,6 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Live end-time preview */}
-            <div className="flex justify-center">
-              <span className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                {isAr ? (
-                  <>
-                    {formatHhmmTo12Hour(startTime)} ←{" "}
-                    {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
-                  </>
-                ) : (
-                  <>
-                    {formatHhmmTo12Hour(startTime)} →{" "}
-                    {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
-                  </>
-                )}
-              </span>
             </div>
 
             {/* 5. Usage Type Toggle */}
