@@ -652,7 +652,8 @@ const UserPortalMain: React.FC = () => {
       {/* ✅ Mobile Bottom Navigation Bar — polished */}
       <nav
         id="mobile-bottom-nav"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-[70] bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] pb-[env(safe-area-inset-bottom)]"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-[75] bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] pb-[env(safe-area-inset-bottom)]"
+        style={{ transform: "translateZ(0)" }}
         dir="ltr"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
@@ -829,10 +830,9 @@ const UserPortalMain: React.FC = () => {
         </div>
       </nav>
 
-      {/* ✅ Admin Left Sidebar — only visible in Admin Portal view */}
+      {/* ✅ Admin Left Sidebar — desktop always visible in Admin Portal; mobile only when opened */}
       {isAdminOrSuperAdmin && currentView === "admin_portal" && (
         <>
-          {" "}
           {/* Backdrop (mobile only) */}
           {isAdminSidebarOpen && (
             <div
@@ -841,10 +841,13 @@ const UserPortalMain: React.FC = () => {
               aria-hidden="true"
             />
           )}
-          {/* Sidebar panel */}
+
+          {/* Sidebar panel — desktop always visible; on mobile only mounted when open to prevent layout shift */}
           <aside
-            className={`fixed top-0 bottom-0 left-0 z-[80] w-72 max-w-[85vw] bg-white border-r border-stone-200 shadow-2xl flex flex-col transition-transform duration-200 lg:translate-x-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
-              isAdminSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            className={`fixed top-0 left-0 z-[80] w-72 max-w-[85vw] bg-white border-r border-stone-200 shadow-2xl flex-col h-[100dvh] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-transform duration-200 lg:flex lg:translate-x-0 ${
+              isAdminSidebarOpen
+                ? "flex translate-x-0"
+                : "hidden lg:flex -translate-x-full lg:translate-x-0"
             }`}
             aria-label="Admin navigation"
           >
