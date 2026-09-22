@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "Church Instruments Schedule",
+    "tapToView": "Tap to view",
     "appSubtitle": "St. Mark Instrument Reservations",
     "loading": "Loading...",
     "next": "Next:",

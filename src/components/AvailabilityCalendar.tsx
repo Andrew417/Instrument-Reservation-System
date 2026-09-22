@@ -842,12 +842,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                           onClick={() => onSelectInstrument(inst)}
                           className={`p-3 w-48 min-w-[180px] max-w-[220px] ${
                             isAr ? "border-l" : "border-r"
-                          } border-stone-200 align-top hover:bg-amber-50/60 active:bg-amber-100/60 transition-colors cursor-pointer group select-none touch-manipulation`}
-                          title="Tap to view instrument profile & full schedule"
+                          } border-stone-200 align-top hover:bg-amber-50 active:bg-amber-100 transition-all cursor-pointer group select-none touch-manipulation`}
+                          title={
+                            t("calendar.tapToViewProfile") ||
+                            "Tap to view instrument profile & full schedule"
+                          }
                         >
                           <div className="flex flex-col gap-1.5">
+                            {/* Header row: photo + name + chevron */}
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-stone-100 border border-stone-200 text-stone-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                              <div className="w-8 h-8 rounded-lg bg-stone-100 border border-stone-200 text-stone-700 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs group-hover:bg-amber-100 group-hover:border-amber-300 transition">
                                 {inst.photoUrl ? (
                                   <img
                                     src={inst.photoUrl}
@@ -856,19 +860,20 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <Music2 className="w-4 h-4 text-stone-400" />
+                                  <Music2 className="w-4 h-4 text-stone-400 group-hover:text-amber-700 transition" />
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-1">
-                                  <span className="text-xs font-bold text-stone-900 group-hover:text-amber-900 transition truncate">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-xs font-bold text-stone-900 group-hover:text-amber-900 transition truncate underline decoration-dotted decoration-amber-400/70 underline-offset-2">
                                     {inst.name}
                                   </span>
-                                  <Info className="w-3.5 h-3.5 text-stone-400 group-hover:text-amber-800 shrink-0 transition" />
+                                  <ChevronRight className="w-3.5 h-3.5 text-amber-600 group-hover:text-amber-800 group-hover:translate-x-0.5 shrink-0 transition-all rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
                                 </div>
                               </div>
                             </div>
 
+                            {/* Booking Mode + Fee chips — unchanged */}
                             <div className="flex flex-wrap items-center gap-1.5">
                               {/* Booking Mode Chip */}
                               {isAdminOrSuperAdmin ? (
@@ -931,22 +936,6 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                     {t("common.egp")} {inst.outsideFeePerDay}
                                     {t("common.perDay")}
                                   </span>
-                                </span>
-                              )}
-
-                              {reservations.some(
-                                (r) =>
-                                  r.instrumentId === inst.id && r.isFullDay,
-                              ) && (
-                                <span
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
-                                  title={
-                                    t("calendar.fullDayBookedTooltip") ||
-                                    "Instrument is booked for the full day"
-                                  }
-                                >
-                                  <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                                  <span>{t("common.fullDay")}</span>
                                 </span>
                               )}
                             </div>
@@ -1041,13 +1030,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   >
                                     <div className="flex flex-col items-center justify-center leading-tight w-full overflow-hidden text-center">
                                       <span
-                                        className="font-bold truncate max-w-full text-[10px] flex items-center gap-1"
+                                        className="font-bold truncate max-w-full text-[10px]"
                                         style={{ color: colorTheme.nameHex }}
                                         title={reservantName}
                                       >
-                                        {slotRes?.isFullDay && (
-                                          <Sun className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                                        )}
                                         <span className="truncate">
                                           {reservantName}
                                         </span>
@@ -1065,8 +1051,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               );
                             }
 
-                            // Regular users: booked slot labels
-                            const isSlotFullDay = Boolean(slotRes?.isFullDay);
+                            // Regular users: single "Booked" label for every booked slot
                             return (
                               <td
                                 key={`${inst.id}-${slotHhmm}`}
@@ -1075,29 +1060,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   isAr ? "border-l" : "border-r"
                                 } border-stone-200 text-center select-none`}
                               >
-                                {isSlotFullDay ? (
-                                  <div
-                                    className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-stone-900 text-amber-300 border border-amber-500/40 select-none gap-1"
-                                    title={
-                                      t("calendar.fullDayReserved") ||
-                                      "Full Day Reserved"
-                                    }
-                                  >
-                                    <Sun className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                    <span className="tracking-wider uppercase text-[9px] font-bold text-amber-200">
-                                      {t("common.fullDay")}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div
-                                    className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-black text-white border border-black select-none"
-                                    title={t("common.booked")}
-                                  >
-                                    <span className="tracking-wider uppercase text-[9px] font-bold text-white">
-                                      {t("common.booked")}
-                                    </span>
-                                  </div>
-                                )}
+                                <div
+                                  className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-bold shadow-2xs bg-black text-white border border-black select-none"
+                                  title={t("common.booked")}
+                                >
+                                  <span className="tracking-wider uppercase text-[9px] font-bold text-white">
+                                    {t("common.booked")}
+                                  </span>
+                                </div>
                               </td>
                             );
                           }
