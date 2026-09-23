@@ -833,6 +833,10 @@
     "tabTrustedStatus": "الأعضاء الموثوقين وسجل التدقيق",
     "tabNotificationSettings": "إعدادات الإشعارات",
     "review": {
+      "selectModeBtn": "تحديد",
+      "selectModeTooltip": "ادخل وضع التحديد لإدارة الحجوزات بشكل جماعي",
+      "exitSelection": "تم",
+      "selectedCount": "تم تحديد {{count}} من {{total}}",
       "pendingTab": "قيد المراجعة ({{count}})",
       "refreshTooltip": "تحديث الحجوزات",
       "searchLabel": "بحث عن عضو / خدمة",

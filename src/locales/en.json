@@ -835,6 +835,10 @@
     "tabTrustedStatus": "Trusted & Audit Trail",
     "tabNotificationSettings": "Notification Settings",
     "review": {
+      "selectModeBtn": "Select",
+      "selectModeTooltip": "Enter selection mode to bulk-manage reservations",
+      "exitSelection": "Done",
+      "selectedCount": "{{count}} of {{total}} selected",
       "pendingTab": "Pending ({{count}})",
       "refreshTooltip": "Refresh reservations",
       "searchLabel": "Search Member / Service",

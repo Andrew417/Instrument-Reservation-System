@@ -60,10 +60,14 @@ import {
   EyeOff,
   Download,
   ExternalLink,
+  CheckSquare,
+  DollarSign,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { HandoverSheetModal } from "./HandoverSheetModal";
 import { HandoverExportFormat } from "../lib/handover-export";
 import { UserDetailModal } from "./UserDetailModal";
+import { getStatusColor, getReservationTypeColor } from "../lib/status-colors";
 
 // Add this after the imports and before the component definition
 const sortInstrumentsByStatus = (instruments: any[]) => {
@@ -186,7 +190,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     useState<boolean>(false);
   const [filterQuickTab, setFilterQuickTab] = useState<
     "all" | "today" | "pending"
-  >("pending");
+  >("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterInstrument, setFilterInstrument] = useState<string>("all");
   const [filterSearch, setFilterSearch] = useState<string>("");
@@ -442,6 +446,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [selectedReservationIds, setSelectedReservationIds] = useState<
     string[]
   >([]);
+  const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
 
   // Cancel Reason Modal (bulk cancel — preset dropdown + optional custom text)
   const [cancelReasonModal, setCancelReasonModal] = useState<{
@@ -854,9 +859,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Trigger loads on tab switch or filter changes
+  // When the quick tab changes, realign the status dropdown to a sensible default
   useEffect(() => {
-    setSelectedReservationIds([]);
+    if (filterQuickTab === "pending") {
+      setFilterStatus("pending");
+    } else if (filterQuickTab === "all") {
+      setFilterStatus("all");
+    } else if (filterQuickTab === "today") {
+      setFilterStatus("all");
+    }
+  }, [filterQuickTab]);
+
+  // Trigger loads on tab switch or filter changes
+  const firstLoadRef = useRef(true);
+  useEffect(() => {
+    if (!firstLoadRef.current) {
+      setSelectedReservationIds([]);
+      setIsSelectionMode(false);
+    }
+    firstLoadRef.current = false;
     fetchStats();
     if (activeTab === "dashboard") {
       fetchTodaysReservations();
@@ -894,6 +915,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     filterEndDate,
   ]);
 
+  // Lock iOS rubber-band when the fixed bottom bar is visible
+  useEffect(() => {
+    if (!isSelectionMode) return;
+    const prev = document.body.style.overscrollBehavior;
+    document.body.style.overscrollBehavior = "contain";
+    return () => {
+      document.body.style.overscrollBehavior = prev;
+    };
+  }, [isSelectionMode]);
+
+  // Selection handlers for bulk reservation actions
+  const enterSelectionMode = () => {
+    setIsSelectionMode(true);
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedReservationIds([]);
+  };
+
   // ESC-to-close for all secondary modals
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -902,12 +943,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       else if (promoteModal) setPromoteModal(null);
       else if (rejectModal) setRejectModal(null);
       else if (cancelReasonModal) setCancelReasonModal(null);
+      else if (isSelectionMode) exitSelectionMode();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [confirmModal, promoteModal, rejectModal, cancelReasonModal]);
+  }, [
+    confirmModal,
+    promoteModal,
+    rejectModal,
+    cancelReasonModal,
+    isSelectionMode,
+  ]);
 
-  // Selection handlers for bulk reservation actions
   const handleToggleSelectReservation = (id: string) => {
     setSelectedReservationIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
@@ -972,6 +1019,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         }
         showNotice(msg, "success");
         setSelectedReservationIds([]);
+        setIsSelectionMode(false);
         setCancelReasonModal(null);
         await fetchReservations();
         await fetchStats();
@@ -1026,6 +1074,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               "success",
             );
             setSelectedReservationIds([]);
+            setIsSelectionMode(false);
             await fetchReservations();
             await fetchStats();
           } else {
@@ -1854,7 +1903,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   }, []);
 
   return (
-    <div id="admin-portal-root" className="space-y-4">
+    <div
+      id="admin-portal-root"
+      className={`space-y-4 ${
+        activeTab === "review" && isSelectionMode
+          ? "pb-[calc(12rem+env(safe-area-inset-bottom,0px))] sm:pb-40"
+          : ""
+      }`}
+    >
       {/* Feedback Banner */}
       {feedback && (
         <div
@@ -2136,25 +2192,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </div>
                       </div>
                       <span
-                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          r.status === "approved"
-                            ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                            : r.status === "pending"
-                              ? "bg-amber-50 text-amber-800 border border-amber-200"
-                              : r.status === "rejected"
-                                ? "bg-red-50 text-red-800 border border-red-200"
-                                : r.status === "auto_rejected"
-                                  ? "bg-orange-50 text-orange-800 border border-orange-200"
-                                  : r.status === "expired"
-                                    ? "bg-stone-100 text-stone-500 border border-stone-300"
-                                    : r.status === "cancelled"
-                                      ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                      : r.status === "ongoing"
-                                        ? "bg-sky-50 text-sky-800 border border-sky-200"
-                                        : r.status === "completed"
-                                          ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                          : "bg-stone-100 text-stone-700"
-                        }`}
+                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                          r.status,
+                        )}`}
                       >
                         {translateStatus(r.status)}
                       </span>
@@ -2174,7 +2214,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1">
                 <button
-                  onClick={() => setFilterQuickTab("pending")}
+                  onClick={() => {
+                    setFilterQuickTab("pending");
+                    setFilterStatus("pending");
+                  }}
                   className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                     filterQuickTab === "pending"
                       ? "bg-amber-800 text-white shadow-xs"
@@ -2186,7 +2229,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   })}
                 </button>
                 <button
-                  onClick={() => setFilterQuickTab("all")}
+                  onClick={() => {
+                    setFilterQuickTab("all");
+                    setFilterStatus("all");
+                  }}
                   className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                     filterQuickTab === "all"
                       ? "bg-amber-800 text-white shadow-xs"
@@ -2198,6 +2244,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {!isSelectionMode &&
+                  !loadingReservations &&
+                  reservations.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={enterSelectionMode}
+                      className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                      title={t("admin.review.selectModeTooltip")}
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span>{t("admin.review.selectModeBtn")}</span>
+                    </button>
+                  )}
                 <button
                   onClick={fetchReservations}
                   className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
@@ -2267,121 +2326,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             </div>
 
-            {/* Contextual Bulk Actions Bar */}
-            {selectedReservationIds.length > 0 && (
-              <div
-                id="bulk-actions-bar"
-                className="sticky top-2 z-10 bg-stone-900 text-white rounded-2xl p-3 px-4 shadow-lg flex flex-wrap items-center justify-between gap-3 border border-stone-800"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  <span className="text-xs font-bold">
-                    {selectedReservationIds.length}{" "}
-                    {t(
-                      selectedReservationIds.length === 1
-                        ? "admin.review.reservationSingular"
-                        : "admin.review.reservationPlural",
-                    )}{" "}
-                    {t("admin.review.selectedSuffix")}
-                  </span>
-                  {selectedReservationIds.length < reservations.length && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allIds = Array.from(
-                          new Set([
-                            ...selectedReservationIds,
-                            ...reservations.map((r) => r.id),
-                          ]),
-                        );
-                        setSelectedReservationIds(allIds);
-                      }}
-                      className="text-[11px] text-amber-300 hover:text-amber-200 underline cursor-pointer ml-1"
-                    >
-                      {t("admin.review.selectAllVisible", {
-                        count: reservations.length,
-                      })}{" "}
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Cancel Selected — Available to all admins */}
-                  <button
-                    id="btn-bulk-cancel-selected"
-                    type="button"
-                    onClick={handleTriggerBulkCancel}
-                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    title="Cancel selected reservations"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    <span>{t("admin.review.cancelSelected")}</span>
-                  </button>
-
-                  {/* Delete Selected — Super Admin ONLY */}
-                  {isSuperAdmin && (
-                    <button
-                      id="btn-bulk-delete-selected"
-                      type="button"
-                      onClick={handleTriggerBulkDelete}
-                      className="px-3 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      title="Permanently delete selected reservations from database"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>{t("admin.review.deleteSelected")}</span>
-                    </button>
-                  )}
-
-                  {/* Clear Selection */}
-                  <button
-                    id="btn-clear-selection"
-                    type="button"
-                    onClick={() => setSelectedReservationIds([])}
-                    className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white text-xs font-medium transition cursor-pointer border border-stone-700"
-                    title="Clear selection"
-                  >
-                    <span>{t("admin.review.clearSelection")}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Select-all bar (cards replace the table) */}
-            {reservations.length > 0 && (
-              <div className="flex items-center gap-2 px-1">
-                <input
-                  id="select-all-reservations-checkbox"
-                  type="checkbox"
-                  aria-label="Select all visible reservations"
-                  checked={reservations.every((r) =>
-                    selectedReservationIds.includes(r.id),
-                  )}
-                  ref={(el) => {
-                    if (el) {
-                      const someSelected =
-                        reservations.some((r) =>
-                          selectedReservationIds.includes(r.id),
-                        ) &&
-                        !reservations.every((r) =>
-                          selectedReservationIds.includes(r.id),
-                        );
-                      el.indeterminate = someSelected;
-                    }
-                  }}
-                  onChange={handleToggleSelectAllReservations}
-                  className="w-5 h-5 sm:w-4 sm:h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
-                />
-                <label
-                  htmlFor="select-all-reservations-checkbox"
-                  className="text-xs sm:text-[11px] font-bold text-stone-500 cursor-pointer py-2 -my-2"
-                >
-                  {t("admin.review.selectAllVisible", {
-                    count: reservations.length,
-                  })}
-                </label>
-              </div>
-            )}
-
             {/* Cards */}
             <div className="mt-2">
               {loadingReservations ? (
@@ -2401,36 +2345,65 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     return (
                       <div
                         key={r.id}
+                        onClick={
+                          isSelectionMode
+                            ? () => handleToggleSelectReservation(r.id)
+                            : undefined
+                        }
                         className={`rounded-2xl border shadow-2xs transition overflow-hidden ${
+                          isSelectionMode ? "cursor-pointer" : ""
+                        } ${
                           isSelected
                             ? "border-amber-300 bg-amber-50/40"
                             : "border-stone-200 bg-white hover:border-amber-200"
                         }`}
                       >
-                        <div className="p-3 sm:p-4 flex items-start gap-1 sm:gap-3">
-                          <input
-                            id={`select-reservation-${r.id}`}
-                            type="checkbox"
-                            aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
-                            checked={isSelected}
-                            onChange={() => handleToggleSelectReservation(r.id)}
-                            className="mt-1 w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer shrink-0"
-                          />
+                        <div className="p-3 sm:p-4 flex items-start gap-3">
+                          {isSelectionMode && (
+                            <span
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5 -ml-2 p-2.5 flex items-center justify-center shrink-0"
+                            >
+                              <input
+                                id={`select-reservation-${r.id}`}
+                                type="checkbox"
+                                aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
+                                checked={isSelected}
+                                onChange={() =>
+                                  handleToggleSelectReservation(r.id)
+                                }
+                                className="w-5 h-5 sm:w-4 sm:h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                              />
+                            </span>
+                          )}
 
                           <div className="min-w-0 flex-1 space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <div className="font-bold text-stone-900 text-sm truncate">
                                   {r.service_name || "Reservation"}
                                 </div>
                                 {r.user_id ? (
                                   <button
                                     type="button"
-                                    onClick={() => openUserProfile(r.user_id)}
-                                    className="text-xs font-medium text-stone-600 hover:text-amber-900 hover:underline cursor-pointer flex items-center gap-1 group"
+                                    onClick={(e) => {
+                                      if (isSelectionMode) {
+                                        e.stopPropagation();
+                                        handleToggleSelectReservation(r.id);
+                                        return;
+                                      }
+                                      openUserProfile(r.user_id);
+                                    }}
+                                    className={`text-xs font-medium flex items-center gap-1 group ${
+                                      isSelectionMode
+                                        ? "text-stone-600 cursor-pointer"
+                                        : "text-stone-600 hover:text-amber-900 hover:underline cursor-pointer"
+                                    }`}
                                   >
                                     <span>{r.user_name || "Member"}</span>
-                                    <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
+                                    {!isSelectionMode && (
+                                      <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
+                                    )}
                                   </button>
                                 ) : (
                                   <div className="text-xs font-medium text-stone-600">
@@ -2440,25 +2413,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </div>
 
                               <span
-                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${
-                                  r.status === "approved"
-                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                    : r.status === "pending"
-                                      ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                      : r.status === "rejected"
-                                        ? "bg-red-50 text-red-800 border border-red-200"
-                                        : r.status === "auto_rejected"
-                                          ? "bg-orange-50 text-orange-800 border border-orange-200"
-                                          : r.status === "expired"
-                                            ? "bg-stone-100 text-stone-500 border border-stone-300"
-                                            : r.status === "cancelled"
-                                              ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                              : r.status === "ongoing"
-                                                ? "bg-sky-50 text-sky-800 border border-sky-200"
-                                                : r.status === "completed"
-                                                  ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                                  : "bg-stone-100 text-stone-700"
-                                }`}
+                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(
+                                  r.status,
+                                )}`}
                               >
                                 {translateStatus(r.status)}
                               </span>
@@ -2510,12 +2467,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 </span>
                               )}
                               <span
-                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  r.reservation_type === "outside_church"
-                                    ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                    : "bg-stone-100 text-stone-700"
-                                }`}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${getReservationTypeColor(
+                                  r.reservation_type || "in_church",
+                                )}`}
                               >
+                                {r.reservation_type === "outside_church" && (
+                                  <DollarSign className="w-3 h-3 shrink-0" />
+                                )}
                                 {r.reservation_type === "outside_church"
                                   ? t("admin.review.outsideBadge")
                                   : t("admin.review.inChurchBadge")}
@@ -2535,58 +2493,60 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           </div>
                         </div>
 
-                        <div className="px-3 sm:px-4 pb-3 pt-2 sm:pb-3.5 sm:pt-1 flex items-stretch sm:items-center flex-wrap gap-2 sm:gap-1.5 bg-stone-50/70 border-t border-stone-100">
-                          {isPending && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(r.id)}
-                                className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1"
-                                title="Approve request"
-                              >
-                                <Check className="w-3 h-3" />
-                                <span>{t("admin.review.approveBtn")}</span>
-                              </button>
-                              <button
-                                onClick={() => openRejectModal(r)}
-                                className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1"
-                                title="Reject request"
-                              >
-                                <X className="w-3 h-3" />
-                                <span>{t("admin.review.rejectBtn")}</span>
-                              </button>
-                            </>
-                          )}
+                        {!isSelectionMode && (
+                          <div className="px-3 sm:px-4 pb-3 pt-2 sm:pb-3.5 sm:pt-1 flex items-stretch sm:items-center flex-wrap gap-2 sm:gap-1.5 bg-stone-50/70 border-t border-stone-100">
+                            {isPending && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(r.id)}
+                                  className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1"
+                                  title="Approve request"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  <span>{t("admin.review.approveBtn")}</span>
+                                </button>
+                                <button
+                                  onClick={() => openRejectModal(r)}
+                                  className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1"
+                                  title="Reject request"
+                                >
+                                  <X className="w-3 h-3" />
+                                  <span>{t("admin.review.rejectBtn")}</span>
+                                </button>
+                              </>
+                            )}
 
-                          {r.status === "completed" &&
-                            (r.is_no_show ? (
-                              <button
-                                onClick={() => handleUnmarkNoShow(r.id)}
-                                className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center justify-center gap-1 transition cursor-pointer"
-                                title={t("common.unmarkNoShow")}
-                              >
-                                <span>{t("common.unmarkNoShow")}</span>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleMarkNoShow(r.id)}
-                                className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                title={t("common.markNoShow")}
-                              >
-                                <span>{t("common.markNoShow")}</span>
-                              </button>
-                            ))}
+                            {r.status === "completed" &&
+                              (r.is_no_show ? (
+                                <button
+                                  onClick={() => handleUnmarkNoShow(r.id)}
+                                  className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center justify-center gap-1 transition cursor-pointer"
+                                  title={t("common.unmarkNoShow")}
+                                >
+                                  <span>{t("common.unmarkNoShow")}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleMarkNoShow(r.id)}
+                                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                  title={t("common.markNoShow")}
+                                >
+                                  <span>{t("common.markNoShow")}</span>
+                                </button>
+                              ))}
 
-                          {onOpenReservationDetail && (
-                            <button
-                              onClick={() => onOpenReservationDetail(r.id)}
-                              className="ml-auto px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
-                              title="View conversation, details, and replies"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                              <span>{t("admin.review.detailsChatBtn")}</span>
-                            </button>
-                          )}
-                        </div>
+                            {onOpenReservationDetail && (
+                              <button
+                                onClick={() => onOpenReservationDetail(r.id)}
+                                className="ml-auto px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
+                                title="View conversation, details, and replies"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>{t("admin.review.detailsChatBtn")}</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -2751,19 +2711,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </button>
 
                             {status === "pending" && (
-                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                  "pending",
+                                )}`}
+                              >
                                 <Clock className="w-2.5 h-2.5" />
                                 {t("common.pending")}
                               </span>
                             )}
                             {status === "approved" && (
-                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                  "approved",
+                                )}`}
+                              >
                                 <Check className="w-2.5 h-2.5" />
                                 {t("common.approved")}
                               </span>
                             )}
                             {status === "rejected" && (
-                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                  "rejected",
+                                )}`}
+                              >
                                 <X className="w-2.5 h-2.5" />
                                 {t("common.rejected")}
                               </span>
@@ -2958,19 +2930,31 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
                               <td className="py-3 px-3">
                                 {status === "pending" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${getStatusColor(
+                                      "pending",
+                                    )}`}
+                                  >
                                     <Clock className="w-3 h-3" />
                                     {t("common.pending")}
                                   </span>
                                 )}
                                 {status === "approved" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${getStatusColor(
+                                      "approved",
+                                    )}`}
+                                  >
                                     <Check className="w-3 h-3" />
                                     {t("common.approved")}
                                   </span>
                                 )}
                                 {status === "rejected" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${getStatusColor(
+                                      "rejected",
+                                    )}`}
+                                  >
                                     <X className="w-3 h-3" />
                                     {t("common.rejected")}
                                   </span>
@@ -3435,14 +3419,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           <td className="py-3 px-3">
                             {u.approval_status === "pending" ||
                             u.approvalStatus === "pending" ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                                <Clock className="w-2.5 h-2.5 text-amber-700" />
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                  "pending",
+                                )}`}
+                              >
+                                <Clock className="w-2.5 h-2.5" />
                                 {t("admin.users.pendingApproval")}
                               </span>
                             ) : u.approval_status === "rejected" ||
                               u.approvalStatus === "rejected" ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
-                                <X className="w-2.5 h-2.5 text-rose-700" />
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                  "rejected",
+                                )}`}
+                              >
+                                <X className="w-2.5 h-2.5" />
                                 {t("admin.users.rejected")}
                               </span>
                             ) : (
@@ -3830,11 +3822,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         </td>
                         <td className="py-3 px-3">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusColor(
                               log.action === "granted"
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                : "bg-red-50 text-red-800 border border-red-200"
-                            }`}
+                                ? "approved"
+                                : "rejected",
+                            )}`}
                           >
                             {log.action === "granted"
                               ? t("admin.trustedStatus.granted")
@@ -4277,6 +4269,126 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         )}
       </main>
+
+      {/* =============================================================
+          STICKY BOTTOM BAR — Bulk selection (mobile-first)
+          Rendered via portal so no ancestor transform can trap it.
+         ============================================================= */}
+      {activeTab === "review" &&
+        isSelectionMode &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            id="bulk-selection-bottom-bar"
+            role="toolbar"
+            data-selection-mode="true"
+            aria-label={t("admin.review.bulkActionsLabel")}
+            style={{
+              bottom: "var(--mobile-bottom-nav-height, 0px)",
+            }}
+            className="fixed inset-x-0 z-[80] border-t border-stone-200 bg-white shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.15)] px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          >
+            <div className="max-w-5xl mx-auto flex flex-col gap-2">
+              {/* Top row: select-all + counter */}
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  htmlFor="select-all-reservations-checkbox"
+                  className="flex items-center gap-2.5 cursor-pointer min-h-[40px] pr-2 -my-1"
+                >
+                  <input
+                    id="select-all-reservations-checkbox"
+                    type="checkbox"
+                    aria-label="Select all visible reservations"
+                    checked={
+                      reservations.length > 0 &&
+                      reservations.every((r) =>
+                        selectedReservationIds.includes(r.id),
+                      )
+                    }
+                    ref={(el) => {
+                      if (el) {
+                        const someSelected =
+                          reservations.some((r) =>
+                            selectedReservationIds.includes(r.id),
+                          ) &&
+                          !reservations.every((r) =>
+                            selectedReservationIds.includes(r.id),
+                          );
+                        el.indeterminate = someSelected;
+                      }
+                    }}
+                    onChange={handleToggleSelectAllReservations}
+                    className="w-5 h-5 rounded accent-amber-800 text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                  />
+                  <span
+                    className={`text-xs font-bold ${
+                      selectedReservationIds.length > 0
+                        ? "text-amber-900"
+                        : "text-stone-700"
+                    }`}
+                  >
+                    {selectedReservationIds.length > 0
+                      ? t("admin.review.selectedCount", {
+                          count: selectedReservationIds.length,
+                          total: reservations.length,
+                        })
+                      : t("admin.review.selectAllVisible", {
+                          count: reservations.length,
+                        })}
+                  </span>
+                </label>
+
+                {selectedReservationIds.length > 0 && (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-extrabold">
+                    {selectedReservationIds.length}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={exitSelectionMode}
+                  className="shrink-0 px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition cursor-pointer min-h-[40px]"
+                  title={t("admin.review.exitSelection")}
+                >
+                  {t("admin.review.exitSelection")}
+                </button>
+              </div>
+
+              {/* Bottom row: actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-bulk-cancel-selected"
+                  type="button"
+                  disabled={selectedReservationIds.length === 0}
+                  onClick={handleTriggerBulkCancel}
+                  className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-800 disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none disabled:cursor-not-allowed text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs min-h-[44px] min-w-0"
+                >
+                  <XCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    {t("admin.review.cancelSelected")}
+                  </span>
+                </button>
+
+                {isSuperAdmin && (
+                  <button
+                    id="btn-bulk-delete-selected"
+                    type="button"
+                    disabled={selectedReservationIds.length === 0}
+                    onClick={handleTriggerBulkDelete}
+                    className="flex-1 sm:flex-none px-2.5 sm:px-3 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none disabled:cursor-not-allowed text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs min-h-[44px] min-w-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">
+                      {t("admin.review.deleteSelected")}
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       {/* =============================================================
           MODAL 1: Add / Edit Instrument
           ============================================================= */}

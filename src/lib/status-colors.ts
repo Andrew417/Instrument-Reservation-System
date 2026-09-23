@@ -12,3 +12,17 @@ export const RESERVATION_STATUS_COLORS: Record<string, string> = {
 export const getStatusColor = (status: string) =>
   RESERVATION_STATUS_COLORS[status] ||
   "bg-stone-100 text-stone-700 border border-stone-200";
+
+/**
+ * Reservation-type badges (in-church vs outside-church).
+ * Matches MyReservations.tsx's outside-church pill: purple with $ icon.
+ * In-church stays neutral stone.
+ */
+export const RESERVATION_TYPE_COLORS: Record<string, string> = {
+  outside_church: "bg-purple-100 text-purple-900 border border-purple-200",
+  in_church: "bg-stone-100 text-stone-700 border border-stone-200",
+};
+
+export const getReservationTypeColor = (type: string) =>
+  RESERVATION_TYPE_COLORS[type] ||
+  "bg-stone-100 text-stone-700 border border-stone-200";
