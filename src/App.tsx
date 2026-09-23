@@ -259,7 +259,7 @@ const UserPortalMain: React.FC = () => {
       {/* Top Application Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2 lg:gap-1.5">
-          <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             {/* ✅ Admin menu trigger — only in Admin Portal view (mobile) */}
             {isAdminOrSuperAdmin && currentView === "admin_portal" && (
               <button
@@ -279,7 +279,7 @@ const UserPortalMain: React.FC = () => {
               className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-amber-900/30 shrink-0"
             />
             <div className="min-w-0">
-              <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight whitespace-nowrap">
+              <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight truncate">
                 {t("common.appName")}
               </div>
               <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap hidden lg:block">
