@@ -927,7 +927,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       WHERE 1=1
       ${
         userId
-          ? sql`AND (r.user_id = ${userId as string} OR ${isAdmin ? sql`r.admin_id = ${userId as string}` : sql`false`})`
+          ? sql`AND (r.user_id = ${userId as string} OR ${isAdmin ? sql`(r.admin_id = ${userId as string} AND r.booked_by_admin = true)` : sql`false`})`
           : sql``
       }
       ${instrumentId ? sql`AND r.instrument_id = ${instrumentId as string}` : sql``}
