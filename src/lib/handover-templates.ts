@@ -155,11 +155,11 @@ export function buildHandoverWhatsAppMessage(
       const note = clean(r.note);
 
       lines.push(`*${index}. ${service}*`);
-      if (time) lines.push(`${L.fieldTime}: \u2066${time}\u2069`);
+      if (time) lines.push(`${L.fieldTime}: ${time}`);
       if (instrument) lines.push(`${L.fieldInstrument}: ${instrument}`);
-      if (musician) lines.push(`${L.fieldMusician}: ${musician}`);
       lines.push(`${L.fieldReservedBy}: ${reservedBy}`);
-      lines.push(`${L.fieldPhone}: ${phone}`);
+      lines.push(`${L.fieldPhone}: \u2066${phone}\u2069`);
+      if (musician) lines.push(`${L.fieldMusician}: ${musician}`);
       lines.push(`${L.fieldUsage}: ${usage}`);
       if (note) lines.push(`${L.fieldNotes}: ${note}`);
 
