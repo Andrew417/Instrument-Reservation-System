@@ -5,7 +5,7 @@
 import { formatHhmmTo12Hour, addDaysToDateString } from "./date-utils";
 import ExcelJS from "exceljs";
 
-export type HandoverExportFormat = "csv" | "xlsx";
+export type HandoverExportFormat = "csv" | "xlsx" | "pdf";
 
 export interface HandoverReservationItem {
   id: string;
@@ -70,7 +70,7 @@ export function getHandoverFileName(
   endDate: string,
   format: HandoverExportFormat = "xlsx",
 ): string {
-  const ext = format === "csv" ? "csv" : "xlsx";
+  const ext = format === "csv" ? "csv" : format === "pdf" ? "pdf" : "xlsx";
   if (viewMode === "day") {
     return `reservations_${startDate}.${ext}`;
   }
@@ -381,6 +381,16 @@ export async function downloadHandoverExport(
 ): Promise<{ recordCount: number; isHeaderOnly: boolean }> {
   if (format === "csv") {
     return downloadHandoverCsv(reservations, fileName);
+  }
+  if (format === "pdf") {
+    // Import lazily to avoid a circular dependency:
+    // handover-templates imports from handover-export for its type.
+    const { printHandoverSheet } = await import("./handover-templates");
+    printHandoverSheet(reservations, { locale: "ar" });
+    return {
+      recordCount: reservations.length,
+      isHeaderOnly: reservations.length === 0,
+    };
   }
   return downloadHandoverXlsx(reservations, fileName);
 }

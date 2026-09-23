@@ -19,12 +19,11 @@ import {
   Phone,
   User,
   X,
-  RefreshCw,
   CheckCircle2,
   AlertCircle,
   FileText,
   Tag,
-  Printer,
+  FileDown,
   Share2,
   Check,
 } from "lucide-react";
@@ -35,6 +34,10 @@ import {
   downloadHandoverExport,
 } from "../lib/handover-export";
 
+import {
+  buildHandoverWhatsAppMessage,
+  shareHandoverMessage,
+} from "../lib/handover-templates";
 export interface HandoverSheetModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -201,50 +204,30 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
     }
   };
 
-  // Enhancement B: Share to WhatsApp
-  const handleWhatsAppShare = () => {
-    const titleHeader = `*${t("handover.title")}*\n📅 ${startDate}${viewMode === "week" ? ` ➡️ ${endDate}` : ""}\n`;
-    const countHeader = `📋 ${t("handover.totalReservations", { count: reservations.length })}\n---------------------------`;
+  // Enhancement B: Share to WhatsApp (grouped by date, Arabic labels, 12h times)
+  const handleWhatsAppShare = async () => {
+    try {
+      // handleWhatsAppShare
+      const channel = await shareHandoverMessage(reservations, {
+        locale: "ar",
+      });
 
-    let body = "";
-    if (reservations.length === 0) {
-      body = `\n${t("handover.noReservationsDesc")}`;
-    } else {
-      body = reservations
-        .map((r, idx) => {
-          const typeStr =
-            r.reservation_type === "outside_church"
-              ? `[${t("handover.outside")}]`
-              : `[${t("handover.inChurch")}]`;
-          return (
-            `\n*#${idx + 1} - ${r.service_name}* ${typeStr}\n` +
-            `📅 ${r.reservation_date} | ⏰ ${formatHhmmTo12Hour(r.start_hhmm)} - ${formatHhmmTo12Hour(r.end_hhmm)}\n` +
-            `🎹 ${r.instrument_name}\n` +
-            `👤 ${r.musician_name || r.user_name || "-"}` +
-            (r.user_phone ? ` (📞 ${r.user_phone})` : "")
-          );
-        })
-        .join("\n");
-    }
-
-    const fullMessage = `${titleHeader}${countHeader}${body}`;
-    const encoded = encodeURIComponent(fullMessage);
-
-    // Copy to clipboard for convenience
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(fullMessage).then(() => {
+      // Only show the "Copied" toast when we actually fell back to clipboard
+      if (channel === "clipboard") {
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 3000);
+      }
+    } catch (err) {
+      // Last-ditch fallback: copy manually
+      const message = buildHandoverWhatsAppMessage(reservations, {
+        locale: isRTL ? "ar" : "en",
       });
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(message);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 3000);
+      }
     }
-
-    // Open WhatsApp Web / App
-    window.open(`https://wa.me/?text=${encoded}`, "_blank");
-  };
-
-  // Enhancement B: Native print dialog
-  const handlePrint = () => {
-    window.print();
   };
 
   const isToday = anchorDate === getTodayDateString();
@@ -252,12 +235,12 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
   return (
     <div
       id="handover-sheet-modal-backdrop"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div
         id="handover-sheet-modal-container"
-        className="bg-white rounded-3xl border border-stone-200 shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white rounded-2xl sm:rounded-3xl border border-stone-200 shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
         dir={isRTL ? "rtl" : "ltr"}
       >
@@ -309,72 +292,85 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
         )}
 
         {/* Controls Bar: 2. Control row + 3. Date display */}
-        <div className="p-4 sm:p-5 bg-stone-50 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-          {/* 2. Control row: [Day | Week] toggle — [XLSX | CSV] toggle */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Day / Week Mode Toggle */}
-            <div className="inline-flex rounded-xl p-1 bg-stone-200/80 border border-stone-300/80">
+        <div className="p-3 sm:p-5 bg-stone-50 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          {/* 2. Control row: [Day | Week] toggle — [XLSX | CSV | PDF] toggle — single row always */}
+          <div className="flex flex-row items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto min-w-0">
+            {/* Day / Week Mode Toggle — narrow, fixed width on mobile */}
+            <div className="inline-flex rounded-xl p-1 bg-stone-200/80 border border-stone-300/80 shrink-0 sm:flex-none">
               <button
                 id="btn-toggle-day-view"
                 type="button"
                 onClick={() => setViewMode("day")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`flex-1 justify-center px-1.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer flex items-center gap-1 min-w-0 ${
                   viewMode === "day"
                     ? "bg-white text-stone-900 shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
                 }`}
               >
-                <Calendar className="w-3.5 h-3.5 text-amber-700" />
-                <span>{t("handover.day")}</span>
+                <Calendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span className="whitespace-nowrap">{t("handover.day")}</span>
               </button>
               <button
                 id="btn-toggle-week-view"
                 type="button"
                 onClick={() => setViewMode("week")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`flex-1 justify-center px-1.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer flex items-center gap-1 min-w-0 ${
                   viewMode === "week"
                     ? "bg-white text-stone-900 shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
                 }`}
               >
-                <CalendarDays className="w-3.5 h-3.5 text-amber-700" />
-                <span>{t("handover.week")}</span>
+                <CalendarDays className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span className="whitespace-nowrap">{t("handover.week")}</span>
               </button>
             </div>
 
-            {/* Export Format Selector: XLSX vs CSV */}
-            <div className="inline-flex rounded-xl p-1 bg-stone-200/80 border border-stone-300/80">
+            {/* Export Format Selector: XLSX / CSV / PDF */}
+            <div className="inline-flex rounded-xl p-1 bg-stone-200/80 border border-stone-300/80 flex-1 sm:flex-none min-w-0">
               <button
                 id="btn-format-xlsx"
                 type="button"
                 onClick={() => setExportFormat("xlsx")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`flex-1 justify-center px-1.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer flex items-center gap-1 min-w-0 ${
                   exportFormat === "xlsx"
                     ? "bg-amber-800 text-white shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
                 }`}
               >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>XLSX</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">XLSX</span>
               </button>
               <button
                 id="btn-format-csv"
                 type="button"
                 onClick={() => setExportFormat("csv")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                className={`flex-1 justify-center px-1.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer flex items-center gap-1 min-w-0 ${
                   exportFormat === "csv"
                     ? "bg-amber-800 text-white shadow-xs"
                     : "text-stone-600 hover:text-stone-900"
                 }`}
               >
-                <FileText className="w-3.5 h-3.5" />
-                <span>CSV</span>
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">CSV</span>
+              </button>
+              <button
+                id="btn-format-pdf"
+                type="button"
+                onClick={() => setExportFormat("pdf")}
+                className={`flex-1 justify-center px-1.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition cursor-pointer flex items-center gap-1 min-w-0 ${
+                  exportFormat === "pdf"
+                    ? "bg-amber-800 text-white shadow-xs"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <FileDown className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">PDF</span>
               </button>
             </div>
           </div>
 
           {/* 3. Date display (clickable to open picker) + Today shortcut */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center justify-between sm:justify-start gap-1.5 flex-wrap w-full sm:w-auto">
             <button
               id="btn-nav-prev-range"
               type="button"
@@ -400,11 +396,11 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                 id="btn-date-display-trigger"
                 type="button"
                 onClick={handleDateClick}
-                className="px-3.5 py-1.5 bg-white hover:bg-stone-100/80 border border-stone-200 rounded-xl shadow-2xs flex items-center gap-2 text-xs font-bold text-stone-900 cursor-pointer transition"
+                className="flex-1 sm:flex-none justify-center px-3.5 py-1.5 bg-white hover:bg-stone-100/80 border border-stone-200 rounded-xl shadow-2xs flex items-center gap-2 text-xs font-bold text-stone-900 cursor-pointer transition"
                 title={t("handover.datePicker")}
               >
                 <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                <span>
+                <span className="truncate">
                   {viewMode === "day" ? (
                     <span>
                       {formatDisplayDate(anchorDate)}
@@ -474,24 +470,11 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                 {t("handover.today")}
               </button>
             )}
-
-            <button
-              id="btn-refresh-handover"
-              type="button"
-              onClick={fetchHandoverData}
-              disabled={loading}
-              className="p-2 text-stone-500 hover:text-stone-900 hover:bg-stone-200/60 rounded-xl transition cursor-pointer ml-0.5"
-              title={t("handover.refreshReservations")}
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </button>
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-stone-100/50">
+        <div className="p-3 sm:p-6 overflow-y-auto flex-1 space-y-3 sm:space-y-4 bg-stone-100/50">
           {/* 4. Row count summary: N booking(s) · 9 columns */}
           <div className="flex items-center justify-between text-xs text-stone-600 font-medium px-1">
             <span>
@@ -532,7 +515,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-stone-200 shadow-2xs overflow-hidden">
+            <div className="relative bg-white rounded-2xl border border-stone-200 shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table
                   className={`w-full text-xs ${isRTL ? "text-right" : "text-left"}`}
@@ -647,14 +630,16 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                   </tbody>
                 </table>
               </div>
+              {/* Mobile scroll hint: right-edge fade so users know they can swipe */}
+              <div className="pointer-events-none absolute inset-y-0 end-0 w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
             </div>
           )}
         </div>
 
-        {/* Footer: 6. Filename display + 7. Export button */}
-        <div className="p-4 sm:p-5 bg-white border-t border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-          {/* 6. Filename display */}
-          <div className="text-xs text-stone-500 font-mono flex items-center gap-2">
+        {/* Footer: 6. Filename display (desktop) + 7. Action buttons */}
+        <div className="p-3 sm:p-5 bg-white border-t border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 shrink-0">
+          {/* 6. Filename display — desktop only */}
+          <div className="hidden sm:flex text-xs text-stone-500 font-mono items-center gap-2">
             <span className="text-stone-400 font-sans">
               {t("handover.filename")}
             </span>
@@ -663,69 +648,61 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
             </span>
           </div>
 
-          {/* 7. Action buttons */}
+          {/* 7. Action buttons — one row on mobile: Close → (gap) → WhatsApp → Export */}
           <div
-            className={`flex flex-wrap items-center gap-2 ${isRTL ? "flex-row-reverse" : ""}`}
+            className={`flex items-center gap-2 w-full sm:w-auto ${isRTL ? "flex-row-reverse" : ""}`}
           >
-            {/* WhatsApp Share Button */}
+            {/* Close — tight, natural width */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-none px-3 sm:px-4 py-2.5 rounded-xl text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 sm:border-0 sm:bg-transparent transition cursor-pointer whitespace-nowrap"
+            >
+              {t("handover.close")}
+            </button>
+
+            {/* Flexible spacer — pushes WhatsApp + Export to the end on mobile */}
+            <div className="flex-1 sm:hidden" aria-hidden="true" />
+
+            {/* WhatsApp Share Button — natural width, no stretching */}
             <button
               id="btn-handover-whatsapp"
               type="button"
               onClick={handleWhatsAppShare}
               disabled={loading}
               title={t("handover.shareWhatsAppSummary")}
-              className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-none px-3 sm:px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isCopied ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-100" />
-                  <span>{t("handover.copiedMessage")}</span>
+                  <Check className="w-4 h-4 text-emerald-100 shrink-0" />
+                  <span className="whitespace-nowrap">
+                    {t("handover.copiedMessage")}
+                  </span>
                 </>
               ) : (
                 <>
-                  <Share2 className="w-4 h-4" />
-                  <span>{t("handover.shareWhatsApp")}</span>
+                  <Share2 className="w-4 h-4 shrink-0" />
+                  <span>WhatsApp</span>
                 </>
               )}
             </button>
 
-            {/* Print Button */}
-            <button
-              id="btn-handover-print"
-              type="button"
-              onClick={handlePrint}
-              disabled={loading}
-              className="px-3.5 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <Printer className="w-4 h-4 text-stone-600" />
-              <span>{t("handover.printSheet")}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
-            >
-              {t("handover.close")}
-            </button>
-
+            {/* Export — natural width, no stretching */}
             <button
               id="btn-export-confirm"
               type="button"
               onClick={handleExport}
               disabled={loading || exporting}
-              className="px-5 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-none px-3 sm:px-5 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer disabled:opacity-50"
             >
               <Download
-                className={`w-4 h-4 ${exporting ? "animate-bounce" : ""}`}
+                className={`w-4 h-4 shrink-0 ${exporting ? "animate-bounce" : ""}`}
               />
-              <span>
+              <span className="whitespace-nowrap">
                 {exporting
                   ? t("handover.generating")
-                  : t("handover.exportFormat", {
-                      format: exportFormat.toUpperCase(),
-                      count: reservations.length,
-                    })}
+                  : exportFormat.toUpperCase()}
               </span>
             </button>
           </div>

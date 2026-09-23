@@ -607,6 +607,7 @@
     "instrument": "Instrument",
     "category": "Category",
     "serviceName": "Service Name",
+    "musicianName": "Musician Name",
     "reservedBy": "Reserved By",
     "phoneNumber": "Phone Number",
     "usageType": "Usage Type",
