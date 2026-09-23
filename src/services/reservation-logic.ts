@@ -803,18 +803,18 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     throw new Error("Series must have at least one occurrence.");
   }
 
-  const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
-    userId,
-    adminId,
-  );
+  const { resolvedUserId, resolvedAdminId, isTrusted, isAdmin } =
+    await resolveUserAndAdminIds(userId, adminId);
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
 
   const limits = await getHardLimits();
 
-  // 1. Occurrence count check: reject if > max_series_occurrences (unless bypass enabled)
+  // 1. Occurrence count check: reject if > max_series_occurrences (unless bypass enabled or user is Trusted/Admin)
   if (
     !limits.bypassHardLimits &&
+    !isTrusted &&
+    !isAdmin &&
     occurrences.length > limits.maxSeriesOccurrences
   ) {
     throw new Error(
@@ -1259,9 +1259,25 @@ export async function editReservation(
     if (u?.isTrusted) isTrustedOrAdmin = true;
   }
 
+  let outsideFee = existing.feeSnapshot;
+  const resType = updates.reservationType || existing.reservationType;
+  if (resType === "outside_church") {
+    if (!updates.feeAcknowledged && !existing.feeSnapshot) {
+      throw new Error(
+        "Outside church reservation requires fee acknowledgment.",
+      );
+    }
+    outsideFee = instrument.outsideFeePerDay;
+  } else {
+    outsideFee = null;
+  }
+
   let newStatus: "approved" | "pending" = "pending";
 
-  if (isTrustedOrAdmin) {
+  if (resType === "outside_church" && !isTrustedOrAdmin) {
+    // Outside-church ALWAYS requires admin review and fee arrangement, regardless of instrument booking mode
+    newStatus = "pending";
+  } else if (isTrustedOrAdmin) {
     // Always re-run and auto-approve again (skip limit/mode checks, conflict check already passed)
     newStatus = "approved";
   } else if (existing.status === "pending") {
@@ -1297,19 +1313,6 @@ export async function editReservation(
 
       newStatus = limitExceeded ? "pending" : "approved";
     }
-  }
-
-  let outsideFee = existing.feeSnapshot;
-  const resType = updates.reservationType || existing.reservationType;
-  if (resType === "outside_church") {
-    if (!updates.feeAcknowledged && !existing.feeSnapshot) {
-      throw new Error(
-        "Outside church reservation requires fee acknowledgment.",
-      );
-    }
-    outsideFee = instrument.outsideFeePerDay;
-  } else {
-    outsideFee = null;
   }
 
   const cleanFee = toNullableString(outsideFee);

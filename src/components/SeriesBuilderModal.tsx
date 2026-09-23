@@ -149,6 +149,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   // Custom Pattern Specific Dates List
   const [customDates, setCustomDates] = useState<string[]>([initialDate]);
   const [newCustomDateInput, setNewCustomDateInput] = useState<string>("");
+  const [skippedNotice, setSkippedNotice] = useState<number | null>(null);
 
   // Runtime Hard Limits
   const [maxSeriesLimit, setMaxSeriesLimit] = useState<number>(8);
@@ -386,6 +387,29 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     }
     setSubmitError(null);
     setCustomDates(customDates.filter((d) => d !== dateToRemove));
+  };
+
+  // Enhancement A: One-click "Skip Conflicting Dates"
+  const handleSkipConflicts = () => {
+    if (conflicts.length === 0) return;
+    const conflictingDates = new Set(conflicts.map((c) => c.occurrenceDate));
+    const validDates = generatedOccurrences
+      .map((o) => o.date)
+      .filter((d) => !conflictingDates.has(d));
+
+    if (validDates.length === 0) {
+      setSubmitError(t("seriesBuilder.mustHaveOneOccurrence"));
+      return;
+    }
+
+    setSubmitError(null);
+    setSkippedNotice(conflictingDates.size);
+    // Switch to custom pattern with the remaining conflict-free dates preserved
+    setPatternType("custom");
+    setCustomDates(validDates);
+    if (validDates[0]) {
+      setBaseDate(validDates[0]);
+    }
   };
 
   // Submit Recurring Series to Backend
@@ -1135,16 +1159,26 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               {hasConflicts && (
                 <div
                   id="series-conflict-warning-panel"
-                  className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2 animate-in fade-in"
+                  className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3 animate-in fade-in"
                 >
-                  <div className="flex items-center gap-2 text-red-950 font-bold text-xs">
-                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                    <span>
-                      {t("seriesBuilder.conflictsDetectedTitle", {
-                        count: conflicts.length,
-                      })}{" "}
-                      {t("seriesBuilder.submissionDisabledSuffix")}
-                    </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-red-950 font-bold text-xs">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                      <span>
+                        {t("seriesBuilder.conflictsDetectedTitle", {
+                          count: conflicts.length,
+                        })}{" "}
+                        {t("seriesBuilder.submissionDisabledSuffix")}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSkipConflicts}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t("seriesBuilder.skipConflicts")}</span>
+                    </button>
                   </div>
                   <div className="space-y-1.5 pt-1">
                     {conflicts.map((conf, i) => (
@@ -1157,6 +1191,27 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Skipped Conflicts Notice */}
+              {skippedNotice !== null && !hasConflicts && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-emerald-900 font-medium animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      {t("seriesBuilder.skippedConflictsNotice", {
+                        count: skippedNotice,
+                      })}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSkippedNotice(null)}
+                    className="text-stone-400 hover:text-stone-700 text-xs px-2 py-1 rounded-lg"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
 

@@ -322,6 +322,8 @@
     "calculatedScheduleTitle": "Calculated Occurrence Schedule:",
     "allSessionsLabel": "All sessions: {{start}} – {{end}} ({{duration}}h)",
     "autoCheckedNotice": "Automatically checked for overlaps and conflicts as you build this.",
+    "skipConflicts": "Skip Conflicting Dates",
+    "skippedConflictsNotice": "Removed {{count}} conflicting date(s) from the series.",
     "conflictsDetectedTitle": "Conflicts Detected ({{count}} issue)",
     "conflictsDetectedTitle_plural": "Conflicts Detected ({{count}} issues)",
     "submissionDisabledSuffix": "— Submission Disabled",
@@ -593,6 +595,10 @@
     "filename": "Filename:",
     "generating": "Generating...",
     "exportFormat": "Export {{format}} ({{count}})",
+    "shareWhatsApp": "Share to WhatsApp",
+    "printSheet": "Print / PDF",
+    "shareWhatsAppSummary": "Church Instrument Handover Schedule",
+    "copiedMessage": "Handover summary copied to clipboard!",
     "dismiss": "Dismiss",
     "today": "Today",
     "date": "Date",
@@ -828,7 +834,12 @@
     },
     "sidebar": {
       "operationsSection": "Operations & Management",
-      "superAdminSection": "Super Admin Tools"
+      "superAdminSection": "Super Admin Tools",
+      "collapseSidebar": "Collapse sidebar",
+      "expandSidebar": "Expand sidebar",
+      "searchTabs": "Search navigation...",
+      "noMatchingTabs": "No matching sections",
+      "overview": "Overview"
     },
     "tabMessaging": "Reservation Chat",
     "tabAdminAccounts": "Admin Accounts",

@@ -108,20 +108,25 @@ export function getTodayDateString(): string {
 }
 
 /**
- * Safely parse a YYYY-MM-DD string into a local Date object without timezone offset issues
+ * Safely parse a YYYY-MM-DD string into a local Date object anchored at midday (12:00:00)
+ * to prevent Daylight Saving Time (DST) midnight rollback/roll-forward issues.
  */
 export function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
 /**
- * Safely add or subtract days from a YYYY-MM-DD date string
+ * Safely add or subtract days from a YYYY-MM-DD date string using pure UTC calendar arithmetic
+ * completely immune to local timezone and DST boundary shifts.
  */
 export function addDaysToDateString(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  const date = new Date(y, m - 1, d + days, 0, 0, 0, 0);
-  return getLocalDateString(date);
+  const utcDate = new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0, 0));
+  const resYear = utcDate.getUTCFullYear();
+  const resMonth = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
+  const resDay = String(utcDate.getUTCDate()).padStart(2, "0");
+  return `${resYear}-${resMonth}-${resDay}`;
 }
 
 /**

@@ -502,6 +502,8 @@
     "calculatedScheduleTitle": "الجدول المحسوب للمواعيد:",
     "allSessionsLabel": "كل الحجوزات: {{start}} – {{end}} ({{duration}} س)",
     "autoCheckedNotice": "يتم التحقق تلقائياً من التعارضات أثناء بناء الجدول.",
+    "skipConflicts": "استبعاد التواريخ المتعارضة",
+    "skippedConflictsNotice": "تمت إزالة {{count}} تاريخاً متعارضاً من السلسلة.",
     "conflictsDetectedTitle": "تم اكتشاف تعارض ({{count}} مشكلة)",
     "conflictsDetectedTitle_plural": "تم اكتشاف تعارضات ({{count}} مشكلة)",
     "submissionDisabledSuffix": "— تم تعطيل الإرسال",
@@ -773,6 +775,10 @@
     "filename": "اسم الملف:",
     "generating": "جارٍ الإنشاء...",
     "exportFormat": "تصدير {{format}} ({{count}})",
+    "shareWhatsApp": "مشاركة عبر واتساب",
+    "printSheet": "طباعة / PDF",
+    "shareWhatsAppSummary": "جدول تسليم آلات الكنيسة لمسؤول الغرفة",
+    "copiedMessage": "تم نسخ ملخص التسليم للحافظة!",
     "dismiss": "تجاهل",
     "today": "اليوم",
     "date": "التاريخ",
@@ -826,7 +832,12 @@
     },
     "sidebar": {
       "operationsSection": "العمليات والإدارة",
-      "superAdminSection": "أدوات الادمن العام"
+      "superAdminSection": "أدوات الادمن العام",
+      "collapseSidebar": "طي القائمة الجانبية",
+      "expandSidebar": "توسيع القائمة الجانبية",
+      "searchTabs": "بحث في الأقسام...",
+      "noMatchingTabs": "لا توجد أقسام مطابقة",
+      "overview": "نظرة عامة"
     },
     "tabMessaging": "المحادثات والملاحظات",
     "tabAdminAccounts": "حسابات الادمنين",

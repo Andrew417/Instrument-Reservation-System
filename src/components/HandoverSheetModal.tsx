@@ -24,6 +24,9 @@ import {
   AlertCircle,
   FileText,
   Tag,
+  Printer,
+  Share2,
+  Check,
 } from "lucide-react";
 import {
   HandoverReservationItem,
@@ -74,6 +77,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
     [],
   );
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState<boolean>(false);
 
   // Compute startDate and endDate based on viewMode and anchorDate
   const startDate = anchorDate;
@@ -195,6 +199,52 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
     } finally {
       setExporting(false);
     }
+  };
+
+  // Enhancement B: Share to WhatsApp
+  const handleWhatsAppShare = () => {
+    const titleHeader = `*${t("handover.title")}*\n📅 ${startDate}${viewMode === "week" ? ` ➡️ ${endDate}` : ""}\n`;
+    const countHeader = `📋 ${t("handover.totalReservations", { count: reservations.length })}\n---------------------------`;
+
+    let body = "";
+    if (reservations.length === 0) {
+      body = `\n${t("handover.noReservationsDesc")}`;
+    } else {
+      body = reservations
+        .map((r, idx) => {
+          const typeStr =
+            r.reservation_type === "outside_church"
+              ? `[${t("handover.outside")}]`
+              : `[${t("handover.inChurch")}]`;
+          return (
+            `\n*#${idx + 1} - ${r.service_name}* ${typeStr}\n` +
+            `📅 ${r.reservation_date} | ⏰ ${formatHhmmTo12Hour(r.start_hhmm)} - ${formatHhmmTo12Hour(r.end_hhmm)}\n` +
+            `🎹 ${r.instrument_name}\n` +
+            `👤 ${r.musician_name || r.user_name || "-"}` +
+            (r.user_phone ? ` (📞 ${r.user_phone})` : "")
+          );
+        })
+        .join("\n");
+    }
+
+    const fullMessage = `${titleHeader}${countHeader}${body}`;
+    const encoded = encodeURIComponent(fullMessage);
+
+    // Copy to clipboard for convenience
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(fullMessage).then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 3000);
+      });
+    }
+
+    // Open WhatsApp Web / App
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+  };
+
+  // Enhancement B: Native print dialog
+  const handlePrint = () => {
+    window.print();
   };
 
   const isToday = anchorDate === getTodayDateString();
@@ -487,7 +537,6 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                 <table
                   className={`w-full text-xs ${isRTL ? "text-right" : "text-left"}`}
                 >
-                  {" "}
                   <thead className="bg-slate-900 text-white border-b border-slate-800 font-bold">
                     <tr>
                       <th className="py-3 px-3 text-slate-300 font-mono text-[11px] text-center w-8">
@@ -614,10 +663,44 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
             </span>
           </div>
 
-          {/* 7. Export button */}
+          {/* 7. Action buttons */}
           <div
-            className={`flex items-center gap-2 ${isRTL ? "flex-row-reverse" : ""}`}
+            className={`flex flex-wrap items-center gap-2 ${isRTL ? "flex-row-reverse" : ""}`}
           >
+            {/* WhatsApp Share Button */}
+            <button
+              id="btn-handover-whatsapp"
+              type="button"
+              onClick={handleWhatsAppShare}
+              disabled={loading}
+              title={t("handover.shareWhatsAppSummary")}
+              className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              {isCopied ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-100" />
+                  <span>{t("handover.copiedMessage")}</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-4 h-4" />
+                  <span>{t("handover.shareWhatsApp")}</span>
+                </>
+              )}
+            </button>
+
+            {/* Print Button */}
+            <button
+              id="btn-handover-print"
+              type="button"
+              onClick={handlePrint}
+              disabled={loading}
+              className="px-3.5 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs border border-stone-300 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <Printer className="w-4 h-4 text-stone-600" />
+              <span>{t("handover.printSheet")}</span>
+            </button>
+
             <button
               type="button"
               onClick={onClose}

@@ -329,15 +329,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       isToday: boolean;
     }[] = [];
     const todayStr = getTodayDateString();
-    const today = parseLocalDate(todayStr);
 
     for (let i = 0; i < 30; i++) {
-      const d = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate() + i,
-      );
-      const dateStr = getLocalDateString(d);
+      const dateStr = addDaysToDateString(todayStr, i);
+      const d = parseLocalDate(dateStr);
       chips.push({
         dateStr,
         dayName: d.toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", {
