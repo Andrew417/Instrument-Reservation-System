@@ -86,13 +86,22 @@ export const LanguageProfileDropdown: React.FC<
         id="profile-dropdown-trigger-btn"
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2 px-2.5 py-1.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 border border-stone-200 rounded-xl text-xs shrink-0 transition cursor-pointer select-none"
+        className="flex items-center gap-0 sm:gap-2 px-1.5 sm:px-2.5 py-1.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 border border-stone-200 rounded-xl text-xs shrink-0 transition cursor-pointer select-none"
         aria-expanded={isOpen}
         aria-haspopup="true"
         title={t("common.profile")}
       >
-        <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
-          {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
+        <div className="relative shrink-0">
+          <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs">
+            {profile?.name ? profile.name.charAt(0).toUpperCase() : "M"}
+          </div>
+          <div
+            className={`sm:hidden absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-800 ring-2 ring-white flex items-center justify-center transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          >
+            <ChevronDown className="w-2 h-2 text-white" strokeWidth={3} />
+          </div>
         </div>
         <div className="hidden sm:flex flex-col text-start min-w-0">
           <div className="flex items-center gap-1.5">
@@ -106,7 +115,7 @@ export const LanguageProfileDropdown: React.FC<
           </span>
         </div>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-stone-500 shrink-0 transition-transform ${
+          className={`hidden sm:block w-3.5 h-3.5 text-stone-500 shrink-0 transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
         />
