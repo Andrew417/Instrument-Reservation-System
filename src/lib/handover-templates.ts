@@ -29,7 +29,7 @@ export interface HandoverTemplateOptions {
 
 const LABELS = {
   ar: {
-    title: "تسليم مفتاح غرفة الآلات",
+    title: "حجوزات غرفة الآلات الموسيقية",
     totalLine: (n: number) => `إجمالي الحجوزات: ${n}`,
     dateHeader: (d: string) => `${d}`,
     separator: "━━━━━━━━━━━━━━━━━━",
@@ -155,7 +155,7 @@ export function buildHandoverWhatsAppMessage(
       const note = clean(r.note);
 
       lines.push(`*${index}. ${service}*`);
-      if (time) lines.push(`${L.fieldTime}: ${time}`);
+      if (time) lines.push(`${L.fieldTime}: \u2066${time}\u2069`);
       if (instrument) lines.push(`${L.fieldInstrument}: ${instrument}`);
       if (musician) lines.push(`${L.fieldMusician}: ${musician}`);
       lines.push(`${L.fieldReservedBy}: ${reservedBy}`);
