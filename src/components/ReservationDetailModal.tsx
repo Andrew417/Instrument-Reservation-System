@@ -1036,7 +1036,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
         {/* Content */}
         {activeTab === "details" ? (
-          <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain space-y-4 flex-1 min-h-0">
+          <div className="p-4 sm:p-6 pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-6 overflow-y-auto overscroll-contain space-y-4 flex-1 min-h-0">
             {actionNotice && (
               <div
                 className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 ${
@@ -1285,14 +1285,16 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   <div className="text-red-800 leading-relaxed break-words">
                     {reservation.rejection_reason}
                   </div>
-                  <button
-                    type="button"
-                    onClick={focusChat}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-100 text-red-900 font-bold text-xs cursor-pointer"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    {t("reservationDetail.replyToAdmin")}
-                  </button>
+                  {!isAdminViewer && (
+                    <button
+                      type="button"
+                      onClick={focusChat}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-100 text-red-900 font-bold text-xs cursor-pointer"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      {t("reservationDetail.replyToAdmin")}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
