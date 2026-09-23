@@ -1907,7 +1907,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       id="admin-portal-root"
       className={`space-y-4 ${
         activeTab === "review" && isSelectionMode
-          ? "pb-[calc(12rem+env(safe-area-inset-bottom,0px))] sm:pb-40"
+          ? "pb-[calc(12rem+env(safe-area-inset-bottom,0px))] sm:pb-0"
           : ""
       }`}
     >
@@ -2250,7 +2250,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <button
                       type="button"
                       onClick={enterSelectionMode}
-                      className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                      className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
                       title={t("admin.review.selectModeTooltip")}
                     >
                       <CheckSquare className="w-3.5 h-3.5" />
@@ -2266,6 +2266,95 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Desktop-only selection toolbar */}
+            {isSelectionMode && (
+              <div
+                id="bulk-selection-desktop-toolbar"
+                role="toolbar"
+                aria-label={t("admin.review.bulkActionsLabel")}
+                className="hidden sm:flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <label
+                    htmlFor="select-all-reservations-checkbox-desktop"
+                    className="flex items-center gap-2 cursor-pointer min-w-0"
+                  >
+                    <input
+                      id="select-all-reservations-checkbox-desktop"
+                      type="checkbox"
+                      aria-label="Select all visible reservations"
+                      checked={
+                        reservations.length > 0 &&
+                        reservations.every((r) =>
+                          selectedReservationIds.includes(r.id),
+                        )
+                      }
+                      ref={(el) => {
+                        if (el) {
+                          const someSelected =
+                            reservations.some((r) =>
+                              selectedReservationIds.includes(r.id),
+                            ) &&
+                            !reservations.every((r) =>
+                              selectedReservationIds.includes(r.id),
+                            );
+                          el.indeterminate = someSelected;
+                        }
+                      }}
+                      onChange={handleToggleSelectAllReservations}
+                      className="w-4 h-4 rounded accent-amber-800 text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer shrink-0"
+                    />
+                    <span className="text-xs font-bold text-amber-950 truncate">
+                      {selectedReservationIds.length > 0
+                        ? t("admin.review.selectedCount", {
+                            count: selectedReservationIds.length,
+                            total: reservations.length,
+                          })
+                        : t("admin.review.selectAllVisible", {
+                            count: reservations.length,
+                          })}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    id="btn-bulk-cancel-selected-desktop"
+                    type="button"
+                    disabled={selectedReservationIds.length === 0}
+                    onClick={handleTriggerBulkCancel}
+                    className="px-3 py-1.5 rounded-xl bg-amber-700 hover:bg-amber-800 disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none disabled:cursor-not-allowed text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t("admin.review.cancelSelected")}</span>
+                  </button>
+
+                  {isSuperAdmin && (
+                    <button
+                      id="btn-bulk-delete-selected-desktop"
+                      type="button"
+                      disabled={selectedReservationIds.length === 0}
+                      onClick={handleTriggerBulkDelete}
+                      className="px-3 py-1.5 rounded-xl bg-red-700 hover:bg-red-800 disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none disabled:cursor-not-allowed text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>{t("admin.review.deleteSelected")}</span>
+                    </button>
+                  )}
+
+                  <div className="w-px h-5 bg-amber-200 mx-1" />
+
+                  <button
+                    type="button"
+                    onClick={exitSelectionMode}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 text-xs font-bold transition cursor-pointer"
+                  >
+                    {t("admin.review.exitSelection")}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -2354,7 +2443,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                           isSelectionMode ? "cursor-pointer" : ""
                         } ${
                           isSelected
-                            ? "border-amber-300 bg-amber-50/40"
+                            ? "border-amber-400 bg-amber-50/40 ring-2 ring-amber-300/40"
                             : "border-stone-200 bg-white hover:border-amber-200"
                         }`}
                       >
@@ -4286,7 +4375,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             style={{
               bottom: "var(--mobile-bottom-nav-height, 0px)",
             }}
-            className="fixed inset-x-0 z-[80] border-t border-stone-200 bg-white shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.15)] px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+            className="sm:hidden fixed inset-x-0 z-[80] border-t border-stone-200 bg-white shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.15)] px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
           >
             <div className="max-w-5xl mx-auto flex flex-col gap-2">
               {/* Top row: select-all + counter */}
