@@ -2346,8 +2346,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             )}
 
-            {/* Table */}
-            <div className="overflow-x-auto mt-2">
+            {/* Select-all bar (cards replace the table) */}
+            {reservations.length > 0 && (
+              <div className="flex items-center gap-2 px-1">
+                <input
+                  id="select-all-reservations-checkbox"
+                  type="checkbox"
+                  aria-label="Select all visible reservations"
+                  checked={reservations.every((r) =>
+                    selectedReservationIds.includes(r.id),
+                  )}
+                  ref={(el) => {
+                    if (el) {
+                      const someSelected =
+                        reservations.some((r) =>
+                          selectedReservationIds.includes(r.id),
+                        ) &&
+                        !reservations.every((r) =>
+                          selectedReservationIds.includes(r.id),
+                        );
+                      el.indeterminate = someSelected;
+                    }
+                  }}
+                  onChange={handleToggleSelectAllReservations}
+                  className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                />
+                <label
+                  htmlFor="select-all-reservations-checkbox"
+                  className="text-[11px] font-bold text-stone-500 cursor-pointer"
+                >
+                  {t("admin.review.selectAllVisible", {
+                    count: reservations.length,
+                  })}
+                </label>
+              </div>
+            )}
+
+            {/* Cards */}
+            <div className="mt-2">
               {loadingReservations ? (
                 <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
                   <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
@@ -2358,275 +2394,203 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   {t("admin.review.empty")}
                 </div>
               ) : (
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                      <th className="py-2.5 px-3 w-10 text-center">
-                        <input
-                          id="select-all-reservations-checkbox"
-                          type="checkbox"
-                          aria-label="Select all visible reservations"
-                          checked={
-                            reservations.length > 0 &&
-                            reservations.every((r) =>
-                              selectedReservationIds.includes(r.id),
-                            )
-                          }
-                          ref={(el) => {
-                            if (el) {
-                              const someSelected =
-                                reservations.some((r) =>
-                                  selectedReservationIds.includes(r.id),
-                                ) &&
-                                !reservations.every((r) =>
-                                  selectedReservationIds.includes(r.id),
-                                );
-                              el.indeterminate = someSelected;
-                            }
-                          }}
-                          onChange={handleToggleSelectAllReservations}
-                          className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
-                        />
-                      </th>
-                      <th className="py-2.5 px-3">
-                        {t("admin.review.colDateSlot")}
-                      </th>
-                      <th className="py-2.5 px-3">
-                        {t("admin.review.instrumentLabel")}
-                      </th>
-                      <th className="py-2.5 px-3">
-                        {t("admin.review.colMemberService")}
-                      </th>
-                      <th className="py-2.5 px-3">
-                        {t("admin.review.colMusicianName")}
-                      </th>
-                      <th className="py-2.5 px-3">
-                        {t("admin.review.colTypeMode")}
-                      </th>
-                      <th className="py-2.5 px-3">{t("common.status")}</th>
-                      <th className="py-2.5 px-3 text-right">
-                        {t("common.actions")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {reservations.map((r) => {
-                      const isPending = r.status === "pending";
-                      const isSelected = selectedReservationIds.includes(r.id);
-                      return (
-                        <tr
-                          key={r.id}
-                          className={`transition ${
-                            isSelected
-                              ? "bg-amber-50/60 hover:bg-amber-50/80"
-                              : "hover:bg-stone-50/60"
-                          }`}
-                        >
-                          <td
-                            className="py-3 px-3 w-10 text-center"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <input
-                              id={`select-reservation-${r.id}`}
-                              type="checkbox"
-                              aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
-                              checked={isSelected}
-                              onChange={() =>
-                                handleToggleSelectReservation(r.id)
-                              }
-                              className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
-                            />
-                          </td>
+                <div className="space-y-3">
+                  {reservations.map((r) => {
+                    const isPending = r.status === "pending";
+                    const isSelected = selectedReservationIds.includes(r.id);
+                    return (
+                      <div
+                        key={r.id}
+                        className={`rounded-2xl border shadow-2xs transition overflow-hidden ${
+                          isSelected
+                            ? "border-amber-300 bg-amber-50/40"
+                            : "border-stone-200 bg-white hover:border-amber-200"
+                        }`}
+                      >
+                        <div className="p-4 flex items-start gap-3">
+                          <input
+                            id={`select-reservation-${r.id}`}
+                            type="checkbox"
+                            aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
+                            checked={isSelected}
+                            onChange={() => handleToggleSelectReservation(r.id)}
+                            className="mt-1 w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer shrink-0"
+                          />
 
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            <div className="font-semibold text-stone-900">
-                              {new Date(r.start_time).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                },
-                              )}
-                            </div>
-                            <div className="text-[11px] text-stone-500">
-                              {new Date(r.start_time).toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                                hour12: true,
-                              })}
-                              {" – "}
-                              {new Date(r.end_time).toLocaleTimeString([], {
-                                hour: "numeric",
-                                minute: "2-digit",
-                                hour12: true,
-                              })}
-                            </div>
-                            {(r.is_full_day ||
-                              (r.start_hhmm === "09:00" &&
-                                r.end_hhmm === "22:00")) && (
-                              <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                                <span>{t("common.fullDay")}</span>
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="py-3 px-3">
-                            <div className="font-medium text-stone-900">
-                              {r.instrument_name}
-                            </div>
-                            <div className="text-[10px] text-stone-400">
-                              {r.instrument_type}
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-3">
-                            {r.user_id ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openUserProfile(r.user_id);
-                                }}
-                                className="font-medium text-stone-900 hover:text-amber-900 hover:underline text-left cursor-pointer transition flex items-center gap-1 group"
-                                title={
-                                  t("admin.userDetail.viewProfile") ||
-                                  "View Member Profile"
-                                }
-                              >
-                                <span>{r.user_name || "Member"}</span>
-                                <ExternalLink className="w-2.5 h-2.5 text-stone-400 group-hover:text-amber-800 transition" />
-                              </button>
-                            ) : (
-                              <div className="font-medium text-stone-900">
-                                {r.user_name || r.admin_name || "Member"}
-                              </div>
-                            )}
-                            <div className="text-[11px] text-stone-500 font-medium">
-                              {r.service_name}
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-3">
-                            <div className="font-medium text-stone-800">
-                              {r.musician_name || (
-                                <span className="text-stone-300">—</span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="py-3 px-3">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                r.reservation_type === "outside_church"
-                                  ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                  : "bg-stone-100 text-stone-700"
-                              }`}
-                            >
-                              {r.reservation_type === "outside_church"
-                                ? t("admin.review.outsideBadge")
-                                : t("admin.review.inChurchBadge")}
-                            </span>
-                            {r.series_id && (
-                              <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                <Repeat className="w-2.5 h-2.5" />{" "}
-                                {t("admin.review.seriesBadge")}
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="py-3 px-3">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                r.status === "approved"
-                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                  : r.status === "pending"
-                                    ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                    : r.status === "rejected"
-                                      ? "bg-red-50 text-red-800 border border-red-200"
-                                      : r.status === "auto_rejected"
-                                        ? "bg-orange-50 text-orange-800 border border-orange-200"
-                                        : r.status === "expired"
-                                          ? "bg-stone-100 text-stone-500 border border-stone-300"
-                                          : r.status === "cancelled"
-                                            ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                            : r.status === "ongoing"
-                                              ? "bg-sky-50 text-sky-800 border border-sky-200"
-                                              : r.status === "completed"
-                                                ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                                : "bg-stone-100 text-stone-700"
-                              }`}
-                            >
-                              {translateStatus(r.status)}
-                            </span>
-                            {r.is_no_show && (
-                              <span className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                {t("common.noShow")}
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="py-3 px-3 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {isPending && (
-                                <>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="font-bold text-stone-900 text-sm truncate">
+                                  {r.service_name || "Reservation"}
+                                </div>
+                                {r.user_id ? (
                                   <button
-                                    onClick={() => handleApprove(r.id)}
-                                    className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1"
-                                    title="Approve request"
+                                    type="button"
+                                    onClick={() => openUserProfile(r.user_id)}
+                                    className="text-xs font-medium text-stone-600 hover:text-amber-900 hover:underline cursor-pointer flex items-center gap-1 group"
                                   >
-                                    <Check className="w-3 h-3" />
-                                    <span>{t("admin.review.approveBtn")}</span>
-                                  </button>
-                                  <button
-                                    onClick={() => openRejectModal(r)}
-                                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                                    title="Reject request"
-                                  >
-                                    <X className="w-3 h-3" />
-                                    <span>{t("admin.review.rejectBtn")}</span>
-                                  </button>
-                                </>
-                              )}
-
-                              {r.status === "completed" &&
-                                (r.is_no_show ? (
-                                  <button
-                                    onClick={() => handleUnmarkNoShow(r.id)}
-                                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                    title={t("common.unmarkNoShow")}
-                                  >
-                                    <span>{t("common.unmarkNoShow")}</span>
+                                    <span>{r.user_name || "Member"}</span>
+                                    <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
                                   </button>
                                 ) : (
-                                  <button
-                                    onClick={() => handleMarkNoShow(r.id)}
-                                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                    title={t("common.markNoShow")}
-                                  >
-                                    <span>{t("common.markNoShow")}</span>
-                                  </button>
-                                ))}
+                                  <div className="text-xs font-medium text-stone-600">
+                                    {r.user_name || r.admin_name || "Member"}
+                                  </div>
+                                )}
+                              </div>
 
-                              {onOpenReservationDetail && (
-                                <button
-                                  onClick={() => onOpenReservationDetail(r.id)}
-                                  className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-stone-700 hover:text-amber-900 border border-stone-200 hover:border-amber-300 transition cursor-pointer text-xs font-semibold flex items-center gap-1.5"
-                                  title="View conversation, details, and replies"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
-                                  <span>
-                                    {t("admin.review.detailsChatBtn")}
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${
+                                  r.status === "approved"
+                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                    : r.status === "pending"
+                                      ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                      : r.status === "rejected"
+                                        ? "bg-red-50 text-red-800 border border-red-200"
+                                        : r.status === "auto_rejected"
+                                          ? "bg-orange-50 text-orange-800 border border-orange-200"
+                                          : r.status === "expired"
+                                            ? "bg-stone-100 text-stone-500 border border-stone-300"
+                                            : r.status === "cancelled"
+                                              ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                              : r.status === "ongoing"
+                                                ? "bg-sky-50 text-sky-800 border border-sky-200"
+                                                : r.status === "completed"
+                                                  ? "bg-blue-50 text-blue-800 border border-blue-200"
+                                                  : "bg-stone-100 text-stone-700"
+                                }`}
+                              >
+                                {translateStatus(r.status)}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600">
+                              <span className="font-semibold text-stone-800 truncate">
+                                {r.instrument_name}
+                              </span>
+                              {r.musician_name && (
+                                <>
+                                  <span className="text-stone-400">•</span>
+                                  <span className="truncate">
+                                    {r.musician_name}
                                   </span>
-                                </button>
+                                </>
+                              )}
+                              <span className="whitespace-nowrap">
+                                {new Date(r.start_time).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )}{" "}
+                                (
+                                {new Date(r.start_time).toLocaleTimeString([], {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                })}
+                                {" – "}
+                                {new Date(r.end_time).toLocaleTimeString([], {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                })}
+                                )
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {(r.is_full_day ||
+                                (r.start_hhmm === "09:00" &&
+                                  r.end_hhmm === "22:00")) && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                  <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                  <span>{t("common.fullDay")}</span>
+                                </span>
+                              )}
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  r.reservation_type === "outside_church"
+                                    ? "bg-amber-50 text-amber-800 border border-amber-200"
+                                    : "bg-stone-100 text-stone-700"
+                                }`}
+                              >
+                                {r.reservation_type === "outside_church"
+                                  ? t("admin.review.outsideBadge")
+                                  : t("admin.review.inChurchBadge")}
+                              </span>
+                              {r.series_id && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                  <Repeat className="w-2.5 h-2.5" />{" "}
+                                  {t("admin.review.seriesBadge")}
+                                </span>
+                              )}
+                              {r.is_no_show && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                  {t("common.noShow")}
+                                </span>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+
+                        <div className="px-4 pb-3.5 pt-1 flex items-center flex-wrap gap-1.5 bg-stone-50/70 border-t border-stone-100">
+                          {isPending && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(r.id)}
+                                className="px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center gap-1"
+                                title="Approve request"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>{t("admin.review.approveBtn")}</span>
+                              </button>
+                              <button
+                                onClick={() => openRejectModal(r)}
+                                className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                                title="Reject request"
+                              >
+                                <X className="w-3 h-3" />
+                                <span>{t("admin.review.rejectBtn")}</span>
+                              </button>
+                            </>
+                          )}
+
+                          {r.status === "completed" &&
+                            (r.is_no_show ? (
+                              <button
+                                onClick={() => handleUnmarkNoShow(r.id)}
+                                className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                title={t("common.unmarkNoShow")}
+                              >
+                                <span>{t("common.unmarkNoShow")}</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleMarkNoShow(r.id)}
+                                className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                                title={t("common.markNoShow")}
+                              >
+                                <span>{t("common.markNoShow")}</span>
+                              </button>
+                            ))}
+
+                          {onOpenReservationDetail && (
+                            <button
+                              onClick={() => onOpenReservationDetail(r.id)}
+                              className="ml-auto px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
+                              title="View conversation, details, and replies"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>{t("admin.review.detailsChatBtn")}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
