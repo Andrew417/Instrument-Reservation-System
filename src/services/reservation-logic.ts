@@ -338,14 +338,6 @@ export async function evaluateReservationSubmission(
 
   const limits = options?.preloadedLimits || (await getHardLimits());
 
-  // Strictly enforce 5-hour limit for regular users (members cannot book full-day reservations; only admins can book or transform)
-  const isActualAdmin = Boolean(cleanAdminId || isAdmin);
-  if (!isActualAdmin && duration > limits.maxDurationHours) {
-    throw new Error(
-      `Members can book a maximum duration of ${limits.maxDurationHours} hours. Only administrators can create or transform full-day reservations.`,
-    );
-  }
-
   // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled)
   if (!options?.skipRateLimitCheck && cleanUserId && !limits.bypassHardLimits) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -650,7 +642,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
         isRead: false,
       });
     } catch (msgErr) {
-      console.error("Non-fatal: failed to create initial note in messages:", msgErr);
+      console.error(
+        "Non-fatal: failed to create initial note in messages:",
+        msgErr,
+      );
     }
   }
 
@@ -1003,7 +998,10 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
           isRead: false,
         });
       } catch (msgErr) {
-        console.error("Non-fatal: failed to record initial series note in messages:", msgErr);
+        console.error(
+          "Non-fatal: failed to record initial series note in messages:",
+          msgErr,
+        );
       }
     }
 
@@ -1219,18 +1217,6 @@ export async function editReservation(
 
   validateWorkingHours(start, end);
 
-  // Enforce max duration for regular users (members cannot edit to > 5 hours, only admins can)
-  const isActualAdminCaller = Boolean(caller.adminId || caller.isSuperAdmin);
-  const editDurationHours = (end.getTime() - start.getTime()) / (3600 * 1000);
-  if (!isActualAdminCaller) {
-    const limits = await getHardLimits();
-    if (editDurationHours > limits.maxDurationHours) {
-      throw new Error(
-        `Members can book a maximum duration of ${limits.maxDurationHours} hours. Only administrators can create or transform full-day reservations.`,
-      );
-    }
-  }
-
   // Check conflicts with OTHER approved reservations on this instrument
   const conflicts = await db
     .select({ id: reservations.id })
@@ -1336,9 +1322,7 @@ export async function editReservation(
       ? updates.musicianName.trim()
       : existing.musicianName;
   const cleanNote =
-    updates.note !== undefined
-      ? toNullableString(updates.note)
-      : existing.note;
+    updates.note !== undefined ? toNullableString(updates.note) : existing.note;
 
   if (!cleanMusicianName) {
     throw new Error("Musician name is required.");
@@ -1597,7 +1581,9 @@ export async function adminTransformToFullDay(
   if (!res) throw new Error("Reservation not found.");
 
   if (res.status === "cancelled" || res.status === "rejected") {
-    throw new Error("Cannot transform a cancelled or rejected reservation to full day.");
+    throw new Error(
+      "Cannot transform a cancelled or rejected reservation to full day.",
+    );
   }
 
   // Extract date of current reservation
@@ -1656,7 +1642,8 @@ export async function adminTransformToFullDay(
   const [transformed] = await db
     .update(reservations)
     .set({
-      timeRange: sql`tstzrange(${fullDayStart.toISOString()}, ${fullDayEnd.toISOString()}, '[)')` as any,
+      timeRange:
+        sql`tstzrange(${fullDayStart.toISOString()}, ${fullDayEnd.toISOString()}, '[)')` as any,
       status: "approved",
       rejectionReason: null,
       adminId: cleanAdminId || res.adminId,
@@ -1680,7 +1667,8 @@ export async function adminTransformToFullDay(
       adminId: cleanAdminId,
       senderRole: "admin",
       senderName: "Church Administration",
-      content: "Reservation has been transformed to a Full Day booking (09:00 AM – 10:00 PM) by church administration.",
+      content:
+        "Reservation has been transformed to a Full Day booking (09:00 AM – 10:00 PM) by church administration.",
       isRead: false,
     });
   } catch (msgErr) {
@@ -1725,7 +1713,10 @@ export async function adminTransformToFullDay(
             });
           }
         } catch (mailErr) {
-          console.error("Failed to send full-day transformed approval email:", mailErr);
+          console.error(
+            "Failed to send full-day transformed approval email:",
+            mailErr,
+          );
         }
       })().catch(() => {});
     }

@@ -131,10 +131,23 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     const result = await createReservation(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    console.error("Reservation create error:", err);
+    const msg: string = err.message || "Failed to create reservation.";
+    const status =
+      err.code === "SUBMISSION_BLOCKED"
+        ? 400
+        : /not authorized/i.test(msg)
+          ? 403
+          : /not found/i.test(msg)
+            ? 404
+            : /conflicts?|working hours|maximum duration|exceeds/i.test(msg)
+              ? 400
+              : 500;
+    res.status(status).json({
+      success: false,
+      error: msg,
+      cause: err.cause?.message,
+    });
   }
 });
 
