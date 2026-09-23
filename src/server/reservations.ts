@@ -664,10 +664,22 @@ router.post(
         }
       }
 
-      // Fetch reservation record
-      const resInfo = await db.execute(
-        sql`SELECT r.user_id, r.service_name, u.name as user_name FROM reservations r LEFT JOIN users u ON r.user_id = u.id WHERE r.id = ${id}`,
-      );
+      // Fetch reservation record (expanded with contact + slot context for email dispatch)
+      const resInfo = await db.execute(sql`
+        SELECT
+          r.user_id,
+          r.service_name,
+          r.musician_name,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          u.name as user_name,
+          u.email as user_email,
+          COALESCE(i.name, 'Instrument') as instrument_name
+        FROM reservations r
+        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.id = ${id}
+      `);
       const resRows = (resInfo as any).rows || [];
       const resRecord = resRows[0];
 
@@ -760,8 +772,60 @@ router.post(
         );
       }
 
+      // Send email notification to the other party
+      let emailSent = false;
+      let emailError: string | null = null;
+      let emailRecipientCount = 0;
+      try {
+        if (senderRole === "user") {
+          // Member replied → email all approved admins
+          const { sendNewMessageToAdminsEmail } =
+            await import("../lib/mailer.js");
+          const result = await sendNewMessageToAdminsEmail({
+            memberName: senderName || resRecord?.user_name || "A member",
+            instrumentName: resRecord?.instrument_name || "an instrument",
+            serviceName: resRecord?.service_name || undefined,
+            startTime: resRecord?.start_time || null,
+            endTime: resRecord?.end_time || null,
+            reservationId: id,
+            messageContent: content.trim(),
+          });
+          emailSent = result.sent;
+          emailError = result.error || null;
+          emailRecipientCount = result.recipientCount || 0;
+        } else {
+          // Admin sent → email the reservation's owning member (if any)
+          if (resRecord?.user_id && resRecord?.user_email) {
+            const { sendNewMessageToMemberEmail } =
+              await import("../lib/mailer.js");
+            const result = await sendNewMessageToMemberEmail({
+              email: resRecord.user_email,
+              memberName: resRecord.user_name || "Member",
+              adminName: senderName || "Church Administration",
+              instrumentName: resRecord.instrument_name || "an instrument",
+              serviceName: resRecord.service_name || undefined,
+              startTime: resRecord.start_time || null,
+              endTime: resRecord.end_time || null,
+              reservationId: id,
+              messageContent: content.trim(),
+            });
+            emailSent = result.sent;
+            emailError = result.error || null;
+            emailRecipientCount = result.sent ? 1 : 0;
+          } else {
+            emailError = "No member email on reservation to notify";
+          }
+        }
+      } catch (mailErr: any) {
+        emailError = mailErr.message || "Mailer threw";
+        console.warn("Chat-message email dispatch failed:", emailError);
+      }
+
       res.json({
         success: true,
+        emailSent,
+        emailError,
+        emailRecipientCount,
         message: {
           ...createdMessage,
           author_name:

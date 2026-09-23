@@ -885,3 +885,259 @@ export async function sendReservationPaidEmail(
     return { sent: false, error: err.message };
   }
 }
+
+// ---------------------------------------------------------------------------
+// 7. New Admin Message → Email to Member
+// ---------------------------------------------------------------------------
+
+export interface NewMessageToMemberEmailData {
+  email: string;
+  memberName: string;
+  adminName: string;
+  instrumentName: string;
+  serviceName?: string;
+  startTime?: Date | string | null;
+  endTime?: Date | string | null;
+  reservationId: string;
+  messageContent: string;
+}
+
+function buildNewMessageToMemberHtml(
+  data: NewMessageToMemberEmailData,
+): string {
+  const portalUrl = getPortalUrl();
+  const formattedSlot = formatSlotDateTime(data.startTime, data.endTime);
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f1eb; margin: 0; padding: 24px; color: #2d2a24; }
+          .card { max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e0dccf; border-radius: 16px; padding: 32px; box-shadow: 0 4px 14px rgba(0,0,0,0.05); }
+          .header { text-align: center; margin-bottom: 20px; }
+          .logo { font-size: 32px; line-height: 1; margin-bottom: 8px; }
+          .brand { font-size: 15px; font-weight: 700; color: #4a3b2a; }
+          .badge-msg { display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 8px; }
+          .title { font-size: 20px; font-weight: 700; color: #2d2a24; margin: 16px 0 8px; text-align: center; }
+          .body-text { font-size: 14px; line-height: 1.6; color: #4a4438; margin: 12px 0; }
+          .message-card { background: #fbf6ec; border-left: 4px solid #7a5c2e; border-radius: 8px; padding: 16px; margin: 20px 0; }
+          .message-label { font-size: 11px; font-weight: 700; color: #8a7d68; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+          .message-content { font-size: 14px; line-height: 1.6; color: #2d2a24; white-space: pre-wrap; }
+          .details-card { background: #fbf6ec; border: 1px solid #e0dccf; border-radius: 12px; padding: 16px; margin: 20px 0; }
+          .cta-btn { display: inline-block; background-color: #7a5c2e; color: #ffffff !important; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; text-decoration: none; margin: 16px 0; text-align: center; }
+          .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #efeae0; font-size: 12px; color: #a39a87; text-align: center; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">
+            <div class="logo">🎵⛪</div>
+            <div class="brand">St. Mark Church • Instrument Reservation</div>
+            <div class="badge-msg">💬 New Message from Administration</div>
+          </div>
+          <h2 class="title">You Have a New Message</h2>
+          <p class="body-text">
+            Hello <strong>${data.memberName}</strong>,<br>
+            Church administration (<strong>${data.adminName}</strong>) sent you a message regarding your reservation:
+          </p>
+          <div class="message-card">
+            <div class="message-label">Message:</div>
+            <div class="message-content">${data.messageContent}</div>
+          </div>
+          <div class="details-card">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Instrument:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${data.instrumentName}</td>
+              </tr>
+              ${
+                data.serviceName
+                  ? `<tr><td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Service / Purpose:</td><td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0;">${data.serviceName}</td></tr>`
+                  : ""
+              }
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Slot:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${formattedSlot}</td>
+              </tr>
+            </table>
+          </div>
+          <p class="body-text">
+            Open the reservation detail in your portal to read and reply to this message.
+          </p>
+          <div style="text-align: center;">
+            <a href="${portalUrl}" class="cta-btn">View Reservation →</a>
+          </div>
+          <div class="footer">
+            St. Mark Church • Instrument Reservation System<br>
+            Please do not reply to this email — use the in-app chat.
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+export async function sendNewMessageToMemberEmail(
+  data: NewMessageToMemberEmailData,
+): Promise<{ sent: boolean; error?: string }> {
+  const transport = getTransporter();
+  if (!transport) {
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping new-message email.",
+    );
+    return { sent: false, error: "Gmail SMTP not configured" };
+  }
+  if (!data.email) {
+    return { sent: false, error: "No recipient email provided" };
+  }
+  try {
+    await transport.sendMail({
+      from: `"St. Mark Church Instrument Reservation" <${process.env.GMAIL_USER}>`,
+      to: data.email,
+      subject: `New message from church administration — ${data.instrumentName}`,
+      html: buildNewMessageToMemberHtml(data),
+      text: `Hello ${data.memberName},\n\n${data.adminName} sent you a message regarding your reservation for ${data.instrumentName}:\n\n"${data.messageContent}"\n\nOpen the portal to reply: ${getPortalUrl()}`,
+    });
+    return { sent: true };
+  } catch (err: any) {
+    console.error("Error sending new-message-to-member email:", err);
+    return { sent: false, error: err.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Member Reply → Email to All Approved Admins
+// ---------------------------------------------------------------------------
+
+export interface NewMessageToAdminsEmailData {
+  memberName: string;
+  instrumentName: string;
+  serviceName?: string;
+  startTime?: Date | string | null;
+  endTime?: Date | string | null;
+  reservationId: string;
+  messageContent: string;
+}
+
+function buildNewMessageToAdminsHtml(
+  data: NewMessageToAdminsEmailData,
+): string {
+  const portalUrl = getPortalUrl();
+  const formattedSlot = formatSlotDateTime(data.startTime, data.endTime);
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f1eb; margin: 0; padding: 24px; color: #2d2a24; }
+          .card { max-width: 560px; margin: 0 auto; background: #ffffff; border: 1px solid #e0dccf; border-radius: 16px; padding: 32px; box-shadow: 0 4px 14px rgba(0,0,0,0.05); }
+          .header { text-align: center; margin-bottom: 20px; }
+          .logo { font-size: 32px; line-height: 1; margin-bottom: 8px; }
+          .brand { font-size: 15px; font-weight: 700; color: #4a3b2a; }
+          .badge-msg { display: inline-block; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 8px; }
+          .title { font-size: 20px; font-weight: 700; color: #2d2a24; margin: 16px 0 8px; text-align: center; }
+          .body-text { font-size: 14px; line-height: 1.6; color: #4a4438; margin: 12px 0; }
+          .message-card { background: #fbf6ec; border-left: 4px solid #7a5c2e; border-radius: 8px; padding: 16px; margin: 20px 0; }
+          .message-label { font-size: 11px; font-weight: 700; color: #8a7d68; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+          .message-content { font-size: 14px; line-height: 1.6; color: #2d2a24; white-space: pre-wrap; }
+          .details-card { background: #fbf6ec; border: 1px solid #e0dccf; border-radius: 12px; padding: 16px; margin: 20px 0; }
+          .cta-btn { display: inline-block; background-color: #7a5c2e; color: #ffffff !important; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; text-decoration: none; margin: 16px 0; text-align: center; }
+          .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #efeae0; font-size: 12px; color: #a39a87; text-align: center; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="header">
+            <div class="logo">🎵⛪</div>
+            <div class="brand">St. Mark Church • Instrument Reservation</div>
+            <div class="badge-msg">💬 New Reply from Member</div>
+          </div>
+          <h2 class="title">Member Replied to a Reservation</h2>
+          <p class="body-text">
+            <strong>${data.memberName}</strong> replied on reservation for <strong>${data.instrumentName}</strong>:
+          </p>
+          <div class="message-card">
+            <div class="message-label">Message:</div>
+            <div class="message-content">${data.messageContent}</div>
+          </div>
+          <div class="details-card">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Instrument:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${data.instrumentName}</td>
+              </tr>
+              ${
+                data.serviceName
+                  ? `<tr><td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Service / Purpose:</td><td style="color: #2d2a24; font-weight: 600; text-align: right; padding: 6px 0;">${data.serviceName}</td></tr>`
+                  : ""
+              }
+              <tr>
+                <td style="color: #8a7d68; font-weight: 600; padding: 6px 0;">Slot:</td>
+                <td style="color: #2d2a24; font-weight: 700; text-align: right; padding: 6px 0;">${formattedSlot}</td>
+              </tr>
+            </table>
+          </div>
+          <div style="text-align: center;">
+            <a href="${portalUrl}" class="cta-btn">Open Admin Portal →</a>
+          </div>
+          <div class="footer">
+            St. Mark Church • Instrument Reservation System<br>
+            Automated member reply notification
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
+export async function sendNewMessageToAdminsEmail(
+  data: NewMessageToAdminsEmailData,
+): Promise<{ sent: boolean; error?: string; recipientCount?: number }> {
+  const transport = getTransporter();
+  if (!transport) {
+    console.warn(
+      "Gmail SMTP not configured: GMAIL_USER or GMAIL_APP_PASSWORD missing. Skipping new-message-to-admins email.",
+    );
+    return { sent: false, error: "Gmail SMTP not configured" };
+  }
+  try {
+    const adminRows = await db
+      .select({ email: admins.email })
+      .from(admins)
+      .where(eq(admins.approvalStatus, "approved"));
+    const adminEmails = [
+      ...new Set(
+        adminRows
+          .map((r) => (r.email || "").trim())
+          .filter((e) => e.length > 0),
+      ),
+    ];
+    if (adminEmails.length === 0) {
+      return {
+        sent: false,
+        error: "No approved admin email addresses configured",
+        recipientCount: 0,
+      };
+    }
+    const subject = `New reply from ${data.memberName} — ${data.instrumentName}`;
+    const html = buildNewMessageToAdminsHtml(data);
+    const text = `${data.memberName} replied on a reservation:\n\n"${data.messageContent}"\n\nInstrument: ${data.instrumentName}\nSlot: ${formatSlotDateTime(data.startTime, data.endTime)}\n\nOpen admin portal: ${getPortalUrl()}`;
+    await Promise.all(
+      adminEmails.map((email) =>
+        transport.sendMail({
+          from: `"St. Mark Church Instrument Reservation" <${process.env.GMAIL_USER}>`,
+          to: email,
+          subject,
+          html,
+          text,
+        }),
+      ),
+    );
+    return { sent: true, recipientCount: adminEmails.length };
+  } catch (err: any) {
+    console.error("Error sending new-message-to-admins email:", err);
+    return { sent: false, error: err.message };
+  }
+}
