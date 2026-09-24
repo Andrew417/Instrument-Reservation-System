@@ -31,15 +31,15 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
   return (
     <div
       id="policy-explainer-modal-backdrop"
-      className="fixed inset-0 z-[100] bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 bottom-[4.25rem] lg:bottom-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
       dir="rtl"
     >
       <div
         id="policy-explainer-modal"
-        className="bg-stone-50 rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col font-sans mb-20 lg:mb-auto"
+        className="bg-stone-50 rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full h-full max-h-[82vh] lg:max-h-[85vh] flex flex-col font-sans overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         dir="rtl"
       >
-        {/* Header */}
+        {/* Header - Fixed at top of modal */}
         <div className="bg-stone-900 text-white px-5 sm:px-6 py-4 sm:py-5 flex items-center justify-between border-b border-stone-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-700/30 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0">
@@ -65,8 +65,8 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1 text-stone-800">
+        {/* Scrollable Content Inside Modal */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1 min-h-0 text-stone-800">
           
           {/* 3 Step Visual Guide */}
           <div className="space-y-3">
@@ -252,7 +252,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer - Fixed at bottom of modal */}
         <div className="p-4 sm:p-5 bg-stone-100 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
           <div className="text-xs text-stone-500 text-center sm:text-right hidden sm:block">
             يمكنك فتح هذا الدليل في أي وقت من زر "دليل الحجز (كيف تحجز؟)" أعلى الصفحة.
