@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Church,
   ArrowRight,
+  Repeat,
 } from "lucide-react";
 
 export interface PolicyExplainerModalProps {
@@ -226,6 +227,25 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                   </div>
                   <p className="text-stone-600 leading-relaxed text-[11px] sm:text-xs">
                     يجب أن يوافق الادمن أولاً. بعد الموافقة، افتح حجزك وستجد زر "ادفع الآن". سيظهر لك المبلغ المطلوب، وتدفعه عبر انستاباي من الرابط الموجود في الحجز. بعد الدفع، ارفع صورة التحويل لتأكيد العملية.
+                  </p>
+                </div>
+
+                {/* Topic 3: New booking & Recurring booking */}
+                <div className="p-3 bg-stone-50 rounded-xl space-y-1.5 border border-stone-100">
+                  <div className="font-bold text-stone-900 flex items-center gap-1.5">
+                    <Repeat className="w-3.5 h-3.5 text-stone-700" />
+                    <span>الحجز الجديد والحجز المتكرر</span>
+                  </div>
+                  <p className="text-stone-600 leading-relaxed text-[11px] sm:text-xs">
+                    زر "حجز جديد": لحجز آلة مرة واحدة في يوم واحد.
+                    <br />
+                    زر "حجز متكرر": لحجز نفس الآلة في نفس الوقت أكثر من مرة. مثل بروفة كل سبت.
+                    <br />
+                    في الحجز المتكرر توجد طريقتان:
+                    <br />
+                    الأسبوعي: يتكرر الحجز كل أسبوع في نفس اليوم ونفس الوقت. مثال: كل سبت من ٦ إلى ٨ مساءً.
+                    <br />
+                    تواريخ مخصصة: أنت تختار التواريخ بنفسك. الوقت نفسه في كل التواريخ.
                   </p>
                 </div>
               </div>
