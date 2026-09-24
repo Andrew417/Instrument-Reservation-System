@@ -175,17 +175,18 @@ Each occurrence in a series is evaluated independently against the conflict and 
 
 ## Editing a Reservation
 
-Users can edit a pending or approved reservation to change: instrument, date, start time, duration.
+Users can edit a pending or approved reservation to change: instrument, date, start time, duration, service name, musician name, and notes.
 
-| Original Status                    | After Edit                           |
-| ---------------------------------- | ------------------------------------ |
-| Pending                            | Stays Pending                        |
-| Approved + Instant mode instrument | Auto-approved again (if no conflict) |
-| Approved + Manual mode instrument  | Resets to Pending                    |
-| Approved + user over hard limits   | Resets to Pending                    |
-| Approved + Trusted or Admin user   | Auto-approved again (if no conflict) |
+| Original Status                                     | After Edit                           |
+| --------------------------------------------------- | ------------------------------------ |
+| Pending                                             | Stays Pending                        |
+| Approved + In-Church + Instant mode instrument      | Auto-approved again (if no conflict) |
+| Approved + In-Church + Manual mode instrument       | Resets to Pending                    |
+| Approved + Outside-Church (any mode, regular user)  | Resets to Pending (requires review)  |
+| Approved + user over hard limits                    | Resets to Pending                    |
+| Approved + Trusted or Admin user                    | Auto-approved again (if no conflict) |
 
-Admin edits to their own reservations always re-trigger auto-approval.
+Admin edits to their own reservations always re-trigger auto-approval. Any edit to an outside-church reservation by a regular user always resets to Pending for admin re-evaluation of fees and logistics.
 
 ---
 
@@ -265,12 +266,15 @@ Users receive on-site notifications for:
 
 ---
 
-## In-System Messaging
-
-- Admin can send messages to a user scoped to a specific reservation
-- Messages are **one-way**: admin sends, user reads only (no reply)
-- User sees messages in the Reservation Detail screen under "Messages from Admin"
-- User's Messages tab shows all reservations with at least one admin message, with unread count badge
+## In-System Messaging & Email Dispatch
+ 
+- Admin and user can communicate via two-way messages scoped to a specific reservation
+- Both admins and members can send messages from the Reservation Detail modal ("Conversation & Admin Notes" tab)
+- **Email Notifications (via Gmail SMTP)**:
+    - When an administrator posts a message, an email is dispatched to the member's email address with reservation details, slot info, and a direct portal link.
+    - When a member replies, an email is dispatched to all approved administrator accounts with the reply content, musician name, slot info, and a direct link to the Admin Portal.
+- User sees messages in the Reservation Detail screen under the conversation thread
+- User's Messages tab shows all reservations with messages, with unread count badge
 - A new message also fires an on-site bell notification, in addition to the Messages tab unread badge
 
 ---
@@ -369,8 +373,8 @@ Same flow used for both user and admin portals.
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | Forgot password                      | SMS OTP flow (3 steps)                                                                                       |
 | Login brute-force protection         | 15-min lockout after 5 failed password attempts (mirrors OTP lockout)                                        |
-| Notification delivery                | On-site bell only                                                                                            |
-| Admin-to-user contact                | One-way in-system messaging scoped to reservation; also fires a bell notification                            |
+| Notification delivery                | On-site bell + automated transactional emails (Gmail SMTP) for chat messages, pending requests & approvals  |
+| Admin-to-user contact                | Two-way in-system messaging scoped to reservation with automated bi-directional email dispatch & bell alerts |
 | Recurring series in manual mode      | Admin sees series as grouped card; approves/rejects all or individually                                      |
 | Booking mode scope                   | Per-instrument (not global) — but overridden entirely by Trusted status when present                         |
 | Calendar on mobile                   | Horizontal scroll; instrument detail has Daily/Weekly/Monthly toggle                                         |
@@ -381,7 +385,7 @@ Same flow used for both user and admin portals.
 | Hard limits behavior                 | Soft cap for active/day/duration/concurrent-type — over limit downgrades to Pending, not blocked             |
 | Hard limits editability              | All hard limits (including rate limit and series cap) admin-editable in Settings at any time                 |
 | Instant mode vs. over-limit order    | Conflict check always evaluated first; limit/mode checks only apply if no conflict exists                    |
-| Recurring conflict rule              | Any single conflict with an approved reservation, or any self-overlap within the series, blocks submission   |
+| Recurring conflict rule              | Any conflict with approved slot or self-overlap blocks submission; "Skip Conflicting Dates" discards conflicts|
 | Series occurrence cap                | Hard block at submission — default 8, admin-editable, bypassed by Trusted/Admin                              |
 | Submission rate limit                | Hard block at submission — default 10/hour per user, admin-editable, bypassed by Trusted/Admin               |
 | Cancel → rebook cooldown             | None — covered by the submission rate limit                                                                  |
@@ -395,7 +399,7 @@ Same flow used for both user and admin portals.
 | Deleted user data                    | Permanently erased — no anonymization                                                                        |
 | Deactivated user sessions            | Can still log in; cannot make new reservations                                                               |
 | Reactivated user                     | Starts fresh — no reservations restored; Trusted status restored if previously held                          |
-| Payment method                       | Instapay screenshot uploaded by user post-approval; no formal verification status                            |
+| Payment method                       | Instapay screenshot uploaded by user post-approval or direct church administration arrangement               |
 | Payment config                       | Instapay number/link set once in Settings by Super Admin                                                     |
 | OTP security                         | Max 3 requests/hour; 15-min lockout after 5 failures                                                         |
 | Approved-row uniqueness              | Enforced via DB exclusion constraint on `(instrument_id, time_range)` — Pending rows exempt                  |

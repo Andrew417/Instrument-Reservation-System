@@ -8,10 +8,10 @@ Here's the updated documentation with the new features added:
 - **Trusted user status** — Super Admin-granted flag; auto-approves regardless of instrument mode or hard limits. Conflict with an approved slot is never bypassed.
 - **Admin reservations** — always auto-approved, logged under the admin's own account.
 - **Fair usage (hard limits)** — active reservations, per-day count, max duration, same-type concurrency, series occurrence cap, submission rate limit. All admin-editable in Settings; Trusted/Admin bypass all. Most limits downgrade to Pending rather than block; submission rate limit blocks outright.
-- **In-church vs outside-church usage type** — in-church is free; outside-church carries a per-day fee, snapshotted at submission (later fee changes don't retroactively apply).
-- **Outside-church payment flow** — user submits and checks acknowledgment box; after admin review, admin contacts the user on WhatsApp to arrange confirmation and payment (no in-app payment or verification step).
-- **Recurring series** — Weekly (interval + occurrence count) or Custom (manually picked dates), same time/duration across all occurrences. Real-time conflict detection against existing approved reservations, self-overlap within the series, and working-hours bounds. Submission blocked until all conflicts resolved.
-- **Editing reservations** — users can edit instrument, date, time, duration. Editing an Approved reservation on a Manual-mode instrument resets it to Pending; the Edit form now shows an inline warning when this will happen (based on live instrument selection, skipped for Trusted/Admin).
+- **In-church vs outside-church usage type** — in-church is free; outside-church carries a per-day fee, snapshotted at submission (later fee changes don't retroactively apply). Outside-church requests always require admin review and default to Pending status regardless of instrument mode.
+- **Outside-church payment flow** — user submits and checks acknowledgment box; after admin review/approval, user can upload an Instapay transfer receipt screenshot via the Reservation Detail modal (with admin ability to view/remove screenshot) or arrange payment via church administration.
+- **Recurring series** — Weekly (interval + occurrence count) or Custom (manually picked dates), same time/duration across all occurrences. Real-time conflict detection against existing approved reservations, self-overlap within the series, and working-hours bounds. Includes one-click **"Skip Conflicting Dates"** button to automatically discard conflicting occurrences and switch to custom pattern mode for immediate submission.
+- **Editing reservations** — users can edit instrument, date, time, duration. Editing an Approved reservation on a Manual-mode instrument resets it to Pending; editing any outside-church reservation strictly forces status back to Pending for admin re-evaluation. The Edit form shows inline warnings for these resets (skipped for Trusted/Admin).
 - **Cancellation** — users cancel their own Pending/Approved reservations (single or entire series); admins cancel immediately, with an optional structured reason.
 - **Reservation Detail Modal** — unified view showing reservation purpose, status, requester info (with fallback to admin name for admin-created reservations), instrument specifications, date/time slot, usage type & fee. Includes Conversation & Administration Notes tab with full chat history and inline messaging.
 
@@ -37,15 +37,19 @@ Here's the updated documentation with the new features added:
 
 ## Messaging
 
-- One-way admin-to-user messaging scoped to a specific reservation. Admin sends; user reads only (no reply, by design).
-- New message fires a bell notification in addition to the unread badge on the user's Messages tab.
-- **Reservation Detail Chat Tab** — full conversation view with message history, sender identification (admin/member), and timestamp formatting. Quick reply suggestions for users when a reservation is rejected.
+- **Two-way in-system conversation** — Admin and user can communicate in a conversation thread scoped to a specific reservation.
+- **Bi-directional email dispatch (via Gmail SMTP)**:
+    - Admin message → automated email sent to the reservation owner's email address with reservation slot context and link to portal.
+    - Member reply → automated email sent to all approved administrator emails with sender name, instrument, slot, and quick link to admin portal.
+- **On-site bell notifications** — Messages fire on-site bell notifications in addition to the unread badge on the Messages tab.
+- **Reservation Detail Chat Tab** — Full conversation view with message history, sender identification (admin/member), timestamps, and quick reply suggestions when a reservation is rejected.
 
 ---
 
 ## Admin Portal
 
 - Dashboard: total instruments, pending requests, today's reservations, filterable full reservation list.
+- **Collapsible Desktop Navigation Sidebar** — Sidebar can be collapsed to an icon rail (`w-20`) or expanded (`w-72`), with user preference saved in local storage. Includes quick-search filtering of admin sections, high-contrast active indicator bars, and full RTL layout support.
 - Recurring series shown as a grouped card with Approve All / Reject All, plus individual occurrence actions.
 - Bulk reservation actions (cancel/delete selected) with a reason picker for bulk cancellations.
 - User management: view, deactivate, reactivate, delete users; grant/revoke Trusted status (Super Admin only, audit-logged).
@@ -61,8 +65,14 @@ Here's the updated documentation with the new features added:
 
 ## Policy Explainer (User-Facing)
 
-- In-app modal covering: Instant vs Manual booking modes, a plain-language fair-usage-limits summary (no per-limit breakdown — kept high-level to avoid overwhelming users), the always-enforced "approved slot can't be booked by anyone else" rule, and the outside-church fee/payment flow (confirm fee → WhatsApp call from admin).
-- Specific hard-limit numbers and names are intentionally left out of this modal; limit-triggered Pending status is meant to be explained contextually (e.g. on Reservation Detail) rather than upfront.
+- In-app modal designed specifically for older members and users unfamiliar with technology, always presented in simple, welcoming Arabic (`dir="rtl"`).
+- Automatically opens as a pop-up after authentication/login on each session to guide users immediately, and remains accessible anytime from the top header ("دليل الحجز (كيف تحجز؟)").
+- Plain 3-step visual guide:
+    1. **اختر الآلة والموعد من الجدول** — Pick the instrument and desired slot from the calendar or tap "حجز جديد".
+    2. **اكتب اسم الخدمة ثم اضغط "تأكيد"** — Enter service name, duration in hours, and confirm.
+    3. **استلم الآلة في موعدك المحدد** — Notice of approval/review, and peaceful handover at church on service day.
+- Covers key reassurance points: approved slots are reserved exclusively, services inside church are 100% free, and in-app chat/WhatsApp is available for help.
+- Includes a collapsible section for advanced details (fair usage policy, outside church Instapay/cash arrangements) without cluttering the primary user journey.
 
 ---
 
@@ -91,20 +101,25 @@ Here's the updated documentation with the new features added:
 
 ---
 
-## Key-Holder Handover Sheet Export
+## Key-Holder Handover Sheet Export & WhatsApp Sharing
 
-- **Purpose** — CSV/XLSX export for the person holding the instrument-room keys, showing exactly who to hand which instrument to and when.
+- **Purpose** — XLSX, CSV, or PDF/Print export and direct WhatsApp sharing for the person holding the instrument-room keys, showing who to hand which instrument to and when.
 - **Scope** — Approved reservations only. Recurring series are unrolled: each occurrence exports as its own independent row (no series grouping).
 - **Range selector** — Day or Week (7-day) toggle, defaulting to today/current week, with forward/back navigation and a clickable date display for direct date-picker access.
-- **Format selector** — XLSX (formatted) or CSV (raw), chosen at export time; same underlying data and column order in both.
-- **Columns (fixed order):** Date (`YYYY-MM-DD`), Start Time, End Time (12-hour), Instrument, Type/Category, Service Name, Reserved By, Phone Number, Usage Type (In-church/Outside).
+- **Format selector** — XLSX (formatted spreadsheet), CSV (raw), or PDF (printable clean sheet), chosen at export time; same underlying data across all.
+- **Columns (11 fixed columns):** Date (`YYYY-MM-DD`), Start Time, End Time (12-hour), Instrument, Type/Category, Service Name, Musician Name, Reserved By, Phone Number, Usage Type (In-church/Outside), Notes.
+- **Direct WhatsApp Sharing**:
+    - Generates a cleanly structured, Arabic-first WhatsApp message grouped by date.
+    - Uses phone directional isolation (`\u2066phone\u2069`) for clean RTL rendering.
+    - Uses Web Share API on mobile/touch devices; opens WhatsApp Web (`wa.me`) on desktop with automatic clipboard fallback.
+- **Print / PDF Sheet** — Formatted printable view with clean typography and date section headers (`window.print()` / PDF download).
 - **Sort order** — Chronological: date ascending, then start time ascending.
 - **XLSX formatting** — Bold white header text on deep navy fill, frozen header row, alternating row banding, soft green/amber cell fill for Usage Type (In-church/Outside), thin grid borders, centered date/time columns, auto-sized columns.
-- **CSV format** — Plain RFC 4180-escaped values with UTF-8 BOM for cross-platform compatibility; no styling (CSV has no formatting spec).
+- **CSV format** — Plain RFC 4180-escaped values with UTF-8 BOM for cross-platform compatibility.
 - **Empty range handling** — Generates a headers-only file rather than blocking export.
 - **Filename convention** — `reservations_YYYY-MM-DD.ext` (Day) or `reservations_YYYY-MM-DD_to_YYYY-MM-DD.ext` (Week).
-- **Entry point** — Single "Export Handover Sheet" button in the Admin Portal header, opening a modal with range/format toggle row, live table preview, row/column summary, and export action. No duplicate export surface on the Dashboard Overview tab.
-- **RTL Support** — Full RTL layout support for Arabic language: reversed navigation arrows, date range order, and table text alignment. Day column and Date column merged for same-date rows. Bold section separators between different days for enhanced readability.
+- **Entry point** — Single "Export Handover Sheet" button in the Admin Portal header, opening a modal with range/format toggle row, live table preview, row/column summary, and export/share actions.
+- **RTL Support** — Full RTL layout support for Arabic language: reversed navigation arrows, date range order, and table text alignment. Day column and Date column merged for same-date rows. Bold section separators between different days for enhanced readability. Mobile scroll indicator fade on table edges.
 
 ---
 

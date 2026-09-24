@@ -105,7 +105,17 @@ const UserPortalMain: React.FC = () => {
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin;
   const [policyExplainerEnabled, setPolicyExplainerEnabled] = useState(true);
+  // Auto-open policy explainer modal after auth only for regular users (not for admins or superadmins)
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Only automatically pop up for regular users, never for admins or superadmins
+    if (profile && !isAdminOrSuperAdmin) {
+      setIsPolicyModalOpen(true);
+    } else {
+      setIsPolicyModalOpen(false);
+    }
+  }, [profile?.id, profile?.role, isAdminOrSuperAdmin]);
   // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'admin_portal'
   const [currentView, setCurrentView] = useState<
     "calendar" | "my_reservations" | "admin_portal" | "notifications"

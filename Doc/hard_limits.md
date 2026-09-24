@@ -60,3 +60,10 @@ Counts all reservation submissions (single or series) by a user in a rolling 1-h
 
 - Limits **1–4** (active, per-day, duration, concurrent-type) are **soft caps**: exceeding them never blocks submission — it just forces the result to Pending for admin review.
 - Limits **5–6** (series occurrences, rate limit) are **hard caps**: exceeding them blocks submission entirely, since they exist to prevent spam/abuse rather than gate approval.
+
+---
+
+## System-Wide Limit Bypass Toggle (`bypass_hard_limits`)
+
+- The Super Admin can toggle a global **"Bypass All Hard Limits"** setting in Settings.
+- When enabled, all rate limits, duration caps, active counts, and occurrence caps are bypassed system-wide for all members (conflict checks with approved reservations still always apply).
