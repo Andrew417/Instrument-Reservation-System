@@ -2357,62 +2357,155 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             )}
 
             {/* Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  {t("admin.review.searchLabel")}
-                </label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder={t("admin.review.searchPlaceholder")}
-                    value={filterSearch}
-                    onChange={(e) => setFilterSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700"
-                  />
+            <div className="bg-stone-50/80 border border-stone-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end text-xs">
+                {/* Search - takes wider space on md+ */}
+                <div className="md:col-span-6 lg:col-span-6">
+                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
+                    {t("admin.review.searchLabel")}
+                  </label>
+                  <div className="relative flex items-center">
+                    <Search className="w-3.5 h-3.5 text-stone-400 absolute start-3 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder={t("admin.review.searchPlaceholder")}
+                      value={filterSearch}
+                      onChange={(e) => setFilterSearch(e.target.value)}
+                      className="w-full ps-9 pe-9 py-2 bg-white border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700 shadow-2xs transition"
+                    />
+                    {filterSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setFilterSearch("")}
+                        className="absolute end-2.5 p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer flex items-center justify-center"
+                        title={t("common.clear") || "Clear search"}
+                        aria-label="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Instrument and Status side by side */}
+                <div className="md:col-span-6 lg:col-span-6 grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 truncate">
+                      {t("admin.review.instrumentLabel")}
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={filterInstrument}
+                        onChange={(e) => setFilterInstrument(e.target.value)}
+                        className={`w-full appearance-none pl-3 pr-8 rtl:pl-8 rtl:pr-3 py-2 bg-white border rounded-xl text-stone-900 focus:outline-none focus:border-amber-700 shadow-2xs transition cursor-pointer truncate ${
+                          filterInstrument !== "all"
+                            ? "border-amber-600 bg-amber-50/30 font-semibold text-amber-900"
+                            : "border-stone-200"
+                        }`}
+                      >
+                        <option value="all">
+                          {t("admin.review.allInstruments")}
+                        </option>
+                        {instrumentsList.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 rtl:right-auto rtl:left-2.5 top-3 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 truncate">
+                      {t("common.status")}
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className={`w-full appearance-none pl-3 pr-8 rtl:pl-8 rtl:pr-3 py-2 bg-white border rounded-xl text-stone-900 focus:outline-none focus:border-amber-700 shadow-2xs transition cursor-pointer truncate ${
+                          filterStatus !== "all"
+                            ? "border-amber-600 bg-amber-50/30 font-semibold text-amber-900"
+                            : "border-stone-200"
+                        }`}
+                      >
+                        <option value="all">{t("admin.review.allStatuses")}</option>
+                        <option value="pending">{t("common.pending")}</option>
+                        <option value="approved">{t("common.approved")}</option>
+                        <option value="ongoing">{t("common.ongoing")}</option>
+                        <option value="completed">{t("common.completed")}</option>
+                        <option value="expired">{t("common.expired")}</option>
+                        <option value="rejected">{t("common.rejected")}</option>
+                        <option value="cancelled">{t("common.cancelled")}</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 rtl:right-auto rtl:left-2.5 top-3 pointer-events-none" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  {t("admin.review.instrumentLabel")}
-                </label>
-                <select
-                  value={filterInstrument}
-                  onChange={(e) => setFilterInstrument(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                >
-                  <option value="all">
-                    {t("admin.review.allInstruments")}
-                  </option>
-                  {instrumentsList.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Active filters summary bar & quick reset if any filter active */}
+              {(filterSearch || filterInstrument !== "all" || filterStatus !== "all") && (
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60 text-[11px] text-stone-600">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className="font-semibold text-stone-500 flex items-center gap-1">
+                      <Filter className="w-3 h-3 text-amber-700" />
+                      <span>{t("admin.review.activeFilters", { defaultValue: "Filters applied:" })}</span>
+                    </span>
+                    {filterSearch && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
+                        <span className="truncate max-w-[120px]">"{filterSearch}"</span>
+                        <button
+                          type="button"
+                          onClick={() => setFilterSearch("")}
+                          className="hover:text-stone-900 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    )}
+                    {filterInstrument !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                        <span className="truncate max-w-[120px]">
+                          {instrumentsList.find((i) => i.id === filterInstrument)?.name || filterInstrument}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setFilterInstrument("all")}
+                          className="hover:text-amber-950 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    )}
+                    {filterStatus !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                        <span>{translateStatus(filterStatus)}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFilterStatus("all")}
+                          className="hover:text-amber-950 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                  {t("common.status")}
-                </label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-                >
-                  <option value="all">{t("admin.review.allStatuses")}</option>
-                  <option value="pending">{t("common.pending")}</option>
-                  <option value="approved">{t("common.approved")}</option>
-                  <option value="ongoing">{t("common.ongoing")}</option>
-                  <option value="completed">{t("common.completed")}</option>
-                  <option value="expired">{t("common.expired")}</option>
-                  <option value="rejected">{t("common.rejected")}</option>
-                  <option value="cancelled">{t("common.cancelled")}</option>
-                </select>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterSearch("");
+                      setFilterInstrument("all");
+                      setFilterStatus("all");
+                    }}
+                    className="shrink-0 text-amber-800 hover:text-amber-950 hover:underline font-bold text-[10px] cursor-pointer"
+                  >
+                    {t("admin.review.resetFilters")}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Cards */}
@@ -2439,19 +2532,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             ? () => handleToggleSelectReservation(r.id)
                             : undefined
                         }
-                        className={`rounded-2xl border shadow-2xs transition overflow-hidden ${
+                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                           isSelectionMode ? "cursor-pointer" : ""
                         } ${
                           isSelected
-                            ? "border-amber-400 bg-amber-50/40 ring-2 ring-amber-300/40"
-                            : "border-stone-200 bg-white hover:border-amber-200"
+                            ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/40 shadow-sm"
+                            : isPending
+                              ? "border-amber-200/90 bg-white hover:border-amber-400 hover:shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-xs"
                         }`}
                       >
-                        <div className="p-3 sm:p-4 flex items-start gap-3">
+                        <div className="p-3.5 sm:p-4 flex items-start gap-3">
                           {isSelectionMode && (
                             <span
                               onClick={(e) => e.stopPropagation()}
-                              className="mt-0.5 -ml-2 p-2.5 flex items-center justify-center shrink-0"
+                              className="mt-0.5 -ml-1 p-2 flex items-center justify-center shrink-0"
                             >
                               <input
                                 id={`select-reservation-${r.id}`}
@@ -2466,12 +2561,22 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </span>
                           )}
 
-                          <div className="min-w-0 flex-1 space-y-2">
-                            <div className="flex items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 flex-1">
-                                <div className="font-bold text-stone-900 text-sm truncate">
-                                  {r.service_name || "Reservation"}
+                          <div className="min-w-0 flex-1 space-y-2.5">
+                            {/* Card Top Row: Service / Title and Status Badge */}
+                            <div className="flex items-start justify-between gap-2.5 min-w-0">
+                              <div className="min-w-0 flex-1 space-y-0.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
+                                    {r.service_name || "Reservation"}
+                                  </h3>
+                                  {isPending && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                      <span>Action Needed</span>
+                                    </span>
+                                  )}
                                 </div>
+
                                 {r.user_id ? (
                                   <button
                                     type="button"
@@ -2483,26 +2588,26 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       }
                                       openUserProfile(r.user_id);
                                     }}
-                                    className={`text-xs font-medium flex items-center gap-1 group ${
+                                    className={`text-xs font-medium flex items-center gap-1 group py-0.5 ${
                                       isSelectionMode
                                         ? "text-stone-600 cursor-pointer"
                                         : "text-stone-600 hover:text-amber-900 hover:underline cursor-pointer"
                                     }`}
                                   >
-                                    <span>{r.user_name || "Member"}</span>
+                                    <span className="font-semibold text-stone-700">{r.user_name || "Member"}</span>
                                     {!isSelectionMode && (
                                       <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
                                     )}
                                   </button>
                                 ) : (
-                                  <div className="text-xs font-medium text-stone-600">
+                                  <div className="text-xs font-semibold text-stone-700 py-0.5">
                                     {r.user_name || r.admin_name || "Member"}
                                   </div>
                                 )}
                               </div>
 
                               <span
-                                className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(
+                                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${getStatusColor(
                                   r.status,
                                 )}`}
                               >
@@ -2510,53 +2615,63 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               </span>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600">
-                              <span className="font-semibold text-stone-800 truncate">
-                                {r.instrument_name}
+                            {/* Details Row: Instrument, Musician, Date & Time */}
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
+                              <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
+                                <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
+                                <span>{r.instrument_name}</span>
                               </span>
+
                               {r.musician_name && (
                                 <>
-                                  <span className="text-stone-400">•</span>
-                                  <span className="truncate">
-                                    {r.musician_name}
+                                  <span className="text-stone-300">•</span>
+                                  <span className="truncate text-stone-700">
+                                    <span className="text-stone-400 text-[10px] me-1">{t("admin.review.colMusicianName")}:</span>
+                                    <span className="font-medium">{r.musician_name}</span>
                                   </span>
                                 </>
                               )}
-                              <span className="whitespace-nowrap">
-                                {new Date(r.start_time).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                  },
-                                )}{" "}
-                                (
-                                {new Date(r.start_time).toLocaleTimeString([], {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                  hour12: true,
-                                })}
-                                {" – "}
-                                {new Date(r.end_time).toLocaleTimeString([], {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                  hour12: true,
-                                })}
-                                )
+
+                              <span className="text-stone-300">•</span>
+                              <span className="whitespace-nowrap font-medium text-stone-700 flex items-center gap-1">
+                                <CalendarDays className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                <span>
+                                  {new Date(r.start_time).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                    },
+                                  )}
+                                </span>
+                                <span className="text-stone-500 font-normal">
+                                  ({new Date(r.start_time).toLocaleTimeString([], {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}
+                                  {" – "}
+                                  {new Date(r.end_time).toLocaleTimeString([], {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })})
+                                </span>
                               </span>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            {/* Badges Row */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                               {(r.is_full_day ||
                                 (r.start_hhmm === "09:00" &&
                                   r.end_hhmm === "22:00")) && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                  <Sun className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                  <Sun className="w-3 h-3 text-amber-700 shrink-0" />
                                   <span>{t("common.fullDay")}</span>
                                 </span>
                               )}
                               <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${getReservationTypeColor(
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
                                   r.reservation_type || "in_church",
                                 )}`}
                               >
@@ -2568,69 +2683,82 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   : t("admin.review.inChurchBadge")}
                               </span>
                               {r.series_id && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                  <Repeat className="w-2.5 h-2.5" />{" "}
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                                  <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
                                   {t("admin.review.seriesBadge")}
                                 </span>
                               )}
                               {r.is_no_show && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                  {t("common.noShow")}
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                  <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                  <span>{t("common.noShow")}</span>
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
 
+                        {/* Action Buttons Bar - Always in 1 row */}
                         {!isSelectionMode && (
-                          <div className="px-3 sm:px-4 pb-3 pt-2 sm:pb-3.5 sm:pt-1 flex items-stretch sm:items-center flex-wrap gap-2 sm:gap-1.5 bg-stone-50/70 border-t border-stone-100">
-                            {isPending && (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(r.id)}
-                                  className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1"
-                                  title="Approve request"
-                                >
-                                  <Check className="w-3 h-3" />
-                                  <span>{t("admin.review.approveBtn")}</span>
-                                </button>
-                                <button
-                                  onClick={() => openRejectModal(r)}
-                                  className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-stone-100 hover:bg-red-50 text-red-700 border border-stone-200 hover:border-red-200 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1"
-                                  title="Reject request"
-                                >
-                                  <X className="w-3 h-3" />
-                                  <span>{t("admin.review.rejectBtn")}</span>
-                                </button>
-                              </>
-                            )}
+                          <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80 overflow-x-auto">
+                            {/* Action Buttons (Approve / Reject / No-Show) */}
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                              {isPending && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApprove(r.id)}
+                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1 sm:gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                    title="Approve request"
+                                  >
+                                    <Check className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+                                    <span>{t("admin.review.approveBtn")}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openRejectModal(r)}
+                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs flex items-center justify-center gap-1 sm:gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                    title="Reject request"
+                                  >
+                                    <X className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+                                    <span>{t("admin.review.rejectBtn")}</span>
+                                  </button>
+                                </>
+                              )}
 
-                            {r.status === "completed" &&
-                              (r.is_no_show ? (
-                                <button
-                                  onClick={() => handleUnmarkNoShow(r.id)}
-                                  className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center justify-center gap-1 transition cursor-pointer"
-                                  title={t("common.unmarkNoShow")}
-                                >
-                                  <span>{t("common.unmarkNoShow")}</span>
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleMarkNoShow(r.id)}
-                                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
-                                  title={t("common.markNoShow")}
-                                >
-                                  <span>{t("common.markNoShow")}</span>
-                                </button>
-                              ))}
+                              {r.status === "completed" &&
+                                (r.is_no_show ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnmarkNoShow(r.id)}
+                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs touch-manipulation whitespace-nowrap"
+                                    title={t("common.unmarkNoShow")}
+                                  >
+                                    <UserCheck className="w-3.5 h-3.5 text-stone-600 shrink-0" />
+                                    <span>{t("common.unmarkNoShow")}</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkNoShow(r.id)}
+                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs touch-manipulation whitespace-nowrap"
+                                    title={t("common.markNoShow")}
+                                  >
+                                    <UserX className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                                    <span>{t("common.markNoShow")}</span>
+                                  </button>
+                                ))}
+                            </div>
 
+                            {/* Details & Chat Action Button in same row */}
                             {onOpenReservationDetail && (
                               <button
+                                type="button"
                                 onClick={() => onOpenReservationDetail(r.id)}
-                                className="ml-auto px-2.5 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
+                                className="shrink-0 min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 sm:gap-2 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
                                 title="View conversation, details, and replies"
                               >
-                                <MessageSquare className="w-3.5 h-3.5" />
+                                <MessageSquare className="w-3.5 h-3.5 shrink-0 text-amber-300" />
                                 <span>{t("admin.review.detailsChatBtn")}</span>
                               </button>
                             )}
