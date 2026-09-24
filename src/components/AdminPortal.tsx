@@ -2430,14 +2430,20 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             : "border-stone-200"
                         }`}
                       >
-                        <option value="all">{t("admin.review.allStatuses")}</option>
+                        <option value="all">
+                          {t("admin.review.allStatuses")}
+                        </option>
                         <option value="pending">{t("common.pending")}</option>
                         <option value="approved">{t("common.approved")}</option>
                         <option value="ongoing">{t("common.ongoing")}</option>
-                        <option value="completed">{t("common.completed")}</option>
+                        <option value="completed">
+                          {t("common.completed")}
+                        </option>
                         <option value="expired">{t("common.expired")}</option>
                         <option value="rejected">{t("common.rejected")}</option>
-                        <option value="cancelled">{t("common.cancelled")}</option>
+                        <option value="cancelled">
+                          {t("common.cancelled")}
+                        </option>
                       </select>
                       <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 rtl:right-auto rtl:left-2.5 top-3 pointer-events-none" />
                     </div>
@@ -2446,16 +2452,24 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {/* Active filters summary bar & quick reset if any filter active */}
-              {(filterSearch || filterInstrument !== "all" || filterStatus !== "all") && (
+              {(filterSearch ||
+                filterInstrument !== "all" ||
+                filterStatus !== "all") && (
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60 text-[11px] text-stone-600">
                   <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                     <span className="font-semibold text-stone-500 flex items-center gap-1">
                       <Filter className="w-3 h-3 text-amber-700" />
-                      <span>{t("admin.review.activeFilters", { defaultValue: "Filters applied:" })}</span>
+                      <span>
+                        {t("admin.review.activeFilters", {
+                          defaultValue: "Filters applied:",
+                        })}
+                      </span>
                     </span>
                     {filterSearch && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
-                        <span className="truncate max-w-[120px]">"{filterSearch}"</span>
+                        <span className="truncate max-w-[120px]">
+                          "{filterSearch}"
+                        </span>
                         <button
                           type="button"
                           onClick={() => setFilterSearch("")}
@@ -2468,7 +2482,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     {filterInstrument !== "all" && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
                         <span className="truncate max-w-[120px]">
-                          {instrumentsList.find((i) => i.id === filterInstrument)?.name || filterInstrument}
+                          {instrumentsList.find(
+                            (i) => i.id === filterInstrument,
+                          )?.name || filterInstrument}
                         </span>
                         <button
                           type="button"
@@ -2594,7 +2610,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                         : "text-stone-600 hover:text-amber-900 hover:underline cursor-pointer"
                                     }`}
                                   >
-                                    <span className="font-semibold text-stone-700">{r.user_name || "Member"}</span>
+                                    <span className="font-semibold text-stone-700">
+                                      {r.user_name || "Member"}
+                                    </span>
                                     {!isSelectionMode && (
                                       <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
                                     )}
@@ -2626,8 +2644,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <>
                                   <span className="text-stone-300">•</span>
                                   <span className="truncate text-stone-700">
-                                    <span className="text-stone-400 text-[10px] me-1">{t("admin.review.colMusicianName")}:</span>
-                                    <span className="font-medium">{r.musician_name}</span>
+                                    <span className="text-stone-400 text-[10px] me-1">
+                                      {t("admin.review.colMusicianName")}:
+                                    </span>
+                                    <span className="font-medium">
+                                      {r.musician_name}
+                                    </span>
                                   </span>
                                 </>
                               )}
@@ -2645,125 +2667,141 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   )}
                                 </span>
                                 <span className="text-stone-500 font-normal">
-                                  ({new Date(r.start_time).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                  })}
+                                  (
+                                  {new Date(r.start_time).toLocaleTimeString(
+                                    [],
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    },
+                                  )}
                                   {" – "}
                                   {new Date(r.end_time).toLocaleTimeString([], {
                                     hour: "numeric",
                                     minute: "2-digit",
                                     hour12: true,
-                                  })})
+                                  })}
+                                  )
                                 </span>
                               </span>
                             </div>
 
                             {/* Badges Row */}
-                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                              {(r.is_full_day ||
-                                (r.start_hhmm === "09:00" &&
-                                  r.end_hhmm === "22:00")) && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                  <Sun className="w-3 h-3 text-amber-700 shrink-0" />
-                                  <span>{t("common.fullDay")}</span>
-                                </span>
-                              )}
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
-                                  r.reservation_type || "in_church",
-                                )}`}
-                              >
-                                {r.reservation_type === "outside_church" && (
-                                  <DollarSign className="w-3 h-3 shrink-0" />
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                {(r.is_full_day ||
+                                  (r.start_hhmm === "09:00" &&
+                                    r.end_hhmm === "22:00")) && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                    <Sun className="w-3 h-3 text-amber-700 shrink-0" />
+                                    <span>{t("common.fullDay")}</span>
+                                  </span>
                                 )}
-                                {r.reservation_type === "outside_church"
-                                  ? t("admin.review.outsideBadge")
-                                  : t("admin.review.inChurchBadge")}
-                              </span>
-                              {r.series_id && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                                  <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
-                                  {t("admin.review.seriesBadge")}
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
+                                    r.reservation_type || "in_church",
+                                  )}`}
+                                >
+                                  {r.reservation_type === "outside_church" && (
+                                    <DollarSign className="w-3 h-3 shrink-0" />
+                                  )}
+                                  {r.reservation_type === "outside_church"
+                                    ? t("admin.review.outsideBadge")
+                                    : t("admin.review.inChurchBadge")}
                                 </span>
-                              )}
-                              {r.is_no_show && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                  <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
-                                  <span>{t("common.noShow")}</span>
-                                </span>
+                                {r.series_id && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                                    <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
+                                    {t("admin.review.seriesBadge")}
+                                  </span>
+                                )}
+                                {r.is_no_show && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                    <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                    <span>{t("common.noShow")}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {!isSelectionMode && onOpenReservationDetail && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenReservationDetail(r.id);
+                                  }}
+                                  className="shrink-0 min-h-[30px] px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                  title="View conversation, details, and replies"
+                                >
+                                  <MessageSquare className="w-3 h-3 shrink-0 text-amber-300" />
+                                  <span>
+                                    {t("admin.review.detailsChatBtn")}
+                                  </span>
+                                </button>
                               )}
                             </div>
                           </div>
                         </div>
 
                         {/* Action Buttons Bar - Always in 1 row */}
-                        {!isSelectionMode && (
-                          <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80 overflow-x-auto">
-                            {/* Action Buttons (Approve / Reject / No-Show) */}
-                            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-                              {isPending && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleApprove(r.id)}
-                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1 sm:gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                    title="Approve request"
-                                  >
-                                    <Check className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
-                                    <span>{t("admin.review.approveBtn")}</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openRejectModal(r)}
-                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs flex items-center justify-center gap-1 sm:gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                    title="Reject request"
-                                  >
-                                    <X className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
-                                    <span>{t("admin.review.rejectBtn")}</span>
-                                  </button>
-                                </>
-                              )}
+                        {!isSelectionMode &&
+                          (isPending ||
+                            r.status === "completed" ||
+                            r.is_no_show) && (
+                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
+                              {/* Action Buttons (Approve / Reject / No-Show) */}
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {isPending && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleApprove(r.id)}
+                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                      title="Approve request"
+                                    >
+                                      <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                      <span>
+                                        {t("admin.review.approveBtn")}
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openRejectModal(r)}
+                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                      title="Reject request"
+                                    >
+                                      <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                      <span>{t("admin.review.rejectBtn")}</span>
+                                    </button>
+                                  </>
+                                )}
 
-                              {r.status === "completed" &&
-                                (r.is_no_show ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUnmarkNoShow(r.id)}
-                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs touch-manipulation whitespace-nowrap"
-                                    title={t("common.unmarkNoShow")}
-                                  >
-                                    <UserCheck className="w-3.5 h-3.5 text-stone-600 shrink-0" />
-                                    <span>{t("common.unmarkNoShow")}</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMarkNoShow(r.id)}
-                                    className="flex-1 sm:flex-none min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs touch-manipulation whitespace-nowrap"
-                                    title={t("common.markNoShow")}
-                                  >
-                                    <UserX className="w-3.5 h-3.5 text-rose-700 shrink-0" />
-                                    <span>{t("common.markNoShow")}</span>
-                                  </button>
-                                ))}
+                                {r.status === "completed" &&
+                                  (r.is_no_show ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUnmarkNoShow(r.id)}
+                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
+                                      title={t("common.unmarkNoShow")}
+                                    >
+                                      <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
+                                      <span>{t("common.unmarkNoShow")}</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkNoShow(r.id)}
+                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
+                                      title={t("common.markNoShow")}
+                                    >
+                                      <UserX className="w-4 h-4 text-rose-700 shrink-0" />
+                                      <span>{t("common.markNoShow")}</span>
+                                    </button>
+                                  ))}
+                              </div>
                             </div>
-
-                            {/* Details & Chat Action Button in same row */}
-                            {onOpenReservationDetail && (
-                              <button
-                                type="button"
-                                onClick={() => onOpenReservationDetail(r.id)}
-                                className="shrink-0 min-h-[38px] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 sm:gap-2 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                title="View conversation, details, and replies"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5 shrink-0 text-amber-300" />
-                                <span>{t("admin.review.detailsChatBtn")}</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
+                          )}
                       </div>
                     );
                   })}
