@@ -2108,7 +2108,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           <button
             id="stat-card-todays-bookings"
             type="button"
-            onClick={() => setActiveTab("dashboard")}
+            onClick={() => {
+              setActiveTab("dashboard");
+              setDashboardSubTab("today");
+            }}
             className="text-left rounded-xl border border-stone-200 bg-white hover:border-emerald-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
             title={t("admin.dashboard.todaysBookingsNote")}
           >
@@ -2135,6 +2138,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             onClick={() => {
               setActiveTab("dashboard");
               setDashboardSubTab("upcoming");
+              fetchUpcomingReservations();
             }}
             className="text-left rounded-xl border border-stone-200 bg-white hover:border-emerald-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
             title="Approved reservations scheduled in the future"
