@@ -201,6 +201,18 @@ router.get(
         (pendingUsersRes as any).rows?.[0]?.count || 0,
       );
 
+      // 6. Upcoming approved reservations (start time strictly in the future,
+      //    Cairo time). Same status filter the user-facing Upcoming tab uses.
+      const upcomingApprovedRes = await db.execute(sql`
+        SELECT COUNT(*)::int as count
+        FROM reservations
+        WHERE status = 'approved'
+          AND lower(time_range) > NOW()
+      `);
+      const upcomingApprovedCount = Number(
+        (upcomingApprovedRes as any).rows?.[0]?.count || 0,
+      );
+
       res.json({
         success: true,
         stats: {
@@ -209,6 +221,7 @@ router.get(
           todayReservations,
           activeUsers,
           pendingUserApprovals,
+          upcomingApprovedCount,
           todayStr,
         },
       });

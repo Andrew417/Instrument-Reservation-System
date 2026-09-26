@@ -518,13 +518,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return res;
   };
 
+  // Re-fetch every stat card at once. Use this after any mutation so all
+  // six cards stay in sync in a single round-trip cycle. /dashboard-stats
+  // returns every field the six cards need, so one fetch is sufficient.
+  const refreshAllStats = () => {
+    fetchStats();
+  };
+
   // Fetch Dashboard Stats
+  // Single source of truth for the six stat cards. Merges so any field
+  // returned by a secondary fetcher (e.g. pendingUserApprovals from
+  // fetchApprovals) is preserved if /dashboard-stats doesn't return it.
   const fetchStats = async () => {
     try {
       const res = await adminFetch("/dashboard-stats");
       const data = await res.json();
       if (data.success) {
-        setStats(data.stats);
+        setStats((prev) => ({ ...prev, ...data.stats }));
       }
     } catch {
       // silent
@@ -594,30 +604,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       showNotice(err.message || "Failed to load upcoming schedule", "error");
     } finally {
       setLoadingUpcomingReservations(false);
-    }
-  };
-
-  const fetchUpcomingApprovedCount = async () => {
-    try {
-      const res = await adminFetch(
-        "/reservations?status=approved&upcoming=true&countOnly=true",
-      );
-      const data = await res.json();
-      if (data.success) {
-        const count =
-          typeof data.count === "number"
-            ? data.count
-            : Array.isArray(data.reservations)
-              ? data.reservations.filter(
-                  (r: any) =>
-                    new Date(r.start_time || r.startTime).getTime() >
-                    Date.now(),
-                ).length
-              : 0;
-        setStats((prev) => ({ ...prev, upcomingApprovedCount: count }));
-      }
-    } catch {
-      // silent — non-fatal
     }
   };
 
@@ -934,10 +920,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setIsSelectionMode(false);
     }
     firstLoadRef.current = false;
+    // /dashboard-stats returns all six stat-card fields in one payload,
+    // so a single fetch keeps every card in sync.
     fetchStats();
     if (activeTab === "dashboard") {
       fetchTodaysReservations();
-      fetchUpcomingApprovedCount();
       if (dashboardSubTab === "upcoming") {
         fetchUpcomingReservations();
       }
@@ -1165,7 +1152,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           "Reservation approved. Conflicting pending slots auto-rejected.",
         );
         fetchReservations();
-        fetchStats();
+        refreshAllStats();
       } else {
         showNotice(data.error || "Failed to approve", "error");
       }
@@ -1227,7 +1214,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           );
           setRejectModal(null);
           fetchReservations();
-          fetchStats();
+          refreshAllStats();
         } else {
           showNotice(data.error || "Failed to reject series", "error");
           setRejectModal((prev) =>
@@ -1244,7 +1231,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           showNotice("Reservation request rejected and member notified.");
           setRejectModal(null);
           fetchReservations();
-          fetchStats();
+          refreshAllStats();
         } else {
           showNotice(data.error || "Failed to reject reservation", "error");
           setRejectModal((prev) =>
@@ -1271,7 +1258,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       if (data.success) {
         showNotice("Reservation marked as No-Show.");
         fetchReservations();
-        fetchStats();
+        refreshAllStats();
       } else {
         showNotice(data.error || "Failed to mark as no-show", "error");
       }
@@ -1292,7 +1279,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       if (data.success) {
         showNotice("No-Show status removed.");
         fetchReservations();
-        fetchStats();
+        refreshAllStats();
       } else {
         showNotice(data.error || "Failed to unmark no-show", "error");
       }
@@ -1319,7 +1306,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           if (data.success) {
             showNotice("All future recurring occurrences approved.");
             fetchReservations();
-            fetchStats();
+            refreshAllStats();
           } else {
             showNotice(data.error, "error");
           }
@@ -1394,7 +1381,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         setRemovingInstrument(null);
         setRemoveConfirmForce(false);
         fetchInstruments();
-        fetchStats();
+        refreshAllStats();
       } else {
         showNotice(data.error || "Cannot remove instrument", "error");
       }
@@ -1420,7 +1407,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         setDeletingInstrument(null);
         setDeleteConfirmChecked(false);
         fetchInstruments();
-        fetchStats();
+        refreshAllStats();
         onInstrumentsChanged?.();
       } else {
         showNotice(
@@ -1522,7 +1509,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           `Reservation created & auto-approved on behalf of ${bookOnBehalfUser.name}.`,
         );
         setBookOnBehalfUser(null);
-        fetchStats();
+        refreshAllStats();
       } else {
         showNotice(data.error, "error");
       }
@@ -1730,7 +1717,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           if (data.success) {
             showNotice(data.message);
             fetchInstruments();
-            fetchStats();
+            refreshAllStats();
             onInstrumentsChanged?.();
           } else {
             showNotice(data.error, "error");
@@ -6311,7 +6298,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           onUserUpdated={() => {
             fetchUsers();
             fetchApprovals();
-            fetchStats();
+            refreshAllStats();
             if (isSuperAdmin) fetchAdmins();
           }}
           onPromoteUser={handleOpenPromoteModal}
