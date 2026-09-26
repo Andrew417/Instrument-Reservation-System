@@ -172,12 +172,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     todayReservations: number;
     activeUsers: number;
     pendingUserApprovals?: number;
+    upcomingApprovedCount?: number;
   }>({
     totalInstruments: 0,
     pendingRequests: 0,
     todayReservations: 0,
     activeUsers: 0,
     pendingUserApprovals: 0,
+    upcomingApprovedCount: 0,
   });
 
   // Reservations state & filters
@@ -187,6 +189,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   // Dashboard Overview (read-only, today's schedule)
   const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
   const [loadingTodaysReservations, setLoadingTodaysReservations] =
+    useState<boolean>(false);
+  const [dashboardSubTab, setDashboardSubTab] = useState<"today" | "upcoming">(
+    "today",
+  );
+  const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
+  const [loadingUpcomingReservations, setLoadingUpcomingReservations] =
     useState<boolean>(false);
   const [filterQuickTab, setFilterQuickTab] = useState<
     "all" | "today" | "pending"
@@ -565,6 +573,54 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Fetch count of upcoming approved reservations (for the stat card)
+  // Fetch upcoming approved reservations (Dashboard Overview → Upcoming tab)
+  const fetchUpcomingReservations = async () => {
+    setLoadingUpcomingReservations(true);
+    try {
+      const res = await adminFetch(
+        "/reservations?status=approved&upcoming=true",
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to load upcoming schedule");
+      }
+      const now = Date.now();
+      const upcoming = (data.reservations || []).filter(
+        (r: any) => new Date(r.start_time || r.startTime).getTime() > now,
+      );
+      setUpcomingReservations(upcoming);
+    } catch (err: any) {
+      showNotice(err.message || "Failed to load upcoming schedule", "error");
+    } finally {
+      setLoadingUpcomingReservations(false);
+    }
+  };
+
+  const fetchUpcomingApprovedCount = async () => {
+    try {
+      const res = await adminFetch(
+        "/reservations?status=approved&upcoming=true&countOnly=true",
+      );
+      const data = await res.json();
+      if (data.success) {
+        const count =
+          typeof data.count === "number"
+            ? data.count
+            : Array.isArray(data.reservations)
+              ? data.reservations.filter(
+                  (r: any) =>
+                    new Date(r.start_time || r.startTime).getTime() >
+                    Date.now(),
+                ).length
+              : 0;
+        setStats((prev) => ({ ...prev, upcomingApprovedCount: count }));
+      }
+    } catch {
+      // silent — non-fatal
+    }
+  };
+
   const fetchInstruments = async () => {
     setLoadingInstruments(true);
     try {
@@ -881,6 +937,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     fetchStats();
     if (activeTab === "dashboard") {
       fetchTodaysReservations();
+      fetchUpcomingApprovedCount();
+      if (dashboardSubTab === "upcoming") {
+        fetchUpcomingReservations();
+      }
     } else if (activeTab === "review") {
       fetchReservations();
       fetchInstruments();
@@ -1982,7 +2042,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
 
         {/* Row 2 — 5 stat cards in a responsive grid (no scroll, wraps on small screens) */}
-        <div className="p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <div className="p-3 grid grid-cols-2 gap-2.5">
           {/* Pending Requests */}
           <button
             id="stat-card-pending"
@@ -2068,6 +2128,33 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </button>
 
+          {/* Upcoming Approved Bookings */}
+          <button
+            id="stat-card-upcoming-bookings"
+            type="button"
+            onClick={() => {
+              setActiveTab("dashboard");
+              setDashboardSubTab("upcoming");
+            }}
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-emerald-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
+            title="Approved reservations scheduled in the future"
+          >
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/70 flex items-center justify-center shrink-0">
+              <CalendarDays className="w-4 h-4 text-emerald-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg font-extrabold text-stone-900 leading-none">
+                {stats.upcomingApprovedCount || 0}
+              </div>
+              <div className="text-[11px] font-bold text-emerald-900 mt-0.5 truncate group-hover:text-emerald-950">
+                {t("admin.upcomingBookings")}
+              </div>
+              <div className="text-[10px] text-stone-400 mt-0.5 leading-tight line-clamp-2">
+                Approved & upcoming
+              </div>
+            </div>
+          </button>
+
           {/* Instruments */}
           <button
             id="stat-card-instruments"
@@ -2097,7 +2184,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             id="stat-card-active-users"
             type="button"
             onClick={() => setActiveTab("users")}
-            className="text-left rounded-xl border border-stone-200 bg-white hover:border-amber-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group col-span-2 md:col-span-1"
+            className="text-left rounded-xl border border-stone-200 bg-white hover:border-amber-400 hover:shadow-xs transition cursor-pointer p-2.5 flex items-start gap-2.5 group"
             title={t("admin.dashboard.activeUsersNote")}
           >
             <div className="w-8 h-8 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
@@ -2138,19 +2225,46 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
         {activeTab === "dashboard" && (
           <div>
-            {/* Today's Schedule Card */}
+            {/* Schedule Card with Today / Upcoming tabs */}
             <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                <div>
-                  <h2 className="font-bold text-stone-900 text-sm">
-                    {t("admin.dashboard.todaysScheduleTitle")}
-                  </h2>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {t("admin.dashboard.todaysScheduleDesc")}
-                  </p>
+              <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
+                  <button
+                    type="button"
+                    id="dashboard-subtab-today"
+                    onClick={() => setDashboardSubTab("today")}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                      dashboardSubTab === "today"
+                        ? "bg-amber-800 text-white shadow-2xs"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    {t("admin.dashboard.tabToday")}
+                  </button>
+                  <button
+                    type="button"
+                    id="dashboard-subtab-upcoming"
+                    onClick={() => {
+                      setDashboardSubTab("upcoming");
+                      if (upcomingReservations.length === 0) {
+                        fetchUpcomingReservations();
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                      dashboardSubTab === "upcoming"
+                        ? "bg-amber-800 text-white shadow-2xs"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    {t("admin.dashboard.tabUpcoming")}
+                  </button>
                 </div>
+
                 <button
-                  onClick={fetchTodaysReservations}
+                  onClick={() => {
+                    if (dashboardSubTab === "today") fetchTodaysReservations();
+                    else fetchUpcomingReservations();
+                  }}
                   className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
                   title={t("admin.dashboard.refreshTooltip")}
                 >
@@ -2158,49 +2272,226 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
               </div>
 
-              {loadingTodaysReservations ? (
+              {dashboardSubTab === "today" ? (
+                loadingTodaysReservations ? (
+                  <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
+                    <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
+                    <div className="text-xs">
+                      {t("admin.dashboard.loading")}
+                    </div>
+                  </div>
+                ) : (
+                  (() => {
+                    const todayApproved = todaysReservations
+                      .filter((r) => r.status === "approved")
+                      .sort(
+                        (a, b) =>
+                          new Date(a.start_time).getTime() -
+                          new Date(b.start_time).getTime(),
+                      );
+                    if (todayApproved.length === 0) {
+                      return (
+                        <div className="py-12 text-center text-stone-400 text-xs">
+                          {t("admin.dashboard.empty")}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {todayApproved.map((r) => (
+                          <div
+                            key={r.id}
+                            role={
+                              onOpenReservationDetail ? "button" : undefined
+                            }
+                            tabIndex={onOpenReservationDetail ? 0 : undefined}
+                            onClick={
+                              onOpenReservationDetail
+                                ? () => onOpenReservationDetail(r.id)
+                                : undefined
+                            }
+                            onKeyDown={
+                              onOpenReservationDetail
+                                ? (e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      onOpenReservationDetail(r.id);
+                                    }
+                                  }
+                                : undefined
+                            }
+                            className={`flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50 transition ${
+                              onOpenReservationDetail
+                                ? "cursor-pointer hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-xs active:scale-[0.995] focus:outline-none focus:ring-2 focus:ring-amber-600/30"
+                                : ""
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="font-semibold text-stone-900 text-xs truncate">
+                                {r.instrument_name} — {r.service_name}
+                              </div>
+                              <div className="text-[11px] text-stone-500">
+                                {r.user_name || "Member"} ·{" "}
+                                {new Date(r.start_time).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}{" "}
+                                -{" "}
+                                {new Date(r.end_time).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </div>
+                            </div>
+                            <span
+                              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                r.status,
+                              )}`}
+                            >
+                              {translateStatus(r.status)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )
+              ) : loadingUpcomingReservations ? (
                 <div className="py-12 flex flex-col items-center gap-2 text-stone-500">
                   <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
                   <div className="text-xs">{t("admin.dashboard.loading")}</div>
                 </div>
-              ) : todaysReservations.length === 0 ? (
-                <div className="py-12 text-center text-stone-400 text-xs">
-                  {t("admin.dashboard.empty")}
-                </div>
               ) : (
-                <div className="space-y-2">
-                  {todaysReservations.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-semibold text-stone-900 text-xs truncate">
-                          {r.instrument_name} — {r.service_name}
-                        </div>
-                        <div className="text-[11px] text-stone-500">
-                          {r.user_name || "Member"} ·{" "}
-                          {new Date(r.start_time).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {new Date(r.end_time).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
+                (() => {
+                  const sorted = [...upcomingReservations].sort(
+                    (a, b) =>
+                      new Date(a.start_time).getTime() -
+                      new Date(b.start_time).getTime(),
+                  );
+                  if (sorted.length === 0) {
+                    return (
+                      <div className="py-12 text-center text-stone-400 text-xs">
+                        {t("admin.dashboard.emptyUpcoming")}
                       </div>
-                      <span
-                        className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
-                          r.status,
-                        )}`}
-                      >
-                        {translateStatus(r.status)}
-                      </span>
+                    );
+                  }
+                  // Group by calendar day (Cairo time)
+                  const groups: Record<string, any[]> = {};
+                  for (const r of sorted) {
+                    const d = new Date(r.start_time);
+                    const key = `${d.getFullYear()}-${String(
+                      d.getMonth() + 1,
+                    ).padStart(2, "0")}-${String(d.getDate()).padStart(
+                      2,
+                      "0",
+                    )}`;
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(r);
+                  }
+                  const dayKeys = Object.keys(groups).sort();
+                  return (
+                    <div className="space-y-5">
+                      {dayKeys.map((dayKey) => {
+                        const dayRows = groups[dayKey];
+                        const d = new Date(dayRows[0].start_time);
+                        const weekday = d.toLocaleDateString(
+                          isAr ? "ar-EG" : "en-US",
+                          { weekday: "short" },
+                        );
+                        const dd = String(d.getDate()).padStart(2, "0");
+                        const mm = String(d.getMonth() + 1).padStart(2, "0");
+                        const yyyy = d.getFullYear();
+                        const dayLabel = `${weekday} - ${dd}/${mm}/${yyyy}`;
+                        return (
+                          <div key={dayKey} className="space-y-2">
+                            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xs py-1.5 flex items-center gap-2.5">
+                              <CalendarDays className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                              <span className="text-xs font-extrabold text-amber-950 tracking-wide whitespace-nowrap">
+                                {dayLabel}
+                              </span>
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 shrink-0">
+                                {dayRows.length}
+                              </span>
+                              {/* Primary-colored separator line beside the date */}
+                              <span
+                                className="flex-1 h-0.5 rounded-full bg-amber-700"
+                                aria-hidden="true"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              {dayRows.map((r) => (
+                                <div
+                                  key={r.id}
+                                  role={
+                                    onOpenReservationDetail
+                                      ? "button"
+                                      : undefined
+                                  }
+                                  tabIndex={
+                                    onOpenReservationDetail ? 0 : undefined
+                                  }
+                                  onClick={
+                                    onOpenReservationDetail
+                                      ? () => onOpenReservationDetail(r.id)
+                                      : undefined
+                                  }
+                                  onKeyDown={
+                                    onOpenReservationDetail
+                                      ? (e) => {
+                                          if (
+                                            e.key === "Enter" ||
+                                            e.key === " "
+                                          ) {
+                                            e.preventDefault();
+                                            onOpenReservationDetail(r.id);
+                                          }
+                                        }
+                                      : undefined
+                                  }
+                                  className={`flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50 transition ${
+                                    onOpenReservationDetail
+                                      ? "cursor-pointer hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-xs active:scale-[0.995] focus:outline-none focus:ring-2 focus:ring-amber-600/30"
+                                      : ""
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-stone-900 text-xs truncate">
+                                      {r.instrument_name} — {r.service_name}
+                                    </div>
+                                    <div className="text-[11px] text-stone-500">
+                                      {r.user_name || "Member"} ·{" "}
+                                      {new Date(
+                                        r.start_time,
+                                      ).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}{" "}
+                                      -{" "}
+                                      {new Date(r.end_time).toLocaleTimeString(
+                                        [],
+                                        {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        },
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                                      r.status,
+                                    )}`}
+                                  >
+                                    {translateStatus(r.status)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()
               )}
             </div>
           </div>
@@ -2537,274 +2828,287 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {reservations.map((r) => {
-                    const isPending = r.status === "pending";
-                    const isSelected = selectedReservationIds.includes(r.id);
-                    return (
-                      <div
-                        key={r.id}
-                        onClick={
-                          isSelectionMode
-                            ? () => handleToggleSelectReservation(r.id)
-                            : undefined
-                        }
-                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-                          isSelectionMode ? "cursor-pointer" : ""
-                        } ${
-                          isSelected
-                            ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/40 shadow-sm"
-                            : isPending
-                              ? "border-amber-200/90 bg-white hover:border-amber-400 hover:shadow-xs"
-                              : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-xs"
-                        }`}
-                      >
-                        <div className="p-3.5 sm:p-4 flex items-start gap-3">
-                          {isSelectionMode && (
-                            <span
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-0.5 -ml-1 p-2 flex items-center justify-center shrink-0"
-                            >
-                              <input
-                                id={`select-reservation-${r.id}`}
-                                type="checkbox"
-                                aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
-                                checked={isSelected}
-                                onChange={() =>
-                                  handleToggleSelectReservation(r.id)
-                                }
-                                className="w-5 h-5 sm:w-4 sm:h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
-                              />
-                            </span>
-                          )}
+                  {[...reservations]
+                    .sort(
+                      (a, b) =>
+                        new Date(b.created_at || b.createdAt).getTime() -
+                        new Date(a.created_at || a.createdAt).getTime(),
+                    )
+                    .map((r) => {
+                      const isPending = r.status === "pending";
+                      const isSelected = selectedReservationIds.includes(r.id);
+                      return (
+                        <div
+                          key={r.id}
+                          onClick={
+                            isSelectionMode
+                              ? () => handleToggleSelectReservation(r.id)
+                              : undefined
+                          }
+                          className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                            isSelectionMode ? "cursor-pointer" : ""
+                          } ${
+                            isSelected
+                              ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/40 shadow-sm"
+                              : isPending
+                                ? "border-amber-200/90 bg-white hover:border-amber-400 hover:shadow-xs"
+                                : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-xs"
+                          }`}
+                        >
+                          <div className="p-3.5 sm:p-4 flex items-start gap-3">
+                            {isSelectionMode && (
+                              <span
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-0.5 -ml-1 p-2 flex items-center justify-center shrink-0"
+                              >
+                                <input
+                                  id={`select-reservation-${r.id}`}
+                                  type="checkbox"
+                                  aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
+                                  checked={isSelected}
+                                  onChange={() =>
+                                    handleToggleSelectReservation(r.id)
+                                  }
+                                  className="w-5 h-5 sm:w-4 sm:h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                                />
+                              </span>
+                            )}
 
-                          <div className="min-w-0 flex-1 space-y-2.5">
-                            {/* Card Top Row: Service / Title and Status Badge */}
-                            <div className="flex items-start justify-between gap-2.5 min-w-0">
-                              <div className="min-w-0 flex-1 space-y-0.5">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
-                                    {r.service_name || "Reservation"}
-                                  </h3>
-                                  {isPending && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                                      <span>Action Needed</span>
+                            <div className="min-w-0 flex-1 space-y-2.5">
+                              {/* Card Top Row: Service / Title and Status Badge */}
+                              <div className="flex items-start justify-between gap-2.5 min-w-0">
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
+                                      {r.service_name || "Reservation"}
+                                    </h3>
+                                    {isPending && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                        <span>Action Needed</span>
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {r.user_id ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        if (isSelectionMode) {
+                                          e.stopPropagation();
+                                          handleToggleSelectReservation(r.id);
+                                          return;
+                                        }
+                                        openUserProfile(r.user_id);
+                                      }}
+                                      className={`text-xs font-medium flex items-center gap-1 group py-0.5 ${
+                                        isSelectionMode
+                                          ? "text-stone-600 cursor-pointer"
+                                          : "text-stone-600 hover:text-amber-900 hover:underline cursor-pointer"
+                                      }`}
+                                    >
+                                      <span className="font-semibold text-stone-700">
+                                        {r.user_name || "Member"}
+                                      </span>
+                                      {!isSelectionMode && (
+                                        <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <div className="text-xs font-semibold text-stone-700 py-0.5">
+                                      {r.user_name || r.admin_name || "Member"}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <span
+                                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${getStatusColor(
+                                    r.status,
+                                  )}`}
+                                >
+                                  {translateStatus(r.status)}
+                                </span>
+                              </div>
+
+                              {/* Details Row: Instrument, Musician, Date & Time */}
+                              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
+                                <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
+                                  <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
+                                  <span>{r.instrument_name}</span>
+                                </span>
+
+                                {r.musician_name && (
+                                  <>
+                                    <span className="text-stone-300">•</span>
+                                    <span className="truncate text-stone-700">
+                                      <span className="text-stone-400 text-[10px] me-1">
+                                        {t("admin.review.colMusicianName")}:
+                                      </span>
+                                      <span className="font-medium">
+                                        {r.musician_name}
+                                      </span>
+                                    </span>
+                                  </>
+                                )}
+
+                                <span className="text-stone-300">•</span>
+                                <span className="whitespace-nowrap font-medium text-stone-700 flex items-center gap-1">
+                                  <CalendarDays className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                  <span>
+                                    {new Date(r.start_time).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                      },
+                                    )}
+                                  </span>
+                                  <span className="text-stone-500 font-normal">
+                                    (
+                                    {new Date(r.start_time).toLocaleTimeString(
+                                      [],
+                                      {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      },
+                                    )}
+                                    {" – "}
+                                    {new Date(r.end_time).toLocaleTimeString(
+                                      [],
+                                      {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      },
+                                    )}
+                                    )
+                                  </span>
+                                </span>
+                              </div>
+
+                              {/* Badges Row */}
+                              <div className="flex items-center justify-between gap-2 pt-0.5">
+                                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                  {(r.is_full_day ||
+                                    (r.start_hhmm === "09:00" &&
+                                      r.end_hhmm === "22:00")) && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                      <Sun className="w-3 h-3 text-amber-700 shrink-0" />
+                                      <span>{t("common.fullDay")}</span>
+                                    </span>
+                                  )}
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
+                                      r.reservation_type || "in_church",
+                                    )}`}
+                                  >
+                                    {r.reservation_type ===
+                                      "outside_church" && (
+                                      <DollarSign className="w-3 h-3 shrink-0" />
+                                    )}
+                                    {r.reservation_type === "outside_church"
+                                      ? t("admin.review.outsideBadge")
+                                      : t("admin.review.inChurchBadge")}
+                                  </span>
+                                  {r.series_id && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                                      <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
+                                      {t("admin.review.seriesBadge")}
+                                    </span>
+                                  )}
+                                  {r.is_no_show && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                      <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                      <span>{t("common.noShow")}</span>
                                     </span>
                                   )}
                                 </div>
 
-                                {r.user_id ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      if (isSelectionMode) {
-                                        e.stopPropagation();
-                                        handleToggleSelectReservation(r.id);
-                                        return;
-                                      }
-                                      openUserProfile(r.user_id);
-                                    }}
-                                    className={`text-xs font-medium flex items-center gap-1 group py-0.5 ${
-                                      isSelectionMode
-                                        ? "text-stone-600 cursor-pointer"
-                                        : "text-stone-600 hover:text-amber-900 hover:underline cursor-pointer"
-                                    }`}
-                                  >
-                                    <span className="font-semibold text-stone-700">
-                                      {r.user_name || "Member"}
-                                    </span>
-                                    {!isSelectionMode && (
-                                      <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
-                                    )}
-                                  </button>
-                                ) : (
-                                  <div className="text-xs font-semibold text-stone-700 py-0.5">
-                                    {r.user_name || r.admin_name || "Member"}
-                                  </div>
-                                )}
-                              </div>
-
-                              <span
-                                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${getStatusColor(
-                                  r.status,
-                                )}`}
-                              >
-                                {translateStatus(r.status)}
-                              </span>
-                            </div>
-
-                            {/* Details Row: Instrument, Musician, Date & Time */}
-                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
-                              <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
-                                <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
-                                <span>{r.instrument_name}</span>
-                              </span>
-
-                              {r.musician_name && (
-                                <>
-                                  <span className="text-stone-300">•</span>
-                                  <span className="truncate text-stone-700">
-                                    <span className="text-stone-400 text-[10px] me-1">
-                                      {t("admin.review.colMusicianName")}:
-                                    </span>
-                                    <span className="font-medium">
-                                      {r.musician_name}
-                                    </span>
-                                  </span>
-                                </>
-                              )}
-
-                              <span className="text-stone-300">•</span>
-                              <span className="whitespace-nowrap font-medium text-stone-700 flex items-center gap-1">
-                                <CalendarDays className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                                <span>
-                                  {new Date(r.start_time).toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      month: "short",
-                                      day: "numeric",
-                                    },
-                                  )}
-                                </span>
-                                <span className="text-stone-500 font-normal">
-                                  (
-                                  {new Date(r.start_time).toLocaleTimeString(
-                                    [],
-                                    {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    },
-                                  )}
-                                  {" – "}
-                                  {new Date(r.end_time).toLocaleTimeString([], {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    hour12: true,
-                                  })}
-                                  )
-                                </span>
-                              </span>
-                            </div>
-
-                            {/* Badges Row */}
-                            <div className="flex items-center justify-between gap-2 pt-0.5">
-                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                {(r.is_full_day ||
-                                  (r.start_hhmm === "09:00" &&
-                                    r.end_hhmm === "22:00")) && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                    <Sun className="w-3 h-3 text-amber-700 shrink-0" />
-                                    <span>{t("common.fullDay")}</span>
-                                  </span>
-                                )}
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
-                                    r.reservation_type || "in_church",
-                                  )}`}
-                                >
-                                  {r.reservation_type === "outside_church" && (
-                                    <DollarSign className="w-3 h-3 shrink-0" />
-                                  )}
-                                  {r.reservation_type === "outside_church"
-                                    ? t("admin.review.outsideBadge")
-                                    : t("admin.review.inChurchBadge")}
-                                </span>
-                                {r.series_id && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                                    <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
-                                    {t("admin.review.seriesBadge")}
-                                  </span>
-                                )}
-                                {r.is_no_show && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                    <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
-                                    <span>{t("common.noShow")}</span>
-                                  </span>
-                                )}
-                              </div>
-
-                              {!isSelectionMode && onOpenReservationDetail && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onOpenReservationDetail(r.id);
-                                  }}
-                                  className="shrink-0 min-h-[30px] px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                  title="View conversation, details, and replies"
-                                >
-                                  <MessageSquare className="w-3 h-3 shrink-0 text-amber-300" />
-                                  <span>
-                                    {t("admin.review.detailsChatBtn")}
-                                  </span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons Bar - Always in 1 row */}
-                        {!isSelectionMode &&
-                          (isPending ||
-                            r.status === "completed" ||
-                            r.is_no_show) && (
-                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
-                              {/* Action Buttons (Approve / Reject / No-Show) */}
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                {isPending && (
-                                  <>
+                                {!isSelectionMode &&
+                                  onOpenReservationDetail && (
                                     <button
                                       type="button"
-                                      onClick={() => handleApprove(r.id)}
-                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                      title="Approve request"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onOpenReservationDetail(r.id);
+                                      }}
+                                      className="shrink-0 min-h-[30px] px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                      title="View conversation, details, and replies"
                                     >
-                                      <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                      <MessageSquare className="w-3 h-3 shrink-0 text-amber-300" />
                                       <span>
-                                        {t("admin.review.approveBtn")}
+                                        {t("admin.review.detailsChatBtn")}
                                       </span>
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openRejectModal(r)}
-                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                      title="Reject request"
-                                    >
-                                      <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                                      <span>{t("admin.review.rejectBtn")}</span>
-                                    </button>
-                                  </>
-                                )}
-
-                                {r.status === "completed" &&
-                                  (r.is_no_show ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUnmarkNoShow(r.id)}
-                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
-                                      title={t("common.unmarkNoShow")}
-                                    >
-                                      <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
-                                      <span>{t("common.unmarkNoShow")}</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMarkNoShow(r.id)}
-                                      className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
-                                      title={t("common.markNoShow")}
-                                    >
-                                      <UserX className="w-4 h-4 text-rose-700 shrink-0" />
-                                      <span>{t("common.markNoShow")}</span>
-                                    </button>
-                                  ))}
+                                  )}
                               </div>
                             </div>
-                          )}
-                      </div>
-                    );
-                  })}
+                          </div>
+
+                          {/* Action Buttons Bar - Always in 1 row */}
+                          {!isSelectionMode &&
+                            (isPending ||
+                              r.status === "completed" ||
+                              r.is_no_show) && (
+                              <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
+                                {/* Action Buttons (Approve / Reject / No-Show) */}
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  {isPending && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleApprove(r.id)}
+                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                        title="Approve request"
+                                      >
+                                        <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                        <span>
+                                          {t("admin.review.approveBtn")}
+                                        </span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openRejectModal(r)}
+                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                        title="Reject request"
+                                      >
+                                        <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                        <span>
+                                          {t("admin.review.rejectBtn")}
+                                        </span>
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {r.status === "completed" &&
+                                    (r.is_no_show ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUnmarkNoShow(r.id)}
+                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
+                                        title={t("common.unmarkNoShow")}
+                                      >
+                                        <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
+                                        <span>{t("common.unmarkNoShow")}</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMarkNoShow(r.id)}
+                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
+                                        title={t("common.markNoShow")}
+                                      >
+                                        <UserX className="w-4 h-4 text-rose-700 shrink-0" />
+                                        <span>{t("common.markNoShow")}</span>
+                                      </button>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>

@@ -808,6 +808,7 @@
     "todaysBookings": "حجوزات اليوم",
     "totalInstruments": "إجمالي الآلات",
     "activeUsers": "الأعضاء النشطون",
+    "upcomingBookings": "الحجوزات القادمة",
     "tabDashboard": "نظرة عامة",
     "tabReview": "طلبات الحجز",
     "tabApprovals": "اعتماد المستخدمين",
@@ -820,6 +821,9 @@
     "returnToCalendar": "العودة إلى جدول المواعيد",
     "dashboard": {
       "todaysScheduleTitle": "جدول اليوم",
+      "emptyUpcoming": "لا توجد حجوزات قادمة معتمدة.",
+      "tabToday": "اليوم",
+      "tabUpcoming": "القادمة",
       "todaysScheduleDesc": "نظرة سريعة للقراءة فقط على حجوزات اليوم. استخدم طلبات الحجز لاتخاذ إجراء.",
       "refreshTooltip": "تحديث جدول اليوم",
       "loading": "جارٍ تحميل جدول اليوم...",
