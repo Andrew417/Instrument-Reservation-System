@@ -262,8 +262,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
   // Price calculations
   const feeNumber =
-    currentInstrument.dailyRentalFee != null
-      ? Number(currentInstrument.dailyRentalFee)
+    currentInstrument.outsideFeePerDay != null
+      ? Number(currentInstrument.outsideFeePerDay)
       : 0;
 
   useEffect(() => {
@@ -368,7 +368,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     <>
       <div
         id="reservation-form-modal-backdrop"
-        className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+        className="fixed inset-0 z-[100] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
       >
         <div
           id="reservation-form-modal"
@@ -651,7 +651,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
                     <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
                       <Music2 className="w-4 h-4 text-amber-800" />
-                      <span>{t("reservationForm.selectedInstrumentLabel")}</span>
+                      <span>
+                        {t("reservationForm.selectedInstrumentLabel")}
+                      </span>
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
@@ -716,15 +718,19 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 mt-1.5 text-[11px] text-stone-500">
-                        <span className="font-medium">{currentInstrument.type}</span>
-                        {currentInstrument.dailyRentalFee != null && (
-                          <>
-                            <span>•</span>
-                            <span className="font-semibold text-purple-700">
-                              {currentInstrument.dailyRentalFee} ج.م/يوم (خارج الكنيسة)
-                            </span>
-                          </>
-                        )}
+                        <span className="font-medium">
+                          {currentInstrument.type}
+                        </span>
+                        {currentInstrument.outsideFeePerDay != null &&
+                          Number(currentInstrument.outsideFeePerDay) > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="font-semibold text-purple-700">
+                                {currentInstrument.outsideFeePerDay} ج.م/يوم
+                                (خارج الكنيسة)
+                              </span>
+                            </>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -751,7 +757,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         type="text"
                         value={serviceName}
                         onChange={(e) => setServiceName(e.target.value)}
-                        placeholder={t("reservationForm.serviceNamePlaceholder")}
+                        placeholder={t(
+                          "reservationForm.serviceNamePlaceholder",
+                        )}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                         required
                       />
@@ -770,7 +778,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         type="text"
                         value={musicianName}
                         onChange={(e) => setMusicianName(e.target.value)}
-                        placeholder={t("reservationForm.musicianNamePlaceholder")}
+                        placeholder={t(
+                          "reservationForm.musicianNamePlaceholder",
+                        )}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                         required
                       />
