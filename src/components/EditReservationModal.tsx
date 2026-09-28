@@ -243,11 +243,11 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       id="edit-reservation-modal-backdrop"
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[100] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="edit-reservation-modal"
-        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[94vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+        className="bg-stone-50 sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)]"
         dir={isAr ? "rtl" : "ltr"}
       >
         {/* ── Header ── */}
@@ -656,12 +656,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           </div>
 
           {/* ── Footer ── */}
-          <div className="shrink-0 flex items-center gap-2 sm:gap-3 px-4 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-stone-200 bg-white">
+          <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-7 sm:pb-5 border-t border-stone-200 bg-white shadow-xs">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="py-2.5 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50"
+              className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50"
             >
               {t("editReservation.cancelButton")}
             </button>
@@ -670,7 +670,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               type="submit"
               id="btn-submit-edit-reservation"
               disabled={submitDisabled}
-              className={`flex-1 py-2.5 px-4 sm:px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+              className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                 submitDisabled
                   ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                   : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"

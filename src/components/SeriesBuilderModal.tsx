@@ -511,11 +511,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   return (
     <div
       id="series-builder-modal-backdrop"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[100] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="series-builder-modal"
-        className="bg-white sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+        className="bg-stone-50 sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)]"
       >
         {/* Header */}
         <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-5 flex items-center justify-between border-b border-stone-800">
@@ -710,11 +710,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             </div>
 
             {/* Confirmation Footer */}
-            <div className="shrink-0 p-4 sm:px-8 sm:pb-6 border-t border-stone-200 bg-white">
+            <div className="shrink-0 p-3.5 sm:px-8 sm:pb-6 border-t border-stone-200 bg-white shadow-xs">
               <button
                 id="btn-series-done"
                 onClick={onClose}
-                className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
+                className="w-full py-2.5 sm:py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
               >
                 {t("seriesBuilder.doneReturnToCalendar")}
               </button>
@@ -1290,11 +1290,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             </div>
 
             {/* Sticky Footer Actions */}
-            <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-4 sm:px-7 sm:pb-6 border-t border-stone-200 bg-white">
+            <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-7 sm:pb-6 border-t border-stone-200 bg-white shadow-xs">
               <button
                 type="button"
                 onClick={onClose}
-                className="py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation"
+                className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation"
               >
                 {t("common.cancel")}
               </button>
@@ -1309,7 +1309,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   generatedOccurrences.length === 0 ||
                   (reservationType === "outside_church" && !feeAcknowledged)
                 }
-                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+                className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                   isSubmitting ||
                   !serviceName.trim() ||
                   hasConflicts ||
