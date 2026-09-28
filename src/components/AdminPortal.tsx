@@ -2322,7 +2322,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 {r.instrument_name} — {r.service_name}
                               </div>
                               <div className="text-[11px] text-stone-500">
-                                {r.user_name || "Member"} ·{" "}
+                                {!r.user_id &&
+                                (r.admin_name || r.booked_by_admin) ? (
+                                  <span className="inline-flex items-center gap-1 font-semibold text-amber-800">
+                                    <Shield className="w-3 h-3 shrink-0" />
+                                    {r.admin_name || "Administrator"}
+                                  </span>
+                                ) : (
+                                  r.user_name || "Member"
+                                )}{" "}
+                                ·{" "}
                                 {new Date(r.start_time).toLocaleTimeString([], {
                                   hour: "2-digit",
                                   minute: "2-digit",
@@ -2450,7 +2459,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       {r.instrument_name} — {r.service_name}
                                     </div>
                                     <div className="text-[11px] text-stone-500">
-                                      {r.user_name || "Member"} ·{" "}
+                                      {!r.user_id &&
+                                      (r.admin_name || r.booked_by_admin) ? (
+                                        <span className="inline-flex items-center gap-1 font-semibold text-amber-800">
+                                          <Shield className="w-3 h-3 shrink-0" />
+                                          {r.admin_name || "Administrator"}
+                                        </span>
+                                      ) : (
+                                        r.user_name || "Member"
+                                      )}{" "}
+                                      ·{" "}
                                       {new Date(
                                         r.start_time,
                                       ).toLocaleTimeString([], {
@@ -2906,8 +2924,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       )}
                                     </button>
                                   ) : (
-                                    <div className="text-xs font-semibold text-stone-700 py-0.5">
-                                      {r.user_name || r.admin_name || "Member"}
+                                    <div className="text-xs font-semibold py-0.5">
+                                      {!r.user_id && r.admin_name ? (
+                                        <span className="inline-flex items-center gap-1 text-amber-800">
+                                          <Shield className="w-3 h-3 shrink-0" />
+                                          {r.admin_name}
+                                        </span>
+                                      ) : (
+                                        <span className="text-stone-700">
+                                          {r.user_name || "Member"}
+                                        </span>
+                                      )}
                                     </div>
                                   )}
                                 </div>
