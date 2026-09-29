@@ -70,7 +70,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<
-    "all" | "unread" | "requests" | "approvals" | "rejections" | "messages"
+    | "all"
+    | "unread"
+    | "requests"
+    | "approvals"
+    | "rejections"
+    | "cancellations"
+    | "messages"
   >("all");
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
@@ -312,7 +318,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       return (
         n.type === "reservation_rejected" ||
         n.type === "reservation_auto_rejected" ||
-        n.type === "series_rejected" ||
+        n.type === "series_rejected"
+      );
+    if (filter === "cancellations")
+      return (
+        n.type === "reservation_cancelled" ||
         n.type === "instrument_removed_cancellation"
       );
     if (filter === "messages") return n.type === "admin_message";
@@ -647,6 +657,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     { key: "requests", label: t("notifications.tabRequests") },
     { key: "approvals", label: t("notifications.tabApprovals") },
     { key: "rejections", label: t("notifications.tabRejections") },
+    { key: "cancellations", label: t("notifications.tabCancellations") },
     { key: "messages", label: t("notifications.tabMessages") },
   ];
 
@@ -1035,12 +1046,38 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                       notif.reservation_status &&
                       notif.reservation_status !== "pending" && (
                         <div className="mt-1.5 pt-1.5 border-t border-stone-100 flex items-center gap-1.5 text-[11px]">
-                          {notif.reservation_status === "approved" ? (
+                          {notif.reservation_status === "approved" && (
                             <div className="flex items-center gap-1 text-emerald-700 font-semibold">
                               <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>{t("common.approved")}</span>
                             </div>
-                          ) : (
+                          )}
+                          {notif.reservation_status === "cancelled" && (
+                            <div className="flex items-center gap-1 text-stone-700 font-semibold">
+                              <XCircle className="w-3.5 h-3.5" />
+                              <span>{t("common.cancelled")}</span>
+                            </div>
+                          )}
+                          {notif.reservation_status === "ongoing" && (
+                            <div className="flex items-center gap-1 text-emerald-700 font-semibold">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>{t("common.ongoing")}</span>
+                            </div>
+                          )}
+                          {notif.reservation_status === "completed" && (
+                            <div className="flex items-center gap-1 text-stone-700 font-semibold">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{t("common.completed")}</span>
+                            </div>
+                          )}
+                          {notif.reservation_status === "expired" && (
+                            <div className="flex items-center gap-1 text-stone-500 font-semibold">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>{t("common.expired")}</span>
+                            </div>
+                          )}
+                          {(notif.reservation_status === "rejected" ||
+                            notif.reservation_status === "auto_rejected") && (
                             <div className="flex items-center gap-1 text-red-700 font-semibold">
                               <XCircle className="w-3.5 h-3.5" />
                               <span className="break-words">
