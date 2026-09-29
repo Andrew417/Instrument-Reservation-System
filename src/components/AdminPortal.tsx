@@ -2274,7 +2274,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 ) : (
                   (() => {
                     const todayApproved = todaysReservations
-                      .filter((r) => r.status === "approved")
+                      .filter(
+                        (r) =>
+                          r.status === "approved" ||
+                          r.status === "ongoing" ||
+                          r.status === "completed",
+                      )
                       .sort(
                         (a, b) =>
                           new Date(a.start_time).getTime() -
