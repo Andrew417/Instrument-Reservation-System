@@ -4,6 +4,7 @@ import i18n from "../lib/i18n";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
+import { ReservationUsageTypeSelector } from "./ReservationUsageTypeSelector.tsx";
 import { formatHhmmTo12Hour, getTodayDateString } from "../lib/date-utils";
 import {
   Calendar,
@@ -198,6 +199,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     initialInstrument.id,
   );
   const [serviceName, setServiceName] = useState<string>("");
+  const [serviceLocation, setServiceLocation] = useState<string>("");
   const [musicianName, setMusicianName] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const [date, setDate] = useState<string>(initialDate);
@@ -327,6 +329,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           adminId: isAdminRole ? profile.id : null,
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
+          serviceLocation: serviceLocation.trim() || undefined,
           musicianName: musicianName.trim(),
           note: note.trim() || undefined,
           date,
@@ -404,7 +407,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPolicyExplainer(true)}
-                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-amber-300 hover:text-white hover:bg-stone-700 transition cursor-pointer border border-stone-700/70"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-amber-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0"
                 title={t("nav.howBookingWorks")}
               >
                 <HelpCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
@@ -413,7 +416,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               <button
                 id="btn-close-reservation-modal"
                 onClick={onClose}
-                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0"
                 aria-label="Close modal"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -550,6 +553,19 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         t("reservationForm.notSpecifiedLabel")}
                     </span>
                   </div>
+                  {(submissionResult.reservation.serviceLocation ||
+                    serviceLocation) && (
+                    <div className="pt-2 border-t border-stone-200">
+                      <span className="text-stone-500 font-medium block flex items-center gap-1">
+                        <Church className="w-3 h-3 text-amber-800" />
+                        <span>{t("reservationForm.serviceLocationLabel")}</span>
+                      </span>
+                      <span className="font-bold text-stone-900 text-sm">
+                        {submissionResult.reservation.serviceLocation ||
+                          serviceLocation}
+                      </span>
+                    </div>
+                  )}
                   <div className="pt-2 border-t border-stone-200">
                     <span className="text-stone-500 font-medium block">
                       {t("reservationForm.musicianNameLabel")}
@@ -603,7 +619,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="button"
                   id="btn-done-back-calendar"
                   onClick={onClose}
-                  className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
+                  className="w-full h-11 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation flex items-center justify-center"
                 >
                   {t("reservationForm.doneBackToCalendar")}
                 </button>
@@ -657,12 +673,21 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
-                        currentInstrument.bookingMode === "instant"
-                          ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                          : "bg-amber-100 text-amber-900 border border-amber-200"
+                        (currentInstrument as any).isReservePool ||
+                        (currentInstrument as any).is_reserve_pool
+                          ? "bg-purple-100 text-purple-900 border border-purple-200"
+                          : currentInstrument.bookingMode === "instant"
+                            ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                            : "bg-amber-100 text-amber-900 border border-amber-200"
                       }`}
                     >
-                      {currentInstrument.bookingMode === "instant" ? (
+                      {(currentInstrument as any).isReservePool ||
+                      (currentInstrument as any).is_reserve_pool ? (
+                        <>
+                          <Sparkles className="w-2.5 h-2.5" />
+                          <span>{t("reservationForm.reservePoolBadge")}</span>
+                        </>
+                      ) : currentInstrument.bookingMode === "instant" ? (
                         <>
                           <Zap className="w-2.5 h-2.5" />
                           <span>{t("common.instant")}</span>
@@ -736,11 +761,32 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </div>
                 </div>
 
+                {/* Church Reserve Explanatory Banner (if reserve pool item selected) */}
+                {Boolean(
+                  (currentInstrument as any).isReservePool ||
+                    (currentInstrument as any).is_reserve_pool,
+                ) && (
+                  <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 sm:p-4 text-xs space-y-2 text-amber-950 shadow-2xs">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-900 text-sm">
+                      <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>{t("reservationForm.reservePoolNoticeTitle")}</span>
+                    </div>
+                    <p className="text-amber-800 leading-relaxed font-medium">
+                      {t("reservationForm.reservePoolNoticeDesc")}
+                    </p>
+                    <ul className="space-y-1 text-[11px] text-amber-900/90 font-medium list-disc list-inside">
+                      <li>{t("reservationForm.reservePoolBullet1")}</li>
+                      <li>{t("reservationForm.reservePoolBullet2")}</li>
+                      <li>{t("reservationForm.reservePoolBullet3")}</li>
+                    </ul>
+                  </div>
+                )}
+
                 {/* Section 2: Service & Musician Inputs */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3">
                   <div className="text-xs font-bold text-stone-800 flex items-center gap-1.5 border-b border-stone-100 pb-2">
                     <User className="w-4 h-4 text-amber-800" />
-                    <span>بيانات الخدمة والعازف</span>
+                    <span>بيانات الخدمة والعازف والمكان</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -783,6 +829,27 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         )}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                         required
+                      />
+                    </div>
+
+                    {/* Service Location Input */}
+                    <div className="space-y-1 sm:col-span-2">
+                      <label
+                        htmlFor="input-service-location"
+                        className="block text-xs font-bold text-stone-700 flex items-center gap-1"
+                      >
+                        <Church className="w-3.5 h-3.5 text-amber-800" />
+                        <span>{t("reservationForm.serviceLocationLabel")}</span>
+                      </label>
+                      <input
+                        id="input-service-location"
+                        type="text"
+                        value={serviceLocation}
+                        onChange={(e) => setServiceLocation(e.target.value)}
+                        placeholder={t(
+                          "reservationForm.serviceLocationPlaceholder",
+                        )}
+                        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                       />
                     </div>
                   </div>
@@ -902,9 +969,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               setStartTime("09:00");
                             }
                           }}
-                          className={`py-2 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-center transition cursor-pointer border active:scale-[0.98] touch-manipulation ${
+                          className={`h-9 px-2 rounded-lg text-xs font-semibold text-center transition cursor-pointer border active:scale-[0.98] touch-manipulation flex items-center justify-center ${
                             duration === opt.value
-                              ? "bg-amber-800 text-white border-amber-900 shadow-xs ring-2 ring-amber-800/20"
+                              ? "bg-amber-800 text-white border-amber-900 shadow-xs"
                               : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
                           } ${
                             opt.value === 13
@@ -920,111 +987,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 </div>
 
                 {/* Section 4: Reservation Location / Scope (In vs Outside Church) */}
-                <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3">
-                  <div className="text-xs font-bold text-stone-800 flex items-center gap-1.5 border-b border-stone-100 pb-2">
-                    <Church className="w-4 h-4 text-amber-800" />
-                    <span>{t("reservationForm.usageTypeLabel")}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {/* In-Church Option */}
-                    <button
-                      type="button"
-                      id="btn-type-in-church"
-                      onClick={() => {
-                        setReservationType("in_church");
-                        setFeeAcknowledged(false);
-                      }}
-                      className={`p-3 sm:p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
-                        reservationType === "in_church"
-                          ? "bg-emerald-50/60 border-emerald-600 ring-2 ring-emerald-600/30"
-                          : "bg-stone-50/60 hover:bg-stone-100 border-stone-200 text-stone-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="font-bold text-xs text-stone-900">
-                          {t("reservationForm.inChurchUseLabel")}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">
-                          {t("reservationForm.freeBadge")}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-500 leading-tight text-start">
-                        {t("reservationForm.inChurchDesc")}
-                      </p>
-                    </button>
-
-                    {/* Outside-Church Option */}
-                    <button
-                      type="button"
-                      id="btn-type-outside-church"
-                      onClick={() => setReservationType("outside_church")}
-                      className={`p-3 sm:p-3.5 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
-                        reservationType === "outside_church"
-                          ? "bg-purple-50/60 border-purple-600 ring-2 ring-purple-600/30"
-                          : "bg-stone-50/60 hover:bg-stone-100 border-stone-200 text-stone-700"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="font-bold text-xs text-stone-900">
-                          {t("reservationForm.outsideChurchLabel")}
-                        </span>
-                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 whitespace-nowrap">
-                          {t("reservationForm.egpPerDayBadge", {
-                            fee: feeNumber,
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-500 leading-tight text-start">
-                        {t("reservationForm.outsideChurchDesc")}
-                      </p>
-                    </button>
-                  </div>
-
-                  {/* Outside Church Fee Notice */}
-                  {reservationType === "outside_church" && (
-                    <div
-                      id="outside-fee-acknowledgment-box"
-                      className="bg-purple-50/80 border border-purple-200 rounded-2xl p-3.5 space-y-2.5 animate-in fade-in"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <DollarSign className="w-4 h-4 text-purple-700 mt-0.5 shrink-0" />
-                        <div className="text-xs space-y-1 min-w-0 flex-1">
-                          <div className="font-bold text-purple-950">
-                            {t("reservationForm.policyFeeTitle")}
-                          </div>
-                          <div className="text-purple-900 text-[11px] leading-relaxed">
-                            {t("reservationForm.policyFeeDesc", {
-                              fee: (
-                                <strong
-                                  key="fee"
-                                  className="font-bold text-purple-950"
-                                >
-                                  {`EGP ${feeNumber}`}
-                                </strong>
-                              ) as any,
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      <label className="flex items-start gap-2.5 pt-2 border-t border-purple-200/80 cursor-pointer select-none">
-                        <input
-                          id="checkbox-fee-acknowledged"
-                          type="checkbox"
-                          checked={feeAcknowledged}
-                          onChange={(e) => setFeeAcknowledged(e.target.checked)}
-                          className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
-                        />
-                        <span className="text-xs font-semibold text-purple-950">
-                          {t("reservationForm.feeAcknowledgeFull", {
-                            fee: feeNumber,
-                          })}
-                        </span>
-                      </label>
-                    </div>
-                  )}
-                </div>
+                <ReservationUsageTypeSelector
+                  reservationType={reservationType}
+                  onReservationTypeChange={setReservationType}
+                  feeAcknowledged={feeAcknowledged}
+                  onFeeAcknowledgedChange={setFeeAcknowledged}
+                  feePerDay={feeNumber}
+                  isBandPack={false}
+                />
 
                 {/* Section 5: Recurring Series Option */}
                 <div className="bg-white border border-stone-200 rounded-2xl p-3 sm:p-3.5 shadow-2xs">
@@ -1069,11 +1039,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
 
               {/* Sticky Footer Actions */}
-              <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-6 sm:pb-5 border-t border-stone-200 bg-white shadow-xs">
+              <div className="shrink-0 flex items-center gap-2.5 p-3.5 sm:px-6 sm:py-4 border-t border-stone-200 bg-white shadow-xs">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation"
+                  className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation flex items-center justify-center"
                 >
                   {t("common.cancel")}
                 </button>
@@ -1082,7 +1052,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="submit"
                   id="btn-submit-reservation"
                   disabled={isSubmitDisabled}
-                  className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+                  className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer touch-manipulation ${
                     isSubmitDisabled
                       ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                       : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"

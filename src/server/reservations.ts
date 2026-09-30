@@ -81,6 +81,21 @@ async function resolveIsSuperAdmin(req: Request): Promise<boolean> {
 }
 
 /**
+ * Mask retired/vault or reserve pool instruments to preserve confidentiality
+ */
+export function getMaskedInstrumentName(type?: string | null): string {
+  const cleanType = (type || "").trim();
+  if (/keyboard/i.test(cleanType)) return "Church Assigned Keyboard";
+  if (/drum/i.test(cleanType)) return "Church Assigned Drum Kit";
+  if (/guitar/i.test(cleanType)) return "Church Assigned Guitar";
+  if (/violin/i.test(cleanType)) return "Church Assigned Violin";
+  if (/brass|wind/i.test(cleanType)) return "Church Assigned Wind Instrument";
+  if (/string/i.test(cleanType)) return "Church Assigned Strings";
+  if (/audio/i.test(cleanType)) return "Church Assigned Audio Equipment";
+  return cleanType ? `Church Assigned ${cleanType}` : "Church Assigned Instrument";
+}
+
+/**
  * 1. Evaluate/Dry-run submission without creating a row
  */
 router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
@@ -147,6 +162,107 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       success: false,
       error: msg,
       cause: err.cause?.message,
+    });
+  }
+});
+
+/**
+ * 2b. Create Band / Service Pack (Multi-Instrument Co-Booking with individual Musician Names)
+ */
+router.post("/band-pack", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      serviceName,
+      date,
+      startTime,
+      duration,
+      reservationType = "in_church",
+      feeAcknowledged,
+      note,
+      items, // Array<{ instrumentId: string; musicianName: string }>
+    } = req.body;
+
+    if (!serviceName || !serviceName.trim()) {
+      res.status(400).json({ success: false, error: "Service name is required." });
+      return;
+    }
+    if (!date || !startTime || !duration) {
+      res.status(400).json({ success: false, error: "Date, start time, and duration are required." });
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      res.status(400).json({ success: false, error: "At least one instrument with musician name is required." });
+      return;
+    }
+
+    // Check duplicate instruments in the same pack
+    const instrumentIds = items.map((it: any) => it.instrumentId);
+    if (new Set(instrumentIds).size !== instrumentIds.length) {
+      res.status(400).json({ success: false, error: "Each instrument can only be included once in the band pack." });
+      return;
+    }
+
+    // Validate each item has instrumentId and musicianName
+    for (const item of items) {
+      if (!item.instrumentId) {
+        res.status(400).json({ success: false, error: "Instrument ID is required for each band item." });
+        return;
+      }
+      if (!item.musicianName || !item.musicianName.trim()) {
+        res.status(400).json({ success: false, error: "Musician name is required for all instruments in the band pack." });
+        return;
+      }
+    }
+
+    const sessionIdentity = await extractSessionIdentity(req);
+    const bandPackId = "band_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+
+    // Pre-flight evaluate each item for conflict check
+    for (const item of items) {
+      await evaluateReservationSubmission({
+        instrumentId: item.instrumentId,
+        serviceName: serviceName.trim(),
+        musicianName: item.musicianName.trim(),
+        date,
+        startTime,
+        duration: Number(duration),
+        reservationType,
+        feeAcknowledged,
+        userId: sessionIdentity?.userId || undefined,
+        adminId: sessionIdentity?.adminId || undefined,
+      });
+    }
+
+    // Now create each reservation under the shared bandPackId
+    const createdList = [];
+    for (const item of items) {
+      const result = await createReservation({
+        instrumentId: item.instrumentId,
+        serviceName: serviceName.trim(),
+        musicianName: item.musicianName.trim(),
+        date,
+        startTime,
+        duration: Number(duration),
+        reservationType,
+        feeAcknowledged,
+        bandPackId,
+        note: note ? `[Band Pack] ${note}` : `[Band Pack]`,
+        userId: sessionIdentity?.userId || undefined,
+        adminId: sessionIdentity?.adminId || undefined,
+      });
+      createdList.push(result);
+    }
+
+    res.status(201).json({
+      success: true,
+      bandPackId,
+      reservations: createdList,
+    });
+  } catch (err: any) {
+    console.error("Band pack create error:", err);
+    res.status(400).json({
+      success: false,
+      error: err.message || "Failed to create band pack reservation.",
     });
   }
 });
@@ -249,6 +365,63 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
     });
   }
 });
+
+/**
+ * 4b. Record or update pre-handover instrument condition & damage check
+ */
+router.put(
+  "/:id/condition-check",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { status, notes, photoUrl, tags, checkedBy } = req.body;
+
+      const lookup = await db.execute(sql`
+        SELECT id, user_id, musician_name, service_name, instrument_id
+        FROM reservations WHERE id = ${id} LIMIT 1
+      `);
+      const rows = (lookup as any).rows || [];
+      if (rows.length === 0) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
+
+      const resRecord = rows[0];
+      const cleanCheckedBy = (
+        checkedBy ||
+        resRecord.musician_name ||
+        "Musician"
+      ).trim();
+      const cleanStatus =
+        status === "reported_issues" ? "reported_issues" : "pristine";
+
+      const updateRes = await db.execute(sql`
+        UPDATE reservations
+        SET condition_status = ${cleanStatus},
+            condition_notes = ${notes ? String(notes).trim() : null},
+            condition_photo_url = ${photoUrl || null},
+            condition_tags = ${tags ? String(tags).trim() : null},
+            condition_checked_at = NOW(),
+            condition_checked_by = ${cleanCheckedBy}
+        WHERE id = ${id}
+        RETURNING *
+      `);
+
+      const updated = (updateRes as any).rows?.[0];
+
+      res.json({
+        success: true,
+        reservation: updated,
+      });
+    } catch (err: any) {
+      console.error("Condition check error:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message || "Failed to save condition check.",
+      });
+    }
+  },
+);
 
 /**
  * 5. Cancel a reservation (single or series)
@@ -847,6 +1020,212 @@ router.post(
 );
 
 /**
+ * 15b. Musician Ministry Profile Stats (celebration & recognition)
+ */
+router.get(
+  "/ministry-stats",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const sessionIdentity = await extractSessionIdentity(req);
+      const targetUserId =
+        (req.query.userId as string) || sessionIdentity?.userId;
+
+      if (!targetUserId) {
+        res.status(400).json({ success: false, error: "User ID is required." });
+        return;
+      }
+
+      // Get user info
+      const userRes = await db.execute(sql`
+        SELECT id, name, phone_number, created_at, is_trusted
+        FROM users WHERE id = ${targetUserId} LIMIT 1
+      `);
+      const userRows = (userRes as any).rows || [];
+      if (userRows.length === 0) {
+        res.status(404).json({ success: false, error: "User not found." });
+        return;
+      }
+      const user = userRows[0];
+
+      // Get all user reservations
+      const reservationsRes = await db.execute(sql`
+        SELECT 
+          r.id,
+          r.status,
+          r.service_name,
+          r.musician_name,
+          r.band_pack_id,
+          r.condition_status,
+          r.condition_checked_at,
+          r.is_no_show,
+          lower(r.time_range) as start_time,
+          upper(r.time_range) as end_time,
+          ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
+          i.name as instrument_name,
+          i.type as instrument_type
+        FROM reservations r
+        JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.user_id = ${targetUserId}
+        ORDER BY lower(r.time_range) DESC
+      `);
+
+      const rows = (reservationsRes as any).rows || [];
+
+      let totalHours = 0;
+      let totalServices = 0;
+      let noShows = 0;
+      let conditionChecksCount = 0;
+      let bandPackCount = 0;
+      const instrumentHours: Record<
+        string,
+        { count: number; hours: number; type: string }
+      > = {};
+      const serviceCategoryCounts: Record<string, number> = {};
+      const seenBandPacks = new Set<string>();
+
+      for (const r of rows) {
+        const hours = Number(r.duration_hours) || 0;
+        if (r.is_no_show) {
+          noShows++;
+        }
+        if (["approved", "completed", "ongoing"].includes(r.status)) {
+          totalHours += hours;
+          totalServices++;
+
+          const instName = r.instrument_name || "Instrument";
+          if (!instrumentHours[instName]) {
+            instrumentHours[instName] = {
+              count: 0,
+              hours: 0,
+              type: r.instrument_type || "Instrument",
+            };
+          }
+          instrumentHours[instName].count += 1;
+          instrumentHours[instName].hours += hours;
+
+          const sName = (r.service_name || "").toLowerCase();
+          let cat = "Other Church Service";
+          if (sName.includes("شباب") || sName.includes("youth")) {
+            cat = "Youth Meeting (اجتماع الشباب)";
+          } else if (
+            sName.includes("قداس") ||
+            sName.includes("liturgy") ||
+            sName.includes("أحد") ||
+            sName.includes("جمعة")
+          ) {
+            cat = "Liturgy & Worship (قداسات وصلوات)";
+          } else if (
+            sName.includes("كورال") ||
+            sName.includes("choir") ||
+            sName.includes("ترانيم")
+          ) {
+            cat = "Choir Rehearsal (بروفة كورال)";
+          } else if (
+            sName.includes("صلاة") ||
+            sName.includes("prayer") ||
+            sName.includes("عشية")
+          ) {
+            cat = "Prayer & Praise (اجتماع صلاة وتسبيح)";
+          } else if (r.service_name) {
+            cat = r.service_name;
+          }
+
+          serviceCategoryCounts[cat] = (serviceCategoryCounts[cat] || 0) + 1;
+        }
+
+        if (r.condition_status && r.condition_status !== "uninspected") {
+          conditionChecksCount++;
+        }
+
+        if (r.band_pack_id) {
+          if (!seenBandPacks.has(r.band_pack_id)) {
+            seenBandPacks.add(r.band_pack_id);
+            bandPackCount++;
+          }
+        }
+      }
+
+      const topInstruments = Object.entries(instrumentHours)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.hours - a.hours)
+        .slice(0, 5);
+
+      const badges = [
+        {
+          id: "faithful_servant",
+          titleAr: "خادم أمين وموثوق",
+          titleEn: "Faithful & Reliable Servant",
+          descAr: "حضور كامل ومسؤول بدون أي غياب مسجل",
+          descEn: "100% attendance with zero no-shows recorded",
+          icon: "ShieldCheck",
+          unlocked: noShows === 0 && totalServices >= 2,
+          progress: `${Math.min(totalServices, 2)}/2`,
+        },
+        {
+          id: "dedicated_worshipper",
+          titleAr: "عازف تسبيح مكرّس",
+          titleEn: "Dedicated Musician",
+          descAr: "خدم أكثر من 6 ساعات في التسبيح والبروفات",
+          descEn: "Served 6+ hours in church musical ministry",
+          icon: "Music2",
+          unlocked: totalHours >= 6,
+          progress: `${Math.round(totalHours)}/6h`,
+        },
+        {
+          id: "instrument_caretaker",
+          titleAr: "حارس أمانة الآلات",
+          titleEn: "Asset Caretaker",
+          descAr: "إجراء فحوصات الاستلام لحماية الآلات",
+          descEn: "Documented condition checks for instrument care",
+          icon: "CheckCircle2",
+          unlocked: conditionChecksCount >= 1,
+          progress: `${conditionChecksCount}/1`,
+        },
+        {
+          id: "band_collaborator",
+          titleAr: "روح الفريق والباند",
+          titleEn: "Band Collaborator",
+          descAr: "المشاركة في حجز طاقم باند متكامل للخدمة",
+          descEn: "Participated in Band Pack group rehearsals",
+          icon: "Users",
+          unlocked: bandPackCount >= 1,
+          progress: `${bandPackCount}/1`,
+        },
+      ];
+
+      res.json({
+        success: true,
+        stats: {
+          userId: user.id,
+          userName: user.name,
+          userPhone: user.phone_number,
+          memberSince: user.created_at,
+          isTrusted: user.is_trusted,
+          totalHours: Math.round(totalHours * 10) / 10,
+          totalServices,
+          noShows,
+          reliabilityScore:
+            totalServices > 0
+              ? Math.max(
+                  0,
+                  Math.round(((totalServices - noShows) / totalServices) * 100),
+                )
+              : 100,
+          conditionChecksCount,
+          bandPackCount,
+          topInstruments,
+          serviceCategoryCounts,
+          badges,
+        },
+      });
+    } catch (err: any) {
+      console.error("Ministry stats error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
  * 16. Get single reservation detail
  */
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
@@ -856,6 +1235,29 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     // Ensure status transitions are up-to-date in serverless environment
     await ensureCurrentReservationStatuses().catch(() => {});
 
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : (req.headers["x-session-token"] as string);
+
+    let isAdmin = false;
+    if (token) {
+      try {
+        const { valid, session } = await validateSession(token);
+        if (
+          valid &&
+          session &&
+          (session.role === "admin" ||
+            session.role === "super_admin" ||
+            session.user?.isSuperAdmin)
+        ) {
+          isAdmin = true;
+        }
+      } catch {
+        // Continue with standard permissions
+      }
+    }
+
     const result = await db.execute(sql`
       SELECT 
         r.id,
@@ -864,6 +1266,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         r.admin_id,
         r.instrument_id,
         r.service_name,
+        r.service_location,
         r.musician_name,
         r.note,
         r.reservation_type,
@@ -871,6 +1274,13 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         r.status,
         r.rejection_reason,
         r.payment_screenshot_url,
+        r.band_pack_id,
+        r.condition_status,
+        r.condition_notes,
+        r.condition_photo_url,
+        r.condition_tags,
+        r.condition_checked_at,
+        r.condition_checked_by,
         r.created_at,
         r.is_no_show,
         r.no_show_marked_at,
@@ -885,6 +1295,8 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         i.type as instrument_type,
         i.booking_mode,
         i.outside_fee_per_day,
+        i.is_reserve_pool,
+        i.is_removed as instrument_is_removed,
         i.photo_url as instrument_photo_url,
         i.description as instrument_description,
         s.pattern_type as series_pattern_type,
@@ -910,13 +1322,53 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
       Number(r.duration_hours) >= 13;
 
+    // Fetch sibling reservations in same Band Pack if applicable
+    let bandPackItems: any[] = [];
+    if (r.band_pack_id) {
+      const packRes = await db.execute(sql`
+        SELECT 
+          r2.id,
+          r2.instrument_id,
+          r2.musician_name,
+          r2.status,
+          r2.condition_status,
+          i2.name as instrument_name,
+          i2.type as instrument_type,
+          i2.photo_url as instrument_photo_url,
+          i2.is_removed as instrument_is_removed,
+          i2.is_reserve_pool
+        FROM reservations r2
+        JOIN instruments i2 ON r2.instrument_id = i2.id
+        WHERE r2.band_pack_id = ${r.band_pack_id}
+        ORDER BY r2.created_at ASC
+      `);
+      bandPackItems = ((packRes as any).rows || []).map((bp: any) => {
+        const bpMask = !isAdmin && (Boolean(bp.instrument_is_removed) || Boolean(bp.is_reserve_pool));
+        return {
+          ...bp,
+          instrument_name: bpMask ? getMaskedInstrumentName(bp.instrument_type) : bp.instrument_name,
+          instrument_is_masked: bpMask,
+        };
+      });
+    }
+
+    const shouldMask = !isAdmin && (Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool));
+    const processedReservation = {
+      ...r,
+      instrument_name: shouldMask ? getMaskedInstrumentName(r.instrument_type) : r.instrument_name,
+      instrument_description: shouldMask
+        ? "Designated and assigned by church administration for this service."
+        : r.instrument_description,
+      instrument_photo_url: shouldMask ? null : r.instrument_photo_url,
+      instrument_is_masked: shouldMask,
+      is_full_day: isFullDay,
+      isFullDay,
+      band_pack_items: bandPackItems,
+    };
+
     res.json({
       success: true,
-      reservation: {
-        ...r,
-        is_full_day: isFullDay,
-        isFullDay,
-      },
+      reservation: processedReservation,
     });
   } catch (err: any) {
     console.error("Reservations list error:", err);
@@ -969,6 +1421,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         r.admin_id,
         r.instrument_id,
         r.service_name,
+        r.service_location,
         r.musician_name,
         r.note,
         r.reservation_type,
@@ -976,6 +1429,13 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         r.status,
         r.rejection_reason,
         r.payment_screenshot_url,
+        r.band_pack_id,
+        r.condition_status,
+        r.condition_notes,
+        r.condition_photo_url,
+        r.condition_tags,
+        r.condition_checked_at,
+        r.condition_checked_by,
         r.created_at,
         r.is_no_show,
         r.no_show_marked_at,
@@ -990,6 +1450,8 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         i.type as instrument_type,
         i.booking_mode,
         i.outside_fee_per_day,
+        i.is_reserve_pool,
+        i.is_removed as instrument_is_removed,
         i.photo_url as instrument_photo_url,
         i.description as instrument_description,
         s.pattern_type as series_pattern_type,
@@ -1021,17 +1483,29 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       const isOwn =
         currentUserId &&
         (r.user_id === currentUserId || r.admin_id === currentUserId);
+
       if (isAdmin) {
         return {
           ...r,
           is_full_day: isFullDay,
           isFullDay,
+          instrument_is_masked: false,
         };
       }
+
+      const shouldMask = Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool);
+      const maskedName = shouldMask ? getMaskedInstrumentName(r.instrument_type) : r.instrument_name;
+      const maskedDesc = shouldMask ? "Designated and assigned by church administration for this service." : r.instrument_description;
+      const maskedPhoto = shouldMask ? null : r.instrument_photo_url;
+
       if (isOwn && userId && String(userId) === currentUserId) {
         // User querying their own reservations (MyReservations view)
         return {
           ...r,
+          instrument_name: maskedName,
+          instrument_description: maskedDesc,
+          instrument_photo_url: maskedPhoto,
+          instrument_is_masked: shouldMask,
           is_full_day: isFullDay,
           isFullDay,
         };
@@ -1040,6 +1514,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       // Redact reservant identity, phone, payment, and service name completely
       return {
         ...r,
+        instrument_name: maskedName,
+        instrument_description: maskedDesc,
+        instrument_photo_url: maskedPhoto,
+        instrument_is_masked: shouldMask,
         is_full_day: isFullDay,
         isFullDay,
         user_name: undefined,

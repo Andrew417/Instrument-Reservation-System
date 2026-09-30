@@ -67,3 +67,12 @@ Counts all reservation submissions (single or series) by a user in a rolling 1-h
 
 - The Super Admin can toggle a global **"Bypass All Hard Limits"** setting in Settings.
 - When enabled, all rate limits, duration caps, active counts, and occurrence caps are bypassed system-wide for all members (conflict checks with approved reservations still always apply).
+
+---
+
+## Band / Service Pack Interaction with Limits
+
+- **Atomic Evaluation:** When a Band Pack is submitted, conflict checks against approved reservations are performed across all instruments in the pack. If any instrument has an approved conflict, the entire pack submission is aborted to protect rehearsal integrity.
+- **Individual Reservations:** Each instrument in the pack creates its own reservation row sharing a unified `band_pack_id` and assigned `musician_name`.
+- **Soft Limits:** If the user exceeds active reservation or concurrent-type limits with the addition of the pack, the pack's reservations are created with `pending` status for admin review.
+- **Rate Limit:** The atomic submission counts as 1 request batch towards the hourly submission rate limit.

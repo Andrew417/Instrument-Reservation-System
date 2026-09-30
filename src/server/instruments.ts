@@ -373,6 +373,8 @@ router.get(
         outside_fee_per_day: inst.outsideFeePerDay,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,
+        is_reserve_pool: inst.isReservePool,
+        isReservePool: inst.isReservePool,
         created_at: inst.createdAt,
       }));
 

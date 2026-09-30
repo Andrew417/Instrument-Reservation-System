@@ -176,3 +176,49 @@ Here's the updated documentation with the new features added:
 
 - `date-utils.ts` functions (`getCairoParts`, `getCairoDateString`, `getCairoTimeString`, `formatCairoDateTime`) accept Date, ISO string, SQL timestamp string, number, or null/undefined without throwing.
 - Prevents unhandled `RangeError` during render when backend returns SQL-formatted timestamps.
+
+---
+
+## 🎸 "Band / Service Pack" (Multi-Instrument Co-Booking with Musician Assignment)
+
+- **Purpose** — Allows worship leaders and musicians to book a complete bundle of instruments (e.g. Drums + Keyboard + Guitar) for the same rehearsal or service in one single submission, preventing partial-booking frustration.
+- **Musician Name Requirement** — Every instrument row in the pack explicitly specifies the assigned musician's name (e.g., Korg Keyboard #1 → Fady Adel, Pearl Drums #1 → Mina Nabil).
+- **Atomic Conflict Prevention** — Validates availability across all selected instruments. If any instrument has an approved conflict, blocks submission with a clear explanation naming the conflicted instrument.
+- **Combined Outside Fee** — For outside-church bookings, automatically sums up rental fees across all selected instruments with a single unified Instapay acknowledgment.
+- **Linked Sessions** — All instruments in the pack share a unique `band_pack_id`. In "My Reservations" and "Reservation Detail", a `[🎸 طاقم باند / Band Pack]` badge and a roster view display all sibling instruments and their musicians.
+
+---
+
+## 📸 Pre-Handover Condition & Damage Check (Musician Peace of Mind)
+
+- **Purpose** — Protects church members from being held liable for pre-existing scratches, broken strings, missing cables, or worn drum heads that occurred before their pickup.
+- **Status Logging** — Musicians can record:
+  - 🟢 **Pristine & Ready to Play** (سليمة وممتازة 100%)
+  - 🟡 **Minor Existing Wear / Pre-existing Issues** (ملاحظات أو عيوب سابقة بسيطة)
+- **Condition Tags** — Quick multi-select tags for common issues: all cables present, pre-existing scratches/dents, broken/missing string, sticky key/loose knob, missing sustain pedal/stand, audio jack noise, damaged drum skin/cymbal, clean & well-stored.
+- **Photo Evidence & Notes** — Allows taking or uploading a photo proof of the instrument condition, adding notes, and recording the verifier name with a Cairo timestamp.
+- **Transparent Record** — Displayed in both the musician's portal and Admin Reservation Detail screen, creating a shared, verified record of asset care.
+
+---
+
+## 🌟 Musician Ministry Profile (Service Celebration & Recognition)
+
+- **Purpose** — Celebrates church members' musical service and worship dedication, shifting the platform from administrative policing to uplifting spiritual encouragement.
+- **Key Metrics** — Total worship & rehearsal hours served, total church services/rehearsals attended, stewardship & reliability score (0 no-shows), documented condition checks, and band pack participations.
+- **Scripture Blessing** — Rooted in Psalm 150:4: «سَبِّحُوا الرَّبَّ... سَبِّحُوهُ بِأَوْتَارٍ وَمِزْمَارٍ» ("Praise Him with stringed instruments and flutes").
+- **Ministry Honors & Badges** — Unlockable recognition milestones:
+  - 🌟 **خادم أمين وموثوق (Faithful & Reliable Servant)**: 100% attendance without no-shows.
+  - 🎵 **عازف تسبيح مكرّس (Dedicated Musician)**: 6+ hours served in church praise.
+  - 🛡️ **حارس أمانة الآلات (Asset Caretaker)**: Documented pre-handover checks.
+  - 🎸 **روح الفريق والباند (Band Collaborator)**: Participated in Band Pack group rehearsals.
+- **Service & Instrument Distribution** — Visual progress bars for most played instruments and service categories (Youth Meeting, Sunday Liturgy, Choir Rehearsal, Prayer & Praise).
+- **1-Click WhatsApp Ministry Card Sharing** — 1-click sharing of an encouraging ministry blessing message to the church choir or band WhatsApp group.
+
+---
+
+## 🛡️ Reliability & API Boundary Hardening
+
+- **Express/Vite API Boundary Protection** — Configured dedicated `app.all("/api/*")` 404 handler and global `/api/*` error handling middleware in Express, guaranteeing that all API calls receive standard JSON error responses and never fall through to the Vite SPA HTML fallback (`<!doctype html>`).
+- **Calendar Data Resiliency** — Client calendar fetching (`AvailabilityCalendar.tsx`) enforces `Accept: application/json` headers, URL encodes dates, and validates response `Content-Type` before parsing JSON.
+- **Unprivileged Runtime DB Protection** — Application startup eliminates raw unprivileged `ALTER TABLE` statements in favor of non-DDL verification on `information_schema.columns`. All DDL schema changes are managed via declarative migrations.
+- **Isolated Startup Error Boundaries** — Super admin seeding and database verification run in independent try-catch boundaries, ensuring server port binding is never blocked.

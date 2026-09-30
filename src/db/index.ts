@@ -6,11 +6,6 @@ declare global {
 }
 
 export const createPool = () => {
-  console.log(
-    "DB INIT — DATABASE_URL at pool creation:",
-    process.env.DATABASE_URL,
-  );
-
   if (!global._postgresPool) {
     const isServerless =
       process.env.VERCEL === "1" ||
@@ -24,8 +19,13 @@ export const createPool = () => {
         password: process.env.SQL_PASSWORD,
         database: process.env.SQL_DB_NAME,
         max: isServerless ? 1 : 10,
-        idleTimeoutMillis: isServerless ? 10000 : 30000,
-        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 15000,
+      });
+
+      // Prevent unhandled pool-level errors from crashing the application
+      global._postgresPool.on("error", (err) => {
+        console.error("Unexpected error on idle SQL pool client:", err);
       });
     } else if (process.env.DATABASE_URL) {
       // In Vercel / Neon / standalone production environments
@@ -39,9 +39,13 @@ export const createPool = () => {
       global._postgresPool = new Pool({
         connectionString: process.env.DATABASE_URL,
         max: isServerless ? 1 : 10,
-        idleTimeoutMillis: isServerless ? 10000 : 30000,
-        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 15000,
         ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
+      });
+
+      global._postgresPool.on("error", (err) => {
+        console.error("Unexpected error on idle SQL pool client:", err);
       });
     } else {
       global._postgresPool = new Pool({
@@ -50,8 +54,12 @@ export const createPool = () => {
         password: "",
         database: "postgres",
         max: isServerless ? 1 : 10,
-        idleTimeoutMillis: isServerless ? 10000 : 30000,
-        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 15000,
+      });
+
+      global._postgresPool.on("error", (err) => {
+        console.error("Unexpected error on idle SQL pool client:", err);
       });
     }
   }
@@ -60,3 +68,32 @@ export const createPool = () => {
 
 export const pool = createPool();
 export const db = drizzle(pool, { schema });
+
+/**
+ * Idempotently verifies the new columns for Band Pack and Handover Condition Check exist.
+ * Note: DDL / schema alterations are handled via Drizzle & Cloud SQL migrations.
+ */
+export async function ensureEnhancedColumns(): Promise<void> {
+  try {
+    const res = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'reservations' 
+        AND column_name IN (
+          'band_pack_id', 
+          'condition_status', 
+          'condition_notes', 
+          'condition_photo_url', 
+          'condition_tags', 
+          'condition_checked_at', 
+          'condition_checked_by'
+        );
+    `);
+    const foundColumns = res.rows.map((r: any) => r.column_name);
+    console.log(
+      `[DB] Enhanced reservation columns verified (${foundColumns.length}/7 present).`,
+    );
+  } catch (err: any) {
+    console.warn("[DB Warning] Column check notice:", err.message);
+  }
+}

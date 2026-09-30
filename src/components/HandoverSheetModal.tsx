@@ -26,6 +26,7 @@ import {
   FileDown,
   Share2,
   Check,
+  Church,
 } from "lucide-react";
 import {
   HandoverReservationItem,
@@ -251,10 +252,10 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               id="btn-close-handover-modal"
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer shrink-0"
               title={t("handover.close")}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
 
@@ -267,10 +268,10 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               id="btn-close-handover-modal"
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer"
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer shrink-0"
               title={t("handover.close")}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -538,6 +539,9 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                       <th className="py-3 px-3">{t("handover.category")}</th>
                       <th className="py-3 px-3">{t("handover.serviceName")}</th>
                       <th className="py-3 px-3">
+                        {isRTL ? "مكان الخدمة / القاعة" : "Service Location"}
+                      </th>
+                      <th className="py-3 px-3">
                         {t("handover.musicianName")}
                       </th>
                       <th className="py-3 px-3">{t("handover.reservedBy")}</th>
@@ -593,6 +597,18 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                                 {r.service_name || t("handover.generalService")}
                               </span>
                             </span>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            {r.service_location ? (
+                              <span className="inline-flex items-center gap-1 font-medium bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md text-[11px]">
+                                <Church className="w-3 h-3 text-amber-700 shrink-0" />
+                                <span className="truncate max-w-[120px]">
+                                  {r.service_location}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-stone-400 italic text-[11px]">—</span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 font-semibold text-stone-800 whitespace-nowrap">
                             {r.musician_name}
@@ -656,7 +672,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-none px-3 sm:px-4 py-2.5 rounded-xl text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 sm:border-0 sm:bg-transparent transition cursor-pointer whitespace-nowrap"
+              className="flex-none h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 transition cursor-pointer flex items-center justify-center whitespace-nowrap"
             >
               {t("handover.close")}
             </button>
@@ -671,7 +687,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               onClick={handleWhatsAppShare}
               disabled={loading}
               title={t("handover.shareWhatsAppSummary")}
-              className="flex-none px-3 sm:px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-none h-10 px-3.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isCopied ? (
                 <>
@@ -694,7 +710,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               type="button"
               onClick={handleExport}
               disabled={loading || exporting}
-              className="flex-none px-3 sm:px-5 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-none h-10 px-4 sm:px-5 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer disabled:opacity-50"
             >
               <Download
                 className={`w-4 h-4 shrink-0 ${exporting ? "animate-bounce" : ""}`}

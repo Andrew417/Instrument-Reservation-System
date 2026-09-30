@@ -480,7 +480,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
   return (
     <div
       id="instrument-detail-modal-backdrop"
-      className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[100] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="instrument-detail-modal"
@@ -506,10 +506,10 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           <button
             id="btn-close-instrument-detail"
             onClick={onClose}
-            className="shrink-0 w-11 h-11 -mr-2 rounded-full bg-transparent text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer touch-manipulation"
+            className="shrink-0 w-10 h-10 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer border border-stone-700/70 touch-manipulation"
             aria-label={t("common.close")}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
@@ -1285,7 +1285,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation shrink-0 self-end sm:self-auto"
+            className="h-11 px-6 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold text-sm rounded-xl transition cursor-pointer shadow-xs touch-manipulation shrink-0 self-end sm:self-auto flex items-center justify-center"
           >
             {t("instrumentDetail.closeButton")}
           </button>

@@ -23,5 +23,30 @@ export function createExpressApp() {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminRouter);
 
+  // 404 handler for any unhandled /api/* requests so they never fall through to HTML/Vite SPA handler
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({
+      success: false,
+      error: `API route not found: ${req.method} ${req.originalUrl}`,
+    });
+  });
+
+  // Global error handler for /api/* requests
+  app.use(
+    "/api/*",
+    (
+      err: any,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction,
+    ) => {
+      console.error("[API Error]", err);
+      res.status(err.status || 500).json({
+        success: false,
+        error: err.message || "Internal server error",
+      });
+    },
+  );
+
   return app;
 }

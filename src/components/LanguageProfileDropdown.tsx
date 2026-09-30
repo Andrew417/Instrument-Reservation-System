@@ -8,16 +8,23 @@ import {
   Sparkles,
   Shield,
   User,
+  Award,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 
 export interface LanguageProfileDropdownProps {
   className?: string;
+  onOpenMinistryProfile?: () => void;
+  hideMinistryProfile?: boolean;
 }
 
 export const LanguageProfileDropdown: React.FC<
   LanguageProfileDropdownProps
-> = ({ className = "" }) => {
+> = ({
+  className = "",
+  onOpenMinistryProfile,
+  hideMinistryProfile = false,
+}) => {
   const { t, i18n } = useTranslation();
   const { profile, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -25,6 +32,15 @@ export const LanguageProfileDropdown: React.FC<
 
   const currentLang = i18n.language || "en";
   const isAr = currentLang === "ar";
+
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+      profile?.role === "super_admin" ||
+      profile?.isSuperAdmin,
+  );
+
+  const shouldShowMinistryProfile =
+    Boolean(onOpenMinistryProfile) && !hideMinistryProfile && !isAdmin;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,7 +102,7 @@ export const LanguageProfileDropdown: React.FC<
         id="profile-dropdown-trigger-btn"
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-0 sm:gap-2 px-1.5 sm:px-2.5 py-1.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 border border-stone-200 rounded-xl text-xs shrink-0 transition cursor-pointer select-none"
+        className="h-9 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 border border-stone-200 rounded-xl text-xs shrink-0 transition cursor-pointer select-none"
         aria-expanded={isOpen}
         aria-haspopup="true"
         title={t("common.profile")}
@@ -145,6 +161,41 @@ export const LanguageProfileDropdown: React.FC<
               {getRoleBadge()}
             </div>
           </div>
+
+          {/* Ministry Profile Action — Only for musicians / regular members, hidden from Admin Portal */}
+          {shouldShowMinistryProfile && (
+            <div className="px-3 pt-2 pb-1.5 border-b border-stone-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenMinistryProfile?.();
+                }}
+                className="w-full flex items-center justify-between gap-2 p-2.5 rounded-xl text-xs font-bold text-amber-950 bg-gradient-to-r from-amber-50 to-amber-100/60 hover:from-amber-100/80 hover:to-amber-100 border border-amber-200/90 transition cursor-pointer shadow-2xs group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0 text-start">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs group-hover:bg-amber-200 transition">
+                    <Award className="w-4 h-4 text-amber-800" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-extrabold text-stone-900 leading-tight truncate">
+                      {isAr
+                        ? "🌟 ملفي الخدمي وسجل ساعات التسبيح"
+                        : "🌟 My Ministry Record & Worship Hours"}
+                    </div>
+                    <div className="text-[10px] text-stone-500 font-normal truncate mt-0.5">
+                      {isAr
+                        ? "عرض أوسمة الخدمة وساعات العزف ونسبة الالتزام"
+                        : "View earned badges, service hours & reliability"}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-extrabold text-amber-900 bg-white px-2 py-0.5 rounded-lg border border-amber-200 shadow-2xs shrink-0 whitespace-nowrap">
+                  {isAr ? "عرض الأوسمة" : "View Honors"}
+                </span>
+              </button>
+            </div>
+          )}
 
           {/* Language Selection Section */}
           <div className="px-3 py-2.5">

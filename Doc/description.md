@@ -403,3 +403,115 @@ Same flow used for both user and admin portals.
 | Payment config                       | Instapay number/link set once in Settings by Super Admin                                                     |
 | OTP security                         | Max 3 requests/hour; 15-min lockout after 5 failures                                                         |
 | Approved-row uniqueness              | Enforced via DB exclusion constraint on `(instrument_id, time_range)` — Pending rows exempt                  |
+| Band / Service Pack Co-Booking       | Multi-instrument atomic booking with individual musician names, shared bandPackId, and unified outside fee   |
+| Pre-Handover Condition Check         | Musician liability protection with photo upload, pristine/issue status, timestamps, and condition tags      |
+| Musician Ministry Profile            | Worship hours counter, service milestones, reliability score, and Psalm 150:4 celebration cards              |
+
+---
+
+## Band / Service Pack (Multi-Instrument Co-Booking)
+
+Allows worship leaders, band directors, and choir coordinators to book all instruments needed for a service or rehearsal (e.g., Drums + Keyboard + Acoustic Guitar + Bass) in a single atomic submission.
+
+- **Musician Name Requirement:** Every instrument in the pack explicitly specifies the assigned musician's name.
+- **Atomic Availability:** The system checks all selected instruments simultaneously. If any instrument has an approved conflict, the entire pack submission is aborted to ensure the band is not left with half its instruments.
+- **Unified Outside Church Calculation:** Automatically tallies outside-church rental fees for all selected instruments into a single sum.
+- **Linked Records:** Each reserved instrument receives its own reservation record, linked by `band_pack_id`.
+- **Roster Visualization:** The Reservation Detail modal displays a full "Band Pack Roster" card listing all co-booked instruments, their assigned musicians, and current approval statuses, with 1-click navigation between instruments.
+
+---
+
+## Pre-Handover Condition & Damage Check
+
+Provides musicians with peace of mind by allowing them to document the physical and functional state of church instruments at pickup or return.
+
+- **Status Logging:**
+  - 🟢 **Pristine & Ready to Play** (`pristine`)
+  - 🟡 **Pre-existing Issues / Notes** (`reported_issues`)
+  - ⚪ **Uninspected** (`uninspected` - default)
+- **Condition Tags:** Quick-select tags covering:
+  - All Cables & Adapters Present
+  - Pre-existing Scratches / Dents
+  - Broken or Missing String
+  - Sticky Key or Loose Knob
+  - Missing Sustain Pedal / Stand
+  - Audio Jack Noise / Loose Port
+  - Torn Drum Head / Cracked Cymbal
+  - Clean & Well Stored in Case
+- **Photo Evidence:** File upload or camera snapshot (up to 8MB) stored directly on the reservation record.
+- **Cairo Time & Attribution:** Records who checked the instrument and the exact timestamp in Cairo time.
+- **Mutual Transparency:** Displayed in both the musician's portal and the Admin Reservation Detail view, preventing unjustified accusations or repair disputes.
+
+---
+
+## Musician Ministry Profile (Service Celebration)
+
+Celebrates and encourages church musicians and worship leaders for their dedication and stewardship.
+
+- **Spiritual Anchor:** Features Psalm 150:4: *«سَبِّحُوا الرَّبَّ... سَبِّحُوهُ بِأَوْتَارٍ وَمِزْمَارٍ»* ("Praise Him with stringed instruments and flutes").
+- **Key Metrics:**
+  - **Worship & Rehearsal Hours Served:** Calculated from verified service durations.
+  - **Total Services & Events:** Count of attended worship events.
+  - **Reliability & Stewardship Score:** Percentage based on confirmed attendances and zero no-shows.
+  - **Instrument Care Checks:** Count of completed pre-handover inspections.
+- **Unlockable Ministry Honors & Badges:**
+  - 🌟 **Faithful & Reliable Servant (خادم أمين وموثوق):** 100% attendance rate without no-shows.
+  - 🎵 **Dedicated Musician (عازف تسبيح مكرّس):** 6+ hours served in church praise.
+  - 🛡️ **Asset Caretaker (حارس أمانة الآلات):** Documented pre-handover condition checks.
+  - 🎸 **Band Collaborator (روح الفريق والباند):** Active participation in Band Pack rehearsals.
+- **Instrument & Service Distribution:** Displays visual progress bars of top instruments played and service categories (Liturgy, Youth Meeting, Choir, Praise).
+- **1-Click WhatsApp Ministry Card:** Generates and shares an encouraging spiritual summary to church band or choir WhatsApp groups.
+
+---
+
+## Database Architecture & Schema Reference
+
+The system runs on Cloud SQL (PostgreSQL) using Drizzle ORM. DDL schema modifications are managed via database migration tools; application runtime processes use unprivileged read/write connections.
+
+### Tables & Key Columns
+
+#### 1. `reservations`
+Primary transaction table storing individual instrument reservations:
+- `id` (uuid, primary key)
+- `series_id` (uuid, optional) — groups recurring series occurrences
+- `band_pack_id` (text, optional) — links co-booked multi-instrument band/rehearsal packs
+- `user_id` (uuid, optional, fk users.id)
+- `admin_id` (uuid, optional, fk admins.id) — populated for admin-created reservations
+- `instrument_id` (uuid, fk instruments.id)
+- `time_range` (tstzrange) — PostgreSQL timestamp range for conflict detection
+- `reservation_type` (text) — `'in_church'` or `'outside_church'`
+- `fee_snapshot` (numeric) — locked fee at submission time
+- `status` (text) — `'pending'`, `'approved'`, `'rejected'`, `'cancelled'`, `'ongoing'`, `'completed'`
+- `condition_status` (text) — `'uninspected'`, `'pristine'`, `'reported_issues'`
+- `condition_notes` (text, optional) — musician inspection remarks
+- `condition_photo_url` (text, optional) — photo evidence of instrument state
+- `condition_tags` (text, optional) — comma-separated tags (cables, strings, pedals, body)
+- `condition_checked_at` (timestamptz, optional) — inspection timestamp
+- `condition_checked_by` (text, optional) — inspector name
+- `is_no_show` (boolean) & `no_show_marked_at` (timestamptz) — attendance tracking
+- `service_name` (text), `musician_name` (text), `note` (text)
+
+#### 2. `instruments`
+- `id` (uuid, primary key)
+- `name` (text), `type` (text), `description` (text), `photo_url` (text)
+- `outside_fee_per_day` (numeric)
+- `booking_mode` (text) — `'instant'` or `'manual'`
+- `is_removed` (boolean)
+
+#### 3. `users` & `admins`
+- `users`: `id`, `name`, `phone` (unique), `password_hash`, `is_trusted_user`, `is_active`, `approval_status`, `no_show_count`
+- `admins`: `id`, `name`, `phone` (unique), `email`, `password_hash`, `role` (`'admin'` or `'super_admin'`), `is_super_admin`
+
+#### 4. Supporting Tables
+- `messages` (in-app two-way reservation chat)
+- `notifications` (user/admin bell notifications)
+- `trusted_audit_log` (Super Admin trusted status changes)
+- `system_settings` (configurable hard limits, payment info, notification flags)
+
+---
+
+## API & Operational Reliability Architecture
+
+- **Strict API JSON Boundary:** All `/api/*` endpoints are explicitly shielded with dedicated 404 and 500 error handlers, ensuring that unknown or erroring API requests return structured JSON (`{ success: false, error: ... }`) and never fall through to Vite SPA `index.html`.
+- **Safe Schema Management:** Application code performs read-only column verification queries on `information_schema.columns` rather than unprivileged runtime `ALTER TABLE` statements.
+- **Isolated Startup Lifecycle:** Database seeding and table verification are isolated in independent error boundaries, allowing the HTTP server to bind port 3000 without blocking proxy connections.

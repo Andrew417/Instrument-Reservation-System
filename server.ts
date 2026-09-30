@@ -4,18 +4,21 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import { createExpressApp } from "./src/server-app";
 import { seedSuperAdmin } from "./src/db/seed-super-admin";
+import { ensureEnhancedColumns } from "./src/db/index";
 import { runStatusTransitions } from "./src/services/reservation-logic";
 
 export async function createServer() {
   const app = createExpressApp();
   const PORT = 3000;
 
-  // Run Super Admin DB-level idempotent seed on startup
-  try {
-    await seedSuperAdmin();
-  } catch (err: any) {
-    console.error("[Startup Seed Warning]:", err.message || err);
-  }
+  // Run Super Admin DB-level idempotent seed & verify enhanced table columns lazily in background
+  seedSuperAdmin().catch((err: any) => {
+    console.warn("[Super Admin Seed Notice]:", err.message || err);
+  });
+
+  ensureEnhancedColumns().catch((err: any) => {
+    console.warn("[DB Columns Check Notice]:", err.message || err);
+  });
 
   // Vite middleware for development vs static build in production
   if (process.env.NODE_ENV !== "production") {

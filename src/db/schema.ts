@@ -75,6 +75,7 @@ export const instruments = pgTable(
     outsideFeePerDay: numeric("outside_fee_per_day").default("0").notNull(),
     bookingMode: text("booking_mode").notNull(), // 'manual' | 'instant'
     isRemoved: boolean("is_removed").default(false).notNull(),
+    isReservePool: boolean("is_reserve_pool").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -102,6 +103,7 @@ export const reservationSeries = pgTable(
       .references(() => instruments.id, { onDelete: "cascade" })
       .notNull(),
     patternType: text("pattern_type").notNull(), // 'weekly' | 'custom'
+    serviceLocation: text("service_location"),
     note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -133,6 +135,7 @@ export const reservations = pgTable(
       .references(() => instruments.id, { onDelete: "cascade" })
       .notNull(),
     serviceName: text("service_name").notNull(),
+    serviceLocation: text("service_location"),
     musicianName: text("musician_name").notNull(),
     timeRange: tstzrange("time_range").notNull(),
     reservationType: text("reservation_type").notNull(), // 'in_church' | 'outside_church'
@@ -141,6 +144,13 @@ export const reservations = pgTable(
     rejectionReason: text("rejection_reason"),
     cancellationReason: text("cancellation_reason"), // admin-provided reason, only set on admin-initiated cancellations
     paymentScreenshotUrl: text("payment_screenshot_url"),
+    bandPackId: text("band_pack_id"),
+    conditionStatus: text("condition_status").default("uninspected"), // 'uninspected' | 'pristine' | 'reported_issues'
+    conditionNotes: text("condition_notes"),
+    conditionPhotoUrl: text("condition_photo_url"),
+    conditionTags: text("condition_tags"),
+    conditionCheckedAt: timestamp("condition_checked_at", { withTimezone: true }),
+    conditionCheckedBy: text("condition_checked_by"),
     note: text("note"),
     isNoShow: boolean("is_no_show").default(false),
     noShowMarkedAt: timestamp("no_show_marked_at", { withTimezone: true }),

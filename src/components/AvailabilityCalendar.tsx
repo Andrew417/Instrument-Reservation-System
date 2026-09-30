@@ -39,6 +39,8 @@ export interface Instrument {
   outsideFeePerDay: string;
   bookingMode: "manual" | "instant";
   isRemoved: boolean;
+  isReservePool?: boolean;
+  is_reserve_pool?: boolean;
   createdAt: string;
 }
 
@@ -65,6 +67,7 @@ interface AvailabilityCalendarProps {
     durationHours: number,
   ) => void;
   onSelectInstrument: (instrument: Instrument) => void;
+  onOpenBandPackModal?: () => void;
   refreshTrigger?: number;
   onLoadedInstruments?: (instruments: Instrument[]) => void;
 }
@@ -134,6 +137,7 @@ const sortInstrumentsByManualOrder = (items: Instrument[]): Instrument[] => {
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectSlot,
   onSelectInstrument,
+  onOpenBandPackModal,
   refreshTrigger,
   onLoadedInstruments,
 }) => {
@@ -356,13 +360,29 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       const token =
         sessionToken || localStorage.getItem("church_session_token_v1");
       const res = await fetch(
-        `/api/instruments/availability/date?date=${date}`,
+        `/api/instruments/availability/date?date=${encodeURIComponent(date)}`,
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         },
       );
       if (!res.ok) {
-        throw new Error("Failed to fetch instrument availability");
+        let errorMsg = "Failed to fetch instrument availability";
+        try {
+          const errData = await res.json();
+          if (errData?.error) errorMsg = errData.error;
+        } catch {
+          // Response body was not JSON
+        }
+        throw new Error(errorMsg);
+      }
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          "Server returned an unexpected format while loading schedule. Please refresh in a moment.",
+        );
       }
       const data = await res.json();
       const insts = data.instruments || [];
@@ -513,13 +533,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           </div>
 
           {/* Right-side corner actions: Refresh + Help */}
-          <div className="shrink-0 flex items-center gap-1">
+          <div className="shrink-0 flex items-center gap-1.5">
             <button
               id="btn-refresh-calendar"
               type="button"
               onClick={() => fetchAvailability(selectedDate)}
               disabled={loading}
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition text-[10px] font-semibold touch-manipulation disabled:opacity-60"
+              className="h-9 px-3 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer touch-manipulation disabled:opacity-60"
               title={t("common.refresh")}
             >
               <RefreshCw
@@ -531,7 +551,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <button
               type="button"
               onClick={() => setShowHelperText(!showHelperText)}
-              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition text-[10px] font-semibold touch-manipulation"
+              className="h-9 px-3 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer touch-manipulation"
               title="Toggle timeline help and reference info"
             >
               <Info className="w-3.5 h-3.5" />
@@ -544,16 +564,33 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
         {/* Controls row — full width, wraps on mobile, original compact heights */}
         <div className="flex flex-wrap items-center gap-2">
+          {onOpenBandPackModal && (
+            <button
+              id="calendar-band-pack-btn"
+              type="button"
+              onClick={onOpenBandPackModal}
+              className="h-9 flex items-center gap-2 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 hover:from-amber-800 hover:to-amber-950 text-white rounded-lg px-3.5 text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 shadow-xs touch-manipulation active:scale-98"
+              title={
+                isAr
+                  ? "حجز طاقم باند أو مجموعة آلات كاملة في خطوة واحدة"
+                  : "Book a full band or multiple instruments together"
+              }
+            >
+              <Music2 className="w-4 h-4 text-amber-200" />
+              <span>{isAr ? "🎸 حجز باند كامل (مجموعة آلات)" : "🎸 Full Band Pack"}</span>
+            </button>
+          )}
+
           {allInstrumentTypes.length > 0 && (
             <div className="relative shrink-0" ref={filterPanelRef}>
               <button
                 id="btn-open-instrument-filter"
                 onClick={() => setIsFilterPanelOpen((o) => !o)}
-                className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                className="h-9 flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-lg px-3 text-xs text-stone-700 font-semibold hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
                 <span>{t("common.filter")}</span>
-                <span className="text-[10px] font-bold text-stone-500 bg-stone-200 rounded-md px-1.5 py-0.5 shrink-0">
+                <span className="text-xs font-bold text-stone-600 bg-stone-200 rounded-md px-1.5 py-0.5 shrink-0">
                   {checkedInstrumentIds.size}
                 </span>
               </button>
@@ -625,7 +662,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <button
             id="btn-jump-today"
             onClick={jumpToToday}
-            className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-[11px] font-semibold text-stone-800 transition cursor-pointer shrink-0 touch-manipulation"
+            className="h-9 px-3 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-xs font-semibold text-stone-800 transition cursor-pointer shrink-0 touch-manipulation flex items-center justify-center"
           >
             {t("common.today")}
           </button>
@@ -639,7 +676,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               onChange={(e) => {
                 if (e.target.value) setSelectedDate(e.target.value);
               }}
-              className={`w-full py-1.5 text-[11px] font-semibold bg-stone-50 border border-stone-200 rounded-xl text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer ${
+              className={`w-full h-9 text-xs font-semibold bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer ${
                 isAr ? "pr-7 pl-2.5" : "pl-7 pr-2.5"
               }`}
             />
@@ -652,7 +689,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         </div>
 
         {showHelperText && (
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-[11px] text-stone-600">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-xs text-stone-600">
             <p className="text-stone-700 font-medium">
               {t("calendar.selectOpenSlot")}
             </p>
@@ -682,13 +719,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <button
             id="btn-date-prev"
             onClick={() => navigateDate("prev")}
-            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation"
+            className="w-9 h-9 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation flex items-center justify-center"
             title={t("calendar.prevDay")}
           >
             <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
 
-          <div className="flex-1 min-w-0 text-center text-[11px] font-semibold text-stone-600 uppercase tracking-[0.12em] truncate">
+          <div className="flex-1 min-w-0 text-center text-xs font-semibold text-stone-600 uppercase tracking-[0.12em] truncate">
             {parseLocalDate(selectedDate).toLocaleDateString(
               isAr ? "ar-u-nu-latn" : "en-US",
               {
@@ -701,7 +738,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <button
             id="btn-date-next"
             onClick={() => navigateDate("next")}
-            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation"
+            className="w-9 h-9 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation flex items-center justify-center"
             title={t("calendar.nextDay")}
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-180" />
@@ -868,8 +905,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               </div>
                             </div>
 
-                            {/* Booking Mode + Fee chips — unchanged */}
+                            {/* Booking Mode + Fee chips + Reserve Pool Badge */}
                             <div className="flex flex-wrap items-center gap-1.5">
+                              {Boolean(inst.isReservePool || inst.is_reserve_pool) && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+                                  <Sparkles className="w-2.5 h-2.5 text-purple-700" />
+                                  <span>{isAr ? "عهدة احتياطية" : "Church Reserve"}</span>
+                                </span>
+                              )}
                               {/* Booking Mode Chip */}
                               {isAdminOrSuperAdmin ? (
                                 <button

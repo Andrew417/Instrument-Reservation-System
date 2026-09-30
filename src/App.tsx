@@ -18,6 +18,9 @@ import { AdminPortal } from "./components/AdminPortal.tsx";
 import { getTodayDateString } from "./lib/date-utils";
 import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
 import { UserDetailModal } from "./components/UserDetailModal.tsx";
+import { BandPackModal } from "./components/BandPackModal.tsx";
+import { ConditionCheckModal } from "./components/ConditionCheckModal.tsx";
+import { MusicianMinistryProfileModal } from "./components/MusicianMinistryProfileModal.tsx";
 import {
   LogOut,
   Sparkles,
@@ -151,6 +154,13 @@ const UserPortalMain: React.FC = () => {
     null,
   );
 
+  // User-facing features: Band Pack, Condition Check, Ministry Profile
+  const [isBandPackModalOpen, setIsBandPackModalOpen] = useState<boolean>(false);
+  const [isMinistryProfileModalOpen, setIsMinistryProfileModalOpen] =
+    useState<boolean>(false);
+  const [conditionCheckReservation, setConditionCheckReservation] =
+    useState<any | null>(null);
+
   // Screen 7: Notifications
   const [isNotificationsOpen, setIsNotificationsOpen] =
     useState<boolean>(false);
@@ -189,6 +199,18 @@ const UserPortalMain: React.FC = () => {
     }
     return null;
   });
+
+  const isAnyModalActive = Boolean(
+    editingReservation ||
+    selectedSlot ||
+    seriesPrefill ||
+    selectedReservationDetailId ||
+    isBandPackModalOpen ||
+    isMinistryProfileModalOpen ||
+    conditionCheckReservation ||
+    selectedUserId ||
+    selectedInstrument
+  );
 
   const handleOpenUserProfile = (userId: string) => {
     setSelectedUserId(userId);
@@ -377,13 +399,25 @@ const UserPortalMain: React.FC = () => {
           </div>
 
           {/* User Profile & Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Quick Band Pack Booking Button */}
+            <button
+              id="header-band-pack-btn"
+              type="button"
+              onClick={() => setIsBandPackModalOpen(true)}
+              className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold transition shadow-xs cursor-pointer touch-manipulation shrink-0"
+              title={isRTL ? "حجز طاقم باند (مجموعة آلات)" : "Band Pack Booking"}
+            >
+              <Music2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isRTL ? "حجز باند" : "Band Pack"}</span>
+            </button>
+
             {policyExplainerEnabled && (
               <button
                 id="header-policy-help-btn"
                 type="button"
                 onClick={() => setIsPolicyModalOpen(true)}
-                className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer"
+                className="h-9 px-3 rounded-xl border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 active:bg-stone-100 transition inline-flex items-center gap-2 cursor-pointer shrink-0"
                 title={t("nav.howBookingWorks")}
               >
                 <HelpCircle className="w-4 h-4 text-stone-600" />
@@ -397,14 +431,14 @@ const UserPortalMain: React.FC = () => {
               id="header-notifications-bell-btn"
               type="button"
               onClick={() => setCurrentView("notifications")}
-              className={`hidden lg:flex relative p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition items-center gap-2 cursor-pointer ${
+              className={`hidden lg:inline-flex h-9 relative px-3 rounded-xl border text-xs font-bold transition items-center gap-2 cursor-pointer shrink-0 ${
                 unreadCount > 0
                   ? "bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100"
-                  : "border-stone-200 text-stone-700 hover:bg-stone-50"
+                  : "border-stone-200 text-stone-700 hover:bg-stone-50 active:bg-stone-100"
               }`}
               title={t("nav.alerts")}
             >
-              <div className="relative">
+              <div className="relative flex items-center justify-center">
                 <Bell
                   className={`w-4 h-4 ${unreadCount > 0 ? "text-amber-800" : "text-stone-600"}`}
                 />
@@ -421,8 +455,11 @@ const UserPortalMain: React.FC = () => {
               </span>
             </button>
 
-            {/* Profile Dropdown with Arabic / English Language Toggle */}
-            <LanguageProfileDropdown />
+            {/* Profile Dropdown with Arabic / English Language Toggle & Ministry Profile */}
+            <LanguageProfileDropdown
+              onOpenMinistryProfile={() => setIsMinistryProfileModalOpen(true)}
+              hideMinistryProfile={currentView === "admin_portal" || isAdminOrSuperAdmin}
+            />
           </div>
         </div>
       </header>
@@ -445,6 +482,7 @@ const UserPortalMain: React.FC = () => {
           <AvailabilityCalendar
             onSelectSlot={handleSelectSlot}
             onSelectInstrument={handleSelectInstrument}
+            onOpenBandPackModal={() => setIsBandPackModalOpen(true)}
             refreshTrigger={refreshTrigger}
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
           />
@@ -470,6 +508,8 @@ const UserPortalMain: React.FC = () => {
           <MyReservations
             allInstruments={allInstruments}
             refreshTrigger={refreshTrigger}
+            onOpenBandPack={() => setIsBandPackModalOpen(true)}
+            onOpenConditionCheck={(res) => setConditionCheckReservation(res)}
             onOpenNewReservation={() => {
               setSelectedSlot({
                 instrument: allInstruments[0],
@@ -592,7 +632,7 @@ const UserPortalMain: React.FC = () => {
           allInstruments={allInstruments}
           initialTab={reservationDetailInitialTab}
           zIndexClass={
-            modalStackOrder === "reservation_over_user" ? "z-[60]" : "z-50"
+            modalStackOrder === "reservation_over_user" ? "z-[105]" : "z-[100]"
           }
           backButtonTitle={
             reservationDetailFromNotifications
@@ -663,6 +703,40 @@ const UserPortalMain: React.FC = () => {
         onClose={() => setIsPolicyModalOpen(false)}
       />
 
+      {/* Band & Service Pack Modal (Multi-instrument co-booking) */}
+      {isBandPackModalOpen && (
+        <BandPackModal
+          isOpen={isBandPackModalOpen}
+          allInstruments={allInstruments}
+          onClose={() => setIsBandPackModalOpen(false)}
+          onSuccess={() => {
+            setRefreshTrigger((prev) => prev + 1);
+            setCurrentView("my_reservations");
+            setActiveMobileTab("my_reservations");
+          }}
+        />
+      )}
+
+      {/* Musician Ministry Profile Modal (Celebration of Service) */}
+      {isMinistryProfileModalOpen && (
+        <MusicianMinistryProfileModal
+          isOpen={isMinistryProfileModalOpen}
+          onClose={() => setIsMinistryProfileModalOpen(false)}
+        />
+      )}
+
+      {/* Handover Condition & Damage Check Modal */}
+      {conditionCheckReservation && (
+        <ConditionCheckModal
+          isOpen={Boolean(conditionCheckReservation)}
+          reservation={conditionCheckReservation}
+          onClose={() => setConditionCheckReservation(null)}
+          onSaved={() => {
+            setRefreshTrigger((prev) => prev + 1);
+          }}
+        />
+      )}
+
       {/* User Profile Modal (Admin / Super Admin) */}
       {selectedUserId && isAdminOrSuperAdmin && (
         <UserDetailModal
@@ -670,7 +744,7 @@ const UserPortalMain: React.FC = () => {
           isOpen={Boolean(selectedUserId)}
           onClose={handleCloseUserProfile}
           zIndexClass={
-            modalStackOrder === "user_over_reservation" ? "z-[60]" : "z-50"
+            modalStackOrder === "user_over_reservation" ? "z-[105]" : "z-[100]"
           }
           onSelectReservation={(resId) => {
             setSelectedReservationDetailId(resId);
@@ -690,9 +764,16 @@ const UserPortalMain: React.FC = () => {
       {/* ✅ Mobile Bottom Navigation Bar — polished */}
       <nav
         id="mobile-bottom-nav"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-[75] bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] pb-[env(safe-area-inset-bottom)]"
-        style={{ transform: "translateZ(0)" }}
+        className={`lg:hidden fixed bottom-0 left-0 right-0 z-[75] bg-white/95 backdrop-blur-md border-t border-stone-200/80 shadow-[0_-4px_20px_rgba(28,25,23,0.06)] pb-[env(safe-area-inset-bottom)] transition-all duration-200 ${
+          isAnyModalActive
+            ? "translate-y-full pointer-events-none opacity-0 invisible"
+            : "translate-y-0 opacity-100 visible"
+        }`}
+        style={{
+          transform: isAnyModalActive ? "translateY(100%)" : "translateZ(0)",
+        }}
         dir="ltr"
+        aria-hidden={isAnyModalActive}
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
           {/* Calendar */}

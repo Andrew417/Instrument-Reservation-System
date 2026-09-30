@@ -34,12 +34,14 @@ export interface ReservationSubmissionInput {
   adminId?: string;
   instrumentId: string;
   serviceName: string; // Required free-text (e.g. 'Sunday Morning Service', 'Youth Choir Practice')
+  serviceLocation?: string; // Location or hall (e.g. 'Main Church Sanctuary', 'Youth Hall', 'St. George Chapel')
   musicianName: string;
   date: string; // 'YYYY-MM-DD'
   startTime: string; // 'HH:mm'
   duration: number; // in hours
   reservationType: "in_church" | "outside_church";
   feeAcknowledged?: boolean;
+  bandPackId?: string;
   note?: string;
 }
 
@@ -48,6 +50,7 @@ export interface SeriesSubmissionInput {
   adminId?: string;
   instrumentId: string;
   serviceName: string; // Applies to the whole series
+  serviceLocation?: string;
   musicianName: string;
   patternType: "weekly" | "custom";
   occurrences: TimeSlot[];
@@ -64,6 +67,21 @@ export interface EvaluationResult {
   startTimeUtc: Date;
   endTimeUtc: Date;
   timeRangeSqlString: string;
+}
+
+/**
+ * Mask retired/vault or reserve pool instruments to preserve confidentiality
+ */
+export function getMaskedInstrumentName(type?: string | null): string {
+  const cleanType = (type || "").trim();
+  if (/keyboard/i.test(cleanType)) return "Church Assigned Keyboard";
+  if (/drum/i.test(cleanType)) return "Church Assigned Drum Kit";
+  if (/guitar/i.test(cleanType)) return "Church Assigned Guitar";
+  if (/violin/i.test(cleanType)) return "Church Assigned Violin";
+  if (/brass|wind/i.test(cleanType)) return "Church Assigned Wind Instrument";
+  if (/string/i.test(cleanType)) return "Church Assigned Strings";
+  if (/audio/i.test(cleanType)) return "Church Assigned Audio Equipment";
+  return cleanType ? `Church Assigned ${cleanType}` : "Church Assigned Instrument";
 }
 
 /**
@@ -495,7 +513,12 @@ export async function evaluateReservationSubmission(
     }
 
     // Instrument mode check + limit decision
-    if (instrument.bookingMode === "instant" && !limitExceeded) {
+    if (instrument.isReservePool) {
+      calculatedStatus = "pending";
+      reasons.push(
+        "Church Reserve allocation request: Pending administration review to assign a suitable available instrument from church inventory.",
+      );
+    } else if (instrument.bookingMode === "instant" && !limitExceeded) {
       calculatedStatus = "approved";
       reasons.push("Auto-approved via Instant Booking mode");
     } else {
@@ -595,8 +618,11 @@ export async function createReservation(input: ReservationSubmissionInput) {
     adminId: cleanAdminId,
     instrumentId: input.instrumentId,
     serviceName: cleanServiceName,
+    serviceLocation: toNullableString(input.serviceLocation),
     musicianName: cleanMusicianName,
     note: cleanNote,
+    bandPackId: input.bandPackId || null,
+    conditionStatus: "uninspected",
     timeRange:
       sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
     reservationType: input.reservationType,
@@ -919,6 +945,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       adminId: cleanAdminId,
       instrumentId,
       patternType,
+      serviceLocation: toNullableString(input.serviceLocation),
       note: cleanNote,
     })
     .returning();
@@ -933,6 +960,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         adminId: cleanAdminId || undefined,
         instrumentId,
         serviceName: input.serviceName,
+        serviceLocation: input.serviceLocation,
         musicianName: input.musicianName,
         date: occ.date,
         startTime: occ.startTime,
@@ -951,6 +979,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       adminId: cleanAdminId,
       instrumentId,
       serviceName: (input.serviceName || "").trim() || "Not specified",
+      serviceLocation: toNullableString(input.serviceLocation),
       musicianName: (input.musicianName || "").trim(),
       note: cleanNote,
       timeRange:
@@ -1155,6 +1184,7 @@ export async function editReservation(
   updates: {
     instrumentId?: string;
     serviceName?: string;
+    serviceLocation?: string;
     musicianName?: string;
     note?: string;
     date?: string;
@@ -1324,6 +1354,10 @@ export async function editReservation(
     updates.musicianName !== undefined
       ? updates.musicianName.trim()
       : existing.musicianName;
+  const cleanServiceLocation =
+    updates.serviceLocation !== undefined
+      ? toNullableString(updates.serviceLocation)
+      : existing.serviceLocation;
   const cleanNote =
     updates.note !== undefined ? toNullableString(updates.note) : existing.note;
 
@@ -1336,6 +1370,7 @@ export async function editReservation(
     .set({
       instrumentId,
       serviceName: cleanServiceName,
+      serviceLocation: cleanServiceLocation,
       musicianName: cleanMusicianName,
       note: cleanNote,
       timeRange:
@@ -1461,7 +1496,11 @@ export async function cancelReservation(
 export async function adminApproveReservation(
   reservationId: string,
   adminId?: string | null,
-  options?: { skipEmail?: boolean },
+  options?: {
+    skipEmail?: boolean;
+    assignInstrumentId?: string;
+    serviceLocation?: string;
+  },
 ) {
   const [res] = await db
     .select()
@@ -1478,12 +1517,19 @@ export async function adminApproveReservation(
   const start = new Date(boundsRes.rows[0].start_time);
   const end = new Date(boundsRes.rows[0].end_time);
 
-  // Check if conflict exists
+  const targetInstrumentId = options?.assignInstrumentId || res.instrumentId;
+
+  // Check if conflict exists on the target instrument
   const conflicts = await db
-    .select({ id: reservations.id })
+    .select({
+      id: reservations.id,
+      serviceName: reservations.serviceName,
+      musicianName: reservations.musicianName,
+      timeRange: reservations.timeRange,
+    })
     .from(reservations)
     .where(
-      sql`${reservations.instrumentId} = ${res.instrumentId}
+      sql`${reservations.instrumentId} = ${targetInstrumentId}
         AND ${reservations.id} != ${reservationId}
         AND ${reservations.status} = 'approved'
         AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
@@ -1491,38 +1537,74 @@ export async function adminApproveReservation(
     .limit(1);
 
   if (conflicts.length > 0) {
+    const [instInfo] = await db
+      .select({ name: instruments.name })
+      .from(instruments)
+      .where(eq(instruments.id, targetInstrumentId))
+      .limit(1);
+    const instName = instInfo?.name || "Selected instrument";
     throw new Error(
-      "Cannot approve: this time slot conflicts with another already approved reservation.",
+      `Conflict detected: "${instName}" is already approved for another reservation ("${conflicts[0].serviceName}") during this time slot.`,
     );
   }
 
   const cleanAdminId = toNullableString(adminId);
 
+  const updateFields: any = {
+    instrumentId: targetInstrumentId,
+    status: "approved",
+    rejectionReason: null,
+    adminId: cleanAdminId,
+  };
+
+  if (options?.serviceLocation !== undefined) {
+    updateFields.serviceLocation = toNullableString(options.serviceLocation);
+  }
+
   const [approved] = await db
     .update(reservations)
-    .set({
-      status: "approved",
-      rejectionReason: null,
-      adminId: cleanAdminId,
-    })
+    .set(updateFields)
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  // Auto-reject other pending overlapping
+  // Auto-reject other pending overlapping on target instrument
   await autoRejectOverlappingPending(
-    res.instrumentId,
+    targetInstrumentId,
     start,
     end,
     reservationId,
   );
 
+  // Fetch final instrument info
+  const [instInfo] = await db
+    .select({
+      name: instruments.name,
+      type: instruments.type,
+      isRemoved: instruments.isRemoved,
+      isReservePool: instruments.isReservePool,
+    })
+    .from(instruments)
+    .where(eq(instruments.id, targetInstrumentId))
+    .limit(1);
+
+  const isConfidential = Boolean(instInfo?.isRemoved || instInfo?.isReservePool);
+  const finalInstName = instInfo?.name || "Instrument";
+  const userVisibleInstName = isConfidential
+    ? getMaskedInstrumentName(instInfo?.type)
+    : finalInstName;
+
   // Notify user in-app
   if (res.userId) {
+    const isReallocated = targetInstrumentId !== res.instrumentId;
+    const approvalNotice = isReallocated
+      ? `Your reservation for "${res.serviceName}" has been approved! The church administration has allocated "${userVisibleInstName}" for your service.`
+      : `Your reservation for "${res.serviceName}" (${userVisibleInstName}) has been approved by an administrator.`;
+
     await db.insert(notifications).values({
       userId: res.userId,
       reservationId: res.id,
       type: "reservation_approved",
-      message: "Your reservation has been approved by an administrator.",
+      message: approvalNotice,
     });
 
     // Send transactional email (non-blocking) unless skipped (e.g. during series approval)
@@ -1535,17 +1617,11 @@ export async function adminApproveReservation(
             .where(eq(users.id, res.userId!))
             .limit(1);
 
-          const [instInfo] = await db
-            .select({ name: instruments.name })
-            .from(instruments)
-            .where(eq(instruments.id, res.instrumentId))
-            .limit(1);
-
           if (userInfo?.email) {
             await sendReservationApprovedEmail({
               email: userInfo.email,
               name: userInfo.name,
-              instrumentName: instInfo?.name || "Instrument",
+              instrumentName: userVisibleInstName,
               musicianName: res.musicianName,
               serviceName: res.serviceName,
               reservationType: res.reservationType,

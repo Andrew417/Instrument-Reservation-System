@@ -32,6 +32,8 @@ import {
   RefreshCw,
   Plus,
   Sun,
+  ShieldCheck,
+  Church,
 } from "lucide-react";
 import { getStatusColor } from "../lib/status-colors.ts";
 
@@ -49,6 +51,9 @@ export interface MyReservationsProps {
   allInstruments: Instrument[];
   onOpenNewReservation: () => void;
   onOpenSeriesBuilder: () => void;
+  onOpenBandPack?: () => void;
+  onOpenMinistryProfile?: () => void;
+  onOpenConditionCheck?: (reservation: any) => void;
   onSelectReservationDetail: (reservationId: string) => void;
   onEditReservation: (reservation: any) => void;
   refreshTrigger?: number;
@@ -60,6 +65,7 @@ interface GroupedSeries {
   instrumentType: string;
   bookingMode: string;
   serviceName: string;
+  serviceLocation?: string;
   patternType: string;
   reservationType: string;
   feeSnapshot: string | null;
@@ -72,12 +78,16 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   allInstruments,
   onOpenNewReservation,
   onOpenSeriesBuilder,
+  onOpenBandPack,
+  onOpenMinistryProfile,
+  onOpenConditionCheck,
   onSelectReservationDetail,
   onEditReservation,
   refreshTrigger = 0,
 }) => {
   const { profile, sessionToken } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === "ar";
 
   const [activeTab, setActiveTab] = useState<"upcoming" | "pending" | "past">(
     "upcoming",
@@ -214,6 +224,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           bookingMode: first.booking_mode || "manual",
           serviceName:
             first.service_name || t("myReservations.churchServiceFallback"),
+          serviceLocation:
+            first.service_location || first.serviceLocation || "",
           patternType: first.series_pattern_type || "weekly",
           reservationType: first.reservation_type || "in_church",
           feeSnapshot: first.fee_snapshot,
@@ -316,6 +328,19 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenBandPack && (
+            <button
+              type="button"
+              onClick={onOpenBandPack}
+              className="flex-1 h-9 rounded-lg border border-amber-800/40 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs touch-manipulation"
+            >
+              <Music2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">
+                {isRTL ? "🎸 حجز باند" : "🎸 Band Pack"}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenSeriesBuilder}
@@ -360,11 +385,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   : "text-emerald-600/70"
               }`}
             />
-            <span className="text-[11px] font-bold truncate">
+            <span className="text-xs font-semibold truncate">
               {t("myReservations.upcomingTab")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "upcoming"
                   ? "bg-amber-100 text-amber-900"
                   : "bg-stone-200 text-stone-600"
@@ -389,11 +414,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 activeTab === "pending" ? "text-amber-600" : "text-amber-600/70"
               }`}
             />
-            <span className="text-[11px] font-bold truncate">
+            <span className="text-xs font-semibold truncate">
               {t("common.pending")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "pending"
                   ? "bg-amber-100 text-amber-900"
                   : "bg-stone-200 text-stone-600"
@@ -418,11 +443,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 activeTab === "past" ? "text-stone-500" : "text-stone-400"
               }`}
             />
-            <span className="text-[11px] font-bold truncate">
+            <span className="text-xs font-semibold truncate">
               {t("myReservations.pastTab")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "past"
                   ? "bg-amber-100 text-amber-900"
                   : "bg-stone-200 text-stone-600"
@@ -466,7 +491,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 : t("myReservations.cancelSingleDesc")}
             </p>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -474,7 +499,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   setCancelError(null);
                 }}
                 disabled={isCancelling}
-                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50 touch-manipulation"
+                className="flex-1 h-11 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-sm font-semibold rounded-xl transition cursor-pointer disabled:opacity-50 touch-manipulation flex items-center justify-center"
               >
                 {t("myReservations.keepBooking")}
               </button>
@@ -483,7 +508,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 type="button"
                 disabled={isCancelling}
                 onClick={executeCancellation}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation"
+                className="flex-1 h-11 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-sm font-bold rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation flex items-center justify-center"
               >
                 {isCancelling
                   ? t("myReservations.cancelling")
@@ -648,6 +673,15 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           </div>
                         </div>
 
+                        {(res.service_location || res.serviceLocation) && (
+                          <div className="flex items-center gap-1.5 text-xs text-amber-800 font-medium my-0.5">
+                            <Church className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                            <span className="truncate">
+                              {res.service_location || res.serviceLocation}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Status + type badges */}
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span
@@ -668,6 +702,27 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
                               <DollarSign className="w-3 h-3" />
                               {t("common.outsideChurch")}
+                            </span>
+                          )}
+
+                          {res.band_pack_id && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                              <Music2 className="w-3 h-3 text-amber-700" />
+                              <span>{isRTL ? "🎸 طاقم باند" : "🎸 Band Pack"}</span>
+                            </span>
+                          )}
+
+                          {res.condition_status === "pristine" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                              <span>{isRTL ? "🛡️ سليم وموثق" : "🛡️ Verified"}</span>
+                            </span>
+                          )}
+
+                          {res.condition_status === "reported_issues" && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                              <AlertTriangle className="w-3 h-3 text-amber-600" />
+                              <span>{isRTL ? "⚠️ به ملاحظات موثقة" : "⚠️ Issues Logged"}</span>
                             </span>
                           )}
                         </div>
@@ -700,7 +755,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       <button
                         type="button"
                         onClick={() => onEditReservation(res)}
-                        className="h-9 px-3 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                        className="h-9 px-3.5 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
                         title={t("common.edit")}
                       >
                         <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
@@ -722,17 +777,37 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           type="button"
                           onClick={() => onSelectReservationDetail(res.id)}
                           title={t("reservationDetail.payNow") || "Pay"}
-                          className="h-9 px-3 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation shadow-2xs"
+                          className="h-9 px-3.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation shadow-2xs"
                         >
                           <DollarSign className="w-3.5 h-3.5 shrink-0" />
                           <span>{t("reservationDetail.pay") || "Pay"}</span>
                         </button>
                       )}
 
+                    {onOpenConditionCheck && (res.status === "approved" || res.status === "ongoing") && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenConditionCheck(res)}
+                        className="h-9 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                        title={isRTL ? "فحص حالة الاستلام" : "Condition Check"}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span>
+                          {res.condition_status && res.condition_status !== "uninspected"
+                            ? isRTL
+                              ? "تعديل الفحص"
+                              : "Edit Check"
+                            : isRTL
+                              ? "فحص الاستلام"
+                              : "Condition Check"}
+                        </span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => onSelectReservationDetail(res.id)}
-                      className="flex-1 h-9 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-lg transition cursor-pointer whitespace-nowrap touch-manipulation"
+                      className="flex-1 h-9 px-3.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-semibold rounded-lg transition cursor-pointer whitespace-nowrap touch-manipulation flex items-center justify-center"
                     >
                       {t("myReservations.viewDetails")}
                     </button>
@@ -790,6 +865,12 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           <span className="font-semibold text-stone-800 truncate max-w-full">
                             {sg.instrumentName}
                           </span>
+                          {sg.serviceLocation && (
+                            <span className="inline-flex items-center gap-1 text-amber-800 font-medium">
+                              <Church className="w-3 h-3 text-amber-700 shrink-0" />
+                              <span className="truncate">{sg.serviceLocation}</span>
+                            </span>
+                          )}
                           <span className="text-stone-500 whitespace-nowrap">
                             {t("myReservations.approvedPendingCount", {
                               approved: approvedCount,
@@ -805,7 +886,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                        className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
+                        className="h-8 px-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
                       >
                         <span>
                           {isExpanded

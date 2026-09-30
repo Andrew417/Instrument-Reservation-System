@@ -10,12 +10,15 @@ import {
   getCairoDateString,
   getCairoTimeString,
 } from "../lib/date-utils";
+import { ConditionCheckModal } from "./ConditionCheckModal.tsx";
 import {
   Calendar,
   Clock,
   Music2,
   DollarSign,
   Shield,
+  ShieldCheck,
+  Camera,
   Sun,
   CheckCircle2,
   XCircle,
@@ -40,6 +43,7 @@ import {
   Send,
   Pencil,
   MoreHorizontal,
+  Church,
 } from "lucide-react";
 import { getStatusColor } from "../lib/status-colors.ts";
 
@@ -151,6 +155,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInstrumentDetails, setShowInstrumentDetails] = useState(false);
+  const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
 
   // Cancellation
   const [isCancelling, setIsCancelling] = useState(false);
@@ -942,7 +947,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onBack}
-                className="w-10 h-10 -ml-1 rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
+                className="w-10 h-10 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 border border-stone-700/70 touch-manipulation"
                 aria-label={
                   backButtonTitle || t("reservationDetail.backToNotifications")
                 }
@@ -965,7 +970,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <span
               className={`hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(reservation.status)}`}
             >
@@ -979,18 +984,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   onEdit(reservation);
                 }}
                 aria-label={t("reservationDetail.editSlot")}
-                className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
               >
-                <Edit className="w-5 h-5" />
+                <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             )}
             <button
               type="button"
               onClick={onClose}
               aria-label={t("reservationDetail.close")}
-              className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -1184,6 +1189,16 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       reservation.serviceName ||
                       t("reservationDetail.churchService")}
                   </span>
+                  {(reservation.service_location ||
+                    reservation.serviceLocation) && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-900 font-semibold my-1 bg-amber-50/90 border border-amber-200 px-2.5 py-1 rounded-xl w-fit">
+                      <Church className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                      <span>
+                        {reservation.service_location ||
+                          reservation.serviceLocation}
+                      </span>
+                    </div>
+                  )}
                   {isAdminBooked && (
                     <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 font-semibold mt-0.5">
                       <Shield className="w-3 h-3" />
@@ -1739,6 +1754,190 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               }}
             />
 
+            {/* Band Pack Roster Card */}
+            {reservation.band_pack_items &&
+              reservation.band_pack_items.length > 1 && (
+                <div className="p-4 bg-amber-50/70 border border-amber-300 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Music2 className="w-4 h-4 text-amber-800" />
+                      <span className="text-xs font-bold text-amber-950">
+                        {isRTL
+                          ? "🎸 طاقم الباند المشترك في هذه الخدمة"
+                          : "🎸 Band Pack Roster for this Service"}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900">
+                      {reservation.band_pack_items.length}{" "}
+                      {isRTL ? "آلات" : "instruments"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {reservation.band_pack_items.map((bItem: any) => {
+                      const isCurrent = bItem.id === reservation.id;
+                      return (
+                        <div
+                          key={bItem.id}
+                          onClick={() => {
+                            if (!isCurrent && onNavigateToReservation) {
+                              onNavigateToReservation(bItem.id);
+                            }
+                          }}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition ${
+                            isCurrent
+                              ? "bg-white border-amber-400 shadow-2xs ring-1 ring-amber-400"
+                              : "bg-white/80 border-stone-200 hover:bg-white cursor-pointer"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-stone-900 truncate">
+                                {bItem.instrument_name}
+                              </span>
+                              {isCurrent && (
+                                <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 px-1 rounded">
+                                  {isRTL ? "الحالية" : "Current"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-stone-600 font-medium truncate flex items-center gap-1">
+                              <User className="w-3 h-3 text-stone-400 shrink-0" />
+                              <span>{bItem.musician_name}</span>
+                            </div>
+                          </div>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${getStatusColor(
+                              bItem.status,
+                            )}`}
+                          >
+                            {bItem.status}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            {/* Handover Condition & Damage Check Card */}
+            <div className="p-4 bg-white border border-stone-200 rounded-2xl space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="text-xs font-bold text-stone-900">
+                    {isRTL
+                      ? "فحص حالة الآلة والاستلام (إثبات الأمانة)"
+                      : "Instrument Handover & Condition Check"}
+                  </span>
+                </div>
+                {reservation.condition_status === "pristine" ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                    {isRTL ? "🟢 سليمة وممتازة" : "🟢 Pristine"}
+                  </span>
+                ) : reservation.condition_status === "reported_issues" ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                    {isRTL ? "🟡 توجد ملاحظات سابقة" : "🟡 Issues Logged"}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-200 shrink-0">
+                    {isRTL ? "لم يتم الفحص بعد" : "Uninspected"}
+                  </span>
+                )}
+              </div>
+
+              {reservation.condition_status &&
+              reservation.condition_status !== "uninspected" ? (
+                <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2 text-xs">
+                  <div className="flex items-center justify-between text-[11px] text-stone-500">
+                    <span>
+                      {isRTL ? "تم الفحص والتوثيق بواسطة:" : "Verified by:"}{" "}
+                      <strong className="text-stone-800">
+                        {reservation.condition_checked_by ||
+                          reservation.musician_name ||
+                          "Musician"}
+                      </strong>
+                    </span>
+                    {reservation.condition_checked_at && (
+                      <span>
+                        {formatDisplayDate(reservation.condition_checked_at)}
+                      </span>
+                    )}
+                  </div>
+
+                  {reservation.condition_tags && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {reservation.condition_tags
+                        .split(",")
+                        .map((tag: string, tidx: number) => (
+                          <span
+                            key={tidx}
+                            className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white border border-stone-200 text-stone-700"
+                          >
+                            {tag.trim()}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+
+                  {reservation.condition_notes && (
+                    <p className="text-stone-700 bg-white p-2 rounded-lg border border-stone-200 leading-relaxed break-words">
+                      {reservation.condition_notes}
+                    </p>
+                  )}
+
+                  {reservation.condition_photo_url && (
+                    <div className="pt-1">
+                      <a
+                        href={reservation.condition_photo_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block relative rounded-lg overflow-hidden border border-stone-200 bg-white"
+                      >
+                        <img
+                          src={reservation.condition_photo_url}
+                          alt="Instrument condition verification"
+                          className="max-h-36 object-contain rounded-md"
+                        />
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="pt-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsConditionModalOpen(true)}
+                      className="text-xs font-bold text-emerald-800 hover:text-emerald-950 transition cursor-pointer"
+                    >
+                      {isRTL
+                        ? "تعديل أو تحديث الفحص"
+                        : "Update Condition Check"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl space-y-2.5 text-xs sm:text-sm">
+                  <p className="text-emerald-950 leading-relaxed font-medium">
+                    {isRTL
+                      ? "💡 لحمايتك من أي تلفيات سابقة أو أوتار قديمة، وثّق حالة الآلة عند استلامها لضمان إخلاء مسؤوليتك."
+                      : "To protect yourself from liability for pre-existing scratches or issues, record the condition at pickup."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsConditionModalOpen(true)}
+                    className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>
+                      {isRTL
+                        ? "📸 توثيق وفحص حالة الآلة الآن (احمِ نفسك)"
+                        : "📸 Record Condition Check Now"}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Conversation preview */}
             <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -2003,14 +2202,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         )}
 
         {activeTab === "details" && showFooter && (
-          <div className="shrink-0 flex items-center gap-2 sm:gap-3 px-4 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-stone-200 bg-white">
+          <div className="shrink-0 flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-stone-200 bg-white">
             {/* Secondary: Cancel / Reject — neutral stone */}
             {showReject && (
               <button
                 type="button"
                 onClick={() => setIsRejectOpen(true)}
                 disabled={isApproving || isRejecting}
-                className="py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+                className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
               >
                 <XCircle className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">
@@ -2024,7 +2223,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 type="button"
                 onClick={() => setCancelPrompt("single")}
                 disabled={isCancelling}
-                className="py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+                className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
               >
                 <Trash2 className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">
@@ -2039,10 +2238,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 type="button"
                 onClick={() => handleAdminApprove("single")}
                 disabled={isApproving || isRejecting}
-                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
                   isApproving || isRejecting
                     ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
-                    : "bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] shadow-md"
+                    : "bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] shadow-xs"
                 }`}
               >
                 {isApproving ? (
@@ -2069,14 +2268,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   isDeletingScreenshot ||
                   (!reservation.payment_screenshot_url && !pendingScreenshot)
                 }
-                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
                   isConfirmingPaid ||
                   isDeletingScreenshot ||
                   (!reservation.payment_screenshot_url && !pendingScreenshot)
                     ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                     : paidConfirmedThisSession
                       ? "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 shadow-none"
-                      : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99] shadow-md"
+                      : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99] shadow-xs"
                 }`}
               >
                 {isConfirmingPaid ? (
@@ -2101,12 +2300,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   canUnmarkNoShow ? handleUnmarkNoShow : handleMarkNoShow
                 }
                 disabled={isNoShowProcessing}
-                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
                   isNoShowProcessing
                     ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                     : canUnmarkNoShow
                       ? "bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700"
-                      : "bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white shadow-md"
+                      : "bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white shadow-xs"
                 }`}
               >
                 {isNoShowProcessing ? (
@@ -2266,6 +2465,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         <PolicyExplainerModal
           isOpen={showPolicyExplainer}
           onClose={() => setShowPolicyExplainer(false)}
+        />
+      )}
+
+      {/* Condition Check Modal */}
+      {isConditionModalOpen && reservation && (
+        <ConditionCheckModal
+          isOpen={isConditionModalOpen}
+          onClose={() => setIsConditionModalOpen(false)}
+          reservation={reservation}
+          onSaved={(updated) => {
+            setReservation((prev: any) => ({ ...prev, ...updated }));
+          }}
         />
       )}
     </div>

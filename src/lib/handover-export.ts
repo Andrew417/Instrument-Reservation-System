@@ -13,6 +13,7 @@ export interface HandoverReservationItem {
   user_id?: string | null;
   instrument_id: string;
   service_name: string;
+  service_location?: string | null;
   musician_name: string;
   note?: string | null;
   reservation_type: "in_church" | "outside_church" | string;

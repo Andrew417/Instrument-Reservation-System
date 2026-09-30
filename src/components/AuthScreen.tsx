@@ -559,7 +559,7 @@ export const AuthScreen: React.FC = () => {
             id="auth-submit-btn"
             type="submit"
             disabled={submitting || isLocked}
-            className="w-full mt-3 py-2.5 px-4 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl transition shadow-sm hover:shadow flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full mt-3 h-11 px-4 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
           >
             {submitting ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

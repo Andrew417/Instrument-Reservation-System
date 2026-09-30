@@ -18,6 +18,7 @@ import {
   Shield,
   Sparkles,
   ChevronRight,
+  Church,
 } from "lucide-react";
 
 export interface EditReservationModalProps {
@@ -118,6 +119,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [serviceName, setServiceName] = useState<string>(
     reservation.service_name || reservation.serviceName || "",
   );
+  const [serviceLocation, setServiceLocation] = useState<string>(
+    reservation.service_location || reservation.serviceLocation || "",
+  );
   const [musicianName, setMusicianName] = useState<string>(
     reservation.musician_name || reservation.musicianName || "",
   );
@@ -195,6 +199,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       const body: Record<string, unknown> = {
         instrumentId: currentInstrument.id,
         serviceName: serviceName.trim(),
+        serviceLocation: serviceLocation.trim() || undefined,
         musicianName: musicianName.trim(),
         note: note.trim() || undefined,
         date,
@@ -271,9 +276,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
+            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 touch-manipulation"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
 
@@ -414,6 +419,25 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 placeholder={t("editReservation.purposePlaceholder")}
                 className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                 required
+              />
+            </div>
+
+            {/* Service Location */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="input-edit-service-location"
+                className="block text-xs font-bold text-stone-700 flex items-center gap-1"
+              >
+                <Church className="w-3.5 h-3.5 text-amber-800" />
+                <span>{t("reservationForm.serviceLocationLabel")}</span>
+              </label>
+              <input
+                id="input-edit-service-location"
+                type="text"
+                value={serviceLocation}
+                onChange={(e) => setServiceLocation(e.target.value)}
+                placeholder={t("reservationForm.serviceLocationPlaceholder")}
+                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3.5 py-2.5 text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
               />
             </div>
 
@@ -656,12 +680,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           </div>
 
           {/* ── Footer ── */}
-          <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-7 sm:pb-5 border-t border-stone-200 bg-white shadow-xs">
+          <div className="shrink-0 flex items-center gap-2.5 p-3.5 sm:px-6 sm:py-4 border-t border-stone-200 bg-white shadow-xs">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50"
+              className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center"
             >
               {t("editReservation.cancelButton")}
             </button>
@@ -670,7 +694,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               type="submit"
               id="btn-submit-edit-reservation"
               disabled={submitDisabled}
-              className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+              className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer touch-manipulation ${
                 submitDisabled
                   ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                   : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
