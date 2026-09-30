@@ -51,7 +51,6 @@ export interface MyReservationsProps {
   allInstruments: Instrument[];
   onOpenNewReservation: () => void;
   onOpenSeriesBuilder: () => void;
-  onOpenBandPack?: () => void;
   onOpenMinistryProfile?: () => void;
   onOpenConditionCheck?: (reservation: any) => void;
   onSelectReservationDetail: (reservationId: string) => void;
@@ -78,7 +77,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   allInstruments,
   onOpenNewReservation,
   onOpenSeriesBuilder,
-  onOpenBandPack,
   onOpenMinistryProfile,
   onOpenConditionCheck,
   onSelectReservationDetail,
@@ -328,19 +326,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {onOpenBandPack && (
-            <button
-              type="button"
-              onClick={onOpenBandPack}
-              className="flex-1 h-9 rounded-lg border border-amber-800/40 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs touch-manipulation"
-            >
-              <Music2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">
-                {isRTL ? "🎸 حجز باند" : "🎸 Band Pack"}
-              </span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onOpenSeriesBuilder}
@@ -705,24 +690,23 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             </span>
                           )}
 
-                          {res.band_pack_id && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
-                              <Music2 className="w-3 h-3 text-amber-700" />
-                              <span>{isRTL ? "🎸 طاقم باند" : "🎸 Band Pack"}</span>
-                            </span>
-                          )}
-
                           {res.condition_status === "pristine" && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
                               <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                              <span>{isRTL ? "🛡️ سليم وموثق" : "🛡️ Verified"}</span>
+                              <span>
+                                {isRTL ? "🛡️ سليم وموثق" : "🛡️ Verified"}
+                              </span>
                             </span>
                           )}
 
                           {res.condition_status === "reported_issues" && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                               <AlertTriangle className="w-3 h-3 text-amber-600" />
-                              <span>{isRTL ? "⚠️ به ملاحظات موثقة" : "⚠️ Issues Logged"}</span>
+                              <span>
+                                {isRTL
+                                  ? "⚠️ به ملاحظات موثقة"
+                                  : "⚠️ Issues Logged"}
+                              </span>
                             </span>
                           )}
                         </div>
@@ -784,25 +768,30 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </button>
                       )}
 
-                    {onOpenConditionCheck && (res.status === "approved" || res.status === "ongoing") && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenConditionCheck(res)}
-                        className="h-9 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
-                        title={isRTL ? "فحص حالة الاستلام" : "Condition Check"}
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>
-                          {res.condition_status && res.condition_status !== "uninspected"
-                            ? isRTL
-                              ? "تعديل الفحص"
-                              : "Edit Check"
-                            : isRTL
-                              ? "فحص الاستلام"
-                              : "Condition Check"}
-                        </span>
-                      </button>
-                    )}
+                    {onOpenConditionCheck &&
+                      (res.status === "approved" ||
+                        res.status === "ongoing") && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenConditionCheck(res)}
+                          className="h-9 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                          title={
+                            isRTL ? "فحص حالة الاستلام" : "Condition Check"
+                          }
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span>
+                            {res.condition_status &&
+                            res.condition_status !== "uninspected"
+                              ? isRTL
+                                ? "تعديل الفحص"
+                                : "Edit Check"
+                              : isRTL
+                                ? "فحص الاستلام"
+                                : "Condition Check"}
+                          </span>
+                        </button>
+                      )}
 
                     <button
                       type="button"
@@ -868,7 +857,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           {sg.serviceLocation && (
                             <span className="inline-flex items-center gap-1 text-amber-800 font-medium">
                               <Church className="w-3 h-3 text-amber-700 shrink-0" />
-                              <span className="truncate">{sg.serviceLocation}</span>
+                              <span className="truncate">
+                                {sg.serviceLocation}
+                              </span>
                             </span>
                           )}
                           <span className="text-stone-500 whitespace-nowrap">

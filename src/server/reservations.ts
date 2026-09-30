@@ -92,7 +92,9 @@ export function getMaskedInstrumentName(type?: string | null): string {
   if (/brass|wind/i.test(cleanType)) return "Church Assigned Wind Instrument";
   if (/string/i.test(cleanType)) return "Church Assigned Strings";
   if (/audio/i.test(cleanType)) return "Church Assigned Audio Equipment";
-  return cleanType ? `Church Assigned ${cleanType}` : "Church Assigned Instrument";
+  return cleanType
+    ? `Church Assigned ${cleanType}`
+    : "Church Assigned Instrument";
 }
 
 /**
@@ -167,146 +169,6 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 });
 
 /**
- * 2b. Create Band / Service Pack (Multi-Instrument Co-Booking with individual Musician Names)
- */
-router.post("/band-pack", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const {
-      serviceName,
-      date,
-      startTime,
-      duration,
-      reservationType = "in_church",
-      feeAcknowledged,
-      note,
-      items, // Array<{ instrumentId: string; musicianName: string }>
-    } = req.body;
-
-    if (!serviceName || !serviceName.trim()) {
-      res.status(400).json({ success: false, error: "Service name is required." });
-      return;
-    }
-    if (!date || !startTime || !duration) {
-      res.status(400).json({ success: false, error: "Date, start time, and duration are required." });
-      return;
-    }
-    if (!Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ success: false, error: "At least one instrument with musician name is required." });
-      return;
-    }
-
-    // Check duplicate instruments in the same pack
-    const instrumentIds = items.map((it: any) => it.instrumentId);
-    if (new Set(instrumentIds).size !== instrumentIds.length) {
-      res.status(400).json({ success: false, error: "Each instrument can only be included once in the band pack." });
-      return;
-    }
-
-    // Validate each item has instrumentId and musicianName
-    for (const item of items) {
-      if (!item.instrumentId) {
-        res.status(400).json({ success: false, error: "Instrument ID is required for each band item." });
-        return;
-      }
-      if (!item.musicianName || !item.musicianName.trim()) {
-        res.status(400).json({ success: false, error: "Musician name is required for all instruments in the band pack." });
-        return;
-      }
-    }
-
-    const sessionIdentity = await extractSessionIdentity(req);
-    const bandPackId = "band_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
-
-    // Pre-flight evaluate each item for conflict check
-    for (const item of items) {
-      await evaluateReservationSubmission({
-        instrumentId: item.instrumentId,
-        serviceName: serviceName.trim(),
-        musicianName: item.musicianName.trim(),
-        date,
-        startTime,
-        duration: Number(duration),
-        reservationType,
-        feeAcknowledged,
-        userId: sessionIdentity?.userId || undefined,
-        adminId: sessionIdentity?.adminId || undefined,
-      });
-    }
-
-    // Now create each reservation under the shared bandPackId
-    const createdList = [];
-    for (const item of items) {
-      const result = await createReservation({
-        instrumentId: item.instrumentId,
-        serviceName: serviceName.trim(),
-        musicianName: item.musicianName.trim(),
-        date,
-        startTime,
-        duration: Number(duration),
-        reservationType,
-        feeAcknowledged,
-        bandPackId,
-        note: note ? `[Band Pack] ${note}` : `[Band Pack]`,
-        userId: sessionIdentity?.userId || undefined,
-        adminId: sessionIdentity?.adminId || undefined,
-      });
-      createdList.push(result);
-    }
-
-    res.status(201).json({
-      success: true,
-      bandPackId,
-      reservations: createdList,
-    });
-  } catch (err: any) {
-    console.error("Band pack create error:", err);
-    res.status(400).json({
-      success: false,
-      error: err.message || "Failed to create band pack reservation.",
-    });
-  }
-});
-
-/**
- * 3. Create recurring reservation series
- */
-router.post("/series", async (req: Request, res: Response): Promise<void> => {
-  try {
-    if (!req.body.serviceName || !req.body.serviceName.trim()) {
-      res.status(400).json({
-        success: false,
-        error:
-          "What this reservation is for (service_name) is required for the series.",
-      });
-      return;
-    }
-    if (!req.body.musicianName || !req.body.musicianName.trim()) {
-      res.status(400).json({
-        success: false,
-        error: "Musician name is required for the series.",
-      });
-      return;
-    }
-    const sessionIdentity = await extractSessionIdentity(req);
-    const payload = {
-      ...req.body,
-      ...(sessionIdentity
-        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
-        : {}),
-    };
-    const result = await createReservationSeries(payload);
-    res.status(201).json({ success: true, ...result });
-  } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
-  }
-});
-
-/**
- * 4. Edit a reservation
- *
  * FIX: Actor identity is ALWAYS resolved from the Bearer session token — never
  * trusted from the request body. This is what lets Admins / Super Admin edit
  * reservations belonging to other users.
@@ -382,7 +244,9 @@ router.put(
       `);
       const rows = (lookup as any).rows || [];
       if (rows.length === 0) {
-        res.status(404).json({ success: false, error: "Reservation not found" });
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found" });
         return;
       }
 
@@ -1075,13 +939,11 @@ router.get(
       let totalServices = 0;
       let noShows = 0;
       let conditionChecksCount = 0;
-      let bandPackCount = 0;
       const instrumentHours: Record<
         string,
         { count: number; hours: number; type: string }
       > = {};
       const serviceCategoryCounts: Record<string, number> = {};
-      const seenBandPacks = new Set<string>();
 
       for (const r of rows) {
         const hours = Number(r.duration_hours) || 0;
@@ -1136,13 +998,6 @@ router.get(
         if (r.condition_status && r.condition_status !== "uninspected") {
           conditionChecksCount++;
         }
-
-        if (r.band_pack_id) {
-          if (!seenBandPacks.has(r.band_pack_id)) {
-            seenBandPacks.add(r.band_pack_id);
-            bandPackCount++;
-          }
-        }
       }
 
       const topInstruments = Object.entries(instrumentHours)
@@ -1181,16 +1036,6 @@ router.get(
           unlocked: conditionChecksCount >= 1,
           progress: `${conditionChecksCount}/1`,
         },
-        {
-          id: "band_collaborator",
-          titleAr: "روح الفريق والباند",
-          titleEn: "Band Collaborator",
-          descAr: "المشاركة في حجز طاقم باند متكامل للخدمة",
-          descEn: "Participated in Band Pack group rehearsals",
-          icon: "Users",
-          unlocked: bandPackCount >= 1,
-          progress: `${bandPackCount}/1`,
-        },
       ];
 
       res.json({
@@ -1212,7 +1057,6 @@ router.get(
                 )
               : 100,
           conditionChecksCount,
-          bandPackCount,
           topInstruments,
           serviceCategoryCounts,
           badges,
@@ -1343,19 +1187,27 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         ORDER BY r2.created_at ASC
       `);
       bandPackItems = ((packRes as any).rows || []).map((bp: any) => {
-        const bpMask = !isAdmin && (Boolean(bp.instrument_is_removed) || Boolean(bp.is_reserve_pool));
+        const bpMask =
+          !isAdmin &&
+          (Boolean(bp.instrument_is_removed) || Boolean(bp.is_reserve_pool));
         return {
           ...bp,
-          instrument_name: bpMask ? getMaskedInstrumentName(bp.instrument_type) : bp.instrument_name,
+          instrument_name: bpMask
+            ? getMaskedInstrumentName(bp.instrument_type)
+            : bp.instrument_name,
           instrument_is_masked: bpMask,
         };
       });
     }
 
-    const shouldMask = !isAdmin && (Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool));
+    const shouldMask =
+      !isAdmin &&
+      (Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool));
     const processedReservation = {
       ...r,
-      instrument_name: shouldMask ? getMaskedInstrumentName(r.instrument_type) : r.instrument_name,
+      instrument_name: shouldMask
+        ? getMaskedInstrumentName(r.instrument_type)
+        : r.instrument_name,
       instrument_description: shouldMask
         ? "Designated and assigned by church administration for this service."
         : r.instrument_description,
@@ -1493,9 +1345,14 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         };
       }
 
-      const shouldMask = Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool);
-      const maskedName = shouldMask ? getMaskedInstrumentName(r.instrument_type) : r.instrument_name;
-      const maskedDesc = shouldMask ? "Designated and assigned by church administration for this service." : r.instrument_description;
+      const shouldMask =
+        Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool);
+      const maskedName = shouldMask
+        ? getMaskedInstrumentName(r.instrument_type)
+        : r.instrument_name;
+      const maskedDesc = shouldMask
+        ? "Designated and assigned by church administration for this service."
+        : r.instrument_description;
       const maskedPhoto = shouldMask ? null : r.instrument_photo_url;
 
       if (isOwn && userId && String(userId) === currentUserId) {

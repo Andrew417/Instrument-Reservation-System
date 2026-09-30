@@ -67,7 +67,6 @@ interface AvailabilityCalendarProps {
     durationHours: number,
   ) => void;
   onSelectInstrument: (instrument: Instrument) => void;
-  onOpenBandPackModal?: () => void;
   refreshTrigger?: number;
   onLoadedInstruments?: (instruments: Instrument[]) => void;
 }
@@ -137,7 +136,6 @@ const sortInstrumentsByManualOrder = (items: Instrument[]): Instrument[] => {
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectSlot,
   onSelectInstrument,
-  onOpenBandPackModal,
   refreshTrigger,
   onLoadedInstruments,
 }) => {
@@ -564,100 +562,77 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
         {/* Controls row — full width, wraps on mobile, original compact heights */}
         <div className="flex flex-wrap items-center gap-2">
-          {onOpenBandPackModal && (
+          <div className="relative shrink-0" ref={filterPanelRef}>
             <button
-              id="calendar-band-pack-btn"
-              type="button"
-              onClick={onOpenBandPackModal}
-              className="flex items-center gap-2 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 hover:from-amber-800 hover:to-amber-950 text-white rounded-xl px-3.5 py-2 text-xs sm:text-sm font-black transition cursor-pointer whitespace-nowrap shrink-0 shadow-xs touch-manipulation active:scale-98"
-              title={
-                isAr
-                  ? "حجز طاقم باند أو مجموعة آلات كاملة في خطوة واحدة"
-                  : "Book a full band or multiple instruments together"
-              }
+              id="btn-open-instrument-filter"
+              onClick={() => setIsFilterPanelOpen((o) => !o)}
+              className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
             >
-              <Music2 className="w-4 h-4 text-amber-200" />
-              <span>{isAr ? "🎸 حجز باند كامل (مجموعة آلات)" : "🎸 Full Band Pack"}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+              <span>{t("common.filter")}</span>
+              <span className="text-[10px] font-bold text-stone-500 bg-stone-200 rounded-md px-1.5 py-0.5 shrink-0">
+                {checkedInstrumentIds.size}
+              </span>
             </button>
-          )}
 
-          {allInstrumentTypes.length > 0 && (
-            <div className="relative shrink-0" ref={filterPanelRef}>
-              <button
-                id="btn-open-instrument-filter"
-                onClick={() => setIsFilterPanelOpen((o) => !o)}
-                className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+            {isFilterPanelOpen && (
+              <div
+                id="instrument-filter-panel"
+                className="fixed left-1/2 top-24 -translate-x-1/2 w-[min(16rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto overscroll-contain bg-white border border-stone-200 rounded-lg shadow-lg z-30 px-3 py-2.5"
               >
-                <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                <span>{t("common.filter")}</span>
-                <span className="text-[10px] font-bold text-stone-500 bg-stone-200 rounded-md px-1.5 py-0.5 shrink-0">
-                  {checkedInstrumentIds.size}
-                </span>
-              </button>
+                {allInstrumentTypes.map((type, idx) => {
+                  const isTypeChecked = checkedTypes.includes(type);
+                  const typeInstruments = sortInstrumentsByManualOrder(
+                    instruments.filter((inst) => inst.type === type),
+                  );
+                  return (
+                    <div
+                      key={type}
+                      className={
+                        idx > 0 ? "border-t border-stone-100 mt-0.5 pt-0.5" : ""
+                      }
+                    >
+                      <label className="flex items-center gap-1.5 text-[11px] font-bold text-stone-800 cursor-pointer py-1 min-h-[26px] touch-manipulation">
+                        <input
+                          type="checkbox"
+                          checked={isTypeChecked}
+                          onChange={() => handleToggleType(type)}
+                          className="w-3 h-3 accent-amber-800 cursor-pointer shrink-0"
+                        />
+                        <span className="truncate flex-1 leading-none">
+                          {type}
+                        </span>
+                        <span className="text-[9px] font-semibold text-stone-400 shrink-0 tabular-nums leading-none">
+                          {typeInstruments.length}
+                        </span>
+                      </label>
 
-              {isFilterPanelOpen && (
-                <div
-                  id="instrument-filter-panel"
-                  className="fixed left-1/2 top-24 -translate-x-1/2 w-[min(16rem,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto overscroll-contain bg-white border border-stone-200 rounded-lg shadow-lg z-30 px-3 py-2.5"
-                >
-                  {allInstrumentTypes.map((type, idx) => {
-                    const isTypeChecked = checkedTypes.includes(type);
-                    const typeInstruments = sortInstrumentsByManualOrder(
-                      instruments.filter((inst) => inst.type === type),
-                    );
-                    return (
-                      <div
-                        key={type}
-                        className={
-                          idx > 0
-                            ? "border-t border-stone-100 mt-0.5 pt-0.5"
-                            : ""
-                        }
-                      >
-                        <label className="flex items-center gap-1.5 text-[11px] font-bold text-stone-800 cursor-pointer py-1 min-h-[26px] touch-manipulation">
-                          <input
-                            type="checkbox"
-                            checked={isTypeChecked}
-                            onChange={() => handleToggleType(type)}
-                            className="w-3 h-3 accent-amber-800 cursor-pointer shrink-0"
-                          />
-                          <span className="truncate flex-1 leading-none">
-                            {type}
-                          </span>
-                          <span className="text-[9px] font-semibold text-stone-400 shrink-0 tabular-nums leading-none">
-                            {typeInstruments.length}
-                          </span>
-                        </label>
-
-                        {isTypeChecked && (
-                          <div className="pl-4 pb-0.5">
-                            {typeInstruments.map((inst) => (
-                              <label
-                                key={inst.id}
-                                className="flex items-center gap-1.5 text-[11px] text-stone-600 cursor-pointer py-[3px] min-h-[22px] touch-manipulation hover:bg-stone-50 hover:text-stone-900 rounded px-1 -mx-1 transition-colors"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checkedInstrumentIds.has(inst.id)}
-                                  onChange={() =>
-                                    handleToggleInstrument(inst.id)
-                                  }
-                                  className="w-3 h-3 accent-amber-700 cursor-pointer shrink-0"
-                                />
-                                <span className="truncate leading-none">
-                                  {inst.name}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                      {isTypeChecked && (
+                        <div className="pl-4 pb-0.5">
+                          {typeInstruments.map((inst) => (
+                            <label
+                              key={inst.id}
+                              className="flex items-center gap-1.5 text-[11px] text-stone-600 cursor-pointer py-[3px] min-h-[22px] touch-manipulation hover:bg-stone-50 hover:text-stone-900 rounded px-1 -mx-1 transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checkedInstrumentIds.has(inst.id)}
+                                onChange={() => handleToggleInstrument(inst.id)}
+                                className="w-3 h-3 accent-amber-700 cursor-pointer shrink-0"
+                              />
+                              <span className="truncate leading-none">
+                                {inst.name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <button
             id="btn-jump-today"
@@ -907,10 +882,14 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
 
                             {/* Booking Mode + Fee chips + Reserve Pool Badge */}
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {Boolean(inst.isReservePool || inst.is_reserve_pool) && (
+                              {Boolean(
+                                inst.isReservePool || inst.is_reserve_pool,
+                              ) && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
                                   <Sparkles className="w-2.5 h-2.5 text-purple-700" />
-                                  <span>{isAr ? "عهدة احتياطية" : "Church Reserve"}</span>
+                                  <span>
+                                    {isAr ? "عهدة احتياطية" : "Church Reserve"}
+                                  </span>
                                 </span>
                               )}
                               {/* Booking Mode Chip */}

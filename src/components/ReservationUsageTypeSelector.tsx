@@ -8,7 +8,6 @@ export interface ReservationUsageTypeSelectorProps {
   feeAcknowledged: boolean;
   onFeeAcknowledgedChange: (acknowledged: boolean) => void;
   feePerDay: number;
-  isBandPack?: boolean;
   containerClassName?: string;
 }
 
@@ -20,7 +19,6 @@ export const ReservationUsageTypeSelector: React.FC<
   feeAcknowledged,
   onFeeAcknowledgedChange,
   feePerDay,
-  isBandPack = false,
   containerClassName = "bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3",
 }) => {
   const { t, i18n } = useTranslation();
@@ -93,9 +91,7 @@ export const ReservationUsageTypeSelector: React.FC<
               })}
             </span>
             <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 whitespace-nowrap">
-              {isAr
-                ? `${feePerDay} ج.م/يوم`
-                : `EGP ${feePerDay}/day`}
+              {isAr ? `${feePerDay} ج.م/يوم` : `EGP ${feePerDay}/day`}
             </span>
           </div>
           <p className="text-[11px] text-stone-500 leading-tight text-start">
@@ -125,20 +121,12 @@ export const ReservationUsageTypeSelector: React.FC<
                 })}
               </div>
               <div className="text-purple-900 text-[11px] leading-relaxed">
-                {isBandPack ? (
-                  isAr ? (
-                    `إجمالي الرسوم لطاقم الآلات بالكامل: ${feePerDay} ج.م. تتطلب الحجوزات الخارجية إعادة الآلات بحالتها الأصلية وتصريح الإدارة.`
-                  ) : (
-                    `Total fee for all selected instruments: EGP ${feePerDay}. Outside reservations require return in original condition and admin authorization.`
-                  )
-                ) : (
-                  t("reservationForm.policyFeeDesc", {
-                    fee: isAr ? `${feePerDay} ج.م` : `EGP ${feePerDay}`,
-                    defaultValue: isAr
-                      ? `تحتوي هذه الآلة على رسم استخدام خارجي قدره ${feePerDay} ج.م لكل يوم تقويمي. تتطلب الحجوزات الخارجية إعادة الآلة بحالتها الأصلية وتصريح الإدارة.`
-                      : `This instrument has an outside usage fee of EGP ${feePerDay} per calendar day. Outside reservations require return in original condition and admin authorization.`,
-                  })
-                )}
+                {t("reservationForm.policyFeeDesc", {
+                  fee: isAr ? `${feePerDay} ج.م` : `EGP ${feePerDay}`,
+                  defaultValue: isAr
+                    ? `تحتوي هذه الآلة على رسم استخدام خارجي قدره ${feePerDay} ج.م لكل يوم تقويمي. تتطلب الحجوزات الخارجية إعادة الآلة بحالتها الأصلية وتصريح الإدارة.`
+                    : `This instrument has an outside usage fee of EGP ${feePerDay} per calendar day. Outside reservations require return in original condition and admin authorization.`,
+                })}
               </div>
             </div>
           </div>
@@ -152,16 +140,12 @@ export const ReservationUsageTypeSelector: React.FC<
               className="mt-0.5 w-4 h-4 rounded-md border-purple-300 text-purple-700 focus:ring-purple-600 cursor-pointer shrink-0"
             />
             <span className="text-xs font-semibold text-purple-950">
-              {isBandPack
-                ? isAr
-                  ? "أقر بالموافقة على سداد إجمالي الرسوم عبر انستاباي بعد موافقة الإدارة وقبل استلام الآلات."
-                  : `I agree to pay the total rental fee of EGP ${feePerDay} via Instapay upon approval.`
-                : t("reservationForm.feeAcknowledgeFull", {
-                    fee: feePerDay,
-                    defaultValue: isAr
-                      ? `أقر وأوافق على رسم الاستخدام خارج الكنيسة البالغ ${feePerDay} ج.م/يوم وأوافق على قواعد العناية بمعدات الكنيسة.`
-                      : `I agree to the outside fee of EGP ${feePerDay}/day and church care policies.`,
-                  })}
+              {t("reservationForm.feeAcknowledgeFull", {
+                fee: feePerDay,
+                defaultValue: isAr
+                  ? `أقر وأوافق على رسم الاستخدام خارج الكنيسة البالغ ${feePerDay} ج.م/يوم وأوافق على قواعد العناية بمعدات الكنيسة.`
+                  : `I agree to the outside fee of EGP ${feePerDay}/day and church care policies.`,
+              })}
             </span>
           </label>
         </div>

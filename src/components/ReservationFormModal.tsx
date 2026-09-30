@@ -764,7 +764,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 {/* Church Reserve Explanatory Banner (if reserve pool item selected) */}
                 {Boolean(
                   (currentInstrument as any).isReservePool ||
-                    (currentInstrument as any).is_reserve_pool,
+                  (currentInstrument as any).is_reserve_pool,
                 ) && (
                   <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 sm:p-4 text-xs space-y-2 text-amber-950 shadow-2xs">
                     <div className="font-bold flex items-center gap-1.5 text-amber-900 text-sm">
@@ -993,7 +993,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   feeAcknowledged={feeAcknowledged}
                   onFeeAcknowledgedChange={setFeeAcknowledged}
                   feePerDay={feeNumber}
-                  isBandPack={false}
                 />
 
                 {/* Section 5: Recurring Series Option */}

@@ -18,7 +18,6 @@ import { AdminPortal } from "./components/AdminPortal.tsx";
 import { getTodayDateString } from "./lib/date-utils";
 import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
 import { UserDetailModal } from "./components/UserDetailModal.tsx";
-import { BandPackModal } from "./components/BandPackModal.tsx";
 import { ConditionCheckModal } from "./components/ConditionCheckModal.tsx";
 import { MusicianMinistryProfileModal } from "./components/MusicianMinistryProfileModal.tsx";
 import {
@@ -40,7 +39,6 @@ import {
   Users as UsersIcon,
   UserCheck,
   Clock,
-  Music2,
   DollarSign,
   User,
   Shield,
@@ -154,12 +152,12 @@ const UserPortalMain: React.FC = () => {
     null,
   );
 
-  // User-facing features: Band Pack, Condition Check, Ministry Profile
-  const [isBandPackModalOpen, setIsBandPackModalOpen] = useState<boolean>(false);
+  // User-facing features: Condition Check, Ministry Profile
   const [isMinistryProfileModalOpen, setIsMinistryProfileModalOpen] =
     useState<boolean>(false);
-  const [conditionCheckReservation, setConditionCheckReservation] =
-    useState<any | null>(null);
+  const [conditionCheckReservation, setConditionCheckReservation] = useState<
+    any | null
+  >(null);
 
   // Screen 7: Notifications
   const [isNotificationsOpen, setIsNotificationsOpen] =
@@ -205,11 +203,10 @@ const UserPortalMain: React.FC = () => {
     selectedSlot ||
     seriesPrefill ||
     selectedReservationDetailId ||
-    isBandPackModalOpen ||
     isMinistryProfileModalOpen ||
     conditionCheckReservation ||
     selectedUserId ||
-    selectedInstrument
+    selectedInstrument,
   );
 
   const handleOpenUserProfile = (userId: string) => {
@@ -336,7 +333,7 @@ const UserPortalMain: React.FC = () => {
               <div className="font-bold text-stone-900 text-xs lg:text-xs xl:text-base leading-tight truncate">
                 {t("common.appName")}
               </div>
-              <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap hidden lg:block">
+              <div className="text-[10px] lg:text-[9px] xl:text-[11px] text-stone-500 font-medium whitespace-nowrap">
                 {t("common.appSubtitle")}
               </div>
             </div>
@@ -400,18 +397,6 @@ const UserPortalMain: React.FC = () => {
 
           {/* User Profile & Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Quick Band Pack Booking Button */}
-            <button
-              id="header-band-pack-btn"
-              type="button"
-              onClick={() => setIsBandPackModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white text-xs font-bold transition shadow-xs cursor-pointer touch-manipulation"
-              title={isRTL ? "حجز طاقم باند (مجموعة آلات)" : "Band Pack Booking"}
-            >
-              <Music2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isRTL ? "حجز باند" : "Band Pack"}</span>
-            </button>
-
             {policyExplainerEnabled && (
               <button
                 id="header-policy-help-btn"
@@ -458,7 +443,9 @@ const UserPortalMain: React.FC = () => {
             {/* Profile Dropdown with Arabic / English Language Toggle & Ministry Profile */}
             <LanguageProfileDropdown
               onOpenMinistryProfile={() => setIsMinistryProfileModalOpen(true)}
-              hideMinistryProfile={currentView === "admin_portal" || isAdminOrSuperAdmin}
+              hideMinistryProfile={
+                currentView === "admin_portal" || isAdminOrSuperAdmin
+              }
             />
           </div>
         </div>
@@ -482,7 +469,6 @@ const UserPortalMain: React.FC = () => {
           <AvailabilityCalendar
             onSelectSlot={handleSelectSlot}
             onSelectInstrument={handleSelectInstrument}
-            onOpenBandPackModal={() => setIsBandPackModalOpen(true)}
             refreshTrigger={refreshTrigger}
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
           />
@@ -508,7 +494,6 @@ const UserPortalMain: React.FC = () => {
           <MyReservations
             allInstruments={allInstruments}
             refreshTrigger={refreshTrigger}
-            onOpenBandPack={() => setIsBandPackModalOpen(true)}
             onOpenConditionCheck={(res) => setConditionCheckReservation(res)}
             onOpenNewReservation={() => {
               setSelectedSlot({
@@ -702,20 +687,6 @@ const UserPortalMain: React.FC = () => {
         isOpen={isPolicyModalOpen}
         onClose={() => setIsPolicyModalOpen(false)}
       />
-
-      {/* Band & Service Pack Modal (Multi-instrument co-booking) */}
-      {isBandPackModalOpen && (
-        <BandPackModal
-          isOpen={isBandPackModalOpen}
-          allInstruments={allInstruments}
-          onClose={() => setIsBandPackModalOpen(false)}
-          onSuccess={() => {
-            setRefreshTrigger((prev) => prev + 1);
-            setCurrentView("my_reservations");
-            setActiveMobileTab("my_reservations");
-          }}
-        />
-      )}
 
       {/* Musician Ministry Profile Modal (Celebration of Service) */}
       {isMinistryProfileModalOpen && (
@@ -1332,14 +1303,18 @@ const UserPortalMain: React.FC = () => {
                 }}
                 title={t("admin.returnToCalendar")}
                 className={`w-full flex items-center ${
-                  isSidebarCollapsed ? "justify-center p-2.5" : "gap-2 px-3 py-2"
+                  isSidebarCollapsed
+                    ? "justify-center p-2.5"
+                    : "gap-2 px-3 py-2"
                 } rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition cursor-pointer`}
               >
                 <ArrowLeft
                   className={`w-4 h-4 shrink-0 ${isRTL ? "rotate-180" : ""}`}
                 />
                 {!isSidebarCollapsed && (
-                  <span className="truncate">{t("admin.returnToCalendar")}</span>
+                  <span className="truncate">
+                    {t("admin.returnToCalendar")}
+                  </span>
                 )}
               </button>
             </div>
