@@ -40,33 +40,12 @@
   --color-purple-800: #571647;
   --color-purple-900: #3d0f31;
   --color-purple-950: #26081f;
-
-  /* Typography font family scale */
-  --font-sans: 'Plus Jakarta Sans', 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* ============================================================
-   Global typography and focus ring
+   Global focus ring — visible only for keyboard navigation
    ============================================================ */
 @layer base {
-  html {
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  }
-
-  [dir="rtl"] {
-    font-family: 'Cairo', var(--font-sans);
-  }
-
-  /* Consistent tabular numerals for tables, metrics, timers, and fees */
-  .tabular-nums,
-  [data-tabular="true"] {
-    font-variant-numeric: tabular-nums;
-  }
-
   button:focus-visible,
   a:focus-visible,
   input:focus-visible,
@@ -78,116 +57,13 @@
     border-radius: 0.5rem;
   }
 
-  /* Remove the default browser outline for mouse/touch users only */
+  /* Remove the default browser outline for mouse/touch users only —
+     keeps keyboard navigation accessible via the rule above */
   button:focus:not(:focus-visible),
   a:focus:not(:focus-visible),
   input:focus:not(:focus-visible),
   select:focus:not(:focus-visible),
   textarea:focus:not(:focus-visible) {
     outline: none;
-  }
-}
-
-/* ============================================================
-   Standardized Button System (Consistent Sizes & Fonts)
-   ============================================================ */
-@layer components {
-  /* Common interactive button physics & standard border-radius */
-  .btn-base {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: inherit;
-    font-weight: 600;
-    white-space: nowrap;
-    border-radius: 0.75rem; /* rounded-xl (12px) standard across all dialogs */
-    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
-    transition-duration: 150ms;
-    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-    cursor: pointer;
-    user-select: none;
-    touch-action: manipulation;
-    flex-shrink: 0;
-  }
-
-  .btn-base:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-    box-shadow: none !important;
-    transform: none !important;
-  }
-
-  .btn-base:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-
-  /* Standard Size Scales:
-     - btn-xs: 28px height, 12px (text-xs) font, 10px px, rounded-lg
-     - btn-sm: 34px height, 12px (text-xs) font, 12px px, rounded-lg
-     - btn-md: 40px height, 14px (text-sm) font, 16px px, rounded-xl
-     - btn-lg: 44px height, 14px (text-sm) font, 20px px, rounded-xl (Modal Footers & Main CTAs)
-  */
-  .btn-xs {
-    height: 1.75rem; /* 28px */
-    padding-left: 0.625rem;
-    padding-right: 0.625rem;
-    font-size: 0.75rem; /* 12px */
-    line-height: 1rem;
-    gap: 0.25rem;
-    border-radius: 0.5rem;
-  }
-
-  .btn-sm {
-    height: 2.125rem; /* 34px */
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    font-size: 0.75rem; /* 12px */
-    line-height: 1rem;
-    gap: 0.375rem;
-    border-radius: 0.5rem;
-  }
-
-  .btn-md {
-    height: 2.5rem; /* 40px */
-    padding-left: 1rem;
-    padding-right: 1rem;
-    font-size: 0.875rem; /* 14px */
-    line-height: 1.25rem;
-    gap: 0.5rem;
-    border-radius: 0.75rem;
-  }
-
-  .btn-lg {
-    height: 2.75rem; /* 44px */
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-    font-size: 0.875rem; /* 14px */
-    line-height: 1.25rem;
-    font-weight: 700;
-    gap: 0.5rem;
-    border-radius: 0.75rem;
-  }
-
-  /* Standard Icon Button Scales */
-  .btn-icon-sm {
-    width: 2.125rem;
-    height: 2.125rem;
-    border-radius: 0.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-
-  .btn-icon-md {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.75rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    cursor: pointer;
   }
 }

@@ -252,10 +252,10 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               id="btn-close-handover-modal"
               type="button"
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer shrink-0"
+              className="p-1.5 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer"
               title={t("handover.close")}
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           )}
 
@@ -268,10 +268,10 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               id="btn-close-handover-modal"
               type="button"
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer shrink-0"
+              className="p-1.5 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer"
               title={t("handover.close")}
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           )}
         </div>
@@ -672,7 +672,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-none h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 transition cursor-pointer flex items-center justify-center whitespace-nowrap"
+              className="flex-none px-3 sm:px-4 py-2.5 rounded-xl text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 border border-stone-200 sm:border-0 sm:bg-transparent transition cursor-pointer whitespace-nowrap"
             >
               {t("handover.close")}
             </button>
@@ -687,7 +687,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               onClick={handleWhatsAppShare}
               disabled={loading}
               title={t("handover.shareWhatsAppSummary")}
-              className="flex-none h-10 px-3.5 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="flex-none px-3 sm:px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isCopied ? (
                 <>
@@ -710,7 +710,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
               type="button"
               onClick={handleExport}
               disabled={loading || exporting}
-              className="flex-none h-10 px-4 sm:px-5 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer disabled:opacity-50"
+              className="flex-none px-3 sm:px-5 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white font-bold text-xs shadow-xs hover:shadow-sm transition flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer disabled:opacity-50"
             >
               <Download
                 className={`w-4 h-4 shrink-0 ${exporting ? "animate-bounce" : ""}`}

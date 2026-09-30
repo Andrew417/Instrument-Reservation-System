@@ -102,7 +102,7 @@ export const LanguageProfileDropdown: React.FC<
         id="profile-dropdown-trigger-btn"
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="h-9 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 border border-stone-200 rounded-xl text-xs shrink-0 transition cursor-pointer select-none"
+        className="flex items-center gap-0 sm:gap-2 px-1.5 sm:px-2.5 py-1.5 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 border border-stone-200 rounded-xl text-xs shrink-0 transition cursor-pointer select-none"
         aria-expanded={isOpen}
         aria-haspopup="true"
         title={t("common.profile")}

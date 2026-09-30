@@ -947,7 +947,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               <button
                 type="button"
                 onClick={onBack}
-                className="w-10 h-10 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 border border-stone-700/70 touch-manipulation"
+                className="w-10 h-10 -ml-1 rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
                 aria-label={
                   backButtonTitle || t("reservationDetail.backToNotifications")
                 }
@@ -970,7 +970,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <span
               className={`hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(reservation.status)}`}
             >
@@ -984,18 +984,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   onEdit(reservation);
                 }}
                 aria-label={t("reservationDetail.editSlot")}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
+                className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
               >
-                <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Edit className="w-5 h-5" />
               </button>
             )}
             <button
               type="button"
               onClick={onClose}
               aria-label={t("reservationDetail.close")}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
+              className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
             >
-              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -2202,14 +2202,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         )}
 
         {activeTab === "details" && showFooter && (
-          <div className="shrink-0 flex items-center gap-2 sm:gap-2.5 px-4 sm:px-6 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-stone-200 bg-white">
+          <div className="shrink-0 flex items-center gap-2 sm:gap-3 px-4 sm:px-7 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] border-t border-stone-200 bg-white">
             {/* Secondary: Cancel / Reject — neutral stone */}
             {showReject && (
               <button
                 type="button"
                 onClick={() => setIsRejectOpen(true)}
                 disabled={isApproving || isRejecting}
-                className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+                className="py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
               >
                 <XCircle className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">
@@ -2223,7 +2223,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 type="button"
                 onClick={() => setCancelPrompt("single")}
                 disabled={isCancelling}
-                className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+                className="py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
               >
                 <Trash2 className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">
@@ -2238,10 +2238,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 type="button"
                 onClick={() => handleAdminApprove("single")}
                 disabled={isApproving || isRejecting}
-                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
                   isApproving || isRejecting
                     ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
-                    : "bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] shadow-xs"
+                    : "bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] shadow-md"
                 }`}
               >
                 {isApproving ? (
@@ -2268,14 +2268,14 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   isDeletingScreenshot ||
                   (!reservation.payment_screenshot_url && !pendingScreenshot)
                 }
-                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
                   isConfirmingPaid ||
                   isDeletingScreenshot ||
                   (!reservation.payment_screenshot_url && !pendingScreenshot)
                     ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                     : paidConfirmedThisSession
                       ? "bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 shadow-none"
-                      : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99] shadow-xs"
+                      : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99] shadow-md"
                 }`}
               >
                 {isConfirmingPaid ? (
@@ -2300,12 +2300,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   canUnmarkNoShow ? handleUnmarkNoShow : handleMarkNoShow
                 }
                 disabled={isNoShowProcessing}
-                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
+                className={`flex-1 py-3 px-4 sm:px-6 rounded-2xl text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation ${
                   isNoShowProcessing
                     ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                     : canUnmarkNoShow
                       ? "bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700"
-                      : "bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white shadow-xs"
+                      : "bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white shadow-md"
                 }`}
               >
                 {isNoShowProcessing ? (

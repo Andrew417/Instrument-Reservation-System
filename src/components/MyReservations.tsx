@@ -385,11 +385,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   : "text-emerald-600/70"
               }`}
             />
-            <span className="text-xs font-semibold truncate">
+            <span className="text-[11px] font-bold truncate">
               {t("myReservations.upcomingTab")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "upcoming"
                   ? "bg-amber-100 text-amber-900"
                   : "bg-stone-200 text-stone-600"
@@ -414,11 +414,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 activeTab === "pending" ? "text-amber-600" : "text-amber-600/70"
               }`}
             />
-            <span className="text-xs font-semibold truncate">
+            <span className="text-[11px] font-bold truncate">
               {t("common.pending")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "pending"
                   ? "bg-amber-100 text-amber-900"
                   : "bg-stone-200 text-stone-600"
@@ -443,11 +443,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 activeTab === "past" ? "text-stone-500" : "text-stone-400"
               }`}
             />
-            <span className="text-xs font-semibold truncate">
+            <span className="text-[11px] font-bold truncate">
               {t("myReservations.pastTab")}
             </span>
             <span
-              className={`min-w-[18px] h-[18px] px-1 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
+              className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${
                 activeTab === "past"
                   ? "bg-amber-100 text-amber-900"
                   : "bg-stone-200 text-stone-600"
@@ -491,7 +491,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 : t("myReservations.cancelSingleDesc")}
             </p>
 
-            <div className="flex items-center gap-2.5 pt-2">
+            <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -499,7 +499,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   setCancelError(null);
                 }}
                 disabled={isCancelling}
-                className="flex-1 h-11 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-sm font-semibold rounded-xl transition cursor-pointer disabled:opacity-50 touch-manipulation flex items-center justify-center"
+                className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50 touch-manipulation"
               >
                 {t("myReservations.keepBooking")}
               </button>
@@ -508,7 +508,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 type="button"
                 disabled={isCancelling}
                 onClick={executeCancellation}
-                className="flex-1 h-11 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-sm font-bold rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation flex items-center justify-center"
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation"
               >
                 {isCancelling
                   ? t("myReservations.cancelling")
@@ -755,7 +755,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       <button
                         type="button"
                         onClick={() => onEditReservation(res)}
-                        className="h-9 px-3.5 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                        className="h-9 px-3 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
                         title={t("common.edit")}
                       >
                         <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
@@ -777,7 +777,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           type="button"
                           onClick={() => onSelectReservationDetail(res.id)}
                           title={t("reservationDetail.payNow") || "Pay"}
-                          className="h-9 px-3.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation shadow-2xs"
+                          className="h-9 px-3 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation shadow-2xs"
                         >
                           <DollarSign className="w-3.5 h-3.5 shrink-0" />
                           <span>{t("reservationDetail.pay") || "Pay"}</span>
@@ -788,7 +788,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       <button
                         type="button"
                         onClick={() => onOpenConditionCheck(res)}
-                        className="h-9 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                        className="h-9 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
                         title={isRTL ? "فحص حالة الاستلام" : "Condition Check"}
                       >
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -807,7 +807,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     <button
                       type="button"
                       onClick={() => onSelectReservationDetail(res.id)}
-                      className="flex-1 h-9 px-3.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-semibold rounded-lg transition cursor-pointer whitespace-nowrap touch-manipulation flex items-center justify-center"
+                      className="flex-1 h-9 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-lg transition cursor-pointer whitespace-nowrap touch-manipulation"
                     >
                       {t("myReservations.viewDetails")}
                     </button>
@@ -886,7 +886,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                        className="h-8 px-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
+                        className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
                       >
                         <span>
                           {isExpanded

@@ -327,7 +327,7 @@ export const BandPackModal: React.FC<BandPackModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -526,7 +526,7 @@ export const BandPackModal: React.FC<BandPackModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddItem}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white rounded-lg text-xs font-semibold transition cursor-pointer shadow-2xs touch-manipulation"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs touch-manipulation"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>
@@ -559,7 +559,7 @@ export const BandPackModal: React.FC<BandPackModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleRemoveItem(index)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800 h-7 px-2 hover:bg-red-50 rounded-lg transition cursor-pointer touch-manipulation"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 hover:text-red-800 p-1 hover:bg-red-50 rounded-lg transition cursor-pointer touch-manipulation"
                             title={isAr ? "حذف هذه الآلة" : "Remove"}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -710,11 +710,11 @@ export const BandPackModal: React.FC<BandPackModalProps> = ({
           </div>
 
           {/* Sticky Bottom Footer - Matching ReservationFormModal */}
-          <div className="shrink-0 p-3.5 sm:px-6 sm:py-4 border-t border-stone-200 bg-white flex flex-col-reverse sm:flex-row items-center justify-between gap-2.5">
+          <div className="shrink-0 p-4 sm:px-6 sm:pb-5 border-t border-stone-200 bg-white flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto h-11 px-5 rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold transition cursor-pointer touch-manipulation flex items-center justify-center"
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl border border-stone-200 text-stone-700 hover:bg-stone-100 active:bg-stone-200 text-xs sm:text-sm font-bold transition cursor-pointer touch-manipulation"
             >
               {isAr ? "إلغاء وتراجع" : "Cancel"}
             </button>
@@ -722,7 +722,7 @@ export const BandPackModal: React.FC<BandPackModalProps> = ({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:flex-1 h-11 px-6 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-sm font-bold transition cursor-pointer shadow-xs disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2"
+              className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs sm:text-sm font-bold transition cursor-pointer shadow-md shadow-amber-900/20 disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <span>{isAr ? "جاري الحجز..." : "Submitting..."}</span>

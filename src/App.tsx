@@ -399,13 +399,13 @@ const UserPortalMain: React.FC = () => {
           </div>
 
           {/* User Profile & Actions */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Quick Band Pack Booking Button */}
             <button
               id="header-band-pack-btn"
               type="button"
               onClick={() => setIsBandPackModalOpen(true)}
-              className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold transition shadow-xs cursor-pointer touch-manipulation shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white text-xs font-bold transition shadow-xs cursor-pointer touch-manipulation"
               title={isRTL ? "حجز طاقم باند (مجموعة آلات)" : "Band Pack Booking"}
             >
               <Music2 className="w-3.5 h-3.5" />
@@ -417,7 +417,7 @@ const UserPortalMain: React.FC = () => {
                 id="header-policy-help-btn"
                 type="button"
                 onClick={() => setIsPolicyModalOpen(true)}
-                className="h-9 px-3 rounded-xl border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 active:bg-stone-100 transition inline-flex items-center gap-2 cursor-pointer shrink-0"
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-bold hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer"
                 title={t("nav.howBookingWorks")}
               >
                 <HelpCircle className="w-4 h-4 text-stone-600" />
@@ -431,14 +431,14 @@ const UserPortalMain: React.FC = () => {
               id="header-notifications-bell-btn"
               type="button"
               onClick={() => setCurrentView("notifications")}
-              className={`hidden lg:inline-flex h-9 relative px-3 rounded-xl border text-xs font-bold transition items-center gap-2 cursor-pointer shrink-0 ${
+              className={`hidden lg:flex relative p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition items-center gap-2 cursor-pointer ${
                 unreadCount > 0
                   ? "bg-amber-50 border-amber-300 text-amber-900 shadow-2xs hover:bg-amber-100"
-                  : "border-stone-200 text-stone-700 hover:bg-stone-50 active:bg-stone-100"
+                  : "border-stone-200 text-stone-700 hover:bg-stone-50"
               }`}
               title={t("nav.alerts")}
             >
-              <div className="relative flex items-center justify-center">
+              <div className="relative">
                 <Bell
                   className={`w-4 h-4 ${unreadCount > 0 ? "text-amber-800" : "text-stone-600"}`}
                 />

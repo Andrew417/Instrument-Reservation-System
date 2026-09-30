@@ -238,10 +238,10 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 touch-manipulation"
+            className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
             aria-label="Close"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -372,7 +372,7 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setCategoryFilter("all")}
-                  className={`h-8 px-3 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer touch-manipulation flex items-center justify-center ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
                     categoryFilter === "all"
                       ? "bg-purple-700 text-white shadow-2xs"
                       : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -387,7 +387,7 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                       key={cat}
                       type="button"
                       onClick={() => setCategoryFilter(cat)}
-                      className={`h-8 px-3 rounded-lg text-xs font-semibold transition whitespace-nowrap cursor-pointer touch-manipulation flex items-center justify-center ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
                         categoryFilter === cat
                           ? "bg-purple-700 text-white shadow-2xs"
                           : "bg-stone-100 text-stone-600 hover:bg-stone-200"
@@ -569,7 +569,7 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-11 px-5 rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 font-semibold text-sm transition cursor-pointer touch-manipulation flex items-center justify-center"
+              className="px-4 py-2.5 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-100 font-bold text-xs transition cursor-pointer touch-manipulation"
             >
               {t("common.cancel", "Cancel")}
             </button>
@@ -577,10 +577,10 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
             <button
               type="submit"
               disabled={submitting || !selectedInstId || selectedOption?.hasConflict}
-              className={`h-11 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] touch-manipulation ${
+              className={`min-h-[42px] px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] touch-manipulation ${
                 submitting || !selectedInstId || selectedOption?.hasConflict
                   ? "bg-stone-300 text-stone-500 cursor-not-allowed shadow-none"
-                  : "bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white shadow-xs hover:shadow-md"
+                  : "bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white shadow-md hover:shadow-lg"
               }`}
             >
               <Sparkles className="w-4 h-4 shrink-0" />

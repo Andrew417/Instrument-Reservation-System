@@ -407,8 +407,7 @@
     "tabUnread": "Unread",
     "tabRequests": "Requests",
     "tabApprovals": "Approvals",
-    "tabRejections": "Rejections",
-    "tabCancellations": "Cancellations",
+    "tabRejections": "Rejections & Cancellations",
     "tabMessages": "Admin Messages",
     "refreshTooltip": "Refresh",
     "loading": "Loading notifications...",
@@ -857,7 +856,6 @@
       "overview": "Overview"
     },
     "tabMessaging": "Reservation Chat",
-    "tabAnalytics": "Advanced Analytics & Insights",
     "tabAdminAccounts": "Admin Accounts",
     "tabTrustedStatus": "Trusted & Audit Trail",
     "tabNotificationSettings": "Notification Settings",

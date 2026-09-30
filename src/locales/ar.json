@@ -587,8 +587,7 @@
     "tabUnread": "غير المقروءة",
     "tabRequests": "الطلبات",
     "tabApprovals": "الموافقات",
-    "tabRejections": "المرفوضة",
-    "tabCancellations": "الملغاة",
+    "tabRejections": "المرفوضة والملغاة",
     "tabMessages": "رسائل الادمن",
     "refreshTooltip": "تحديث",
     "loading": "جارٍ تحميل الإشعارات...",
@@ -854,7 +853,6 @@
       "overview": "نظرة عامة"
     },
     "tabMessaging": "المحادثات والملاحظات",
-    "tabAnalytics": "التحليلات ورؤى الخدمة",
     "tabAdminAccounts": "حسابات الادمنين",
     "tabTrustedStatus": "الأعضاء الموثوقين وسجل التدقيق",
     "tabNotificationSettings": "إعدادات الإشعارات",

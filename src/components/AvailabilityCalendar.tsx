@@ -533,13 +533,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           </div>
 
           {/* Right-side corner actions: Refresh + Help */}
-          <div className="shrink-0 flex items-center gap-1.5">
+          <div className="shrink-0 flex items-center gap-1">
             <button
               id="btn-refresh-calendar"
               type="button"
               onClick={() => fetchAvailability(selectedDate)}
               disabled={loading}
-              className="h-9 px-3 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer touch-manipulation disabled:opacity-60"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition text-[10px] font-semibold touch-manipulation disabled:opacity-60"
               title={t("common.refresh")}
             >
               <RefreshCw
@@ -551,7 +551,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
             <button
               type="button"
               onClick={() => setShowHelperText(!showHelperText)}
-              className="h-9 px-3 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-stone-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer touch-manipulation"
+              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition text-[10px] font-semibold touch-manipulation"
               title="Toggle timeline help and reference info"
             >
               <Info className="w-3.5 h-3.5" />
@@ -569,7 +569,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               id="calendar-band-pack-btn"
               type="button"
               onClick={onOpenBandPackModal}
-              className="h-9 flex items-center gap-2 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 hover:from-amber-800 hover:to-amber-950 text-white rounded-lg px-3.5 text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0 shadow-xs touch-manipulation active:scale-98"
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 hover:from-amber-800 hover:to-amber-950 text-white rounded-xl px-3.5 py-2 text-xs sm:text-sm font-black transition cursor-pointer whitespace-nowrap shrink-0 shadow-xs touch-manipulation active:scale-98"
               title={
                 isAr
                   ? "حجز طاقم باند أو مجموعة آلات كاملة في خطوة واحدة"
@@ -586,11 +586,11 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               <button
                 id="btn-open-instrument-filter"
                 onClick={() => setIsFilterPanelOpen((o) => !o)}
-                className="h-9 flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-lg px-3 text-xs text-stone-700 font-semibold hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs text-stone-700 font-medium hover:bg-stone-100 active:bg-stone-200 transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5 text-stone-500 shrink-0" />
                 <span>{t("common.filter")}</span>
-                <span className="text-xs font-bold text-stone-600 bg-stone-200 rounded-md px-1.5 py-0.5 shrink-0">
+                <span className="text-[10px] font-bold text-stone-500 bg-stone-200 rounded-md px-1.5 py-0.5 shrink-0">
                   {checkedInstrumentIds.size}
                 </span>
               </button>
@@ -662,7 +662,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <button
             id="btn-jump-today"
             onClick={jumpToToday}
-            className="h-9 px-3 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-xs font-semibold text-stone-800 transition cursor-pointer shrink-0 touch-manipulation flex items-center justify-center"
+            className="px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 active:bg-stone-200 text-[11px] font-semibold text-stone-800 transition cursor-pointer shrink-0 touch-manipulation"
           >
             {t("common.today")}
           </button>
@@ -676,7 +676,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               onChange={(e) => {
                 if (e.target.value) setSelectedDate(e.target.value);
               }}
-              className={`w-full h-9 text-xs font-semibold bg-stone-50 border border-stone-200 rounded-lg text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer ${
+              className={`w-full py-1.5 text-[11px] font-semibold bg-stone-50 border border-stone-200 rounded-xl text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 transition cursor-pointer ${
                 isAr ? "pr-7 pl-2.5" : "pl-7 pr-2.5"
               }`}
             />
@@ -689,7 +689,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
         </div>
 
         {showHelperText && (
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-xs text-stone-600">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 space-y-2 text-[11px] text-stone-600">
             <p className="text-stone-700 font-medium">
               {t("calendar.selectOpenSlot")}
             </p>
@@ -719,13 +719,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <button
             id="btn-date-prev"
             onClick={() => navigateDate("prev")}
-            className="w-9 h-9 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation flex items-center justify-center"
+            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation"
             title={t("calendar.prevDay")}
           >
             <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
 
-          <div className="flex-1 min-w-0 text-center text-xs font-semibold text-stone-600 uppercase tracking-[0.12em] truncate">
+          <div className="flex-1 min-w-0 text-center text-[11px] font-semibold text-stone-600 uppercase tracking-[0.12em] truncate">
             {parseLocalDate(selectedDate).toLocaleDateString(
               isAr ? "ar-u-nu-latn" : "en-US",
               {
@@ -738,7 +738,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           <button
             id="btn-date-next"
             onClick={() => navigateDate("next")}
-            className="w-9 h-9 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation flex items-center justify-center"
+            className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-100 active:bg-stone-200 shrink-0 transition cursor-pointer touch-manipulation"
             title={t("calendar.nextDay")}
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-180" />

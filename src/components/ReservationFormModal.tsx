@@ -407,7 +407,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPolicyExplainer(true)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-amber-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0"
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-amber-300 hover:text-white hover:bg-stone-700 transition cursor-pointer border border-stone-700/70"
                 title={t("nav.howBookingWorks")}
               >
                 <HelpCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
@@ -416,7 +416,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               <button
                 id="btn-close-reservation-modal"
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0"
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70"
                 aria-label="Close modal"
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -619,7 +619,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="button"
                   id="btn-done-back-calendar"
                   onClick={onClose}
-                  className="w-full h-11 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation flex items-center justify-center"
+                  className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
                 >
                   {t("reservationForm.doneBackToCalendar")}
                 </button>
@@ -969,9 +969,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               setStartTime("09:00");
                             }
                           }}
-                          className={`h-9 px-2 rounded-lg text-xs font-semibold text-center transition cursor-pointer border active:scale-[0.98] touch-manipulation flex items-center justify-center ${
+                          className={`py-2 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold text-center transition cursor-pointer border active:scale-[0.98] touch-manipulation ${
                             duration === opt.value
-                              ? "bg-amber-800 text-white border-amber-900 shadow-xs"
+                              ? "bg-amber-800 text-white border-amber-900 shadow-xs ring-2 ring-amber-800/20"
                               : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
                           } ${
                             opt.value === 13
@@ -1039,11 +1039,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
 
               {/* Sticky Footer Actions */}
-              <div className="shrink-0 flex items-center gap-2.5 p-3.5 sm:px-6 sm:py-4 border-t border-stone-200 bg-white shadow-xs">
+              <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-6 sm:pb-5 border-t border-stone-200 bg-white shadow-xs">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation flex items-center justify-center"
+                  className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation"
                 >
                   {t("common.cancel")}
                 </button>
@@ -1052,7 +1052,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="submit"
                   id="btn-submit-reservation"
                   disabled={isSubmitDisabled}
-                  className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer touch-manipulation ${
+                  className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                     isSubmitDisabled
                       ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                       : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"

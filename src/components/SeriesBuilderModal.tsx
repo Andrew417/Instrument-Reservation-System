@@ -543,10 +543,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           <button
             id="btn-close-series-modal"
             onClick={onClose}
-            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 touch-manipulation"
+            className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
             aria-label={t("common.close")}
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -717,7 +717,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               <button
                 id="btn-series-done"
                 onClick={onClose}
-                className="w-full h-11 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation flex items-center justify-center"
+                className="w-full py-2.5 sm:py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
               >
                 {t("seriesBuilder.doneReturnToCalendar")}
               </button>
@@ -1087,7 +1087,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                       type="button"
                       disabled={isAtMaxLimit || !newCustomDateInput}
                       onClick={handleAddCustomDate}
-                      className="shrink-0 h-10 px-4 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 disabled:bg-stone-300 text-white text-sm font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed touch-manipulation"
+                      className="shrink-0 px-4 py-2.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 disabled:bg-stone-300 text-white text-sm font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed touch-manipulation"
                     >
                       <Plus className="w-4 h-4" />
                       <span className="hidden sm:inline">
@@ -1196,7 +1196,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     <button
                       type="button"
                       onClick={handleSkipConflicts}
-                      className="inline-flex items-center justify-center gap-1.5 h-8 px-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold text-xs rounded-lg shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>{t("seriesBuilder.skipConflicts")}</span>
@@ -1312,11 +1312,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             </div>
 
             {/* Sticky Footer Actions */}
-            <div className="shrink-0 flex items-center gap-2.5 p-3.5 sm:px-6 sm:py-4 border-t border-stone-200 bg-white shadow-xs">
+            <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-7 sm:pb-6 border-t border-stone-200 bg-white shadow-xs">
               <button
                 type="button"
                 onClick={onClose}
-                className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation flex items-center justify-center"
+                className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation"
               >
                 {t("common.cancel")}
               </button>
@@ -1331,7 +1331,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                   generatedOccurrences.length === 0 ||
                   (reservationType === "outside_church" && !feeAcknowledged)
                 }
-                className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer touch-manipulation ${
+                className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                   isSubmitting ||
                   !serviceName.trim() ||
                   hasConflicts ||

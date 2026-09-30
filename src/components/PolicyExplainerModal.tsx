@@ -58,10 +58,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer border border-stone-700 shrink-0"
+            className="w-9 h-9 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer border border-stone-700 shrink-0"
             aria-label="إغلاق الدليل"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -261,7 +261,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             type="button"
             id="policy-explainer-dismiss-btn"
             onClick={onClose}
-            className="w-full sm:w-auto h-11 px-6 bg-stone-900 hover:bg-stone-800 text-white text-sm font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:bg-stone-950"
+            className="w-full sm:w-auto px-6 py-2.5 sm:py-3 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:bg-stone-950"
           >
             <span>فهمت، والبدء في الاستخدام</span>
             <ArrowRight className="w-4 h-4 rotate-180" />

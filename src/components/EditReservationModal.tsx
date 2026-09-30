@@ -276,9 +276,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 touch-manipulation"
+            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -680,12 +680,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           </div>
 
           {/* ── Footer ── */}
-          <div className="shrink-0 flex items-center gap-2.5 p-3.5 sm:px-6 sm:py-4 border-t border-stone-200 bg-white shadow-xs">
+          <div className="shrink-0 flex items-center gap-2 sm:gap-3 p-3.5 sm:px-7 sm:pb-5 border-t border-stone-200 bg-white shadow-xs">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="h-11 px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-sm font-semibold rounded-xl transition cursor-pointer touch-manipulation disabled:opacity-50 flex items-center justify-center"
+              className="py-2.5 sm:py-3 px-4 sm:px-5 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer touch-manipulation disabled:opacity-50"
             >
               {t("editReservation.cancelButton")}
             </button>
@@ -694,7 +694,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               type="submit"
               id="btn-submit-edit-reservation"
               disabled={submitDisabled}
-              className={`flex-1 h-11 px-6 rounded-xl text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-xs cursor-pointer touch-manipulation ${
+              className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 rounded-2xl text-xs sm:text-sm font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                 submitDisabled
                   ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                   : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
