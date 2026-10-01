@@ -236,6 +236,320 @@ router.get(
   },
 );
 
+/**
+ * 1b. Usage Analytics (Instruments, Days, Hours, Heatmap, Trends, Top Users, Summary)
+ */
+router.get(
+  "/analytics",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      // Ensure reservation statuses are up-to-date
+      await ensureCurrentReservationStatuses().catch(() => {});
+
+      const rawTo = typeof req.query.to === "string" ? req.query.to.trim() : "";
+      const rawFrom =
+        typeof req.query.from === "string" ? req.query.from.trim() : "";
+
+      const todayCairo = getCairoDateString();
+      let toDate = /^\d{4}-\d{2}-\d{2}$/.test(rawTo) ? rawTo : todayCairo;
+
+      let fromDate = /^\d{4}-\d{2}-\d{2}$/.test(rawFrom) ? rawFrom : "";
+      if (!fromDate) {
+        // Default to last 30 days
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        fromDate = getCairoDateString(d);
+      }
+
+      // If from is after to, swap to keep valid range
+      if (fromDate > toDate) {
+        const tmp = fromDate;
+        fromDate = toDate;
+        toDate = tmp;
+      }
+
+      const [
+        instrumentsRes,
+        typesRes,
+        weekdaysRes,
+        hoursRes,
+        heatmapRes,
+        dailyRes,
+        topUsersRes,
+        summaryRes,
+      ] = await Promise.all([
+        // 1. instrumentsByUsage: instrument name, type, reservation count, total hours (top 10)
+        db.execute(sql`
+          SELECT 
+            i.name as name,
+            i.type as type,
+            COUNT(r.id)::int as "reservationCount",
+            ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0), 0)::numeric, 1)::float as "totalHours"
+          FROM reservations r
+          JOIN instruments i ON r.instrument_id = i.id
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+          GROUP BY i.id, i.name, i.type
+          ORDER BY "reservationCount" DESC, "totalHours" DESC
+          LIMIT 10
+        `),
+
+        // 2. typesByUsage: instrument type, reservation count, total hours
+        db.execute(sql`
+          SELECT 
+            i.type as type,
+            COUNT(r.id)::int as "reservationCount",
+            ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0), 0)::numeric, 1)::float as "totalHours"
+          FROM reservations r
+          JOIN instruments i ON r.instrument_id = i.id
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+          GROUP BY i.type
+          ORDER BY "reservationCount" DESC, "totalHours" DESC
+        `),
+
+        // 3. reservationsByWeekday: Sunday–Saturday, count
+        db.execute(sql`
+          SELECT 
+            EXTRACT(DOW FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as "dayIndex",
+            COUNT(r.id)::int as count
+          FROM reservations r
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+          GROUP BY "dayIndex"
+          ORDER BY "dayIndex" ASC
+        `),
+
+        // 4. reservationsByHour: 9:00–22:00, count
+        db.execute(sql`
+          SELECT 
+            EXTRACT(HOUR FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as hour,
+            COUNT(r.id)::int as count
+          FROM reservations r
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+            AND EXTRACT(HOUR FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int BETWEEN 9 AND 22
+          GROUP BY hour
+          ORDER BY hour ASC
+        `),
+
+        // 5. weekdayHourHeatmap: weekday x hour, count
+        db.execute(sql`
+          SELECT 
+            EXTRACT(DOW FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as "weekday",
+            EXTRACT(HOUR FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as hour,
+            COUNT(r.id)::int as count
+          FROM reservations r
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+            AND EXTRACT(HOUR FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int BETWEEN 9 AND 22
+          GROUP BY "weekday", hour
+          ORDER BY "weekday" ASC, hour ASC
+        `),
+
+        // 6. dailyTrend: date, count
+        db.execute(sql`
+          SELECT 
+            TO_CHAR((lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date, 'YYYY-MM-DD') as date,
+            COUNT(r.id)::int as count,
+            ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0), 0)::numeric, 1)::float as "totalHours"
+          FROM reservations r
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+          GROUP BY (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date
+          ORDER BY (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date ASC
+        `),
+
+        // 7. topUsers: name, reservation count, total hours, no-show count (top 10)
+        db.execute(sql`
+          SELECT 
+            COALESCE(u.name, a.name, 'Unknown') as name,
+            COUNT(r.id)::int as "reservationCount",
+            ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0), 0)::numeric, 1)::float as "totalHours",
+            COUNT(CASE WHEN r.is_no_show = true THEN 1 END)::int as "noShowCount"
+          FROM reservations r
+          LEFT JOIN users u ON r.user_id = u.id
+          LEFT JOIN admins a ON r.admin_id = a.id
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+          GROUP BY COALESCE(u.name, a.name, 'Unknown')
+          ORDER BY "reservationCount" DESC, "totalHours" DESC
+          LIMIT 10
+        `),
+
+        // 8. summary: total reservations, total hours, unique users, in-church vs outside-church count
+        db.execute(sql`
+          SELECT 
+            COUNT(r.id)::int as "totalReservations",
+            ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0), 0)::numeric, 1)::float as "totalHours",
+            COUNT(DISTINCT COALESCE(r.user_id::text, r.admin_id::text, u.name, a.name))::int as "uniqueUsers",
+            COUNT(CASE WHEN r.reservation_type = 'in_church' THEN 1 END)::int as "inChurchCount",
+            COUNT(CASE WHEN r.reservation_type = 'outside_church' THEN 1 END)::int as "outsideChurchCount"
+          FROM reservations r
+          LEFT JOIN users u ON r.user_id = u.id
+          LEFT JOIN admins a ON r.admin_id = a.id
+          WHERE r.status IN ('approved', 'ongoing', 'completed')
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
+            AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
+        `),
+      ]);
+
+      // Normalize instruments by usage
+      const instrumentsByUsage = (
+        (instrumentsRes as any).rows || []
+      ).map((row: any) => ({
+        name: String(row.name || ""),
+        type: String(row.type || ""),
+        reservationCount: Number(row.reservationCount || 0),
+        totalHours: Number(row.totalHours || 0),
+      }));
+
+      // Normalize types by usage
+      const typesByUsage = ((typesRes as any).rows || []).map((row: any) => ({
+        type: String(row.type || ""),
+        reservationCount: Number(row.reservationCount || 0),
+        totalHours: Number(row.totalHours || 0),
+      }));
+
+      // Normalize reservations by weekday (ensure all 7 days exist: Sun 0 to Sat 6)
+      const weekdayNames = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const weekdayKeys = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      const weekdayCountsMap = new Map<number, number>();
+      for (const row of (weekdaysRes as any).rows || []) {
+        weekdayCountsMap.set(Number(row.dayIndex), Number(row.count));
+      }
+      const reservationsByWeekday = weekdayNames.map((name, idx) => ({
+        dayIndex: idx,
+        dayName: name,
+        dayKey: weekdayKeys[idx],
+        count: weekdayCountsMap.get(idx) || 0,
+      }));
+
+      // Normalize reservations by hour (ensure hours 9 through 22 exist)
+      const hourCountsMap = new Map<number, number>();
+      for (const row of (hoursRes as any).rows || []) {
+        hourCountsMap.set(Number(row.hour), Number(row.count));
+      }
+      const reservationsByHour = [];
+      for (let h = 9; h <= 22; h++) {
+        reservationsByHour.push({
+          hour: h,
+          hourLabel: `${String(h).padStart(2, "0")}:00`,
+          count: hourCountsMap.get(h) || 0,
+        });
+      }
+
+      // Normalize weekdayHourHeatmap (all 7 days x 14 hours)
+      const heatmapMap = new Map<string, number>();
+      for (const row of (heatmapRes as any).rows || []) {
+        heatmapMap.set(`${row.weekday}-${row.hour}`, Number(row.count));
+      }
+      const weekdayHourHeatmap = [];
+      for (let d = 0; d < 7; d++) {
+        for (let h = 9; h <= 22; h++) {
+          weekdayHourHeatmap.push({
+            weekday: d,
+            dayName: weekdayNames[d],
+            dayKey: weekdayKeys[d],
+            hour: h,
+            hourLabel: `${String(h).padStart(2, "0")}:00`,
+            count: heatmapMap.get(`${d}-${h}`) || 0,
+          });
+        }
+      }
+
+      // Normalize dailyTrend with gap filling
+      const trendMap = new Map<string, { count: number; totalHours: number }>();
+      for (const row of (dailyRes as any).rows || []) {
+        trendMap.set(row.date, {
+          count: Number(row.count || 0),
+          totalHours: Number(row.totalHours || 0),
+        });
+      }
+      const dailyTrend = [];
+      const curDate = new Date(fromDate + "T00:00:00Z");
+      const endDate = new Date(toDate + "T00:00:00Z");
+      let safetyCounter = 0;
+      while (curDate <= endDate && safetyCounter < 370) {
+        safetyCounter++;
+        const dStr = curDate.toISOString().split("T")[0];
+        const item = trendMap.get(dStr) || { count: 0, totalHours: 0 };
+        dailyTrend.push({
+          date: dStr,
+          count: item.count,
+          totalHours: item.totalHours,
+        });
+        curDate.setUTCDate(curDate.getUTCDate() + 1);
+      }
+
+      // Normalize topUsers
+      const topUsers = ((topUsersRes as any).rows || []).map((row: any) => ({
+        name: String(row.name || "Unknown"),
+        reservationCount: Number(row.reservationCount || 0),
+        totalHours: Number(row.totalHours || 0),
+        noShowCount: Number(row.noShowCount || 0),
+      }));
+
+      // Normalize summary
+      const sumRow = (summaryRes as any).rows?.[0] || {};
+      const summary = {
+        totalReservations: Number(sumRow.totalReservations || 0),
+        totalHours: Number(sumRow.totalHours || 0),
+        uniqueUsers: Number(sumRow.uniqueUsers || 0),
+        inChurchCount: Number(sumRow.inChurchCount || 0),
+        outsideChurchCount: Number(sumRow.outsideChurchCount || 0),
+      };
+
+      res.json({
+        success: true,
+        data: {
+          dateRange: {
+            from: fromDate,
+            to: toDate,
+          },
+          summary,
+          instrumentsByUsage,
+          typesByUsage,
+          reservationsByWeekday,
+          reservationsByHour,
+          weekdayHourHeatmap,
+          dailyTrend,
+          topUsers,
+        },
+      });
+    } catch (err: any) {
+      console.error("Admin analytics error:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message || "Failed to load analytics data",
+      });
+    }
+  },
+);
+
 /* =========================================================================
    2. RESERVATIONS MANAGEMENT & REVIEW (Shared)
    ========================================================================= */

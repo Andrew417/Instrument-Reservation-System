@@ -63,12 +63,14 @@ import {
   CheckSquare,
   DollarSign,
   Church,
+  BarChart3,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { HandoverSheetModal } from "./HandoverSheetModal";
 import { HandoverExportFormat } from "../lib/handover-export";
 import { UserDetailModal } from "./UserDetailModal";
 import { AssignInstrumentModal } from "./AssignInstrumentModal";
+import { AnalyticsTab } from "./AnalyticsTab";
 import { getStatusColor, getReservationTypeColor } from "../lib/status-colors";
 
 // Add this after the imports and before the component definition
@@ -97,6 +99,7 @@ type AdminTab =
   | "approvals"
   | "instruments"
   | "users"
+  | "analytics"
   | "messaging"
   // Super Admin Exclusive Tabs
   | "admin_accounts"
@@ -1886,6 +1889,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       label: t("admin.tabUsers"),
       Icon: Users,
       count: stats.activeUsers,
+    },
+    {
+      id: "analytics" as const,
+      label: t("admin.tabAnalytics"),
+      Icon: BarChart3,
+      count: 0,
     },
     {
       id: "messaging" as const,
@@ -4244,6 +4253,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
           </div>
         )}
+
+        {/* =============================================================
+              TAB: USAGE ANALYTICS
+             ============================================================= */}
+        {activeTab === "analytics" && <AnalyticsTab />}
 
         {/* =============================================================
               SUPER ADMIN TAB 6: ADMIN ACCOUNTS (Add/Manage Admins)

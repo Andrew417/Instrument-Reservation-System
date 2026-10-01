@@ -67,6 +67,8 @@
     "noShow": "عدم حضور",
     "markNoShow": "تسجيل عدم حضور",
     "unmarkNoShow": "إلغاء عدم الحضور",
+    "markNoShowSuccess": "تم تسجيل عدم الحضور بنجاح",
+    "unmarkNoShowSuccess": "تم إلغاء تسجيل عدم الحضور بنجاح",
     "markedNoShowBy": "تم تسجيل عدم الحضور بواسطة",
     "active": "نشط",
     "inactive": "غير نشط",
@@ -104,6 +106,7 @@
     "loadingSchedule": "جارٍ تحميل الجدول الزمني...",
     "errorLoading": "خطأ في تحميل الجدول",
     "tryAgain": "إعادة المحاولة",
+    "tapToViewProfile": "اضغط لعرض الملف الشخصي",
     "tapToReserve": "انقر لحجز {{name}} في تمام {{time}}",
     "instantModeTitle": "حجز فوري",
     "manualModeTitle": "موافقة الادمن",
@@ -159,6 +162,10 @@
     "cancelProcessError": "حدث خطأ أثناء معالجة الإلغاء."
   },
   "reservationDetail": {
+    "reservation": "حجز",
+    "cancellationReason": "سبب الإلغاء",
+    "transformToFullDayError": "تعذر تحويل الحجز إلى يوم كامل",
+    "memberPaysViaInstapay": "العضو يدفع عبر إنستاباي",
     "pay": "ادفع الان",
     "payNow": "ادفع الان",
     "pendingSave": "بانتظار الحفظ",
@@ -683,6 +690,7 @@
     "scheduleDurationTitle": "الموعد والمدة",
     "dateLabel": "التاريخ",
     "startTimeLabel": "وقت البدء",
+    "durationLabel": "المدة",
     "durationUntilLabel": "المدة (حتى {{end}})",
     "usageTypeLabel": "نوع الاستخدام",
     "inChurchUseLabel": "استخدام داخل الكنيسة",
@@ -761,6 +769,7 @@
     "daySat": "سبت"
   },
   "handover": {
+    "musicianName": "اسم العازف",
     "title": "كشف تسليم غرفة الآلات",
     "close": "إغلاق",
     "day": "يوم",
@@ -825,6 +834,7 @@
     "tabPaymentSettings": "إعدادات الدفع / إنستاباي",
     "tabHardLimits": "حدود الاستخدام العادل",
     "tabAuditLog": "سجل العمليات",
+    "tabAnalytics": "تحليلات الاستخدام",
     "exportHandover": "تصدير الي كشف ",
     "returnToCalendar": "العودة إلى جدول المواعيد",
     "dashboard": {
@@ -857,6 +867,7 @@
     "tabTrustedStatus": "الأعضاء الموثوقين وسجل التدقيق",
     "tabNotificationSettings": "إعدادات الإشعارات",
     "review": {
+      "bulkActionsLabel": "إجراءات جماعية",
       "selectModeBtn": "تحديد",
       "selectModeTooltip": "ادخل وضع التحديد لإدارة الحجوزات بشكل جماعي",
       "exitSelection": "تم",
@@ -1072,6 +1083,7 @@
       "saving": "جارٍ الحفظ..."
     },
     "userDetail": {
+      "clickToOpen": "اضغط لعرض الملف الشخصي الكامل",
       "managementActions": "إجراءات الإدارة",
       "title": "الملف الشخصي للعضو",
       "memberSince": "عضو منذ {{date}}",
@@ -1235,6 +1247,98 @@
         "confirm": "تأكيد"
       }
     }
+  },
+  "analytics": {
+    "title": "تحليلات الاستخدام",
+    "subtitle": "إحصائيات شاملة حول معدلات استخدام الآلات، أوقات الذروة، وتفاعل الأعضاء.",
+    "tabTitle": "تحليلات الاستخدام",
+    "dateRange": {
+      "label": "النطاق الزمني",
+      "last7Days": "آخر 7 أيام",
+      "last30Days": "آخر 30 يوماً",
+      "last90Days": "آخر 90 يوماً",
+      "custom": "فترة مخصصة",
+      "from": "من",
+      "to": "إلى",
+      "apply": "تطبيق",
+      "invalidRange": "تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية."
+    },
+    "summary": {
+      "title": "ملخص الأداء",
+      "totalReservations": "إجمالي الحجوزات",
+      "totalReservationsDesc": "المعتمدة والمكتملة",
+      "totalHours": "إجمالي الساعات",
+      "totalHoursDesc": "ساعات الاستخدام الفعلية",
+      "uniqueUsers": "الأعضاء المستفيدون",
+      "uniqueUsersDesc": "أعضاء مختلفون حجزوا",
+      "locationSplit": "توزيع مكان الاستخدام",
+      "inChurch": "داخل الكنيسة",
+      "outsideChurch": "خارج الكنيسة",
+      "splitFormat": "{{inChurch}} بالكنيسة / {{outside}} بالخارج"
+    },
+    "topInstruments": {
+      "title": "الآلات الأكثر استخداماً",
+      "subtitle": "أكثر آلات الكنيسة طلباً خلال هذه الفترة",
+      "byCount": "بعدد الحجوزات",
+      "byHours": "بإجمالي الساعات",
+      "bookings": "حجوزات",
+      "hours": "ساعات",
+      "empty": "لا توجد حجوزات مسجلة للآلات في هذه الفترة."
+    },
+    "types": {
+      "title": "الاستخدام حسب نوع الآلة",
+      "subtitle": "توزيع نسب الحجوزات بين الفئات الموسيقية",
+      "empty": "لا توجد بيانات فئات متاحة لهذه الفترة."
+    },
+    "weekday": {
+      "title": "الحجوزات حسب أيام الأسبوع",
+      "subtitle": "توزيع الحجوزات على مدار أيام الأسبوع",
+      "sunday": "الأحد",
+      "monday": "الإثنين",
+      "tuesday": "الثلاثاء",
+      "wednesday": "الأربعاء",
+      "thursday": "الخميس",
+      "friday": "الجمعة",
+      "saturday": "السبت",
+      "empty": "لا توجد بيانات لأيام الأسبوع في هذه الفترة."
+    },
+    "hourly": {
+      "title": "الحجوزات حسب ساعات اليوم",
+      "subtitle": "أوقات الذروة بين الساعة 09:00 و 22:00",
+      "hour": "الساعة",
+      "bookings": "حجوزات",
+      "empty": "لا يوجد نشاط مسجل في هذه الساعات."
+    },
+    "heatmap": {
+      "title": "خريطة كثافة أوقات الذروة",
+      "subtitle": "كثافة الحجوزات عبر الأيام والساعات",
+      "legendLow": "منخفض",
+      "legendHigh": "مرتفع",
+      "noBookings": "لا توجد حجوزات",
+      "slotTooltip": "{{count}} حجز في يوم {{day}} الساعة {{hour}}",
+      "empty": "لا توجد بيانات لخريطة الكثافة."
+    },
+    "trend": {
+      "title": "معدل الحجوزات اليومي",
+      "subtitle": "حجم الحجوزات المعتمدة عبر الزمن",
+      "date": "التاريخ",
+      "reservations": "الحجوزات",
+      "hours": "الساعات",
+      "empty": "لا توجد بيانات يومية لهذه الفترة."
+    },
+    "topUsers": {
+      "title": "الأعضاء الأكثر نشاطاً",
+      "subtitle": "الخدام والأعضاء الأكثر تسجيلاً للحجوزات",
+      "colName": "اسم الخادم / العضو",
+      "colCount": "عدد الحجوزات",
+      "colHours": "إجمالي الساعات",
+      "colNoShows": "عدم الحضور",
+      "empty": "لم يتم العثور على سجلات نشاط للأعضاء."
+    },
+    "loading": "جاري تحميل التحليلات...",
+    "error": "تعذر تحميل بيانات التحليلات.",
+    "retry": "إعادة المحاولة",
+    "refresh": "تحديث البيانات"
   },
   "presets": {
     "rejection": {

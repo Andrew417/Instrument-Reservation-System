@@ -67,6 +67,8 @@
     "noShow": "No-Show",
     "markNoShow": "Mark as No-Show",
     "unmarkNoShow": "Unmark No-Show",
+    "markNoShowSuccess": "Marked as no-show successfully",
+    "unmarkNoShowSuccess": "Unmarked no-show successfully",
     "markedNoShowBy": "Marked as No-Show by",
     "active": "Active",
     "inactive": "Inactive",
@@ -104,6 +106,7 @@
     "loadingSchedule": "Loading timeline schedule...",
     "errorLoading": "Error loading calendar",
     "tryAgain": "Try Again",
+    "tapToViewProfile": "Tap to view profile",
     "tapToReserve": "Tap to reserve {{name}} at {{time}}",
     "instantModeTitle": "Instant Booking",
     "manualModeTitle": "Manual Approval",
@@ -503,6 +506,7 @@
     "scheduleDurationTitle": "Schedule & Duration",
     "dateLabel": "Date",
     "startTimeLabel": "Start Time",
+    "durationLabel": "Duration",
     "durationUntilLabel": "Duration (until {{end}})",
     "usageTypeLabel": "Usage Type",
     "inChurchUseLabel": "In-Church Use",
@@ -629,6 +633,9 @@
     "exportErrorFallback": "Failed to generate export file."
   },
   "reservationDetail": {
+    "reservation": "Reservation",
+    "cancellationReason": "Cancellation Reason",
+    "transformToFullDayError": "Failed to transform reservation to full day",
     "pay": "Pay Now",
     "payNow": "Pay Now",
     "pendingSave": "Pending Save",
@@ -828,6 +835,7 @@
     "tabPaymentSettings": "Payment / InstaPay",
     "tabHardLimits": "Fair Usage & Limits",
     "tabAuditLog": "Audit Log",
+    "tabAnalytics": "Usage Analytics",
     "exportHandover": "Export to Sheet",
     "returnToCalendar": "Return to Availability Calendar",
     "dashboard": {
@@ -860,6 +868,7 @@
     "tabTrustedStatus": "Trusted & Audit Trail",
     "tabNotificationSettings": "Notification Settings",
     "review": {
+      "bulkActionsLabel": "Bulk Actions",
       "selectModeBtn": "Select",
       "selectModeTooltip": "Enter selection mode to bulk-manage reservations",
       "exitSelection": "Done",
@@ -1075,6 +1084,7 @@
       "saving": "Saving..."
     },
     "userDetail": {
+      "clickToOpen": "Click to view full user profile",
       "managementActions": "Management Actions",
       "title": "Member Profile",
       "memberSince": "Member since {{date}}",
@@ -1238,6 +1248,98 @@
         "confirm": "Confirm"
       }
     }
+  },
+  "analytics": {
+    "title": "Usage Analytics",
+    "subtitle": "Comprehensive insights into instrument utilization, peak hours, and user engagement.",
+    "tabTitle": "Usage Analytics",
+    "dateRange": {
+      "label": "Date Range",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "last90Days": "Last 90 Days",
+      "custom": "Custom Range",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "invalidRange": "Start date must be on or before end date."
+    },
+    "summary": {
+      "title": "Performance Summary",
+      "totalReservations": "Total Reservations",
+      "totalReservationsDesc": "Approved & completed",
+      "totalHours": "Total Usage Hours",
+      "totalHoursDesc": "Total reserved hours",
+      "uniqueUsers": "Active Requesters",
+      "uniqueUsersDesc": "Distinct members served",
+      "locationSplit": "Location Distribution",
+      "inChurch": "In Church",
+      "outsideChurch": "Outside Church",
+      "splitFormat": "{{inChurch}} In Church / {{outside}} Outside"
+    },
+    "topInstruments": {
+      "title": "Top Instruments by Usage",
+      "subtitle": "Most utilized church instruments in this period",
+      "byCount": "By Bookings",
+      "byHours": "By Total Hours",
+      "bookings": "Bookings",
+      "hours": "Hours",
+      "empty": "No instrument bookings recorded for this period."
+    },
+    "types": {
+      "title": "Usage by Instrument Type",
+      "subtitle": "Share of bookings across categories",
+      "empty": "No category data available for this period."
+    },
+    "weekday": {
+      "title": "Reservations by Weekday",
+      "subtitle": "Distribution of bookings throughout the week",
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "empty": "No weekday data for this period."
+    },
+    "hourly": {
+      "title": "Reservations by Hour",
+      "subtitle": "Busiest times between 09:00 and 22:00",
+      "hour": "Hour",
+      "bookings": "Bookings",
+      "empty": "No hourly activity recorded."
+    },
+    "heatmap": {
+      "title": "Peak Hours Heatmap",
+      "subtitle": "Booking intensity across days and hours",
+      "legendLow": "Low",
+      "legendHigh": "High",
+      "noBookings": "No bookings",
+      "slotTooltip": "{{count}} booking(s) on {{day}} at {{hour}}",
+      "empty": "No heatmap data available."
+    },
+    "trend": {
+      "title": "Daily Booking Trend",
+      "subtitle": "Volume of approved reservations over time",
+      "date": "Date",
+      "reservations": "Reservations",
+      "hours": "Hours",
+      "empty": "No booking trend data for this period."
+    },
+    "topUsers": {
+      "title": "Top Active Requesters",
+      "subtitle": "Members and administrators with the most reservations",
+      "colName": "Requester Name",
+      "colCount": "Reservations",
+      "colHours": "Total Hours",
+      "colNoShows": "No-Shows",
+      "empty": "No user activity records found."
+    },
+    "loading": "Loading analytics...",
+    "error": "Failed to load analytics data.",
+    "retry": "Retry",
+    "refresh": "Refresh Data"
   },
   "presets": {
     "rejection": {
