@@ -27,7 +27,6 @@ export interface AssignmentOption {
   description: string | null;
   bookingMode: string;
   isRemoved: boolean;
-  isReservePool: boolean;
   isCurrent: boolean;
   hasConflict: boolean;
   conflictDetails: string | null;
@@ -102,12 +101,12 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
             opt.id === (reservation.instrument_id || reservation.instrumentId),
         );
 
-        if (initialSelected && !initialSelected.isReservePool && !initialSelected.hasConflict) {
+        if (initialSelected && !initialSelected.hasConflict) {
           setSelectedInstId(initialSelected.id);
         } else {
-          // Preselect first non-conflicting real instrument
+          // Preselect first non-conflicting instrument
           const firstAvailable = (data.options || []).find(
-            (opt: AssignmentOption) => !opt.isReservePool && !opt.hasConflict,
+            (opt: AssignmentOption) => !opt.hasConflict,
           );
           if (firstAvailable) {
             setSelectedInstId(firstAvailable.id);
@@ -291,15 +290,6 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     {endTimeHhmm && formatHhmmTo12Hour(endTimeHhmm)}
                   </span>
                 </span>
-                {Boolean(reservation.is_reserve_pool || reservation.instrument_is_reserve_pool) && (
-                  <>
-                    <span>•</span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                      <Sparkles className="w-3 h-3 text-amber-700 shrink-0" />
-                      <span>{isAr ? "طلب عهدة احتياطية" : "Reserve Pool Request"}</span>
-                    </span>
-                  </>
-                )}
               </div>
 
               {reservation.note && (
@@ -461,21 +451,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                                 {opt.type}
                               </span>
 
-                              {opt.isReservePool ? (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                                  <Sparkles className="w-2.5 h-2.5 text-amber-700" />
-                                  <span>Pool Request</span>
-                                </span>
-                              ) : opt.isRemoved ? (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-stone-200 text-stone-800 border border-stone-300">
-                                  <Archive className="w-2.5 h-2.5" />
-                                  <span>{isAr ? "مخزن الكنيسة / عهدة خاصة" : "Church Vault"}</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  <span>{isAr ? "أساسية" : "Standard"}</span>
-                                </span>
-                              )}
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <span>{isAr ? "أساسية" : "Standard"}</span>
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -511,25 +489,6 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     {selectedOption.conflictDetails ||
                       "This instrument is already booked for another approved church service during this time window. Choosing it will create a double-booking."}
                   </p>
-                </div>
-              )}
-
-              {/* Confidentiality Shield Notice for Secret/Vault Gear */}
-              {Boolean(selectedOption?.isRemoved || selectedOption?.isReservePool) && (
-                <div className="bg-purple-50/90 border border-purple-200 rounded-2xl p-3.5 text-xs text-purple-950 flex items-start gap-3 animate-in fade-in">
-                  <ShieldAlert className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <span className="font-bold text-xs text-purple-950 block">
-                      {isAr
-                        ? "🔒 حماية سرية العهدة والمخزن الداخلي"
-                        : "🔒 Confidential Inventory Masking Active"}
-                    </span>
-                    <p className="text-[11px] text-purple-800 leading-relaxed">
-                      {isAr
-                        ? `لن يرى العازف اسم هذا الموديل أو تفاصيله المخزنية ("${selectedOption?.name}"). سيظهر له فقط: "آلة معتمدة من الكنيسة (${selectedOption?.type})".`
-                        : `The musician will NOT see this internal asset model or vault identifier ("${selectedOption?.name}"). They will only see: "Church Assigned ${selectedOption?.type}". Internal inventory details remain 100% secret.`}
-                    </p>
-                  </div>
                 </div>
               )}
             </div>

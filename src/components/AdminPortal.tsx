@@ -233,7 +233,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     description: "",
     outsideFeePerDay: "0.00",
     bookingMode: "instant",
-    isReservePool: false,
   });
   const [removingInstrument, setRemovingInstrument] = useState<any | null>(
     null,
@@ -3011,16 +3010,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     </span>
                                   </>
                                 )}
-
-                                {Boolean(r.is_reserve_pool || r.instrument_is_reserve_pool) && (
-                                  <>
-                                    <span className="text-stone-300">•</span>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-100 text-purple-900 border border-purple-200 text-[10px] font-bold">
-                                      <Sparkles className="w-3 h-3 text-purple-700 shrink-0" />
-                                      <span>{isAr ? "طلب عهدة احتياطية" : "Reserve Pool"}</span>
-                                    </span>
-                                  </>
-                                )}
                               </div>
 
                               {/* Badges Row */}
@@ -3092,47 +3081,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   {isPending && (
                                     <>
-                                      {Boolean(
-                                        r.is_reserve_pool ||
-                                          r.instrument_is_reserve_pool,
-                                      ) ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openAssignModal(r)}
-                                          className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                          title="Assign church inventory instrument and approve"
-                                        >
-                                          <Sparkles className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                                          <span>
-                                            {t("admin.review.assignAndApproveBtn")}
-                                          </span>
-                                        </button>
-                                      ) : (
-                                        <>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleApprove(r.id)}
-                                            className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                            title="Approve request"
-                                          >
-                                            <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                                            <span>
-                                              {t("admin.review.approveBtn")}
-                                            </span>
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => openAssignModal(r)}
-                                            className="hidden sm:inline-flex min-h-[40px] px-3 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap"
-                                            title="Assign a different instrument (e.g. from reserve/vault) and approve"
-                                          >
-                                            <Sparkles className="w-3.5 h-3.5 shrink-0 text-purple-700" />
-                                            <span>
-                                              {t("admin.review.assignAndApproveBtn")}
-                                            </span>
-                                          </button>
-                                        </>
-                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleApprove(r.id)}
+                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                        title="Approve request"
+                                      >
+                                        <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                        <span>
+                                          {t("admin.review.approveBtn")}
+                                        </span>
+                                      </button>
                                       <button
                                         type="button"
                                         onClick={() => openRejectModal(r)}
@@ -3708,7 +3667,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     description: "",
                     outsideFeePerDay: "0.00",
                     bookingMode: "instant",
-                    isReservePool: false,
                   });
                   setPhotoUploadError(null);
                   setShowUrlInput(false);
@@ -3805,11 +3763,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               ? t("admin.instruments.instantBooking")
                               : t("admin.instruments.manualReview")}
                           </span>
-                          {Boolean(inst.isReservePool ?? inst.is_reserve_pool) && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-purple-100 text-purple-900 border border-purple-200">
-                              {t("admin.instruments.reservePoolBadge")}
-                            </span>
-                          )}
                         </div>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-purple-50 text-purple-800 border border-purple-200">
                           $
@@ -3847,9 +3800,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     bookingMode: currentMode as
                                       | "instant"
                                       | "manual",
-                                    isReservePool: Boolean(
-                                      inst.isReservePool ?? inst.is_reserve_pool,
-                                    ),
                                   });
                                   setPhotoUploadError(null);
                                   setShowUrlInput(false);
@@ -5118,28 +5068,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     </option>
                   </select>
                 </div>
-              </div>
-
-              <div className="p-3 bg-purple-50/70 border border-purple-200/80 rounded-xl space-y-1">
-                <label className="flex items-center gap-2 cursor-pointer font-bold text-stone-900">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(instrumentForm.isReservePool)}
-                    onChange={(e) =>
-                      setInstrumentForm({
-                        ...instrumentForm,
-                        isReservePool: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 rounded text-purple-700 focus:ring-purple-500 cursor-pointer"
-                  />
-                  <span>
-                    {t("admin.modals.instrumentForm.isReservePoolLabel")}
-                  </span>
-                </label>
-                <p className="text-[11px] text-stone-600 ps-6">
-                  {t("admin.modals.instrumentForm.isReservePoolHelp")}
-                </p>
               </div>
 
               <div>

@@ -952,7 +952,6 @@ router.get(
           is_reserve_pool
         FROM instruments
         ORDER BY 
-          is_reserve_pool DESC,
           CASE 
             WHEN type = 'Keyboard' THEN 1
             WHEN type = 'Drums' THEN 2
@@ -1004,17 +1003,15 @@ router.get(
           description: inst.description,
           bookingMode: inst.booking_mode,
           isRemoved: Boolean(inst.is_removed),
-          isReservePool: Boolean(inst.is_reserve_pool),
+          isReservePool: false,
           isCurrent,
           hasConflict: Boolean(conflict),
           conflictDetails: conflict
             ? `Booked for "${conflict.service_name}" (${conflict.start_hhmm} - ${conflict.end_hhmm}) by ${conflict.booked_by}`
             : null,
-          categoryBadge: inst.is_reserve_pool
-            ? "Reserve Pool Slot"
-            : inst.is_removed
-              ? "Church Vault / Reserve"
-              : "Active Standard",
+          categoryBadge: inst.is_removed
+            ? "Inactive"
+            : "Active Standard",
         };
       });
 
@@ -1515,8 +1512,8 @@ router.get(
         booking_mode: inst.booking_mode,
         isRemoved: inst.is_removed,
         is_removed: inst.is_removed,
-        isReservePool: Boolean(inst.is_reserve_pool),
-        is_reserve_pool: Boolean(inst.is_reserve_pool),
+        isReservePool: false,
+        is_reserve_pool: false,
         createdAt: inst.created_at,
         created_at: inst.created_at,
         totalReservations: Number(inst.total_reservations || 0),
@@ -1590,7 +1587,7 @@ router.post(
           description: description?.trim() || null,
           outsideFeePerDay: fee,
           bookingMode: mode,
-          isReservePool: Boolean(isReservePool),
+          isReservePool: false,
           isRemoved: false,
         })
         .returning();
@@ -1602,8 +1599,6 @@ router.post(
         outside_fee_per_day: inst.outsideFeePerDay,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,
-        is_reserve_pool: inst.isReservePool,
-        isReservePool: inst.isReservePool,
         created_at: inst.createdAt,
       };
 
@@ -1633,7 +1628,6 @@ router.put(
         description,
         outsideFeePerDay,
         bookingMode,
-        isReservePool,
       } = req.body;
 
       const updates: any = {};
@@ -1647,9 +1641,6 @@ router.put(
       }
       if (bookingMode !== undefined) {
         updates.bookingMode = bookingMode === "manual" ? "manual" : "instant";
-      }
-      if (isReservePool !== undefined) {
-        updates.isReservePool = Boolean(isReservePool);
       }
 
       const updated = await db

@@ -1187,32 +1187,16 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         ORDER BY r2.created_at ASC
       `);
       bandPackItems = ((packRes as any).rows || []).map((bp: any) => {
-        const bpMask =
-          !isAdmin &&
-          (Boolean(bp.instrument_is_removed) || Boolean(bp.is_reserve_pool));
         return {
           ...bp,
-          instrument_name: bpMask
-            ? getMaskedInstrumentName(bp.instrument_type)
-            : bp.instrument_name,
-          instrument_is_masked: bpMask,
+          instrument_is_masked: false,
         };
       });
     }
 
-    const shouldMask =
-      !isAdmin &&
-      (Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool));
     const processedReservation = {
       ...r,
-      instrument_name: shouldMask
-        ? getMaskedInstrumentName(r.instrument_type)
-        : r.instrument_name,
-      instrument_description: shouldMask
-        ? "Designated and assigned by church administration for this service."
-        : r.instrument_description,
-      instrument_photo_url: shouldMask ? null : r.instrument_photo_url,
-      instrument_is_masked: shouldMask,
+      instrument_is_masked: false,
       is_full_day: isFullDay,
       isFullDay,
       band_pack_items: bandPackItems,
@@ -1345,15 +1329,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         };
       }
 
-      const shouldMask =
-        Boolean(r.instrument_is_removed) || Boolean(r.is_reserve_pool);
-      const maskedName = shouldMask
-        ? getMaskedInstrumentName(r.instrument_type)
-        : r.instrument_name;
-      const maskedDesc = shouldMask
-        ? "Designated and assigned by church administration for this service."
-        : r.instrument_description;
-      const maskedPhoto = shouldMask ? null : r.instrument_photo_url;
+      const shouldMask = false;
+      const maskedName = r.instrument_name;
+      const maskedDesc = r.instrument_description;
+      const maskedPhoto = r.instrument_photo_url;
 
       if (isOwn && userId && String(userId) === currentUserId) {
         // User querying their own reservations (MyReservations view)

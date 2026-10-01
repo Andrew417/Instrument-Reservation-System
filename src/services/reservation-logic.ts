@@ -513,12 +513,7 @@ export async function evaluateReservationSubmission(
     }
 
     // Instrument mode check + limit decision
-    if (instrument.isReservePool) {
-      calculatedStatus = "pending";
-      reasons.push(
-        "Church Reserve allocation request: Pending administration review to assign a suitable available instrument from church inventory.",
-      );
-    } else if (instrument.bookingMode === "instant" && !limitExceeded) {
+    if (instrument.bookingMode === "instant" && !limitExceeded) {
       calculatedStatus = "approved";
       reasons.push("Auto-approved via Instant Booking mode");
     } else {
@@ -1587,11 +1582,8 @@ export async function adminApproveReservation(
     .where(eq(instruments.id, targetInstrumentId))
     .limit(1);
 
-  const isConfidential = Boolean(instInfo?.isRemoved || instInfo?.isReservePool);
   const finalInstName = instInfo?.name || "Instrument";
-  const userVisibleInstName = isConfidential
-    ? getMaskedInstrumentName(instInfo?.type)
-    : finalInstName;
+  const userVisibleInstName = finalInstName;
 
   // Notify user in-app
   if (res.userId) {

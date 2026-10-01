@@ -673,21 +673,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
-                        (currentInstrument as any).isReservePool ||
-                        (currentInstrument as any).is_reserve_pool
-                          ? "bg-purple-100 text-purple-900 border border-purple-200"
-                          : currentInstrument.bookingMode === "instant"
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                            : "bg-amber-100 text-amber-900 border border-amber-200"
+                        currentInstrument.bookingMode === "instant"
+                          ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                          : "bg-amber-100 text-amber-900 border border-amber-200"
                       }`}
                     >
-                      {(currentInstrument as any).isReservePool ||
-                      (currentInstrument as any).is_reserve_pool ? (
-                        <>
-                          <Sparkles className="w-2.5 h-2.5" />
-                          <span>{t("reservationForm.reservePoolBadge")}</span>
-                        </>
-                      ) : currentInstrument.bookingMode === "instant" ? (
+                      {currentInstrument.bookingMode === "instant" ? (
                         <>
                           <Zap className="w-2.5 h-2.5" />
                           <span>{t("common.instant")}</span>
@@ -760,27 +751,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                   </div>
                 </div>
-
-                {/* Church Reserve Explanatory Banner (if reserve pool item selected) */}
-                {Boolean(
-                  (currentInstrument as any).isReservePool ||
-                  (currentInstrument as any).is_reserve_pool,
-                ) && (
-                  <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3.5 sm:p-4 text-xs space-y-2 text-amber-950 shadow-2xs">
-                    <div className="font-bold flex items-center gap-1.5 text-amber-900 text-sm">
-                      <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
-                      <span>{t("reservationForm.reservePoolNoticeTitle")}</span>
-                    </div>
-                    <p className="text-amber-800 leading-relaxed font-medium">
-                      {t("reservationForm.reservePoolNoticeDesc")}
-                    </p>
-                    <ul className="space-y-1 text-[11px] text-amber-900/90 font-medium list-disc list-inside">
-                      <li>{t("reservationForm.reservePoolBullet1")}</li>
-                      <li>{t("reservationForm.reservePoolBullet2")}</li>
-                      <li>{t("reservationForm.reservePoolBullet3")}</li>
-                    </ul>
-                  </div>
-                )}
 
                 {/* Section 2: Service & Musician Inputs */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3">

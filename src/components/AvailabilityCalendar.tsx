@@ -39,8 +39,6 @@ export interface Instrument {
   outsideFeePerDay: string;
   bookingMode: "manual" | "instant";
   isRemoved: boolean;
-  isReservePool?: boolean;
-  is_reserve_pool?: boolean;
   createdAt: string;
 }
 
@@ -880,18 +878,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               </div>
                             </div>
 
-                            {/* Booking Mode + Fee chips + Reserve Pool Badge */}
+                              {/* Booking Mode + Fee chips */}
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {Boolean(
-                                inst.isReservePool || inst.is_reserve_pool,
-                              ) && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
-                                  <Sparkles className="w-2.5 h-2.5 text-purple-700" />
-                                  <span>
-                                    {isAr ? "عهدة احتياطية" : "Church Reserve"}
-                                  </span>
-                                </span>
-                              )}
                               {/* Booking Mode Chip */}
                               {isAdminOrSuperAdmin ? (
                                 <button
