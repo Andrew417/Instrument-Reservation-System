@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Calendar,
   Layers,
-  ArrowRight,
   TrendingUp,
   BarChart2,
   PieChart as PieIcon,
@@ -32,7 +31,6 @@ import {
   LineChart,
   Line,
   CartesianGrid,
-  Area,
 } from "recharts";
 
 interface AnalyticsSummary {
@@ -92,10 +90,7 @@ interface TopUserItem {
 }
 
 interface AnalyticsData {
-  dateRange: {
-    from: string;
-    to: string;
-  };
+  dateRange: { from: string; to: string };
   summary: AnalyticsSummary;
   instrumentsByUsage: InstrumentUsage[];
   typesByUsage: TypeUsage[];
@@ -107,14 +102,14 @@ interface AnalyticsData {
 }
 
 const TYPE_PALETTE = [
-  "#d97706", // amber-600
-  "#3d84bc", // brand-600
-  "#059669", // emerald-600
-  "#96277f", // purple-600
-  "#e11d48", // rose-600
-  "#0284c7", // sky-600
-  "#7c3aed", // violet-600
-  "#475569", // slate-600
+  "#d97706",
+  "#3d84bc",
+  "#059669",
+  "#96277f",
+  "#e11d48",
+  "#0284c7",
+  "#7c3aed",
+  "#475569",
 ];
 
 export const AnalyticsTab: React.FC = () => {
@@ -122,7 +117,6 @@ export const AnalyticsTab: React.FC = () => {
   const { sessionToken } = useAuth();
   const isRTL = i18n.language === "ar";
 
-  // Pre-set date options: 7, 30, 90 days, or custom
   const [rangePreset, setRangePreset] = useState<"7" | "30" | "90" | "custom">(
     "30",
   );
@@ -131,21 +125,17 @@ export const AnalyticsTab: React.FC = () => {
     addDaysToDateString(todayStr, -30),
   );
   const [customTo, setCustomTo] = useState<string>(todayStr);
-
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
     from: addDaysToDateString(todayStr, -30),
     to: todayStr,
   });
-
   const [instrumentMetric, setInstrumentMetric] = useState<"count" | "hours">(
     "count",
   );
-
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AnalyticsData | null>(null);
 
-  // Fetch analytics from backend
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -153,9 +143,7 @@ export const AnalyticsTab: React.FC = () => {
       const res = await fetch(
         `/api/admin/analytics?from=${dateRange.from}&to=${dateRange.to}`,
         {
-          headers: {
-            Authorization: `Bearer ${sessionToken || ""}`,
-          },
+          headers: { Authorization: `Bearer ${sessionToken || ""}` },
           cache: "no-store",
         },
       );
@@ -175,7 +163,6 @@ export const AnalyticsTab: React.FC = () => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // Handle Preset Changes
   const handlePresetChange = (preset: "7" | "30" | "90" | "custom") => {
     setRangePreset(preset);
     if (preset !== "custom") {
@@ -198,155 +185,100 @@ export const AnalyticsTab: React.FC = () => {
     setDateRange({ from: customFrom, to: customTo });
   };
 
-  // Translate weekday names for charts
-  const getTranslatedDayName = (dayKey: string) => {
-    return t(`analytics.weekday.${dayKey}`);
-  };
+  const getTranslatedDayName = (dayKey: string) =>
+    t(`analytics.weekday.${dayKey}`);
 
-  // Calculate heatmap color intensity
   const maxHeatmapCount =
     data?.weekdayHourHeatmap.reduce((max, c) => Math.max(max, c.count), 0) || 1;
 
   const getHeatmapColor = (count: number) => {
-    if (count === 0) return "bg-stone-100/80 text-stone-400 border-stone-200/50";
+    if (count === 0)
+      return "bg-stone-100/80 text-stone-300 border-stone-200/50";
     const intensity = count / maxHeatmapCount;
-    if (intensity < 0.25)
-      return "bg-amber-100 text-amber-900 border-amber-200 font-semibold";
-    if (intensity < 0.5)
-      return "bg-amber-200 text-amber-950 border-amber-300 font-bold";
-    if (intensity < 0.75)
-      return "bg-amber-400 text-amber-950 border-amber-500 font-bold shadow-2xs";
-    return "bg-amber-600 text-white border-amber-700 font-bold shadow-xs";
+    if (intensity < 0.25) return "bg-amber-100 text-amber-900 border-amber-200";
+    if (intensity < 0.5) return "bg-amber-200 text-amber-950 border-amber-300";
+    if (intensity < 0.75) return "bg-amber-400 text-amber-950 border-amber-500";
+    return "bg-amber-600 text-white border-amber-700";
   };
 
   return (
-    <div className="space-y-6" dir={isRTL ? "rtl" : "ltr"}>
-      {/* Header & Date Range Controls */}
-      <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs transition">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-stone-900 flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-amber-500/10 text-amber-800 border border-amber-200/60">
-                <BarChart2 className="w-5 h-5 text-amber-700" />
-              </span>
-              <span>{t("analytics.title")}</span>
+    <div className="space-y-2.5 sm:space-y-4" dir={isRTL ? "rtl" : "ltr"}>
+      {/* ─────────── Header + Filter (single compact block) ─────────── */}
+      <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs space-y-2">
+        {/* Row 1: title + refresh */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <BarChart2 className="w-4 h-4 text-amber-700 shrink-0" />
+            <h2 className="text-sm sm:text-base font-bold text-stone-900 truncate">
+              {t("analytics.title")}
             </h2>
-            <p className="text-xs sm:text-sm text-stone-500 mt-1">
-              {t("analytics.subtitle")}
-            </p>
           </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={fetchAnalytics}
-              disabled={loading}
-              title={t("analytics.refresh")}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200/80 active:bg-stone-300 transition cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
-              />
-              <span className="hidden sm:inline">{t("analytics.refresh")}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={fetchAnalytics}
+            disabled={loading}
+            title={t("analytics.refresh")}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-stone-600 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 transition cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+            />
+          </button>
         </div>
 
-        {/* Date Filter Bar */}
-        <div className="mt-5 pt-4 border-t border-stone-100 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-stone-500 flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-stone-400" />
-            <span>{t("analytics.dateRange.label")}:</span>
-          </span>
-
-          <div className="inline-flex rounded-xl bg-stone-100/90 p-1 border border-stone-200/60 gap-1">
+        {/* Row 2: date pills + current range inline */}
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2">
+          {(
+            [
+              ["7", t("analytics.dateRange.last7Days")],
+              ["30", t("analytics.dateRange.last30Days")],
+              ["90", t("analytics.dateRange.last90Days")],
+              ["custom", t("analytics.dateRange.custom")],
+            ] as const
+          ).map(([key, label]) => (
             <button
+              key={key}
               type="button"
-              onClick={() => handlePresetChange("7")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                rangePreset === "7"
-                  ? "bg-white text-stone-900 shadow-2xs font-bold"
-                  : "text-stone-600 hover:text-stone-900"
+              onClick={() => handlePresetChange(key)}
+              className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${
+                rangePreset === key
+                  ? "bg-amber-800 text-white shadow-2xs"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
               }`}
             >
-              {t("analytics.dateRange.last7Days")}
+              {label}
             </button>
-            <button
-              type="button"
-              onClick={() => handlePresetChange("30")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                rangePreset === "30"
-                  ? "bg-white text-stone-900 shadow-2xs font-bold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              {t("analytics.dateRange.last30Days")}
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetChange("90")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                rangePreset === "90"
-                  ? "bg-white text-stone-900 shadow-2xs font-bold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              {t("analytics.dateRange.last90Days")}
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetChange("custom")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                rangePreset === "custom"
-                  ? "bg-white text-stone-900 shadow-2xs font-bold"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              {t("analytics.dateRange.custom")}
-            </button>
-          </div>
-
-          {/* Current Range Label Indicator */}
-          <span className="text-[11px] font-mono font-medium text-stone-500 px-2.5 py-1 rounded-lg bg-stone-50 border border-stone-200/60">
-            {dateRange.from} &rarr; {dateRange.to}
+          ))}
+          <span className="shrink-0 ms-auto font-mono text-[10px] text-stone-400 whitespace-nowrap ps-2">
+            {dateRange.from} → {dateRange.to}
           </span>
         </div>
 
-        {/* Custom Range Picker Drawer */}
+        {/* Custom range picker (compact) */}
         {rangePreset === "custom" && (
           <form
             onSubmit={handleApplyCustom}
-            className="mt-3 p-3 rounded-xl bg-stone-50 border border-stone-200/80 flex flex-wrap items-center gap-3 text-xs"
+            className="grid grid-cols-2 gap-1.5 pt-1 border-t border-stone-100"
           >
-            <div className="flex items-center gap-1.5">
-              <label className="font-semibold text-stone-600">
-                {t("analytics.dateRange.from")}:
-              </label>
-              <input
-                type="date"
-                value={customFrom}
-                max={todayStr}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-medium text-stone-900 focus:ring-1 focus:ring-amber-500"
-                required
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <label className="font-semibold text-stone-600">
-                {t("analytics.dateRange.to")}:
-              </label>
-              <input
-                type="date"
-                value={customTo}
-                max={todayStr}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="px-2.5 py-1.5 bg-white border border-stone-300 rounded-lg text-xs font-medium text-stone-900 focus:ring-1 focus:ring-amber-500"
-                required
-              />
-            </div>
+            <input
+              type="date"
+              value={customFrom}
+              max={todayStr}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="w-full px-2 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-[11px] font-medium text-stone-900 focus:ring-1 focus:ring-amber-500 min-w-0"
+              required
+            />
+            <input
+              type="date"
+              value={customTo}
+              max={todayStr}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="w-full px-2 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-[11px] font-medium text-stone-900 focus:ring-1 focus:ring-amber-500 min-w-0"
+              required
+            />
             <button
               type="submit"
-              className="px-4 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-lg text-xs transition cursor-pointer shadow-2xs"
+              className="col-span-2 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-bold rounded-lg text-[11px] transition cursor-pointer"
             >
               {t("analytics.dateRange.apply")}
             </button>
@@ -354,128 +286,117 @@ export const AnalyticsTab: React.FC = () => {
         )}
       </div>
 
-      {/* Global Error Banner */}
+      {/* ─────────── Error ─────────── */}
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{error}</span>
+        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+            <span className="break-words truncate">{error}</span>
           </div>
           <button
             type="button"
             onClick={fetchAnalytics}
-            className="px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-900 font-bold transition cursor-pointer"
+            className="px-2 py-0.5 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-900 font-bold transition cursor-pointer shrink-0 text-[10px]"
           >
             {t("analytics.retry")}
           </button>
         </div>
       )}
 
-      {/* Loading Skeleton */}
+      {/* ─────────── Loading ─────────── */}
       {loading && !data && (
-        <div className="space-y-6 animate-pulse">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-28 bg-stone-200/70 rounded-2xl border border-stone-200"
-              />
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-80 bg-stone-200/70 rounded-2xl" />
-            <div className="h-80 bg-stone-200/70 rounded-2xl" />
-          </div>
-          <div className="h-72 bg-stone-200/70 rounded-2xl" />
+        <div className="space-y-2.5 animate-pulse">
+          <div className="h-20 bg-stone-200/70 rounded-2xl" />
+          <div className="h-44 bg-stone-200/70 rounded-2xl" />
+          <div className="h-44 bg-stone-200/70 rounded-2xl" />
         </div>
       )}
 
       {data && (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* ─────────── Summary Cards — 2 cols mobile, 4 cols desktop ─────────── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {/* Card 1: Total Reservations */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-4 shadow-xs relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-500">
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-3 sm:p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-[10px] sm:text-xs font-semibold text-stone-500 leading-tight">
                   {t("analytics.summary.totalReservations")}
                 </span>
-                <span className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60">
-                  <CalendarCheck className="w-4 h-4" />
+                <span className="p-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/60 shrink-0">
+                  <CalendarCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-bold text-stone-900 font-mono">
+              <div className="mt-2 sm:mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-stone-900 font-mono leading-none">
                   {data.summary.totalReservations.toLocaleString()}
                 </div>
-                <div className="text-[11px] text-stone-500 mt-1">
+                <div className="text-[10px] text-stone-500 mt-1 leading-tight line-clamp-2">
                   {t("analytics.summary.totalReservationsDesc")}
                 </div>
               </div>
             </div>
 
             {/* Card 2: Total Hours */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-4 shadow-xs relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-500">
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-3 sm:p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-[10px] sm:text-xs font-semibold text-stone-500 leading-tight">
                   {t("analytics.summary.totalHours")}
                 </span>
-                <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                  <Clock className="w-4 h-4" />
+                <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/60 shrink-0">
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-bold text-stone-900 font-mono">
+              <div className="mt-2 sm:mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-stone-900 font-mono leading-none">
                   {data.summary.totalHours.toLocaleString()}
-                  <span className="text-xs font-sans text-stone-500 font-normal ms-1">
+                  <span className="text-[10px] sm:text-xs font-sans text-stone-500 font-normal ms-1">
                     {t("analytics.topInstruments.hours")}
                   </span>
                 </div>
-                <div className="text-[11px] text-stone-500 mt-1">
+                <div className="text-[10px] text-stone-500 mt-1 leading-tight line-clamp-2">
                   {t("analytics.summary.totalHoursDesc")}
                 </div>
               </div>
             </div>
 
             {/* Card 3: Unique Users */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-4 shadow-xs relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-500">
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-3 sm:p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-[10px] sm:text-xs font-semibold text-stone-500 leading-tight">
                   {t("analytics.summary.uniqueUsers")}
                 </span>
-                <span className="p-2 rounded-xl bg-brand-50 text-brand-700 border border-brand-200/60">
-                  <Users className="w-4 h-4" />
+                <span className="p-1.5 rounded-lg bg-brand-50 text-brand-700 border border-brand-200/60 shrink-0">
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-2xl sm:text-3xl font-bold text-stone-900 font-mono">
+              <div className="mt-2 sm:mt-3">
+                <div className="text-xl sm:text-3xl font-bold text-stone-900 font-mono leading-none">
                   {data.summary.uniqueUsers.toLocaleString()}
                 </div>
-                <div className="text-[11px] text-stone-500 mt-1">
+                <div className="text-[10px] text-stone-500 mt-1 leading-tight line-clamp-2">
                   {t("analytics.summary.uniqueUsersDesc")}
                 </div>
               </div>
             </div>
 
             {/* Card 4: Location Split */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-4 shadow-xs relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-stone-500">
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-3 sm:p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-[10px] sm:text-xs font-semibold text-stone-500 leading-tight">
                   {t("analytics.summary.locationSplit")}
                 </span>
-                <span className="p-2 rounded-xl bg-purple-50 text-purple-700 border border-purple-200/60">
-                  <Church className="w-4 h-4" />
+                <span className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/60 shrink-0">
+                  <Church className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </span>
               </div>
-              <div className="mt-3">
-                <div className="text-sm font-bold text-stone-900">
+              <div className="mt-2 sm:mt-3">
+                <div className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">
                   {t("analytics.summary.splitFormat", {
                     inChurch: data.summary.inChurchCount,
                     outside: data.summary.outsideChurchCount,
                   })}
                 </div>
-                {/* Visual Ratio Bar */}
-                <div className="w-full bg-stone-100 h-2 rounded-full mt-2.5 overflow-hidden flex">
+                <div className="w-full bg-stone-100 h-2 rounded-full mt-2 overflow-hidden flex">
                   <div
                     style={{
                       width: `${
@@ -487,7 +408,6 @@ export const AnalyticsTab: React.FC = () => {
                       }%`,
                     }}
                     className="bg-brand-600 h-full transition-all duration-500"
-                    title={`${t("analytics.summary.inChurch")}: ${data.summary.inChurchCount}`}
                   />
                   <div
                     style={{
@@ -500,10 +420,9 @@ export const AnalyticsTab: React.FC = () => {
                       }%`,
                     }}
                     className="bg-purple-500 h-full transition-all duration-500"
-                    title={`${t("analytics.summary.outsideChurch")}: ${data.summary.outsideChurchCount}`}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-stone-400 mt-1 font-medium">
+                <div className="flex items-center justify-between text-[10px] mt-1 font-medium">
                   <span className="text-brand-700">
                     {t("analytics.summary.inChurch")}
                   </span>
@@ -515,334 +434,326 @@ export const AnalyticsTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 1: Top Instruments & Instrument Types */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart 1: Top Instruments (Horizontal Bar Chart) */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs flex flex-col justify-between">
-              <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                      <Award className="w-4 h-4 text-amber-600" />
-                      <span>{t("analytics.topInstruments.title")}</span>
-                    </h3>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      {t("analytics.topInstruments.subtitle")}
-                    </p>
-                  </div>
-
-                  {/* Toggle: Count vs Hours */}
-                  <div className="inline-flex rounded-lg bg-stone-100 p-0.5 border border-stone-200 self-start sm:self-auto text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setInstrumentMetric("count")}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                        instrumentMetric === "count"
-                          ? "bg-white text-stone-900 shadow-2xs font-bold"
-                          : "text-stone-600 hover:text-stone-900"
-                      }`}
-                    >
-                      {t("analytics.topInstruments.byCount")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInstrumentMetric("hours")}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                        instrumentMetric === "hours"
-                          ? "bg-white text-stone-900 shadow-2xs font-bold"
-                          : "text-stone-600 hover:text-stone-900"
-                      }`}
-                    >
-                      {t("analytics.topInstruments.byHours")}
-                    </button>
-                  </div>
+          {/* ─────────── Top Instruments + Types side by side ─────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+            {/* Top Instruments */}
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Award className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <h3 className="text-xs font-bold text-stone-900 truncate">
+                    {t("analytics.topInstruments.title")}
+                  </h3>
                 </div>
-
-                {data.instrumentsByUsage.length === 0 ? (
-                  <div className="h-64 flex flex-col items-center justify-center text-center p-4 text-stone-400 text-xs">
-                    <Layers className="w-8 h-8 text-stone-300 mb-2" />
-                    <span>{t("analytics.topInstruments.empty")}</span>
-                  </div>
-                ) : (
-                  <div className="w-full h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        layout="vertical"
-                        data={data.instrumentsByUsage}
-                        margin={{ top: 5, right: 20, left: 35, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f0ee" />
-                        <XAxis
-                          type="number"
-                          tick={{ fontSize: 11, fill: "#78716c" }}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          width={100}
-                          tick={{ fontSize: 11, fill: "#44403c" }}
-                        />
-                        <Tooltip
-                          formatter={(value: any) => [
-                            value,
-                            instrumentMetric === "count"
-                              ? t("analytics.topInstruments.bookings")
-                              : t("analytics.topInstruments.hours"),
-                          ]}
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "0.75rem",
-                            border: "1px solid #e7e5e4",
-                            fontSize: "12px",
-                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-                          }}
-                        />
-                        <Bar
-                          dataKey={
-                            instrumentMetric === "count"
-                              ? "reservationCount"
-                              : "totalHours"
-                          }
-                          fill="#d97706"
-                          radius={isRTL ? [6, 0, 0, 6] : [0, 6, 6, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                <div className="inline-flex rounded-md bg-stone-100 p-0.5 border border-stone-200 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setInstrumentMetric("count")}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                      instrumentMetric === "count"
+                        ? "bg-white text-stone-900 shadow-2xs"
+                        : "text-stone-500"
+                    }`}
+                  >
+                    {t("analytics.topInstruments.byCount")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInstrumentMetric("hours")}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                      instrumentMetric === "hours"
+                        ? "bg-white text-stone-900 shadow-2xs"
+                        : "text-stone-500"
+                    }`}
+                  >
+                    {t("analytics.topInstruments.byHours")}
+                  </button>
+                </div>
               </div>
+
+              {data.instrumentsByUsage.length === 0 ? (
+                <div className="h-44 flex flex-col items-center justify-center text-center text-stone-400 text-[11px]">
+                  <Layers className="w-6 h-6 text-stone-300 mb-1" />
+                  <span>{t("analytics.topInstruments.empty")}</span>
+                </div>
+              ) : (
+                <div className="w-full h-44 sm:h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={data.instrumentsByUsage}
+                      margin={{ top: 2, right: 8, left: 0, bottom: 2 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        horizontal={false}
+                        stroke="#f1f0ee"
+                      />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 9, fill: "#78716c" }}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={70}
+                        tick={{ fontSize: 9, fill: "#44403c" }}
+                        interval={0}
+                      />
+                      <Tooltip
+                        formatter={(value: any) => [
+                          value,
+                          instrumentMetric === "count"
+                            ? t("analytics.topInstruments.bookings")
+                            : t("analytics.topInstruments.hours"),
+                        ]}
+                        contentStyle={{
+                          backgroundColor: "#ffffff",
+                          borderRadius: "0.5rem",
+                          border: "1px solid #e7e5e4",
+                          fontSize: "10px",
+                          padding: "4px 8px",
+                        }}
+                      />
+                      <Bar
+                        dataKey={
+                          instrumentMetric === "count"
+                            ? "reservationCount"
+                            : "totalHours"
+                        }
+                        fill="#d97706"
+                        radius={isRTL ? [4, 0, 0, 4] : [0, 4, 4, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
 
-            {/* Chart 2: Usage by Instrument Type (Donut) */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs flex flex-col justify-between">
-              <div>
-                <div className="mb-4">
-                  <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                    <PieIcon className="w-4 h-4 text-brand-600" />
-                    <span>{t("analytics.types.title")}</span>
-                  </h3>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {t("analytics.types.subtitle")}
-                  </p>
-                </div>
-
-                {data.typesByUsage.length === 0 ? (
-                  <div className="h-64 flex flex-col items-center justify-center text-center p-4 text-stone-400 text-xs">
-                    <PieIcon className="w-8 h-8 text-stone-300 mb-2" />
-                    <span>{t("analytics.types.empty")}</span>
-                  </div>
-                ) : (
-                  <div className="w-full h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.typesByUsage}
-                          dataKey="reservationCount"
-                          nameKey="type"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={95}
-                          paddingAngle={3}
-                        >
-                          {data.typesByUsage.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={TYPE_PALETTE[index % TYPE_PALETTE.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value: any, name: any) => [
-                            `${value} ${t("analytics.topInstruments.bookings")}`,
-                            name,
-                          ]}
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "0.75rem",
-                            border: "1px solid #e7e5e4",
-                            fontSize: "12px",
-                            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-                          }}
-                        />
-                        <Legend
-                          verticalAlign="bottom"
-                          height={36}
-                          iconType="circle"
-                          wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+            {/* Types Donut */}
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-2">
+                <PieIcon className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+                <h3 className="text-xs font-bold text-stone-900 truncate">
+                  {t("analytics.types.title")}
+                </h3>
               </div>
+
+              {data.typesByUsage.length === 0 ? (
+                <div className="h-44 flex flex-col items-center justify-center text-center text-stone-400 text-[11px]">
+                  <PieIcon className="w-6 h-6 text-stone-300 mb-1" />
+                  <span>{t("analytics.types.empty")}</span>
+                </div>
+              ) : (
+                <div className="w-full h-44 sm:h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.typesByUsage}
+                        dataKey="reservationCount"
+                        nameKey="type"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={60}
+                        paddingAngle={2}
+                      >
+                        {data.typesByUsage.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={TYPE_PALETTE[index % TYPE_PALETTE.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: any, name: any) => [
+                          `${value} ${t("analytics.topInstruments.bookings")}`,
+                          name,
+                        ]}
+                        contentStyle={{
+                          backgroundColor: "#ffffff",
+                          borderRadius: "0.5rem",
+                          border: "1px solid #e7e5e4",
+                          fontSize: "10px",
+                          padding: "4px 8px",
+                        }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        height={28}
+                        iconType="circle"
+                        iconSize={6}
+                        wrapperStyle={{ fontSize: "9px", paddingTop: "0" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Section 2: Weekday & Hourly Bar Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart 3: Reservations by Weekday */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
-              <div className="mb-4">
-                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-emerald-600" />
-                  <span>{t("analytics.weekday.title")}</span>
+          {/* ─────────── Weekday + Hourly ─────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <h3 className="text-xs font-bold text-stone-900 truncate">
+                  {t("analytics.weekday.title")}
                 </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  {t("analytics.weekday.subtitle")}
-                </p>
               </div>
-
-              <div className="w-full h-64">
+              <div className="w-full h-40 sm:h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={data.reservationsByWeekday.map((d) => ({
                       ...d,
                       displayName: getTranslatedDayName(d.dayKey),
                     }))}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                    margin={{ top: 2, right: 4, left: -28, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f0ee" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f1f0ee"
+                    />
                     <XAxis
                       dataKey="displayName"
-                      tick={{ fontSize: 11, fill: "#78716c" }}
+                      tick={{ fontSize: 9, fill: "#78716c" }}
                     />
                     <YAxis
                       allowDecimals={false}
-                      tick={{ fontSize: 11, fill: "#78716c" }}
+                      tick={{ fontSize: 9, fill: "#78716c" }}
                     />
                     <Tooltip
                       formatter={(value: any) => [
                         value,
                         t("analytics.topInstruments.bookings"),
                       ]}
-                      labelFormatter={(label) => String(label)}
                       contentStyle={{
                         backgroundColor: "#ffffff",
-                        borderRadius: "0.75rem",
+                        borderRadius: "0.5rem",
                         border: "1px solid #e7e5e4",
-                        fontSize: "12px",
+                        fontSize: "10px",
+                        padding: "4px 8px",
                       }}
                     />
-                    <Bar
-                      dataKey="count"
-                      fill="#059669"
-                      radius={[6, 6, 0, 0]}
-                    />
+                    <Bar dataKey="count" fill="#059669" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Chart 4: Reservations by Hour (9:00 - 22:00) */}
-            <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
-              <div className="mb-4">
-                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-brand-600" />
-                  <span>{t("analytics.hourly.title")}</span>
+            <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+                <h3 className="text-xs font-bold text-stone-900 truncate">
+                  {t("analytics.hourly.title")}
                 </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  {t("analytics.hourly.subtitle")}
-                </p>
               </div>
-
-              <div className="w-full h-64">
+              <div className="w-full h-40 sm:h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={data.reservationsByHour}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                    margin={{ top: 2, right: 4, left: -28, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f0ee" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f1f0ee"
+                    />
                     <XAxis
                       dataKey="hourLabel"
-                      tick={{ fontSize: 10, fill: "#78716c" }}
-                      interval={1}
+                      tick={{ fontSize: 8, fill: "#78716c" }}
+                      interval={2}
                     />
                     <YAxis
                       allowDecimals={false}
-                      tick={{ fontSize: 11, fill: "#78716c" }}
+                      tick={{ fontSize: 9, fill: "#78716c" }}
                     />
                     <Tooltip
                       formatter={(value: any) => [
                         value,
                         t("analytics.topInstruments.bookings"),
                       ]}
-                      labelFormatter={(label) => `${t("analytics.hourly.hour")} ${label}`}
+                      labelFormatter={(label) =>
+                        `${t("analytics.hourly.hour")} ${label}`
+                      }
                       contentStyle={{
                         backgroundColor: "#ffffff",
-                        borderRadius: "0.75rem",
+                        borderRadius: "0.5rem",
                         border: "1px solid #e7e5e4",
-                        fontSize: "12px",
+                        fontSize: "10px",
+                        padding: "4px 8px",
                       }}
                     />
-                    <Bar
-                      dataKey="count"
-                      fill="#3d84bc"
-                      radius={[6, 6, 0, 0]}
-                    />
+                    <Bar dataKey="count" fill="#3d84bc" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
 
-          {/* Section 3: Daily Trend Line Chart */}
-          <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
-            <div className="mb-4">
-              <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-amber-600" />
-                <span>{t("analytics.trend.title")}</span>
+          {/* ─────────── Daily Trend ─────────── */}
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+            <div className="flex items-center gap-1.5 mb-2">
+              <TrendingUp className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <h3 className="text-xs font-bold text-stone-900 truncate">
+                {t("analytics.trend.title")}
               </h3>
-              <p className="text-xs text-stone-500 mt-0.5">
-                {t("analytics.trend.subtitle")}
-              </p>
             </div>
-
             {data.dailyTrend.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center text-center p-4 text-stone-400 text-xs">
+              <div className="h-36 flex items-center justify-center text-stone-400 text-[11px]">
                 <span>{t("analytics.trend.empty")}</span>
               </div>
             ) : (
-              <div className="w-full h-72">
+              <div className="w-full h-40 sm:h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={data.dailyTrend}
-                    margin={{ top: 10, right: 15, left: -15, bottom: 5 }}
+                    margin={{ top: 2, right: 6, left: -28, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f0ee" vertical={false} />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#f1f0ee"
+                      vertical={false}
+                    />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 10, fill: "#78716c" }}
+                      tick={{ fontSize: 8, fill: "#78716c" }}
                       tickFormatter={(val) => {
                         const parts = val.split("-");
-                        return parts.length === 3 ? `${parts[1]}/${parts[2]}` : val;
+                        return parts.length === 3
+                          ? `${parts[1]}/${parts[2]}`
+                          : val;
                       }}
                       minTickGap={20}
                     />
                     <YAxis
                       allowDecimals={false}
-                      tick={{ fontSize: 11, fill: "#78716c" }}
+                      tick={{ fontSize: 9, fill: "#78716c" }}
                     />
                     <Tooltip
                       formatter={(value: any) => [
                         value,
                         t("analytics.trend.reservations"),
                       ]}
-                      labelFormatter={(label) => `${t("analytics.trend.date")}: ${label}`}
+                      labelFormatter={(label) =>
+                        `${t("analytics.trend.date")}: ${label}`
+                      }
                       contentStyle={{
                         backgroundColor: "#ffffff",
-                        borderRadius: "0.75rem",
+                        borderRadius: "0.5rem",
                         border: "1px solid #e7e5e4",
-                        fontSize: "12px",
+                        fontSize: "10px",
+                        padding: "4px 8px",
                       }}
                     />
                     <Line
                       type="monotone"
                       dataKey="count"
                       stroke="#d97706"
-                      strokeWidth={2.5}
-                      dot={data.dailyTrend.length < 35 ? { r: 3, fill: "#d97706" } : false}
-                      activeDot={{ r: 5 }}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -850,47 +761,37 @@ export const AnalyticsTab: React.FC = () => {
             )}
           </div>
 
-          {/* Section 4: Weekday x Hour Heatmap Grid */}
-          <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div>
-                <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                  <Flame className="w-4 h-4 text-amber-600" />
-                  <span>{t("analytics.heatmap.title")}</span>
+          {/* ─────────── Heatmap ─────────── */}
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Flame className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <h3 className="text-xs font-bold text-stone-900 truncate">
+                  {t("analytics.heatmap.title")}
                 </h3>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  {t("analytics.heatmap.subtitle")}
-                </p>
               </div>
-
-              {/* Heatmap Legend */}
-              <div className="flex items-center gap-2 text-[11px] text-stone-500 font-medium">
+              <div className="flex items-center gap-1 text-[9px] text-stone-400 font-bold shrink-0">
                 <span>{t("analytics.heatmap.legendLow")}</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 rounded bg-stone-100 border border-stone-200" />
-                  <div className="w-3.5 h-3.5 rounded bg-amber-100 border border-amber-200" />
-                  <div className="w-3.5 h-3.5 rounded bg-amber-200 border border-amber-300" />
-                  <div className="w-3.5 h-3.5 rounded bg-amber-400 border border-amber-500" />
-                  <div className="w-3.5 h-3.5 rounded bg-amber-600 border border-amber-700" />
+                <div className="flex items-center gap-0.5">
+                  <div className="w-2.5 h-2.5 rounded bg-stone-100 border border-stone-200" />
+                  <div className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-200" />
+                  <div className="w-2.5 h-2.5 rounded bg-amber-200 border border-amber-300" />
+                  <div className="w-2.5 h-2.5 rounded bg-amber-400 border border-amber-500" />
+                  <div className="w-2.5 h-2.5 rounded bg-amber-600 border border-amber-700" />
                 </div>
                 <span>{t("analytics.heatmap.legendHigh")}</span>
               </div>
             </div>
 
-            {/* Heatmap Matrix Table (Mobile Scrollable) */}
-            <div className="overflow-x-auto pb-2">
-              <div className="min-w-[640px]">
-                {/* Header row with hours */}
-                <div className="grid grid-cols-[90px_repeat(14,minmax(28px,1fr))] gap-1 text-[10px] font-mono text-stone-400 font-semibold mb-1 text-center">
-                  <div className="text-start ps-1 text-stone-500">
-                    {t("analytics.hourly.hour")}
-                  </div>
+            <div className="overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+              <div className="min-w-[440px]">
+                <div className="grid grid-cols-[56px_repeat(14,minmax(20px,1fr))] gap-[2px] text-[8px] font-mono text-stone-400 font-bold mb-[2px] text-center">
+                  <div className="text-start text-stone-500"></div>
                   {Array.from({ length: 14 }, (_, i) => i + 9).map((h) => (
                     <div key={h}>{String(h).padStart(2, "0")}</div>
                   ))}
                 </div>
 
-                {/* Day rows (0 to 6) */}
                 {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
                   const dayObj = data.reservationsByWeekday.find(
                     (w) => w.dayIndex === dayIndex,
@@ -902,9 +803,9 @@ export const AnalyticsTab: React.FC = () => {
                   return (
                     <div
                       key={dayIndex}
-                      className="grid grid-cols-[90px_repeat(14,minmax(28px,1fr))] gap-1 mb-1 items-center"
+                      className="grid grid-cols-[56px_repeat(14,minmax(20px,1fr))] gap-[2px] mb-[2px] items-center"
                     >
-                      <div className="text-xs font-semibold text-stone-700 truncate pe-2 text-start">
+                      <div className="text-[10px] font-bold text-stone-700 truncate pe-1 sticky start-0 bg-white z-10">
                         {dayName}
                       </div>
 
@@ -923,9 +824,7 @@ export const AnalyticsTab: React.FC = () => {
                           <div
                             key={h}
                             title={tooltipText}
-                            className={`h-7 rounded-md border flex items-center justify-center text-[10px] transition-all hover:scale-105 cursor-pointer ${getHeatmapColor(
-                              count,
-                            )}`}
+                            className={`h-5 sm:h-6 rounded border flex items-center justify-center text-[8px] font-bold transition-all hover:scale-110 cursor-pointer ${getHeatmapColor(count)}`}
                           >
                             {count > 0 ? count : ""}
                           </div>
@@ -938,79 +837,49 @@ export const AnalyticsTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 5: Top Requesters Table */}
-          <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
-            <div className="mb-4">
-              <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-brand-600" />
-                <span>{t("analytics.topUsers.title")}</span>
+          {/* ─────────── Top Users — compact chips ─────────── */}
+          <div className="bg-white rounded-2xl border border-stone-200/80 p-2.5 sm:p-4 shadow-xs">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Users className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+              <h3 className="text-xs font-bold text-stone-900 truncate">
+                {t("analytics.topUsers.title")}
               </h3>
-              <p className="text-xs text-stone-500 mt-0.5">
-                {t("analytics.topUsers.subtitle")}
-              </p>
             </div>
 
             {data.topUsers.length === 0 ? (
-              <div className="h-40 flex items-center justify-center text-center p-4 text-stone-400 text-xs">
+              <div className="h-24 flex items-center justify-center text-stone-400 text-[11px]">
                 <span>{t("analytics.topUsers.empty")}</span>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-stone-200/60">
-                <table className="w-full text-xs text-left rtl:text-right">
-                  <thead className="bg-stone-50 border-b border-stone-200/80 text-stone-600 font-semibold uppercase text-[10px] tracking-wider">
-                    <tr>
-                      <th className="py-2.5 px-3">#</th>
-                      <th className="py-2.5 px-3">
-                        {t("analytics.topUsers.colName")}
-                      </th>
-                      <th className="py-2.5 px-3 text-center">
-                        {t("analytics.topUsers.colCount")}
-                      </th>
-                      <th className="py-2.5 px-3 text-center">
-                        {t("analytics.topUsers.colHours")}
-                      </th>
-                      <th className="py-2.5 px-3 text-center">
-                        {t("analytics.topUsers.colNoShows")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {data.topUsers.map((user, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-stone-50/60 transition-colors"
-                      >
-                        <td className="py-2.5 px-3 font-mono text-stone-400 font-bold">
-                          {idx + 1}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold text-stone-900">
-                          {user.name}
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-mono">
-                          <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 font-bold border border-amber-200/60">
-                            {user.reservationCount}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-mono font-medium text-stone-700">
-                          {user.totalHours}{" "}
-                          <span className="text-[10px] text-stone-400">
-                            {t("analytics.topInstruments.hours")}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-mono">
-                          {user.noShowCount > 0 ? (
-                            <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 font-bold border border-rose-200">
-                              {user.noShowCount}
-                            </span>
-                          ) : (
-                            <span className="text-stone-300">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ol className="space-y-1">
+                {data.topUsers.map((user, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-stone-50/70 border border-stone-100 min-h-8"
+                  >
+                    <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-900 font-mono font-bold text-[10px] flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span className="flex-1 min-w-0 font-semibold text-stone-900 text-xs truncate">
+                      {user.name}
+                    </span>
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-900 font-mono font-bold text-[10px] border border-amber-200/60">
+                      {user.reservationCount}
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-stone-500 hidden xs:inline">
+                      {user.totalHours}
+                      <span className="text-[9px] ms-0.5">
+                        {t("analytics.topInstruments.hours")}
+                      </span>
+                    </span>
+                    {user.noShowCount > 0 && (
+                      <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-800 font-bold text-[10px] border border-rose-200">
+                        {user.noShowCount}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ol>
             )}
           </div>
         </>
@@ -1018,3 +887,5 @@ export const AnalyticsTab: React.FC = () => {
     </div>
   );
 };
+
+export default AnalyticsTab;
