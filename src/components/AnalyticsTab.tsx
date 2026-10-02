@@ -16,6 +16,7 @@ import {
   PieChart as PieIcon,
   Flame,
   Award,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -116,6 +117,17 @@ export const AnalyticsTab: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { sessionToken } = useAuth();
   const isRTL = i18n.language === "ar";
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < 640 : false,
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const [rangePreset, setRangePreset] = useState<"7" | "30" | "90" | "custom">(
     "30",

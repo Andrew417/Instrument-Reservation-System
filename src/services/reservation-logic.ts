@@ -784,6 +784,43 @@ export async function createReservation(input: ReservationSubmissionInput) {
       ).catch(() => {});
     }
     const allAdmins = await db.select({ id: admins.id }).from(admins);
+
+    // Minimal notification text: e.g. "Acoustic Guitar on Sunday 22-9-2026 from 6:00 to 9:00 (3h)"
+    let minimalRequestMsg = `New reservation request from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} on ${input.date}.`;
+    try {
+      const [y, m, d] = input.date.split("-").map(Number);
+      const dateUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const dayNames = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const dayName = dayNames[dateUtc.getUTCDay()] || "";
+      const formattedDate = `${d}-${m}-${y}`;
+
+      const formatTimeToClean = (timeStr: string) => {
+        if (!timeStr) return "";
+        const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
+        if (!match) return timeStr;
+        let h = parseInt(match[1], 10);
+        const min = match[2];
+        if (h > 12) h -= 12;
+        if (h === 0) h = 12;
+        return `${h}:${min}`;
+      };
+
+      const startFmt = formatTimeToClean(input.startTime);
+      const endFmt = formatTimeToClean(getCairoTimeString(evalResult.endTimeUtc));
+      const durStr = input.duration ? ` (${input.duration}h)` : "";
+      minimalRequestMsg = `${instrumentRow?.name || "Instrument"} on ${dayName} ${formattedDate} from ${startFmt} to ${endFmt}${durStr}`;
+    } catch {
+      // fallback to default
+    }
+
     for (const adm of allAdmins) {
       await db
         .insert(notifications)
@@ -791,7 +828,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
           adminId: adm.id,
           reservationId: newReservation.id,
           type: "reservation_submitted",
-          message: `New reservation request from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} on ${input.date}.`,
+          message: minimalRequestMsg,
         })
         .catch(() => {});
     }
@@ -1149,6 +1186,47 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       }
 
       const allAdmins = await db.select({ id: admins.id }).from(admins);
+
+      let seriesMinimalMsg = `New recurring series request (${createdOccurrences.length} occurrences) from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} starting ${occurrences[0]?.date}.`;
+      try {
+        const firstOcc = occurrences[0];
+        const [sy, sm, sd] = firstOcc.date.split("-").map(Number);
+        const sDateUtc = new Date(Date.UTC(sy, sm - 1, sd, 12, 0, 0));
+        const sDayNames = [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ];
+        const sDayName = sDayNames[sDateUtc.getUTCDay()] || "";
+        const sFormattedDate = `${sd}-${sm}-${sy}`;
+
+        const formatTimeToClean = (timeStr: string) => {
+          if (!timeStr) return "";
+          const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
+          if (!match) return timeStr;
+          let h = parseInt(match[1], 10);
+          const min = match[2];
+          if (h > 12) h -= 12;
+          if (h === 0) h = 12;
+          return `${h}:${min}`;
+        };
+
+        const sStartFmt = formatTimeToClean(firstOcc.startTime);
+        const sDuration = firstOcc.duration;
+        const [sh, smin] = (firstOcc.startTime || "00:00").split(":").map(Number);
+        const sEndH = sh + (sDuration || 0);
+        const sEndFmt = formatTimeToClean(`${sEndH}:${String(smin || 0).padStart(2, "0")}`);
+        const sDurStr = sDuration ? ` (${sDuration}h)` : "";
+
+        seriesMinimalMsg = `${instrumentRow?.name || "Instrument"} (${createdOccurrences.length} sessions) on ${sDayName} ${sFormattedDate} from ${sStartFmt} to ${sEndFmt}${sDurStr}`;
+      } catch {
+        // fallback
+      }
+
       for (const adm of allAdmins) {
         await db
           .insert(notifications)
@@ -1156,7 +1234,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
             adminId: adm.id,
             reservationId: createdOccurrences[0].reservation.id,
             type: "reservation_submitted",
-            message: `New recurring series request (${createdOccurrences.length} occurrences) from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} starting ${occurrences[0]?.date}.`,
+            message: seriesMinimalMsg,
           })
           .catch(() => {});
       }

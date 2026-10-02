@@ -53,7 +53,13 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       SELECT n.id, n.user_id, n.admin_id, n.type, n.message, n.is_read, n.reservation_id, n.created_at,
              r.status as reservation_status, r.service_name, r.rejection_reason, r.series_id, i.name as instrument_name,
              r.user_id as reservation_user_id,
-             COALESCE(u.name, ru.name) as user_name
+             COALESCE(u.name, ru.name) as user_name,
+             (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date::text as reservation_date,
+             to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'FMHH24:MI') as start_time_24,
+             to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'FMHH24:MI') as end_time_24,
+             to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'FMHH12:MI AM') as start_time_12,
+             to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'FMHH12:MI AM') as end_time_12,
+             round(extract(epoch from (upper(r.time_range) - lower(r.time_range))) / 3600)::int as duration_hours
       FROM notifications n
       LEFT JOIN reservations r ON n.reservation_id = r.id
       LEFT JOIN instruments i ON r.instrument_id = i.id
