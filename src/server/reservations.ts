@@ -13,6 +13,13 @@ import { db } from "../db/index.js";
 import { reservations, users, admins, messages } from "../db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
+import {
+  getCairoDateString,
+  getCairoParts,
+  cairoDateTimeToDate,
+  addDaysToDateString,
+  parseLocalDate,
+} from "../lib/date-utils.js";
 
 const router = Router();
 
@@ -1064,6 +1071,264 @@ router.get(
       });
     } catch (err: any) {
       console.error("Ministry stats error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 15b. GET /quick-rebook-suggestion
+ * Analyzes the user's routine service patterns and calculates the next upcoming routine slot
+ * for 1-Tap Quick Re-Book.
+ */
+router.get(
+  "/quick-rebook-suggestion",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const sessionIdentity = await extractSessionIdentity(req);
+      const userId = sessionIdentity?.userId;
+      if (!userId) {
+        res.json({ success: true, hasSuggestion: false });
+        return;
+      }
+
+      // 1. Get user name
+      const userRes = await db.execute(sql`
+        SELECT name FROM users WHERE id = ${userId} LIMIT 1
+      `);
+      const userName = (userRes as any).rows?.[0]?.name || "Musician";
+
+      // 2. Fetch user's latest 25 reservations
+      const pastRes = await db.execute(sql`
+        SELECT 
+          r.id,
+          r.instrument_id,
+          r.service_name,
+          r.musician_name,
+          r.reservation_type,
+          r.status,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as date_str,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'FMHH24:MI') as start_time_cairo,
+          extract(dow from (lower(r.time_range) AT TIME ZONE 'Africa/Cairo'))::int as dow,
+          ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
+          i.name as instrument_name,
+          i.type as instrument_type
+        FROM reservations r
+        JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.user_id = ${userId}
+          AND r.status IN ('approved', 'pending', 'completed')
+          AND i.is_removed = false
+        ORDER BY lower(r.time_range) DESC
+        LIMIT 25
+      `);
+
+      const rows = (pastRes as any).rows || [];
+      const routineCandidates: any[] = [];
+
+      if (rows.length > 0) {
+        // Group by pattern (instrumentId + dow + start_time_cairo)
+        const patternCounts: Record<string, { count: number; sample: any }> = {};
+        for (const row of rows) {
+          const key = `${row.instrument_id}__${row.dow}__${row.start_time_cairo}`;
+          if (!patternCounts[key]) {
+            patternCounts[key] = { count: 0, sample: row };
+          }
+          patternCounts[key].count += 1;
+        }
+
+        const sortedPatterns = Object.values(patternCounts)
+          .filter((p) => p.sample.service_name && p.sample.service_name.trim().length > 1)
+          .sort((a, b) => b.count - a.count);
+
+        // Include the single best past user pattern if valid
+        if (sortedPatterns.length > 0) {
+          routineCandidates.push(sortedPatterns[0].sample);
+        } else if (rows[0] && rows[0].service_name && rows[0].service_name.trim().length > 1) {
+          routineCandidates.push(rows[0]);
+        }
+      }
+
+      // Always query available instruments to back standard services
+      const instRes = await db.execute(sql`
+        SELECT id, name, type FROM instruments WHERE is_removed = false ORDER BY name ASC LIMIT 4
+      `);
+      const instRows = (instRes as any).rows || [];
+
+      if (routineCandidates.length === 0 && instRows.length === 0) {
+        res.json({ success: true, hasSuggestion: false });
+        return;
+      }
+
+      // Primary instrument to use for standard church services
+      const primaryInst = routineCandidates[0]
+        ? {
+            id: routineCandidates[0].instrument_id,
+            name: routineCandidates[0].instrument_name,
+            type: routineCandidates[0].instrument_type,
+          }
+        : instRows[0] || { id: "", name: "Instrument", type: "Instrument" };
+
+      // Standard church services to always offer as switchable options
+      const standardServices = [
+        {
+          service_name: "Youth Meeting",
+          dow: 5, // Friday
+          start_time_cairo: "18:00",
+          duration_hours: 2,
+        },
+        {
+          service_name: "Sunday Liturgy",
+          dow: 0, // Sunday
+          start_time_cairo: "08:30",
+          duration_hours: 2.5,
+        },
+        {
+          service_name: "Choir Rehearsal",
+          dow: 4, // Thursday
+          start_time_cairo: "19:00",
+          duration_hours: 2,
+        },
+      ];
+
+      for (const std of standardServices) {
+        // Only append if not already in routineCandidates with identical service name and dow
+        const exists = routineCandidates.some(
+          (c) =>
+            Number(c.dow) === std.dow &&
+            c.service_name.trim().toLowerCase() === std.service_name.toLowerCase(),
+        );
+        if (!exists && routineCandidates.length < 5) {
+          routineCandidates.push({
+            instrument_id: primaryInst.id,
+            instrument_name: primaryInst.name,
+            instrument_type: primaryInst.type,
+            service_name: std.service_name,
+            musician_name: userName,
+            dow: std.dow,
+            start_time_cairo: std.start_time_cairo,
+            duration_hours: std.duration_hours,
+            reservation_type: "in_church",
+          });
+        }
+      }
+
+      const dayNamesEn = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      const dayNamesAr = [
+        "الأحد",
+        "الإثنين",
+        "الثلاثاء",
+        "الأربعاء",
+        "الخميس",
+        "الجمعة",
+        "السبت",
+      ];
+
+      const suggestionsList: any[] = [];
+
+      for (const routine of routineCandidates) {
+        // Calculate next target date for this day of week (dow: 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat)
+        const targetDow =
+          routine.dow !== null && routine.dow !== undefined
+            ? Number(routine.dow)
+            : 5;
+        const nowParts = getCairoParts(new Date());
+        const currentDow = new Date(
+          Date.UTC(nowParts.year, nowParts.month - 1, nowParts.day, 12, 0, 0),
+        ).getUTCDay();
+        let diff = targetDow - currentDow;
+
+        const [startH, startM] = (routine.start_time_cairo || "18:00")
+          .split(":")
+          .map(Number);
+        if (diff === 0) {
+          if (
+            nowParts.hour < startH ||
+            (nowParts.hour === startH && nowParts.minute + 15 <= (startM || 0))
+          ) {
+            diff = 0;
+          } else {
+            diff = 7;
+          }
+        } else if (diff < 0) {
+          diff += 7;
+        }
+
+        const targetDateStr = addDaysToDateString(getCairoDateString(), diff);
+        const startLocal = cairoDateTimeToDate(
+          targetDateStr,
+          routine.start_time_cairo || "18:00",
+        );
+        const durationHours = Math.max(
+          1,
+          Math.min(8, Number(routine.duration_hours) || 2),
+        );
+        const endLocal = new Date(
+          startLocal.getTime() + durationHours * 3600 * 1000,
+        );
+
+        // Check if user already has an active booking for this slot
+        const existingUserBooking = await db.execute(sql`
+          SELECT id, status FROM reservations
+          WHERE user_id = ${userId}
+            AND instrument_id = ${routine.instrument_id}
+            AND status IN ('approved', 'pending')
+            AND time_range && tstzrange(${startLocal.toISOString()}, ${endLocal.toISOString()}, '[)')
+          LIMIT 1
+        `);
+        const alreadyBookedRow = (existingUserBooking as any).rows?.[0];
+
+        // Check if another reservation conflicts
+        const conflictCheck = await db.execute(sql`
+          SELECT id FROM reservations
+          WHERE instrument_id = ${routine.instrument_id}
+            AND status IN ('approved', 'pending')
+            AND time_range && tstzrange(${startLocal.toISOString()}, ${endLocal.toISOString()}, '[)')
+            ${alreadyBookedRow ? sql`AND id != ${alreadyBookedRow.id}` : sql``}
+          LIMIT 1
+        `);
+        const isAvailable = (conflictCheck as any).rows?.length === 0;
+
+        const endTotalMinutes = startH * 60 + (startM || 0) + Math.round(durationHours * 60);
+        const endH = Math.floor(endTotalMinutes / 60);
+        const endM = endTotalMinutes % 60;
+        const endTimeCairo = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+
+        suggestionsList.push({
+          instrumentId: routine.instrument_id,
+          instrumentName: routine.instrument_name,
+          instrumentType: routine.instrument_type,
+          serviceName: routine.service_name || "Youth Meeting",
+          musicianName: routine.musician_name || userName,
+          date: targetDateStr,
+          dayNameEn: dayNamesEn[targetDow],
+          dayNameAr: dayNamesAr[targetDow],
+          startTime: routine.start_time_cairo || "18:00",
+          endTime: endTimeCairo,
+          duration: durationHours,
+          reservationType: routine.reservation_type || "in_church",
+          isAvailable,
+          alreadyBooked: Boolean(alreadyBookedRow),
+          alreadyBookedStatus: alreadyBookedRow?.status || null,
+          alreadyBookedId: alreadyBookedRow?.id || null,
+        });
+      }
+
+      res.json({
+        success: true,
+        hasSuggestion: suggestionsList.length > 0,
+        suggestion: suggestionsList[0] || null,
+        allSuggestions: suggestionsList,
+      });
+    } catch (err: any) {
+      console.error("Quick rebook suggestion error:", err);
       res.status(500).json({ success: false, error: err.message });
     }
   },

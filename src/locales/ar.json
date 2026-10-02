@@ -1365,5 +1365,30 @@
       "Urgent event — no other instrument available": "مناسبة كنسية عاجلة — لا توجد آلة أخرى متاحة",
       "Other": "سبب آخر"
     }
+  },
+  "quickRebook": {
+    "title": "إعادة حجز موعدك المعتاد",
+    "badge": "خدمتك المعتادة",
+    "subtitle": "حجز مباشر لخدمتك الأسبوعية بضغطة واحدة دون ملء النموذج",
+    "serviceLabel": "الخدمة:",
+    "musicianLabel": "العازف:",
+    "switchRoutine": "الخدمة:",
+    "confirmBtn": "تأكيد الحجز بضغطة واحدة",
+    "confirming": "جارٍ التأكيد...",
+    "customize": "تعديل التفاصيل",
+    "available": "الموعد متاح",
+    "instantApproval": "موافقة فورية",
+    "alreadyBooked": "لديك حجز مؤكد بالفعل لهذا {{day}}",
+    "alreadyBookedShort": "محجوز لديك بالفعل",
+    "slotOccupied": "الموعد محجوز لخدمة أخرى",
+    "slotOccupiedShort": "الموعد محجوز",
+    "viewCalendar": "عرض الجدول لمواعيد أخرى",
+    "successTitle": "تم تأكيد الحجز بنجاح!",
+    "successDesc": "تم تثبيت {{instrument}} لصالح {{service}} يوم {{day}}.",
+    "shareWhatsApp": "مشاركة مع جروب الخدمة على واتساب",
+    "shareWhatsAppSuccess": "تم تجهيز رسالة واتساب",
+    "dismiss": "إخفاء",
+    "reopenPrompt": "إعادة حجز موعدك المعتاد",
+    "rebookAnother": "حجز موعد آخر"
   }
 }

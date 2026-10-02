@@ -33,6 +33,8 @@ export interface ReservationFormProps {
   initialDate: string; // 'YYYY-MM-DD'
   initialTimeHhmm: string; // 'HH:mm'
   initialDuration?: number; // hours
+  initialServiceName?: string;
+  initialMusicianName?: string;
   onClose: () => void;
   onSuccess: (reservationData: any) => void;
   onOpenSeriesBuilder?: (prefill: {
@@ -186,6 +188,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   initialDate,
   initialTimeHhmm,
   initialDuration = 2,
+  initialServiceName = "",
+  initialMusicianName = "",
   onClose,
   onSuccess,
   onOpenSeriesBuilder,
@@ -198,9 +202,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
     initialInstrument.id,
   );
-  const [serviceName, setServiceName] = useState<string>("");
+  const [serviceName, setServiceName] = useState<string>(
+    initialServiceName || "",
+  );
   const [serviceLocation, setServiceLocation] = useState<string>("");
-  const [musicianName, setMusicianName] = useState<string>("");
+  const [musicianName, setMusicianName] = useState<string>(
+    initialMusicianName || profile?.name || "",
+  );
   const [note, setNote] = useState<string>("");
   const [date, setDate] = useState<string>(initialDate);
   const [startTime, setStartTime] = useState<string>(
@@ -273,6 +281,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       setFeeAcknowledged(false);
     }
   }, [reservationType]);
+
+  useEffect(() => {
+    if (!musicianName && profile?.name) {
+      setMusicianName(profile.name);
+    }
+  }, [profile?.name, musicianName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

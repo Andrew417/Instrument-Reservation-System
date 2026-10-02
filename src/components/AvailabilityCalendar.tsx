@@ -19,6 +19,7 @@ import {
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { useTranslation } from "react-i18next";
 import { getReservantColorTheme } from "../lib/reservant-colors";
+import { QuickRebookCard } from "./QuickRebookCard.tsx";
 import {
   formatHhmmTo12Hour,
   getLocalDateString,
@@ -63,10 +64,13 @@ interface AvailabilityCalendarProps {
     date: string,
     timeHhmm: string,
     durationHours: number,
+    initialServiceName?: string,
+    initialMusicianName?: string,
   ) => void;
   onSelectInstrument: (instrument: Instrument) => void;
   refreshTrigger?: number;
   onLoadedInstruments?: (instruments: Instrument[]) => void;
+  onReservationSuccess?: () => void;
 }
 
 // Generate 30-minute intervals from 09:00 to 22:00 (26 slots)
@@ -136,6 +140,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   onSelectInstrument,
   refreshTrigger,
   onLoadedInstruments,
+  onReservationSuccess,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -513,6 +518,27 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           </button>
         </div>
       )}
+
+      {/* 1-Tap Quick Re-Book Card (The WhatsApp Killer) */}
+      <QuickRebookCard
+        instruments={instruments}
+        onSelectDate={(date) => setSelectedDate(date)}
+        onOpenCustomize={(prefill) => {
+          onSelectSlot(
+            prefill.instrument,
+            prefill.date,
+            prefill.startTime,
+            prefill.duration,
+            prefill.serviceName,
+            prefill.musicianName,
+          );
+        }}
+        onReservationSuccess={() => {
+          fetchAvailability(selectedDate);
+          if (onReservationSuccess) onReservationSuccess();
+        }}
+        refreshTrigger={refreshTrigger}
+      />
 
       {/* 1. Header Controls & Date Navigator */}
       <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-4 shadow-xs space-y-3">

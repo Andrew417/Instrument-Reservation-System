@@ -57,6 +57,8 @@ interface SelectedSlotInfo {
   date: string;
   timeHhmm: string;
   duration: number;
+  initialServiceName?: string;
+  initialMusicianName?: string;
 }
 
 interface SeriesPrefillInfo {
@@ -284,12 +286,16 @@ const UserPortalMain: React.FC = () => {
     date: string,
     timeHhmm: string,
     durationHours: number,
+    initialServiceName?: string,
+    initialMusicianName?: string,
   ) => {
     setSelectedSlot({
       instrument,
       date,
       timeHhmm,
       duration: durationHours,
+      initialServiceName,
+      initialMusicianName,
     });
   };
 
@@ -471,6 +477,7 @@ const UserPortalMain: React.FC = () => {
             onSelectInstrument={handleSelectInstrument}
             refreshTrigger={refreshTrigger}
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
+            onReservationSuccess={handleReservationSuccess}
           />
         )}
         {currentView === "notifications" && (
@@ -555,6 +562,8 @@ const UserPortalMain: React.FC = () => {
           initialDate={selectedSlot.date}
           initialTimeHhmm={selectedSlot.timeHhmm}
           initialDuration={selectedSlot.duration}
+          initialServiceName={selectedSlot.initialServiceName}
+          initialMusicianName={selectedSlot.initialMusicianName}
           onClose={() => setSelectedSlot(null)}
           onSuccess={handleReservationSuccess}
           onOpenSeriesBuilder={(prefill) => {

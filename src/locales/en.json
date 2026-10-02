@@ -1366,5 +1366,30 @@
       "Urgent event — no other instrument available": "Urgent event — no other instrument available",
       "Other": "Other"
     }
+  },
+  "quickRebook": {
+    "title": "Re-Book Your Regular Service",
+    "badge": "Routine Service",
+    "subtitle": "1-tap booking for your routine church service",
+    "serviceLabel": "Service:",
+    "musicianLabel": "Musician:",
+    "switchRoutine": "Routine:",
+    "confirmBtn": "Confirm in 1 Tap",
+    "confirming": "Confirming...",
+    "customize": "Change Details",
+    "available": "Slot Available",
+    "instantApproval": "Instant Approval",
+    "alreadyBooked": "Already reserved for this {{day}}",
+    "alreadyBookedShort": "Already Booked",
+    "slotOccupied": "Occupied by another reservation",
+    "slotOccupiedShort": "Slot Occupied",
+    "viewCalendar": "View Calendar for Other Times",
+    "successTitle": "Reservation Confirmed!",
+    "successDesc": "{{instrument}} is booked for {{service}} on {{day}}.",
+    "shareWhatsApp": "Share to WhatsApp Group",
+    "shareWhatsAppSuccess": "WhatsApp link ready",
+    "dismiss": "Hide",
+    "reopenPrompt": "Re-book Regular Service",
+    "rebookAnother": "Book Another Slot"
   }
 }
