@@ -127,7 +127,80 @@ router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
 });
 
 /**
- * 2. Create single reservation
+ * 2. Create recurring reservation series
+ */
+router.post(
+  "/series",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!req.body.serviceName || !req.body.serviceName.trim()) {
+        res.status(400).json({
+          success: false,
+          error: "What this reservation is for (service_name) is required.",
+        });
+        return;
+      }
+      if (!req.body.musicianName || !req.body.musicianName.trim()) {
+        res.status(400).json({
+          success: false,
+          error: "Musician name is required.",
+        });
+        return;
+      }
+      if (!req.body.instrumentId) {
+        res.status(400).json({
+          success: false,
+          error: "Instrument is required.",
+        });
+        return;
+      }
+      if (
+        !Array.isArray(req.body.occurrences) ||
+        req.body.occurrences.length === 0
+      ) {
+        res.status(400).json({
+          success: false,
+          error: "Series must have at least one occurrence.",
+        });
+        return;
+      }
+
+      const sessionIdentity = await extractSessionIdentity(req);
+      const payload = {
+        ...req.body,
+        ...(sessionIdentity
+          ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
+          : {}),
+      };
+      const result = await createReservationSeries(payload);
+      res.status(201).json({ success: true, ...result });
+    } catch (err: any) {
+      console.error("Reservation series create error:", err);
+      const msg: string =
+        err.message || "Failed to create reservation series.";
+      const status =
+        err.code === "SUBMISSION_BLOCKED"
+          ? 400
+          : /not authorized/i.test(msg)
+            ? 403
+            : /not found/i.test(msg)
+              ? 404
+              : /conflicts?|working hours|maximum duration|exceeds|overlap|future|at least|at most|selected|invalid date|duration must|limit/i.test(
+                    msg,
+                  )
+                ? 400
+                : 500;
+      res.status(status).json({
+        success: false,
+        error: msg,
+        cause: err.cause?.message,
+      });
+    }
+  },
+);
+
+/**
+ * 3. Create single reservation
  */
 router.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
