@@ -336,7 +336,6 @@ router.put(
         FROM reservations
         WHERE id = ${id}
           AND status IN ('approved', 'ongoing')
-          AND NOW() >= lower(time_range)
           AND NOW() < lower(time_range) + INTERVAL '30 minutes'
         LIMIT 1
       `);
@@ -344,7 +343,7 @@ router.put(
         res.status(400).json({
           success: false,
           error:
-            "Condition check is available only during the first 30 minutes after the reservation starts.",
+            "Condition check is available before the reservation and during its first 30 minutes. The window closes 30 minutes after the reservation starts.",
         });
         return;
       }

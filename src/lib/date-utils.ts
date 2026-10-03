@@ -26,7 +26,6 @@ export function isConditionCheckWindowOpen(
   ).getTime();
   return (
     Number.isFinite(startTime) &&
-    now >= startTime &&
     now < startTime + 30 * 60 * 1000
   );
 }
