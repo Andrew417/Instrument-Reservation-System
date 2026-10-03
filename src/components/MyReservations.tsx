@@ -8,6 +8,7 @@ import {
   getLocalDateString,
   getCairoDateString,
   getCairoTimeString,
+  isConditionCheckWindowOpen,
 } from "../lib/date-utils";
 import {
   Calendar,
@@ -106,6 +107,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [conditionWindowNow, setConditionWindowNow] = useState(() =>
+    Date.now(),
+  );
 
   const fetchMyReservations = async () => {
     if (!profile) return;
@@ -137,6 +141,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   useEffect(() => {
     fetchMyReservations();
   }, [profile?.id, refreshTrigger, sessionToken]);
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setConditionWindowNow(Date.now()),
+      30_000,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
 
   const toggleSeriesExpansion = (seriesId: string) => {
     setExpandedSeries((prev) => ({
@@ -769,8 +781,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       )}
 
                     {onOpenConditionCheck &&
-                      (res.status === "approved" ||
-                        res.status === "ongoing") && (
+                      isConditionCheckWindowOpen(res, conditionWindowNow) && (
                         <button
                           type="button"
                           onClick={() => onOpenConditionCheck(res)}

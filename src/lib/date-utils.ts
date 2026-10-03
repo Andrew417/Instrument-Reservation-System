@@ -6,6 +6,31 @@ import i18n from "./i18n.js";
 
 export const APP_TIME_ZONE = "Africa/Cairo";
 
+export function isConditionCheckWindowOpen(
+  reservation: {
+    status?: string | null;
+    start_time?: string | null;
+    startTime?: string | null;
+  } | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (
+    !reservation ||
+    (reservation.status !== "approved" && reservation.status !== "ongoing")
+  ) {
+    return false;
+  }
+
+  const startTime = new Date(
+    reservation.start_time || reservation.startTime || "",
+  ).getTime();
+  return (
+    Number.isFinite(startTime) &&
+    now >= startTime &&
+    now < startTime + 30 * 60 * 1000
+  );
+}
+
 export function getCairoParts(dateInput: Date | string | number | null | undefined = new Date()) {
   let date: Date;
   if (dateInput instanceof Date) {

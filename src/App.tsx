@@ -123,6 +123,9 @@ const UserPortalMain: React.FC = () => {
   const [currentView, setCurrentView] = useState<
     "calendar" | "my_reservations" | "admin_portal" | "notifications"
   >("calendar");
+  const [initialAdminTab, setInitialAdminTab] = useState<
+    "dashboard" | "review" | "approvals" | "instruments" | "users" | "analytics" | "messaging"
+  >("dashboard");
 
   // Modals & Active Selections
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlotInfo | null>(
@@ -387,6 +390,7 @@ const UserPortalMain: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setIsNotificationsOpen(false);
+                  setInitialAdminTab("dashboard");
                   setCurrentView("admin_portal");
                 }}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
@@ -478,6 +482,17 @@ const UserPortalMain: React.FC = () => {
             refreshTrigger={refreshTrigger}
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
             onReservationSuccess={handleReservationSuccess}
+            onOpenReservationDetail={
+              isAdminOrSuperAdmin
+                ? (reservationId) => {
+                    setSelectedReservationDetailId(reservationId);
+                    setReservationDetailInitialTab("details");
+                    setReservationDetailFromNotifications(false);
+                    setReservationDetailFromUserProfile(false);
+                    setModalStackOrder("reservation_over_user");
+                  }
+                : undefined
+            }
           />
         )}
         {currentView === "notifications" && (
@@ -485,6 +500,10 @@ const UserPortalMain: React.FC = () => {
             isOpen={true}
             onClose={() => setCurrentView("calendar")}
             onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
+            onOpenAccountApprovals={() => {
+              setInitialAdminTab("approvals");
+              setCurrentView("admin_portal");
+            }}
             onSelectReservation={(reservationId, initialTab) => {
               setSelectedReservationDetailId(reservationId);
               setReservationDetailInitialTab(initialTab || "details");
@@ -536,6 +555,7 @@ const UserPortalMain: React.FC = () => {
         )}
         {currentView === "admin_portal" && isAdminOrSuperAdmin && (
           <AdminPortal
+            initialTab={initialAdminTab}
             onBackToMemberView={() => setCurrentView("calendar")}
             onOpenReservationDetail={(id) => {
               setSelectedReservationDetailId(id);
@@ -893,6 +913,7 @@ const UserPortalMain: React.FC = () => {
               onClick={() => {
                 setIsNotificationsOpen(false);
                 setActiveMobileTab("admin_portal");
+                setInitialAdminTab("dashboard");
                 setCurrentView("admin_portal");
               }}
               aria-current={

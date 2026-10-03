@@ -59,6 +59,7 @@ export interface NotificationsModalProps {
   ) => void;
   onUnreadCountChange?: (count: number) => void;
   onOpenUserProfile?: (userId: string) => void;
+  onOpenAccountApprovals?: () => void;
 }
 
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({
@@ -67,6 +68,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onSelectReservation,
   onUnreadCountChange,
   onOpenUserProfile,
+  onOpenAccountApprovals,
 }) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
@@ -215,6 +217,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   ) => {
     if (!notif.is_read) {
       handleMarkAsRead(notif.id);
+    }
+    if (notif.type === "account_approval_submitted") {
+      onOpenAccountApprovals?.();
+      return;
     }
     if (notif.reservation_id) {
       const tab =
@@ -1216,7 +1222,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
                             {/* Resolved status indicator for admins */}
                             {isAdminViewer &&
-                              notif.type === "reservation_submitted" &&
+                              (notif.type === "reservation_submitted" ||
+                                notif.type === "series_submitted") &&
                               notif.reservation_status &&
                               notif.reservation_status !== "pending" && (
                                 <span
@@ -1243,7 +1250,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
                             {/* Admin Quick Action Buttons (Pending Requests) */}
                             {isAdminViewer &&
-                              notif.type === "reservation_submitted" &&
+                              (notif.type === "reservation_submitted" ||
+                                notif.type === "series_submitted") &&
                               notif.reservation_status === "pending" && (
                                 <div
                                   className="flex items-center gap-1 ms-auto"
@@ -1285,7 +1293,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                             {notif.reservation_id &&
                               !(
                                 isAdminViewer &&
-                                notif.type === "reservation_submitted" &&
+                                (notif.type === "reservation_submitted" ||
+                                  notif.type === "series_submitted") &&
                                 notif.reservation_status === "pending"
                               ) && (
                                 <div className="ms-auto flex items-center gap-0.5 text-stone-400 group-hover:text-amber-800 text-[10px] font-semibold transition">

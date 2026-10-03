@@ -71,6 +71,7 @@ interface AvailabilityCalendarProps {
   refreshTrigger?: number;
   onLoadedInstruments?: (instruments: Instrument[]) => void;
   onReservationSuccess?: () => void;
+  onOpenReservationDetail?: (reservationId: string) => void;
 }
 
 // Generate 30-minute intervals from 09:00 to 22:00 (26 slots)
@@ -141,6 +142,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   refreshTrigger,
   onLoadedInstruments,
   onReservationSuccess,
+  onOpenReservationDetail,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -1052,7 +1054,36 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   } border-stone-200 text-center select-none`}
                                 >
                                   <div
-                                    className="w-full min-h-8 py-1 px-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-medium shadow-2xs transition-all border overflow-hidden"
+                                    role={
+                                      slotRes?.id && onOpenReservationDetail
+                                        ? "button"
+                                        : undefined
+                                    }
+                                    tabIndex={
+                                      slotRes?.id && onOpenReservationDetail
+                                        ? 0
+                                        : undefined
+                                    }
+                                    onClick={() => {
+                                      if (slotRes?.id) {
+                                        onOpenReservationDetail?.(slotRes.id);
+                                      }
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (
+                                        slotRes?.id &&
+                                        (event.key === "Enter" ||
+                                          event.key === " ")
+                                      ) {
+                                        event.preventDefault();
+                                        onOpenReservationDetail?.(slotRes.id);
+                                      }
+                                    }}
+                                    className={`w-full min-h-8 py-1 px-1.5 rounded-lg flex flex-col items-center justify-center text-[10px] font-medium shadow-2xs transition-all border overflow-hidden ${
+                                      slotRes?.id && onOpenReservationDetail
+                                        ? "cursor-pointer hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-amber-500/60"
+                                        : ""
+                                    }`}
                                     style={{
                                       backgroundColor: colorTheme.bgHex,
                                       borderColor: colorTheme.borderHex,

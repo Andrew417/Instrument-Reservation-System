@@ -9,6 +9,7 @@ import {
   formatHhmmTo12Hour,
   getCairoDateString,
   getCairoTimeString,
+  isConditionCheckWindowOpen,
 } from "../lib/date-utils";
 import { ConditionCheckModal } from "./ConditionCheckModal.tsx";
 import {
@@ -156,6 +157,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInstrumentDetails, setShowInstrumentDetails] = useState(false);
   const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
+  const [conditionWindowNow, setConditionWindowNow] = useState(() =>
+    Date.now(),
+  );
+
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setConditionWindowNow(Date.now()),
+      30_000,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Cancellation
   const [isCancelling, setIsCancelling] = useState(false);
@@ -895,6 +907,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const isApprovedOutsideChurch = isApproved && isOutsideChurch;
   const isAdminBooked = Boolean(
     reservation.booked_by_admin || reservation.bookedByAdmin,
+  );
+  const conditionCheckWindowOpen = isConditionCheckWindowOpen(
+    reservation,
+    conditionWindowNow,
   );
 
   const previewScreenshotUrl =
@@ -1837,17 +1853,19 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     </div>
                   )}
 
-                  <div className="pt-1 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setIsConditionModalOpen(true)}
-                      className="text-xs font-bold text-emerald-800 hover:text-emerald-950 transition cursor-pointer"
-                    >
-                      {isRTL
-                        ? "تعديل أو تحديث الفحص"
-                        : "Update Condition Check"}
-                    </button>
-                  </div>
+                  {conditionCheckWindowOpen && (
+                    <div className="pt-1 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setIsConditionModalOpen(true)}
+                        className="text-xs font-bold text-emerald-800 hover:text-emerald-950 transition cursor-pointer"
+                      >
+                        {isRTL
+                          ? "تعديل أو تحديث الفحص"
+                          : "Update Condition Check"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-3.5 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl space-y-2.5 text-xs sm:text-sm">
@@ -1856,18 +1874,26 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       ? "💡 لحمايتك من أي تلفيات سابقة أو أوتار قديمة، وثّق حالة الآلة عند استلامها لضمان إخلاء مسؤوليتك."
                       : "To protect yourself from liability for pre-existing scratches or issues, record the condition at pickup."}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsConditionModalOpen(true)}
-                    className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98"
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>
+                  {conditionCheckWindowOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsConditionModalOpen(true)}
+                      className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>
+                        {isRTL
+                          ? "📸 توثيق وفحص حالة الآلة الآن (احمِ نفسك)"
+                          : "📸 Record Condition Check Now"}
+                      </span>
+                    </button>
+                  ) : (
+                    <p className="text-xs font-semibold text-stone-600">
                       {isRTL
-                        ? "📸 توثيق وفحص حالة الآلة الآن (احمِ نفسك)"
-                        : "📸 Record Condition Check Now"}
-                    </span>
-                  </button>
+                        ? "انتهت نافذة الفحص بعد مرور 30 دقيقة من بدء الحجز."
+                        : "The condition-check window closed 30 minutes after the reservation started."}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

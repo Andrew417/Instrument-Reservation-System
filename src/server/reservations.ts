@@ -331,6 +331,24 @@ router.put(
       }
 
       const resRecord = rows[0];
+      const windowCheck = await db.execute(sql`
+        SELECT status
+        FROM reservations
+        WHERE id = ${id}
+          AND status IN ('approved', 'ongoing')
+          AND NOW() >= lower(time_range)
+          AND NOW() < lower(time_range) + INTERVAL '30 minutes'
+        LIMIT 1
+      `);
+      if (((windowCheck as any).rows || []).length === 0) {
+        res.status(400).json({
+          success: false,
+          error:
+            "Condition check is available only during the first 30 minutes after the reservation starts.",
+        });
+        return;
+      }
+
       const cleanCheckedBy = (
         checkedBy ||
         resRecord.musician_name ||

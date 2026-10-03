@@ -91,6 +91,7 @@ interface AdminPortalProps {
   onOpenReservationDetail?: (reservationId: string) => void;
   onInstrumentsChanged?: () => void;
   onOpenUserProfile?: (userId: string) => void;
+  initialTab?: AdminTab;
 }
 
 type AdminTab =
@@ -140,6 +141,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   onOpenReservationDetail,
   onInstrumentsChanged,
   onOpenUserProfile,
+  initialTab,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -169,6 +171,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Stats
   const [stats, setStats] = useState<{
