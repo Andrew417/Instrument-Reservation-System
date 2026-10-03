@@ -688,6 +688,24 @@ export async function createReservation(input: ReservationSubmissionInput) {
         message: `Your reservation on ${input.date} (${input.startTime} - ${getCairoTimeString(evalResult.endTimeUtc)}) has been approved.`,
       });
 
+      // Instant bookings do not require approval, but admins still receive an
+      // in-app audit notification. This intentionally does not send email.
+      if (
+        evalResult.reasons.some((reason) =>
+          reason.includes("Auto-approved via Instant Booking mode"),
+        )
+      ) {
+        const allAdmins = await db.select({ id: admins.id }).from(admins);
+        for (const admin of allAdmins) {
+          await db.insert(notifications).values({
+            adminId: admin.id,
+            reservationId: newReservation.id,
+            type: "reservation_instant_approved",
+            message: `Instant reservation created for ${input.serviceName} on ${input.date} at ${input.startTime}.`,
+          });
+        }
+      }
+
       // Send approval email for auto-approved booking (non-blocking)
       (async () => {
         try {

@@ -1432,6 +1432,43 @@ router.post(
 );
 
 /**
+ * Cancel all active occurrences in a recurring series.
+ */
+router.post(
+  "/reservations/series/:seriesId/cancel",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { seriesId } = req.params;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const firstOccurrence = await db
+        .select({ id: reservations.id })
+        .from(reservations)
+        .where(eq(reservations.seriesId, seriesId))
+        .limit(1);
+
+      if (!firstOccurrence[0]) {
+        res.status(404).json({ success: false, error: "Series not found." });
+        return;
+      }
+
+      const result = await cancelReservation(
+        firstOccurrence[0].id,
+        { cancelMode: "series", cancellationReason: "Cancelled by administrator." },
+        { adminId },
+      );
+      res.json({
+        success: true,
+        ...result,
+        message: "Entire recurring series cancelled.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
  * Get all occurrences of a series for admin inspect
  */
 router.get(

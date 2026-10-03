@@ -885,6 +885,29 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
                     {/* Series Header Actions */}
                     <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
+                      {sg.occurrences.some(
+                        (occ) =>
+                          !["cancelled", "rejected", "completed", "expired"].includes(
+                            occ.status,
+                          ),
+                      ) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCancellingItem({
+                              id: sg.occurrences[0].id,
+                              mode: "series",
+                              title: t("myReservations.cancelSeriesTitle", {
+                                service: sg.serviceName,
+                              }),
+                            })
+                          }
+                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation whitespace-nowrap"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>{t("myReservations.cancelEntireSeries")}</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}

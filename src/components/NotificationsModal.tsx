@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
+import { getStatusColor } from "../lib/status-colors.ts";
 import {
   Bell,
   CheckCircle2,
@@ -20,9 +21,8 @@ import {
   User,
   ExternalLink,
   Inbox,
-  Minimize2,
-  Maximize2,
   ChevronDown,
+  Zap,
 } from "lucide-react";
 
 export interface AppNotification {
@@ -95,14 +95,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     }
     return "compact";
   });
-
-  const toggleDensity = () => {
-    const next = density === "compact" ? "comfortable" : "compact";
-    setDensity(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("church_notifs_density", next);
-    }
-  };
 
   // Expanded cards tracker for reading long notes in compact mode
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -390,6 +382,16 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           borderAccent: "border-s-emerald-500",
           typeTextColor: "text-emerald-950",
           typeLabel: t("notifications.typeReservationApproved"),
+        };
+      case "reservation_instant_approved":
+        return {
+          icon: (
+            <Zap className="w-3.5 h-3.5 text-sky-700 shrink-0" />
+          ),
+          iconBg: "bg-sky-100/90 text-sky-800",
+          borderAccent: "border-s-sky-500",
+          typeTextColor: "text-sky-950",
+          typeLabel: "Instant Reservation Created",
         };
       case "reservation_rejected":
         return {
@@ -750,6 +752,19 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     return notif.message;
   };
 
+  const getReservationStatusLabel = (status?: string | null): string | null => {
+    if (!status || status === "pending") return null;
+    const labels: Record<string, string> = {
+      approved: t("common.approved"),
+      ongoing: t("common.ongoing"),
+      completed: t("common.completed"),
+      cancelled: t("common.cancelled"),
+      rejected: t("common.rejected"),
+      auto_rejected: t("common.rejected"),
+    };
+    return labels[status] || status;
+  };
+
   const formatTimeAgo = (dateString: string) => {
     try {
       const d = new Date(dateString);
@@ -902,41 +917,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
             </div>
           </div>
 
-          {/* Quick Actions (Density Switcher, Mark All Read, Refresh) */}
+          {/* Quick Actions (Mark All Read, Refresh) */}
           <div className="shrink-0 flex items-center gap-1">
-            {/* Density toggle button */}
-            <button
-              type="button"
-              onClick={toggleDensity}
-              title={
-                density === "compact"
-                  ? t("notifications.densityComfortable", "Comfortable View")
-                  : t("notifications.densityCompact", "Compact View")
-              }
-              aria-label="Toggle density"
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition cursor-pointer touch-manipulation border ${
-                density === "compact"
-                  ? "bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100"
-                  : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
-              }`}
-            >
-              {density === "compact" ? (
-                <>
-                  <Minimize2 className="w-3 h-3 text-amber-700" />
-                  <span className="hidden sm:inline">
-                    {t("notifications.densityCompact", "Compact")}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3 h-3 text-stone-600" />
-                  <span className="hidden sm:inline">
-                    {t("notifications.densityComfortable", "Comfortable")}
-                  </span>
-                </>
-              )}
-            </button>
-
             {unreadCount > 0 && (
               <button
                 type="button"
@@ -1122,6 +1104,29 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                               >
                                 {visuals.typeLabel}
                               </span>
+                              {(notif.type === "reservation_submitted" ||
+                                notif.type === "series_submitted") &&
+                                getReservationStatusLabel(
+                                  notif.reservation_status,
+                                ) && (
+                                  <>
+                                    <span
+                                      className="text-stone-300 text-[10px] leading-none"
+                                      aria-hidden="true"
+                                    >
+                                      -
+                                    </span>
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold leading-none ${getStatusColor(
+                                        notif.reservation_status,
+                                      )}`}
+                                    >
+                                      {getReservationStatusLabel(
+                                        notif.reservation_status,
+                                      )}
+                                    </span>
+                                  </>
+                                )}
                               <span
                                 className="text-stone-300 text-[10px] leading-none"
                                 aria-hidden="true"
@@ -1218,34 +1223,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                   </span>
                                   <ExternalLink className="w-2 h-2 text-amber-700/60" />
                                 </button>
-                              )}
-
-                            {/* Resolved status indicator for admins */}
-                            {isAdminViewer &&
-                              (notif.type === "reservation_submitted" ||
-                                notif.type === "series_submitted") &&
-                              notif.reservation_status &&
-                              notif.reservation_status !== "pending" && (
-                                <span
-                                  className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                                    notif.reservation_status === "approved"
-                                      ? "text-emerald-800 bg-emerald-50"
-                                      : "text-red-800 bg-red-50"
-                                  }`}
-                                >
-                                  {notif.reservation_status === "approved" ? (
-                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                                  ) : (
-                                    <XCircle className="w-2.5 h-2.5 text-red-600" />
-                                  )}
-                                  <span>
-                                    {notif.reservation_status === "approved"
-                                      ? t("common.approved")
-                                      : notif.rejection_reason
-                                        ? `${t("common.rejected")}: ${notif.rejection_reason}`
-                                        : t("common.rejected")}
-                                  </span>
-                                </span>
                               )}
 
                             {/* Admin Quick Action Buttons (Pending Requests) */}

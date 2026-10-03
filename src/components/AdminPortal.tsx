@@ -1347,6 +1347,38 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     openRejectModal({ ...r, isSeriesReject: true });
   };
 
+  const handleCancelSeries = (r: any) => {
+    if (!r.series_id) return;
+    setConfirmModal({
+      isOpen: true,
+      title: "Cancel Entire Recurring Series",
+      description:
+        "Cancel all active and pending occurrences in this series? The member will be notified.",
+      confirmLabel: "Cancel Entire Series",
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await adminFetch(
+            `/reservations/series/${r.series_id}/cancel`,
+            { method: "POST" },
+          );
+          const data = await res.json();
+          if (data.success) {
+            showNotice("Entire recurring series cancelled.");
+            fetchReservations();
+            refreshAllStats();
+          } else {
+            showNotice(data.error || "Failed to cancel series.", "error");
+          }
+        } catch (err: any) {
+          showNotice(err.message || "Error cancelling series.", "error");
+        } finally {
+          setConfirmModal(null);
+        }
+      },
+    });
+  };
+
   // Instrument CRUD
   const handleSaveInstrument = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3109,6 +3141,19 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                           {t("admin.review.rejectBtn")}
                                         </span>
                                       </button>
+                                      {r.series_id && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCancelSeries(r)}
+                                          className="min-h-[40px] px-3 py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                          title="Cancel entire recurring series"
+                                        >
+                                          <Trash2 className="w-4 h-4 shrink-0" />
+                                          <span className="hidden sm:inline">
+                                            Cancel Series
+                                          </span>
+                                        </button>
+                                      )}
                                     </>
                                   )}
 
