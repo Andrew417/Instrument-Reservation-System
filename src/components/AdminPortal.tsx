@@ -375,6 +375,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     total: number;
   }>({ pending: 0, approved: 0, rejected: 0, total: 0 });
   const [approvalActionId, setApprovalActionId] = useState<string | null>(null);
+  const approvalsReqSeq = useRef<number>(0);
 
   // Impersonation / Book on behalf
   const [bookOnBehalfUser, setBookOnBehalfUser] = useState<any | null>(null);
@@ -676,16 +677,30 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // Fetch Account Approvals
-  const fetchApprovals = async () => {
+  const fetchApprovals = async (
+    statusOverride?: "pending" | "rejected" | "approved" | "all" | unknown,
+    searchOverride?: string,
+  ) => {
+    const seq = ++approvalsReqSeq.current;
     setLoadingApprovals(true);
     try {
+      const activeStatus =
+        typeof statusOverride === "string"
+          ? (statusOverride as "pending" | "rejected" | "approved" | "all")
+          : approvalFilterStatus;
+      const activeSearch =
+        typeof searchOverride === "string" ? searchOverride : approvalSearch;
       const params = new URLSearchParams();
-      if (approvalFilterStatus !== "all")
-        params.append("status", approvalFilterStatus);
-      if (approvalSearch) params.append("search", approvalSearch);
+      if (activeStatus) {
+        params.append("status", activeStatus);
+      }
+      if (activeSearch && activeSearch.trim()) {
+        params.append("search", activeSearch.trim());
+      }
 
       const res = await adminFetch(`/approvals?${params.toString()}`);
       const data = await res.json();
+      if (seq !== approvalsReqSeq.current) return;
       if (data.success) {
         setApprovalsList(data.users || []);
         if (data.counts) {
@@ -697,9 +712,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         }
       }
     } catch {
-      showNotice("Failed to load registration approvals", "error");
+      if (seq === approvalsReqSeq.current) {
+        showNotice("Failed to load registration approvals", "error");
+      }
     } finally {
-      setLoadingApprovals(false);
+      if (seq === approvalsReqSeq.current) {
+        setLoadingApprovals(false);
+      }
     }
   };
 
@@ -979,6 +998,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     filterSearch,
     filterStartDate,
     filterEndDate,
+    approvalFilterStatus,
+    approvalSearch,
+    userFilterStatus,
+    userSearch,
   ]);
 
   // Lock iOS rubber-band when the fixed bottom bar is visible
@@ -3805,7 +3828,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <button
                   id="btn-refresh-approvals"
                   type="button"
-                  onClick={fetchApprovals}
+                  onClick={() => fetchApprovals()}
                   className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
                   title={t("admin.approvals.refreshTooltip")}
                 >
@@ -3821,8 +3844,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   placeholder={t("admin.approvals.searchPlaceholder")}
                   value={approvalSearch}
                   onChange={(e) => setApprovalSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
+                  className="w-full pl-8 pr-8 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
                 />
+                {approvalSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setApprovalSearch("")}
+                    className="absolute right-2.5 top-2.5 text-stone-400 hover:text-stone-600 cursor-pointer p-0.5"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto -mx-1 px-1 pb-2 scrollbar-hide">
@@ -3860,7 +3893,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => setApprovalFilterStatus(tab.key)}
+                      onClick={() => {
+                        if (approvalFilterStatus === tab.key) {
+                          fetchApprovals(tab.key);
+                        } else {
+                          setApprovalFilterStatus(tab.key);
+                        }
+                      }}
                       className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${
                         isActive
                           ? "bg-amber-800 text-white shadow-xs"

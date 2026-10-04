@@ -2213,7 +2213,9 @@ router.post(
  */
 router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status = "pending", search } = req.query;
+    const rawStatus = typeof req.query.status === "string" ? req.query.status.toLowerCase().trim() : "pending";
+    const status = rawStatus || "pending";
+    const search = req.query.search;
 
     let querySql = sql`
       SELECT 
@@ -2232,12 +2234,13 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
     `;
 
     if (status === "pending") {
-      querySql = sql`${querySql} AND u.approval_status = 'pending'`;
+      querySql = sql`${querySql} AND (u.approval_status = 'pending' OR (u.approval_status IS NULL AND u.is_active = false))`;
     } else if (status === "rejected") {
       querySql = sql`${querySql} AND u.approval_status = 'rejected'`;
     } else if (status === "approved") {
-      querySql = sql`${querySql} AND u.approval_status = 'approved'`;
+      querySql = sql`${querySql} AND (u.approval_status = 'approved' OR (u.approval_status IS NULL AND u.is_active = true))`;
     }
+    // If status === 'all', no approval_status condition is added, returning all records
 
     if (search && typeof search === "string" && search.trim()) {
       const term = `%${search.trim()}%`;
@@ -2261,8 +2264,8 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
     // Get breakdown counts
     const countsRes = await db.execute(sql`
       SELECT 
-        COUNT(CASE WHEN approval_status = 'pending' THEN 1 END)::int as pending,
-        COUNT(CASE WHEN approval_status = 'approved' THEN 1 END)::int as approved,
+        COUNT(CASE WHEN approval_status = 'pending' OR (approval_status IS NULL AND is_active = false) THEN 1 END)::int as pending,
+        COUNT(CASE WHEN approval_status = 'approved' OR (approval_status IS NULL AND is_active = true) THEN 1 END)::int as approved,
         COUNT(CASE WHEN approval_status = 'rejected' THEN 1 END)::int as rejected,
         COUNT(*)::int as total
       FROM users
