@@ -35,6 +35,7 @@ import {
   Church,
   Check,
   User,
+  HelpCircle,
 } from "lucide-react";
 
 const TIME_SLOTS = [
@@ -522,21 +523,29 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     >
       <div
         id="series-builder-modal"
-        className="bg-stone-50 sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full sm:max-w-2xl z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)]"
+        className={`bg-stone-50 sm:rounded-3xl sm:border sm:border-stone-200 shadow-2xl w-full z-10 flex flex-col h-full sm:h-auto sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${
+          seriesResult ? "sm:max-w-xl" : "sm:max-w-2xl"
+        }`}
+        dir={isAr ? "rtl" : "ltr"}
       >
         {/* Header */}
-        <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-5 flex items-center justify-between border-b border-stone-800">
+        <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between border-b border-stone-800">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
               <Repeat className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
-                {seriesResult
-                  ? t("seriesBuilder.confirmationTitle")
-                  : t("seriesBuilder.title")}
-              </h2>
-              <p className="text-[11px] sm:text-xs text-stone-400 truncate">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
+                  {seriesResult
+                    ? t("seriesBuilder.confirmationTitle")
+                    : t("seriesBuilder.title")}
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-200 border border-amber-700/50 hidden sm:inline-block truncate max-w-[140px]">
+                  {currentInstrument.name}
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-stone-400 truncate mt-0.5">
                 {seriesResult
                   ? t("seriesBuilder.confirmationSubtitle")
                   : t("seriesBuilder.builderSubtitle")}
@@ -544,22 +553,33 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
             </div>
           </div>
 
-          <button
-            id="btn-close-series-modal"
-            onClick={onClose}
-            className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
-            aria-label={t("common.close")}
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPolicyExplainer(true)}
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-amber-300 hover:text-white hover:bg-stone-700 transition cursor-pointer border border-stone-700/70"
+              title={t("nav.howBookingWorks")}
+            >
+              <HelpCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            </button>
+
+            <button
+              id="btn-close-series-modal"
+              onClick={onClose}
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70"
+              aria-label={t("common.close")}
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
         </div>
 
         {/* ------------------------------------------------------------- */}
-        {/* RESULT / CONFIRMATION VIEW (Per-occurrence breakdown) */}
+        {/* RESULT / CONFIRMATION VIEW (Receipt & Per-occurrence breakdown) */}
         {/* ------------------------------------------------------------- */}
         {seriesResult ? (
           <>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-7 space-y-4 sm:space-y-5">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 sm:space-y-5 bg-white">
               {(() => {
                 const occurrences = seriesResult.occurrences || [];
                 const approvedCount = occurrences.filter(
@@ -574,173 +594,201 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
 
                 return (
                   <>
-                    {/* Top Status Banner */}
-                    <div
-                      className={`p-3.5 sm:p-4 rounded-2xl border flex items-start gap-3 shadow-2xs ${
-                        allApproved
-                          ? "bg-emerald-50 border-emerald-200 text-emerald-950"
-                          : "bg-amber-50 border-amber-200 text-amber-950"
-                      }`}
-                    >
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 mt-0.5 shadow-2xs ${
-                          allApproved
-                            ? "bg-emerald-600 text-white"
-                            : "bg-amber-700 text-white"
-                        }`}
-                      >
-                        {allApproved ? (
-                          <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                        ) : (
-                          <Clock className="w-5 h-5 stroke-[2.5]" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="font-bold text-xs sm:text-sm">
-                          {allApproved
-                            ? t("seriesBuilder.allApprovedTitle", {
-                                defaultValue:
-                                  "All occurrences automatically approved!",
-                              })
-                            : pendingCount === totalCount
-                              ? t("seriesBuilder.allPendingTitle", {
-                                  defaultValue:
-                                    "Recurring schedule submitted for admin review",
-                                })
-                              : t("seriesBuilder.mixedApprovalTitle", {
-                                  defaultValue: `${approvedCount} approved, ${pendingCount} pending admin review`,
-                                })}
+                    {/* Status Hero Card */}
+                    {allApproved ? (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 text-emerald-900 flex items-start gap-3.5 shadow-2xs">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <CheckCircle2 className="w-6 h-6" />
                         </div>
-                        <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed">
-                          {allApproved
-                            ? t("seriesBuilder.allApprovedDesc", {
-                                defaultValue:
-                                  "All dates in this recurring series have been approved and booked on the calendar.",
-                              })
-                            : t("seriesBuilder.pendingReviewDesc", {
-                                defaultValue:
-                                  "Your series has been created. Dates requiring admin review will be evaluated by church leadership.",
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-base text-emerald-950">
+                              {t("seriesBuilder.allApprovedTitle", {
+                                defaultValue: "All Occurrences Approved!",
                               })}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Series Summary Card */}
-                    <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3.5">
-                      {/* Instrument & Type Row */}
-                      <div className="flex items-center justify-between gap-3 pb-3 border-b border-stone-100">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-9 h-9 rounded-xl bg-amber-800 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
-                            <Music2 className="w-4 h-4" />
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-200 text-emerald-900 uppercase tracking-wide whitespace-nowrap">
+                              {t("reservationForm.resultInstantBadge", {
+                                defaultValue: "Instant Approval",
+                              })}
+                            </span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                              {t("seriesBuilder.instrumentColonLabel")}
-                            </div>
-                            <div className="text-xs sm:text-sm font-bold text-stone-900 truncate">
-                              {currentInstrument.name}
-                            </div>
-                          </div>
+                          <p className="text-xs text-emerald-800 leading-relaxed">
+                            {t("seriesBuilder.allApprovedDesc", {
+                              defaultValue:
+                                "All dates in this recurring series have been approved and booked on the calendar.",
+                            })}
+                          </p>
                         </div>
-
-                        <span
-                          className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            reservationType === "outside_church"
-                              ? "bg-amber-100 text-amber-950 border border-amber-300"
-                              : "bg-stone-100 text-stone-700 border border-stone-200"
-                          }`}
-                        >
-                          {reservationType === "outside_church" ? (
-                            <>
-                              <DollarSign className="w-3 h-3 text-amber-800 shrink-0" />
-                              <span>{t("admin.review.outsideBadge")}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Church className="w-3 h-3 text-stone-500 shrink-0" />
-                              <span>{t("admin.review.inChurchBadge")}</span>
-                            </>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 text-amber-900 flex items-start gap-3.5 shadow-2xs">
+                        <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-bold text-sm sm:text-base text-amber-950">
+                              {pendingCount === totalCount
+                                ? t("seriesBuilder.allPendingTitle", {
+                                    defaultValue:
+                                      "Recurring schedule submitted for admin review",
+                                  })
+                                : t("seriesBuilder.mixedApprovalTitle", {
+                                    approved: approvedCount,
+                                    pending: pendingCount,
+                                    defaultValue: `${approvedCount} approved, ${pendingCount} pending admin review`,
+                                  })}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase tracking-wide whitespace-nowrap">
+                              {t("reservationForm.resultPendingBadge", {
+                                defaultValue: "Pending Review",
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-amber-800 leading-relaxed">
+                            {t("seriesBuilder.pendingReviewDesc", {
+                              defaultValue:
+                                "Your series has been created. Dates requiring admin review will be evaluated by church leadership.",
+                            })}
+                          </p>
+                          {reservationType === "outside_church" && (
+                            <div className="pt-2 text-[11px] text-amber-800/90 font-medium">
+                              {t("seriesBuilder.whatsappNotice", {
+                                defaultValue:
+                                  "If your reservation is approved, the admin will contact you on WhatsApp for confirmation and payment.",
+                              })}
+                            </div>
                           )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Receipt Summary Grid */}
+                    <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 space-y-3 text-xs shadow-2xs">
+                      <div className="font-bold text-stone-900 text-sm border-b border-stone-200 pb-2 flex items-center justify-between">
+                        <span>
+                          {t("reservationForm.bookingDetailsTitle", {
+                            defaultValue: "Booking Details",
+                          })}
+                        </span>
+                        <span className="text-[11px] text-stone-500 font-mono">
+                          #{seriesResult.series.id?.slice(0, 8)}
                         </span>
                       </div>
 
-                      {/* Key Info Grid */}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
-                          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                            {t("seriesBuilder.whatForLabel")}
-                          </div>
-                          <div className="font-bold text-stone-800 truncate mt-0.5">
-                            {serviceName || "—"}
-                          </div>
-                        </div>
-
-                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
-                          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                            {t("seriesBuilder.musicianNameLabel")}
-                          </div>
-                          <div className="font-bold text-stone-800 truncate mt-0.5">
-                            {musicianName || "—"}
-                          </div>
-                        </div>
-
-                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
-                          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                            {t("seriesBuilder.patternLabel")}
-                          </div>
-                          <div className="font-bold text-stone-800 capitalize truncate mt-0.5">
-                            {seriesResult.series.patternType} · {totalCount}{" "}
-                            {t("admin.review.datesCount", {
-                              count: totalCount,
-                              defaultValue: `${totalCount} dates`,
-                            })}
-                          </div>
-                        </div>
-
-                        {serviceLocation ? (
-                          <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
-                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                              {t("reservationForm.serviceLocation")}
-                            </div>
-                            <div className="font-bold text-stone-800 truncate mt-0.5">
-                              {serviceLocation}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
-                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                              {t("seriesBuilder.seriesIdLabel")}
-                            </div>
-                            <div className="font-mono text-[11px] font-bold text-stone-600 truncate mt-0.5">
-                              {seriesResult.series.id.substring(0, 13)}...
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Notes (if present) */}
-                      {note.trim() && (
-                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 text-xs">
-                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mb-0.5">
-                            {t("seriesBuilder.noteLabel", {
-                              defaultValue: "Notes",
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="min-w-0">
+                          <span className="text-stone-500 font-medium block">
+                            {t("reservationForm.instrumentColonLabel", {
+                              defaultValue: "Instrument:",
                             })}
                           </span>
-                          <p className="text-stone-700 leading-relaxed whitespace-pre-wrap break-words">
-                            {note.trim()}
-                          </p>
+                          <span className="font-bold text-stone-900 text-sm block truncate">
+                            {currentInstrument.name}
+                          </span>
+                          <span className="text-[11px] text-stone-500 block truncate">
+                            {currentInstrument.type}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-stone-500 font-medium block">
+                            {t("reservationForm.typeColonLabel", {
+                              defaultValue: "Type:",
+                            })}
+                          </span>
+                          <span className="font-bold text-stone-900 capitalize">
+                            {reservationType === "in_church"
+                              ? t("reservationForm.inChurchFreeLabel", {
+                                  defaultValue: "In Church (Free)",
+                                })
+                              : t("reservationForm.outsideChurchPaidLabel", {
+                                  defaultValue: "Outside Church (Paid)",
+                                })}
+                          </span>
+                          {reservationType === "outside_church" &&
+                            feeNumber > 0 && (
+                              <span className="text-[11px] text-purple-700 font-semibold block">
+                                {t("reservationForm.feePerDayLabel", {
+                                  fee: feeNumber,
+                                  defaultValue: `${feeNumber} EGP / day`,
+                                })}
+                              </span>
+                            )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-stone-200">
+                        <span className="text-stone-500 font-medium block">
+                          {t("reservationForm.purposeColonLabel", {
+                            defaultValue: "What this series is for:",
+                          })}
+                        </span>
+                        <span className="font-bold text-stone-900 text-sm">
+                          {serviceName ||
+                            t("reservationForm.notSpecifiedLabel", {
+                              defaultValue: "Not specified",
+                            })}
+                        </span>
+                      </div>
+
+                      {serviceLocation && (
+                        <div className="pt-2 border-t border-stone-200">
+                          <span className="text-stone-500 font-medium flex items-center gap-1">
+                            <Church className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            <span>
+                              {t("reservationForm.serviceLocationLabel", {
+                                defaultValue: "Service Location:",
+                              })}
+                            </span>
+                          </span>
+                          <span className="font-bold text-stone-900 text-sm">
+                            {serviceLocation}
+                          </span>
                         </div>
                       )}
 
-                      {/* Outside church WhatsApp notification */}
-                      {reservationType === "outside_church" && (
-                        <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5">
-                          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
-                            WA
-                          </div>
-                          <p className="leading-relaxed">
-                            {t("seriesBuilder.whatsappNotice")}
-                          </p>
+                      <div className="pt-2 border-t border-stone-200">
+                        <span className="text-stone-500 font-medium block">
+                          {t("reservationForm.musicianNameLabel", {
+                            defaultValue: "Musician Name:",
+                          })}
+                        </span>
+                        <span className="font-bold text-stone-900 text-sm">
+                          {musicianName}
+                        </span>
+                      </div>
+
+                      <div className="pt-2 border-t border-stone-200">
+                        <span className="text-stone-500 font-medium block">
+                          {t("seriesBuilder.patternLabel", {
+                            defaultValue: "Pattern:",
+                          })}
+                        </span>
+                        <span className="font-bold text-stone-900 text-sm capitalize">
+                          {seriesResult.series.patternType === "weekly"
+                            ? t("seriesBuilder.weeklyCadenceTitle", {
+                                defaultValue: "Weekly",
+                              })
+                            : seriesResult.series.patternType}{" "}
+                          ({totalCount}{" "}
+                          {t("admin.review.datesCount", {
+                            count: totalCount,
+                            defaultValue: `${totalCount} dates`,
+                          })})
+                        </span>
+                      </div>
+
+                      {note.trim() && (
+                        <div className="pt-2 border-t border-stone-200">
+                          <span className="text-stone-500 font-medium block">
+                            {t("reservationForm.leaveANoteLabel", {
+                              defaultValue: "Notes",
+                            })}
+                          </span>
+                          <span className="font-medium text-stone-900 text-xs whitespace-pre-wrap">
+                            {note.trim()}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -751,16 +799,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                         <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
                           <CalendarDays className="w-4 h-4 text-amber-800 shrink-0" />
                           <span>
-                            {t("seriesBuilder.perOccurrenceBreakdown")}
+                            {t("seriesBuilder.perOccurrenceBreakdown", {
+                              defaultValue: "Per-Occurrence Status Breakdown:",
+                            })}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setShowPolicyExplainer(true)}
-                            className="text-stone-400 hover:text-amber-800 transition cursor-pointer p-0.5"
-                            title={t("seriesBuilder.learnMoreLimitsTooltip")}
-                          >
-                            <Info className="w-3.5 h-3.5" />
-                          </button>
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -768,7 +810,10 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
                               <span>
-                                {approvedCount} {t("common.approved")}
+                                {approvedCount}{" "}
+                                {t("common.approved", {
+                                  defaultValue: "Approved",
+                                })}
                               </span>
                             </span>
                           )}
@@ -777,15 +822,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                               <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
                               <span>
                                 {pendingCount}{" "}
-                                {t("seriesBuilder.pendingReviewBadge")}
+                                {t("seriesBuilder.pendingReviewBadge", {
+                                  defaultValue: "Pending Review",
+                                })}
                               </span>
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Naturally scrollable cards - NO nested scroll trap */}
-                      <div className="space-y-2.5">
+                      {/* Stack of compact occurrence cards */}
+                      <div className="space-y-2">
                         {occurrences.map((item, idx) => {
                           const isApproved =
                             item.evaluation.status === "approved";
@@ -815,81 +862,67 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                             getCairoTimeString(endUtc),
                           )}`;
 
-                          const reasons = item.evaluation.reasons || [];
-
                           return (
                             <div
                               key={item.reservation?.id || idx}
-                              className={`bg-white border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-2.5 transition ${
+                              className={`border rounded-xl p-3 sm:px-4 sm:py-3 shadow-2xs flex items-center justify-between gap-2.5 transition ${
                                 isApproved
-                                  ? "border-emerald-200/90"
-                                  : "border-stone-200"
+                                  ? "bg-emerald-50/30 border-emerald-200/80"
+                                  : "bg-stone-50 border-stone-200"
                               }`}
                             >
-                              {/* Top Row: Occurrence #, Date & Time, Status Badge */}
-                              <div className="flex items-start justify-between gap-2.5">
-                                <div className="flex items-start gap-2.5 min-w-0">
-                                  <span
-                                    className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shadow-2xs ${
-                                      isApproved
-                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                                        : "bg-amber-100 text-amber-800 border border-amber-200"
-                                    }`}
-                                  >
-                                    #{idx + 1}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <div className="font-bold text-stone-900 text-xs sm:text-sm leading-snug">
-                                      {fullDateDisplay}
-                                    </div>
-                                    <div className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
-                                      <Clock className="w-3 h-3 text-stone-400 shrink-0" />
-                                      <span>{timeStr}</span>
-                                    </div>
-                                  </div>
-                                </div>
-
+                              {/* Left side: #number and Date - Time */}
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                 <span
-                                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
+                                  className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shadow-2xs ${
                                     isApproved
-                                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                                      : "bg-amber-100 text-amber-900 border border-amber-300"
+                                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                      : "bg-amber-100 text-amber-800 border border-amber-200"
                                   }`}
                                 >
-                                  {isApproved ? (
-                                    <>
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
-                                      <span>{t("common.approved")}</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
-                                      <span>
-                                        {t("seriesBuilder.pendingReviewBadge")}
-                                      </span>
-                                    </>
-                                  )}
+                                  #{idx + 1}
                                 </span>
-                              </div>
-
-                              {/* Clean Bulleted Reasons Box (If Pending) */}
-                              {!isApproved && reasons.length > 0 && (
-                                <div className="pt-2 border-t border-amber-100/80 bg-amber-50/70 rounded-xl p-2.5 space-y-1 text-amber-950">
-                                  <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-900">
-                                    <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                                    <span>
-                                      {t("seriesBuilder.reviewReasonsLabel")}
+                                <div className="font-semibold text-stone-900 text-xs sm:text-sm leading-tight">
+                                  <div className="flex flex-wrap items-center gap-x-1.5">
+                                    <span>{fullDateDisplay}</span>
+                                    <span className="text-stone-400 font-normal hidden xs:inline">
+                                      -
+                                    </span>
+                                    <span className="text-stone-600 font-medium">
+                                      {timeStr}
                                     </span>
                                   </div>
-                                  <ul className="space-y-1 ps-4 text-[11px] text-amber-900/90 list-disc leading-snug">
-                                    {reasons.map(
-                                      (rStr: string, rIdx: number) => (
-                                        <li key={rIdx}>{rStr}</li>
-                                      ),
-                                    )}
-                                  </ul>
                                 </div>
-                              )}
+                              </div>
+
+                              {/* Right side: Compact Status Badge */}
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
+                                  isApproved
+                                    ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                                    : "bg-amber-100 text-amber-900 border border-amber-300"
+                                }`}
+                              >
+                                {isApproved ? (
+                                  <>
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
+                                    <span>
+                                      {t("common.approved", {
+                                        defaultValue: "Approved",
+                                      })}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
+                                    <span>
+                                      {t("seriesBuilder.pendingReviewBadge", {
+                                        defaultValue: "Pending Review",
+                                      })}
+                                    </span>
+                                  </>
+                                )}
+                              </span>
                             </div>
                           );
                         })}
@@ -900,15 +933,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
               })()}
             </div>
 
-            {/* Confirmation Footer */}
-            <div className="shrink-0 p-3.5 sm:px-8 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-6 border-t border-stone-200 bg-white shadow-xs">
+            {/* Receipt Footer Actions */}
+            <div className="shrink-0 p-4 sm:px-6 sm:pb-5 border-t border-stone-200 bg-white">
               <button
+                type="button"
                 id="btn-series-done"
                 onClick={onClose}
-                className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation flex items-center justify-center gap-2 active:scale-[0.99]"
+                className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
               >
-                <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
-                <span>{t("seriesBuilder.doneReturnToCalendar")}</span>
+                {t("seriesBuilder.doneReturnToCalendar", {
+                  defaultValue: "Done (Return to Calendar)",
+                })}
               </button>
             </div>
           </>
