@@ -170,10 +170,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab || "dashboard");
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
   }, [initialTab]);
 
   // Stats
@@ -1185,7 +1187,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     });
   };
 
-  const openRejectModal = (r: any) => {
+  const openRejectModal = (
+    r: any,
+    isSeriesReject: boolean = false,
+    seriesOccurrencesCount?: number,
+  ) => {
     const startDate = new Date(r.start_time).toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
@@ -1205,7 +1211,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       isOpen: true,
       reservationId: r.id,
       seriesId: r.series_id || null,
-      isSeriesReject: false,
+      isSeriesReject,
+      seriesOccurrencesCount,
       memberName: r.user_name || "Member",
       instrumentName: r.instrument_name || "Instrument",
       dateFormatted: startDate,
@@ -1227,7 +1234,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     try {
       if (isSeriesReject && seriesId) {
-        const res = await adminFetch(`/series/${seriesId}/reject-all`, {
+        const res = await adminFetch(`/reservations/series/${seriesId}/reject`, {
           method: "POST",
           body: JSON.stringify({ reason: reason.trim() }),
         });
@@ -1323,9 +1330,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       isDestructive: false,
       onConfirm: async () => {
         try {
-          const res = await adminFetch(`/series/${seriesId}/approve-all`, {
-            method: "POST",
-          });
+          const res = await adminFetch(
+            `/reservations/series/${seriesId}/approve`,
+            {
+              method: "POST",
+            },
+          );
           const data = await res.json();
           if (data.success) {
             showNotice("All future recurring occurrences approved.");
@@ -1345,38 +1355,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
   const handleRejectSeries = (r: any) => {
     openRejectModal({ ...r, isSeriesReject: true });
-  };
-
-  const handleCancelSeries = (r: any) => {
-    if (!r.series_id) return;
-    setConfirmModal({
-      isOpen: true,
-      title: "Cancel Entire Recurring Series",
-      description:
-        "Cancel all active and pending occurrences in this series? The member will be notified.",
-      confirmLabel: "Cancel Entire Series",
-      isDestructive: true,
-      onConfirm: async () => {
-        try {
-          const res = await adminFetch(
-            `/reservations/series/${r.series_id}/cancel`,
-            { method: "POST" },
-          );
-          const data = await res.json();
-          if (data.success) {
-            showNotice("Entire recurring series cancelled.");
-            fetchReservations();
-            refreshAllStats();
-          } else {
-            showNotice(data.error || "Failed to cancel series.", "error");
-          }
-        } catch (err: any) {
-          showNotice(err.message || "Error cancelling series.", "error");
-        } finally {
-          setConfirmModal(null);
-        }
-      },
-    });
   };
 
   // Instrument CRUD
@@ -2011,6 +1989,179 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
   }, []);
 
+  // Recurring series expansion state & helpers
+  const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const toggleSeriesExpanded = (seriesId: string) => {
+    setExpandedSeriesIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(seriesId)) {
+        next.delete(seriesId);
+      } else {
+        next.add(seriesId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectSeries = (occurrences: any[]) => {
+    const occIds = occurrences.map((o) => o.id);
+    const allSelected = occIds.every((id) =>
+      selectedReservationIds.includes(id),
+    );
+    if (allSelected) {
+      setSelectedReservationIds((prev) =>
+        prev.filter((id) => !occIds.includes(id)),
+      );
+    } else {
+      setSelectedReservationIds((prev) => [
+        ...prev,
+        ...occIds.filter((id) => !prev.includes(id)),
+      ]);
+    }
+  };
+
+  const getAdminDisplayName = (r: any): string => {
+    if (r?.admin_name && typeof r.admin_name === "string" && r.admin_name.trim()) {
+      return r.admin_name.trim();
+    }
+    if (r?.admin_id) {
+      const match = adminAccountsList.find((a) => a.id === r.admin_id);
+      if (match?.name) return match.name;
+    }
+    if (profile?.name) return profile.name;
+    return "Admin";
+  };
+
+  const isReservationAdminBooked = (r: any): boolean => {
+    if (!r) return false;
+    if (r.booked_by_admin || r.bookedByAdmin) return true;
+    if (!r.user_id) return true;
+    if (!r.user_name) return true;
+    const lowerName =
+      typeof r.user_name === "string" ? r.user_name.trim().toLowerCase() : "";
+    if (lowerName === "unknown" || lowerName === "member") {
+      return true;
+    }
+    return false;
+  };
+
+  const formatCompactOccurrenceDate = (
+    startTime: string | Date,
+    endTime: string | Date,
+  ) => {
+    try {
+      const s = new Date(startTime);
+      const e = new Date(endTime);
+      const weekday = s.toLocaleDateString("en-US", { weekday: "short" });
+      const monthDay = s.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      const startStr = s.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const endStr = e.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return `${weekday}, ${monthDay} · ${startStr} – ${endStr}`;
+    } catch {
+      return "";
+    }
+  };
+
+  // Group reservations by series_id if recurring series, deduplicate duplicate occurrences by date/time
+  const groupedReservationItems = React.useMemo(() => {
+    const seriesMap = new Map<string, any[]>();
+    const singleItems: any[] = [];
+
+    for (const r of reservations) {
+      if (r.series_id) {
+        if (!seriesMap.has(r.series_id)) {
+          seriesMap.set(r.series_id, []);
+        }
+        seriesMap.get(r.series_id)!.push(r);
+      } else {
+        singleItems.push({
+          type: "single" as const,
+          reservation: r,
+          sortTime: new Date(
+            r.created_at || r.createdAt || r.start_time,
+          ).getTime(),
+        });
+      }
+    }
+
+    const seriesItems: any[] = [];
+    for (const [seriesId, rawOccurrences] of seriesMap.entries()) {
+      // Deduplicate occurrences so each unique reservation date/time appears ONLY ONCE
+      const uniqueOccMap = new Map<string, any>();
+      for (const occ of rawOccurrences) {
+        const startTimeMs = occ.start_time
+          ? new Date(occ.start_time).getTime()
+          : 0;
+        const endTimeMs = occ.end_time ? new Date(occ.end_time).getTime() : 0;
+        const uniqueTimeKey = `${startTimeMs}_${endTimeMs}`;
+
+        if (uniqueOccMap.has(uniqueTimeKey)) {
+          const existing = uniqueOccMap.get(uniqueTimeKey);
+          if (occ.status === "pending" && existing.status !== "pending") {
+            uniqueOccMap.set(uniqueTimeKey, occ);
+          }
+        } else {
+          uniqueOccMap.set(uniqueTimeKey, occ);
+        }
+      }
+
+      const occurrences = Array.from(uniqueOccMap.values()).sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      );
+
+      if (occurrences.length === 0) continue;
+
+      const primary =
+        occurrences.find((o) => o.status === "pending") || occurrences[0];
+      const pendingCount = occurrences.filter(
+        (o) => o.status === "pending",
+      ).length;
+      const approvedCount = occurrences.filter(
+        (o) => o.status === "approved",
+      ).length;
+      const rejectedCount = occurrences.filter(
+        (o) => o.status === "rejected",
+      ).length;
+
+      const latestCreatedMs = Math.max(
+        ...occurrences.map((o) =>
+          new Date(o.created_at || o.createdAt || o.start_time).getTime(),
+        ),
+      );
+
+      seriesItems.push({
+        type: "series" as const,
+        seriesId,
+        primary,
+        occurrences,
+        pendingCount,
+        approvedCount,
+        rejectedCount,
+        totalCount: occurrences.length,
+        sortTime: latestCreatedMs,
+      });
+    }
+
+    return [...seriesItems, ...singleItems].sort(
+      (a, b) => b.sortTime - a.sortTime,
+    );
+  }, [reservations]);
+
   return (
     <div
       id="admin-portal-root"
@@ -2383,17 +2534,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               <div className="font-semibold text-stone-900 text-xs truncate">
                                 {r.instrument_name} — {r.service_name}
                               </div>
-                              <div className="text-[11px] text-stone-500">
-                                {r.user_name || "Member"} ·{" "}
-                                {new Date(r.start_time).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}{" "}
-                                -{" "}
-                                {new Date(r.end_time).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                              <div className="text-[11px] text-stone-500 flex items-center gap-1.5 flex-wrap">
+                                {isReservationAdminBooked(r) ? (
+                                  <span className="inline-flex items-center gap-1 font-bold text-amber-800">
+                                    <Shield className="w-3 h-3 text-amber-700 shrink-0" />
+                                    <span>{getAdminDisplayName(r)}</span>
+                                  </span>
+                                ) : (
+                                  <span>{r.user_name || "Member"}</span>
+                                )}
+                                <span className="text-stone-300">·</span>
+                                <span>
+                                  {new Date(r.start_time).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}{" "}
+                                  -{" "}
+                                  {new Date(r.end_time).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
                               </div>
                             </div>
                             <span
@@ -2511,22 +2672,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     <div className="font-semibold text-stone-900 text-xs truncate">
                                       {r.instrument_name} — {r.service_name}
                                     </div>
-                                    <div className="text-[11px] text-stone-500">
-                                      {r.user_name || "Member"} ·{" "}
-                                      {new Date(
-                                        r.start_time,
-                                      ).toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}{" "}
-                                      -{" "}
-                                      {new Date(r.end_time).toLocaleTimeString(
-                                        [],
-                                        {
+                                    <div className="text-[11px] text-stone-500 flex items-center gap-1.5 flex-wrap">
+                                      {isReservationAdminBooked(r) ? (
+                                        <span className="inline-flex items-center gap-1 font-bold text-amber-800">
+                                          <Shield className="w-3 h-3 text-amber-700 shrink-0" />
+                                          <span>{getAdminDisplayName(r)}</span>
+                                        </span>
+                                      ) : (
+                                        <span>{r.user_name || "Member"}</span>
+                                      )}
+                                      <span className="text-stone-300">·</span>
+                                      <span>
+                                        {new Date(
+                                          r.start_time,
+                                        ).toLocaleTimeString([], {
                                           hour: "2-digit",
                                           minute: "2-digit",
-                                        },
-                                      )}
+                                        })}{" "}
+                                        -{" "}
+                                        {new Date(r.end_time).toLocaleTimeString(
+                                          [],
+                                          {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          },
+                                        )}
+                                      </span>
                                     </div>
                                   </div>
                                   <span
@@ -2881,32 +3052,74 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {[...reservations]
-                    .sort(
-                      (a, b) =>
-                        new Date(b.created_at || b.createdAt).getTime() -
-                        new Date(a.created_at || a.createdAt).getTime(),
-                    )
-                    .map((r) => {
-                      const isPending = r.status === "pending";
-                      const isSelected = selectedReservationIds.includes(r.id);
+                  {groupedReservationItems.map((item) => {
+                    if (item.type === "series") {
+                      const {
+                        seriesId,
+                        primary,
+                        occurrences,
+                        pendingCount,
+                        totalCount,
+                      } = item;
+                      const isExpanded = expandedSeriesIds.has(seriesId);
+                      const hasPending = pendingCount > 0;
+                      const occIds = occurrences.map((o) => o.id);
+                      const allOccsSelected =
+                        occIds.length > 0 &&
+                        occIds.every((id) =>
+                          selectedReservationIds.includes(id),
+                        );
+                      const someOccsSelected = occIds.some((id) =>
+                        selectedReservationIds.includes(id),
+                      );
+
+                      const firstOcc = occurrences[0];
+                      const lastOcc = occurrences[occurrences.length - 1];
+                      const sDate = new Date(firstOcc.start_time);
+                      const eDate = new Date(lastOcc.start_time);
+                      const startMonthDay = sDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      });
+                      const endMonthDay = eDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      });
+                      const timeFormatted = `${sDate.toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })} – ${new Date(firstOcc.end_time).toLocaleTimeString(
+                        [],
+                        {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        },
+                      )}`;
+                      const dateSpanText =
+                        occurrences.length === 1
+                          ? `${startMonthDay}, ${sDate.getFullYear()}`
+                          : `${startMonthDay} – ${endMonthDay}`;
+
                       return (
                         <div
-                          key={r.id}
-                          onClick={
-                            isSelectionMode
-                              ? () => handleToggleSelectReservation(r.id)
-                              : undefined
-                          }
+                          key={`series-${seriesId}`}
                           className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                             isSelectionMode ? "cursor-pointer" : ""
                           } ${
-                            isSelected
+                            allOccsSelected
                               ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/40 shadow-sm"
-                              : isPending
+                              : hasPending
                                 ? "border-amber-200/90 bg-white hover:border-amber-400 hover:shadow-xs"
                                 : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-xs"
                           }`}
+                          onClick={
+                            isSelectionMode
+                              ? () => handleToggleSelectSeries(occurrences)
+                              : undefined
+                          }
                         >
                           <div className="p-3.5 sm:p-4 flex items-start gap-3">
                             {isSelectionMode && (
@@ -2915,12 +3128,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 className="mt-0.5 -ml-1 p-2 flex items-center justify-center shrink-0"
                               >
                                 <input
-                                  id={`select-reservation-${r.id}`}
+                                  id={`select-series-${seriesId}`}
                                   type="checkbox"
-                                  aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
-                                  checked={isSelected}
+                                  aria-label={`Select recurring series for ${primary.instrument_name || "Instrument"}`}
+                                  checked={allOccsSelected}
+                                  ref={(el) => {
+                                    if (el) {
+                                      el.indeterminate =
+                                        someOccsSelected && !allOccsSelected;
+                                    }
+                                  }}
                                   onChange={() =>
-                                    handleToggleSelectReservation(r.id)
+                                    handleToggleSelectSeries(occurrences)
                                   }
                                   className="w-5 h-5 sm:w-4 sm:h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
                                 />
@@ -2928,31 +3147,40 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             )}
 
                             <div className="min-w-0 flex-1 space-y-2.5">
-                              {/* Card Top Row: Service / Title and Status Badge */}
+                              {/* Top Row: Service Name, Recurring Series Badge, Status */}
                               <div className="flex items-start justify-between gap-2.5 min-w-0">
                                 <div className="min-w-0 flex-1 space-y-0.5">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
-                                      {r.service_name || "Reservation"}
+                                      {primary.service_name ||
+                                        "Recurring Series"}
                                     </h3>
-                                    {isPending && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                                        <span>Action Needed</span>
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 shrink-0">
+                                      <Repeat className="w-3 h-3 text-amber-700 shrink-0" />
+                                      <span>
+                                        {t("admin.review.datesCount", {
+                                          count: occurrences.length,
+                                          defaultValue: `${occurrences.length} dates`,
+                                        })}
                                       </span>
-                                    )}
+                                    </span>
                                   </div>
 
-                                  {r.user_id ? (
+                                  {isReservationAdminBooked(primary) ? (
+                                    <div className="text-xs font-bold text-amber-800 py-0.5 inline-flex items-center gap-1">
+                                      <Shield className="w-3 h-3 text-amber-700 shrink-0" />
+                                      <span>{getAdminDisplayName(primary)}</span>
+                                    </div>
+                                  ) : primary.user_id ? (
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         if (isSelectionMode) {
                                           e.stopPropagation();
-                                          handleToggleSelectReservation(r.id);
+                                          handleToggleSelectSeries(occurrences);
                                           return;
                                         }
-                                        openUserProfile(r.user_id);
+                                        openUserProfile(primary.user_id);
                                       }}
                                       className={`text-xs font-medium flex items-center gap-1 group py-0.5 ${
                                         isSelectionMode
@@ -2961,7 +3189,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       }`}
                                     >
                                       <span className="font-semibold text-stone-700">
-                                        {r.user_name || "Member"}
+                                        {primary.user_name || "Member"}
                                       </span>
                                       {!isSelectionMode && (
                                         <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
@@ -2969,28 +3197,32 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                     </button>
                                   ) : (
                                     <div className="text-xs font-semibold text-stone-700 py-0.5">
-                                      {r.user_name || r.admin_name || "Member"}
+                                      {primary.user_name || "Member"}
                                     </div>
                                   )}
                                 </div>
 
                                 <span
-                                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${getStatusColor(
-                                    r.status,
-                                  )}`}
+                                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
+                                    hasPending
+                                      ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                      : getStatusColor(primary.status)
+                                  }`}
                                 >
-                                  {translateStatus(r.status)}
+                                  {hasPending
+                                    ? `${translateStatus("pending")} (${pendingCount}/${totalCount})`
+                                    : translateStatus(primary.status)}
                                 </span>
                               </div>
 
-                              {/* Details Row: Instrument, Musician, Date & Time */}
+                              {/* Details Row: Instrument, Musician, Date Span & Time Range */}
                               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
                                 <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
                                   <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
-                                  <span>{r.instrument_name}</span>
+                                  <span>{primary.instrument_name}</span>
                                 </span>
 
-                                {r.musician_name && (
+                                {primary.musician_name && (
                                   <>
                                     <span className="text-stone-300">•</span>
                                     <span className="truncate text-stone-700">
@@ -2998,7 +3230,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                         {t("admin.review.colMusicianName")}:
                                       </span>
                                       <span className="font-medium">
-                                        {r.musician_name}
+                                        {primary.musician_name}
                                       </span>
                                     </span>
                                   </>
@@ -3007,83 +3239,46 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 <span className="text-stone-300">•</span>
                                 <span className="whitespace-nowrap font-medium text-stone-700 flex items-center gap-1">
                                   <CalendarDays className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                                  <span>
-                                    {new Date(r.start_time).toLocaleDateString(
-                                      "en-US",
-                                      {
-                                        month: "short",
-                                        day: "numeric",
-                                      },
-                                    )}
-                                  </span>
+                                  <span>{dateSpanText}</span>
                                   <span className="text-stone-500 font-normal">
-                                    (
-                                    {new Date(r.start_time).toLocaleTimeString(
-                                      [],
-                                      {
-                                        hour: "numeric",
-                                        minute: "2-digit",
-                                        hour12: true,
-                                      },
-                                    )}
-                                    {" – "}
-                                    {new Date(r.end_time).toLocaleTimeString(
-                                      [],
-                                      {
-                                        hour: "numeric",
-                                        minute: "2-digit",
-                                        hour12: true,
-                                      },
-                                    )}
-                                    )
+                                    ({timeFormatted})
                                   </span>
                                 </span>
 
-                                {r.service_location && (
+                                {primary.service_location && (
                                   <>
                                     <span className="text-stone-300">•</span>
                                     <span className="inline-flex items-center gap-1 font-semibold text-amber-950 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px] truncate max-w-[200px]">
                                       <Church className="w-3 h-3 text-amber-800 shrink-0" />
-                                      <span className="truncate">{r.service_location}</span>
+                                      <span className="truncate">
+                                        {primary.service_location}
+                                      </span>
                                     </span>
                                   </>
                                 )}
                               </div>
 
-                              {/* Badges Row */}
+                              {/* Badges & Details & Chat Row */}
                               <div className="flex items-center justify-between gap-2 pt-0.5">
                                 <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                                  {(r.is_full_day ||
-                                    (r.start_hhmm === "09:00" &&
-                                      r.end_hhmm === "22:00")) && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                      <Sun className="w-3 h-3 text-amber-700 shrink-0" />
-                                      <span>{t("common.fullDay")}</span>
-                                    </span>
-                                  )}
                                   <span
                                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
-                                      r.reservation_type || "in_church",
+                                      primary.reservation_type || "in_church",
                                     )}`}
                                   >
-                                    {r.reservation_type ===
+                                    {primary.reservation_type ===
                                       "outside_church" && (
                                       <DollarSign className="w-3 h-3 shrink-0" />
                                     )}
-                                    {r.reservation_type === "outside_church"
+                                    {primary.reservation_type ===
+                                    "outside_church"
                                       ? t("admin.review.outsideBadge")
                                       : t("admin.review.inChurchBadge")}
                                   </span>
-                                  {r.series_id && (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
-                                      <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
-                                      {t("admin.review.seriesBadge")}
-                                    </span>
-                                  )}
-                                  {r.is_no_show && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                                      <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
-                                      <span>{t("common.noShow")}</span>
+
+                                  {primary.series_pattern_type && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-stone-100 text-stone-700 border border-stone-200 text-[10px] font-bold capitalize">
+                                      {primary.series_pattern_type}
                                     </span>
                                   )}
                                 </div>
@@ -3094,12 +3289,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        onOpenReservationDetail(r.id);
+                                        onOpenReservationDetail(primary.id);
                                       }}
-                                      className="shrink-0 min-h-[30px] px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                      title="View conversation, details, and replies"
+                                      className="shrink-0 min-h-[32px] px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                      title="View details and conversation for this series"
                                     >
-                                      <MessageSquare className="w-3 h-3 shrink-0 text-amber-300" />
                                       <span>
                                         {t("admin.review.detailsChatBtn")}
                                       </span>
@@ -3109,82 +3303,478 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             </div>
                           </div>
 
-                          {/* Action Buttons Bar - Always in 1 row */}
-                          {!isSelectionMode &&
-                            (isPending ||
-                              r.status === "completed" ||
-                              r.is_no_show) && (
-                              <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
-                                {/* Action Buttons (Approve / Reject / No-Show) */}
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  {isPending && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleApprove(r.id)}
-                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow-md flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                        title="Approve request"
-                                      >
-                                        <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                                        <span>
-                                          {t("admin.review.approveBtn")}
-                                        </span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => openRejectModal(r)}
-                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                        title="Reject request"
-                                      >
-                                        <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                                        <span>
-                                          {t("admin.review.rejectBtn")}
-                                        </span>
-                                      </button>
-                                      {r.series_id && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleCancelSeries(r)}
-                                          className="min-h-[40px] px-3 py-2 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                                          title="Cancel entire recurring series"
-                                        >
-                                          <Trash2 className="w-4 h-4 shrink-0" />
-                                          <span className="hidden sm:inline">
-                                            Cancel Series
-                                          </span>
-                                        </button>
-                                      )}
-                                    </>
-                                  )}
-
-                                  {r.status === "completed" &&
-                                    (r.is_no_show ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleUnmarkNoShow(r.id)}
-                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
-                                        title={t("common.unmarkNoShow")}
-                                      >
-                                        <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
-                                        <span>{t("common.unmarkNoShow")}</span>
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMarkNoShow(r.id)}
-                                        className="flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-sm touch-manipulation whitespace-nowrap"
-                                        title={t("common.markNoShow")}
-                                      >
-                                        <UserX className="w-4 h-4 text-rose-700 shrink-0" />
-                                        <span>{t("common.markNoShow")}</span>
-                                      </button>
-                                    ))}
-                                </div>
+                          {/* Series Action Buttons (Approve / Reject Entire Series) */}
+                          {!isSelectionMode && hasPending && (
+                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveSeries(seriesId)}
+                                  className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                  title="Approve all future pending occurrences in this recurring series"
+                                >
+                                  <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                  <span>
+                                    {t("admin.review.approveSeriesBtn", {
+                                      defaultValue: "Approve Entire Series",
+                                    })}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openRejectModal(
+                                      primary,
+                                      true,
+                                      occurrences.length,
+                                    )
+                                  }
+                                  className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-sm flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                  title="Reject all occurrences in this recurring series"
+                                >
+                                  <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                  <span>
+                                    {t("admin.review.rejectSeriesBtn", {
+                                      defaultValue: "Reject Entire Series",
+                                    })}
+                                  </span>
+                                </button>
                               </div>
-                            )}
+                            </div>
+                          )}
+
+                          {/* Collapse/Expand Control: compact, full-width, predictable */}
+                          <button
+                            type="button"
+                            onClick={() => toggleSeriesExpanded(seriesId)}
+                            className="w-full px-3.5 sm:px-4 py-2 bg-stone-50 hover:bg-stone-100 active:bg-stone-200/70 border-t border-stone-200/80 text-xs font-bold text-stone-700 flex items-center justify-between transition cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2">
+                              <CalendarDays className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                              <span>
+                                {isExpanded
+                                  ? t("admin.review.hideOccurrences", {
+                                      defaultValue: "Hide occurrences",
+                                    })
+                                  : t("admin.review.showOccurrences", {
+                                      defaultValue: `Show occurrences (${occurrences.length})`,
+                                      count: occurrences.length,
+                                    })}
+                              </span>
+                            </span>
+                            <ChevronDown
+                              className={`w-4 h-4 text-stone-500 transition-transform duration-200 ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+
+                          {/* Expanded Occurrences List */}
+                          {isExpanded && (
+                            <div className="border-t border-stone-200/70 bg-stone-50/40 divide-y divide-stone-200/60">
+                              {occurrences.map((occ, idx) => {
+                                const isOccPending = occ.status === "pending";
+                                const isOccSelected =
+                                  selectedReservationIds.includes(occ.id);
+                                return (
+                                  <div
+                                    key={occ.id}
+                                    className={`p-2.5 sm:p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 transition ${
+                                      isOccSelected
+                                        ? "bg-amber-100/40"
+                                        : "hover:bg-stone-100/50"
+                                    }`}
+                                  >
+                                    {/* Occurrence Index & Compact Date */}
+                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                      {isSelectionMode && (
+                                        <input
+                                          id={`select-occ-${occ.id}`}
+                                          type="checkbox"
+                                          aria-label={`Select occurrence ${idx + 1}`}
+                                          checked={isOccSelected}
+                                          onChange={() =>
+                                            handleToggleSelectReservation(
+                                              occ.id,
+                                            )
+                                          }
+                                          className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer shrink-0"
+                                        />
+                                      )}
+                                      <span className="shrink-0 w-6 h-6 rounded-md bg-stone-200/80 text-stone-700 text-[11px] font-bold flex items-center justify-center">
+                                        #{idx + 1}
+                                      </span>
+                                      <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span className="text-xs font-semibold text-stone-900 whitespace-nowrap">
+                                          {formatCompactOccurrenceDate(
+                                            occ.start_time,
+                                            occ.end_time,
+                                          )}
+                                        </span>
+                                        <span
+                                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase whitespace-nowrap ${getStatusColor(
+                                            occ.status,
+                                          )}`}
+                                        >
+                                          {translateStatus(occ.status)}
+                                        </span>
+                                        {occ.is_no_show && (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                            <AlertTriangle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+                                            <span>{t("common.noShow")}</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Occurrence-Level Actions (Approve / Reject this date only) */}
+                                    {!isSelectionMode && (
+                                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                                        {isOccPending && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleApprove(occ.id)
+                                              }
+                                              className="min-h-[28px] px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                                              title={t(
+                                                "admin.review.approveDateOnly",
+                                                {
+                                                  defaultValue:
+                                                    "Approve this date only",
+                                                },
+                                              )}
+                                            >
+                                              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                              <span>
+                                                {t(
+                                                  "admin.review.approveOccurrenceBtn",
+                                                  {
+                                                    defaultValue: "Approve",
+                                                  },
+                                                )}
+                                              </span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                openRejectModal(occ, false)
+                                              }
+                                              className="min-h-[28px] px-2.5 py-1 rounded-lg bg-white hover:bg-red-50 text-red-700 border border-stone-300 hover:border-red-300 text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                                              title={t(
+                                                "admin.review.rejectDateOnly",
+                                                {
+                                                  defaultValue:
+                                                    "Reject this date only",
+                                                },
+                                              )}
+                                            >
+                                              <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                                              <span>
+                                                {t(
+                                                  "admin.review.rejectOccurrenceBtn",
+                                                  {
+                                                    defaultValue: "Reject",
+                                                  },
+                                                )}
+                                              </span>
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
-                    })}
+                    }
+
+                    // Single reservation item
+                    const r = item.reservation;
+                    const isPending = r.status === "pending";
+                    const isSelected = selectedReservationIds.includes(r.id);
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={
+                          isSelectionMode
+                            ? () => handleToggleSelectReservation(r.id)
+                            : undefined
+                        }
+                        className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                          isSelectionMode ? "cursor-pointer" : ""
+                        } ${
+                          isSelected
+                            ? "border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/40 shadow-sm"
+                            : isPending
+                              ? "border-amber-200/90 bg-white hover:border-amber-400 hover:shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300 hover:shadow-xs"
+                        }`}
+                      >
+                        <div className="p-3.5 sm:p-4 flex items-start gap-3">
+                          {isSelectionMode && (
+                            <span
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5 -ml-1 p-2 flex items-center justify-center shrink-0"
+                            >
+                              <input
+                                id={`select-reservation-${r.id}`}
+                                type="checkbox"
+                                aria-label={`Select reservation for ${r.instrument_name || "Instrument"}`}
+                                checked={isSelected}
+                                onChange={() =>
+                                  handleToggleSelectReservation(r.id)
+                                }
+                                className="w-5 h-5 sm:w-4 sm:h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-700/20 cursor-pointer"
+                              />
+                            </span>
+                          )}
+
+                          <div className="min-w-0 flex-1 space-y-2.5">
+                            {/* Card Top Row: Service / Title and Status Badge */}
+                            <div className="flex items-start justify-between gap-2.5 min-w-0">
+                              <div className="min-w-0 flex-1 space-y-0.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
+                                    {r.service_name || "Reservation"}
+                                  </h3>
+                                  {isPending && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                                      <span>Action Needed</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                {isReservationAdminBooked(r) ? (
+                                  <div className="text-xs font-bold text-amber-800 py-0.5 inline-flex items-center gap-1">
+                                    <Shield className="w-3 h-3 text-amber-700 shrink-0" />
+                                    <span>{getAdminDisplayName(r)}</span>
+                                  </div>
+                                ) : r.user_id ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      if (isSelectionMode) {
+                                        e.stopPropagation();
+                                        handleToggleSelectReservation(r.id);
+                                        return;
+                                      }
+                                      openUserProfile(r.user_id);
+                                    }}
+                                    className={`text-xs font-medium flex items-center gap-1 group py-0.5 ${
+                                      isSelectionMode
+                                        ? "text-stone-600 cursor-pointer"
+                                        : "text-stone-600 hover:text-amber-900 hover:underline cursor-pointer"
+                                    }`}
+                                  >
+                                    <span className="font-semibold text-stone-700">
+                                      {r.user_name || "Member"}
+                                    </span>
+                                    {!isSelectionMode && (
+                                      <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition" />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <div className="text-xs font-semibold text-stone-700 py-0.5">
+                                    {r.user_name || "Member"}
+                                  </div>
+                                )}
+                              </div>
+
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${getStatusColor(
+                                  r.status,
+                                )}`}
+                              >
+                                {translateStatus(r.status)}
+                              </span>
+                            </div>
+
+                            {/* Details Row: Instrument, Musician, Date & Time */}
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
+                              <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
+                                <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
+                                <span>{r.instrument_name}</span>
+                              </span>
+
+                              {r.musician_name && (
+                                <>
+                                  <span className="text-stone-300">•</span>
+                                  <span className="truncate text-stone-700">
+                                    <span className="text-stone-400 text-[10px] me-1">
+                                      {t("admin.review.colMusicianName")}:
+                                    </span>
+                                    <span className="font-medium">
+                                      {r.musician_name}
+                                    </span>
+                                  </span>
+                                </>
+                              )}
+
+                              <span className="text-stone-300">•</span>
+                              <span className="whitespace-nowrap font-medium text-stone-700 flex items-center gap-1">
+                                <CalendarDays className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                <span>
+                                  {new Date(r.start_time).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                    },
+                                  )}
+                                </span>
+                                <span className="text-stone-500 font-normal">
+                                  (
+                                  {new Date(r.start_time).toLocaleTimeString(
+                                    [],
+                                    {
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    },
+                                  )}
+                                  {" – "}
+                                  {new Date(r.end_time).toLocaleTimeString([], {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}
+                                  )
+                                </span>
+                              </span>
+
+                              {r.service_location && (
+                                <>
+                                  <span className="text-stone-300">•</span>
+                                  <span className="inline-flex items-center gap-1 font-semibold text-amber-950 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded-lg text-[11px] truncate max-w-[200px]">
+                                    <Church className="w-3 h-3 text-amber-800 shrink-0" />
+                                    <span className="truncate">
+                                      {r.service_location}
+                                    </span>
+                                  </span>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Badges Row */}
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                                {(r.is_full_day ||
+                                  (r.start_hhmm === "09:00" &&
+                                    r.end_hhmm === "22:00")) && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                    <Sun className="w-3 h-3 text-amber-700 shrink-0" />
+                                    <span>{t("common.fullDay")}</span>
+                                  </span>
+                                )}
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold ${getReservationTypeColor(
+                                    r.reservation_type || "in_church",
+                                  )}`}
+                                >
+                                  {r.reservation_type === "outside_church" && (
+                                    <DollarSign className="w-3 h-3 shrink-0" />
+                                  )}
+                                  {r.reservation_type === "outside_church"
+                                    ? t("admin.review.outsideBadge")
+                                    : t("admin.review.inChurchBadge")}
+                                </span>
+                                {r.series_id && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                                    <Repeat className="w-3 h-3 text-amber-700 shrink-0" />{" "}
+                                    {t("admin.review.seriesBadge")}
+                                  </span>
+                                )}
+                                {r.is_no_show && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                    <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                    <span>{t("common.noShow")}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {!isSelectionMode && onOpenReservationDetail && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenReservationDetail(r.id);
+                                  }}
+                                  className="shrink-0 min-h-[32px] px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                  title="View details and conversation"
+                                >
+                                  <span>{t("admin.review.detailsChatBtn")}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons Bar - Standardized visual size and touch target matching Details & Chat */}
+                        {!isSelectionMode &&
+                          (isPending ||
+                            r.status === "completed" ||
+                            r.is_no_show) && (
+                            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                {isPending && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleApprove(r.id)}
+                                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                      title="Approve request"
+                                    >
+                                      <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                      <span>
+                                        {t("admin.review.approveBtn")}
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openRejectModal(r)}
+                                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-xs flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                                      title="Reject request"
+                                    >
+                                      <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                                      <span>{t("admin.review.rejectBtn")}</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {r.status === "completed" &&
+                                  (r.is_no_show ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUnmarkNoShow(r.id)}
+                                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation whitespace-nowrap"
+                                      title={t("common.unmarkNoShow")}
+                                    >
+                                      <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
+                                      <span>{t("common.unmarkNoShow")}</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkNoShow(r.id)}
+                                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation whitespace-nowrap"
+                                      title={t("common.markNoShow")}
+                                    >
+                                      <UserX className="w-4 h-4 text-rose-700 shrink-0" />
+                                      <span>{t("common.markNoShow")}</span>
+                                    </button>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

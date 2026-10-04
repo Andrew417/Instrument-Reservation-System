@@ -15,6 +15,7 @@ import {
 
 import {
   Calendar,
+  CalendarDays,
   Clock,
   Music2,
   DollarSign,
@@ -32,6 +33,8 @@ import {
   Layers,
   Info,
   Church,
+  Check,
+  User,
 } from "lucide-react";
 
 const TIME_SLOTS = [
@@ -106,7 +109,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   onSuccess,
 }) => {
   const { profile, sessionToken } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
 
   const DURATION_OPTIONS = [
     { label: t("reservationForm.duration30m"), value: 0.5 },
@@ -555,171 +559,356 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
         {/* ------------------------------------------------------------- */}
         {seriesResult ? (
           <>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-8 space-y-5 sm:space-y-6">
-              {/* Series Summary Banner */}
-              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 sm:p-5 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <span className="text-[11px] text-stone-500 font-medium block">
-                      {t("seriesBuilder.whatForLabel")}
-                    </span>
-                    <span className="font-bold text-stone-900 text-sm block truncate">
-                      {serviceName}
-                    </span>
-                    <span className="text-xs text-stone-600 block truncate">
-                      {t("seriesBuilder.musicianNameLabel")}: {musicianName}
-                    </span>
-                    {note.trim() && (
-                      <span className="text-xs text-stone-600 block whitespace-pre-wrap">
-                        {t("seriesBuilder.noteLabel") || "Notes"}: {note.trim()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-[11px] text-stone-500 font-medium block">
-                      {t("seriesBuilder.instrumentColonLabel")}
-                    </span>
-                    <span className="font-bold text-amber-900 text-xs">
-                      {currentInstrument.name}
-                    </span>
-                  </div>
-                </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-7 space-y-4 sm:space-y-5">
+              {(() => {
+                const occurrences = seriesResult.occurrences || [];
+                const approvedCount = occurrences.filter(
+                  (o) => o.evaluation.status === "approved",
+                ).length;
+                const pendingCount = occurrences.filter(
+                  (o) => o.evaluation.status === "pending",
+                ).length;
+                const totalCount = occurrences.length;
+                const allApproved =
+                  approvedCount === totalCount && totalCount > 0;
 
-                <div className="pt-2 border-t border-stone-200 flex flex-wrap items-center justify-between text-xs text-stone-600 gap-2">
-                  <div>
-                    <span>{t("seriesBuilder.patternLabel")} </span>
-                    <strong className="capitalize text-stone-900">
-                      {seriesResult.series.patternType}
-                    </strong>
-                    <span>
-                      {" "}
-                      {t("seriesBuilder.occurrencesCountSuffix", {
-                        count: seriesResult.occurrences.length,
-                      })}
-                    </span>
-                  </div>
-                  <div className="font-mono text-[11px] text-stone-500">
-                    {t("seriesBuilder.seriesIdLabel")}{" "}
-                    {seriesResult.series.id.substring(0, 13)}...
-                  </div>
-                </div>
-
-                {/* Outside church WhatsApp notification message */}
-                {reservationType === "outside_church" && (
-                  <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5 mt-2">
-                    <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
-                      WA
-                    </div>
-                    <p className="leading-relaxed">
-                      {t("seriesBuilder.whatsappNotice")}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Per-Occurrence Status Table */}
-              <div className="space-y-2">
-                <div className="text-xs font-bold text-stone-800 flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5">
-                    {t("seriesBuilder.perOccurrenceBreakdown")}
-                    <button
-                      type="button"
-                      onClick={() => setShowPolicyExplainer(true)}
-                      className="text-stone-500 hover:text-amber-800 transition cursor-pointer"
-                      title={t("seriesBuilder.learnMoreLimitsTooltip")}
+                return (
+                  <>
+                    {/* Top Status Banner */}
+                    <div
+                      className={`p-3.5 sm:p-4 rounded-2xl border flex items-start gap-3 shadow-2xs ${
+                        allApproved
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-950"
+                          : "bg-amber-50 border-amber-200 text-amber-950"
+                      }`}
                     >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                  <span className="text-[11px] font-normal text-stone-500">
-                    {t("seriesBuilder.approvedPendingSummary", {
-                      approved: seriesResult.occurrences.filter(
-                        (o) => o.evaluation.status === "approved",
-                      ).length,
-                      pending: seriesResult.occurrences.filter(
-                        (o) => o.evaluation.status === "pending",
-                      ).length,
-                    })}
-                  </span>
-                </div>
-
-                <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 max-h-64 overflow-y-auto overscroll-contain">
-                  {seriesResult.occurrences.map((item, idx) => {
-                    const isApproved = item.evaluation.status === "approved";
-                    const startUtc = new Date(item.evaluation.startTimeUtc);
-                    const endUtc = new Date(item.evaluation.endTimeUtc);
-                    const dateStr = getCairoDateString(startUtc);
-                    const timeStr = `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
-
-                    return (
                       <div
-                        key={item.reservation.id || idx}
-                        className="p-3.5 bg-white text-xs flex items-start justify-between gap-3"
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 mt-0.5 shadow-2xs ${
+                          allApproved
+                            ? "bg-emerald-600 text-white"
+                            : "bg-amber-700 text-white"
+                        }`}
                       >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div
-                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                              isApproved
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {idx + 1}
+                        {allApproved ? (
+                          <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                        ) : (
+                          <Clock className="w-5 h-5 stroke-[2.5]" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="font-bold text-xs sm:text-sm">
+                          {allApproved
+                            ? t("seriesBuilder.allApprovedTitle", {
+                                defaultValue:
+                                  "All occurrences automatically approved!",
+                              })
+                            : pendingCount === totalCount
+                              ? t("seriesBuilder.allPendingTitle", {
+                                  defaultValue:
+                                    "Recurring schedule submitted for admin review",
+                                })
+                              : t("seriesBuilder.mixedApprovalTitle", {
+                                  defaultValue: `${approvedCount} approved, ${pendingCount} pending admin review`,
+                                })}
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed">
+                          {allApproved
+                            ? t("seriesBuilder.allApprovedDesc", {
+                                defaultValue:
+                                  "All dates in this recurring series have been approved and booked on the calendar.",
+                              })
+                            : t("seriesBuilder.pendingReviewDesc", {
+                                defaultValue:
+                                  "Your series has been created. Dates requiring admin review will be evaluated by church leadership.",
+                              })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Series Summary Card */}
+                    <div className="bg-white border border-stone-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3.5">
+                      {/* Instrument & Type Row */}
+                      <div className="flex items-center justify-between gap-3 pb-3 border-b border-stone-100">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-9 h-9 rounded-xl bg-amber-800 text-white flex items-center justify-center font-bold shrink-0 shadow-2xs">
+                            <Music2 className="w-4 h-4" />
                           </div>
-                          <div className="min-w-0">
-                            <div className="font-bold text-stone-900">
-                              {dateStr}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                              {t("seriesBuilder.instrumentColonLabel")}
                             </div>
-                            <div className="text-[11px] text-stone-500">
-                              {timeStr}
+                            <div className="text-xs sm:text-sm font-bold text-stone-900 truncate">
+                              {currentInstrument.name}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap ${
-                              isApproved
-                                ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                                : "bg-amber-100 text-amber-900 border border-amber-200"
-                            }`}
-                          >
-                            {isApproved ? (
-                              <>
-                                <CheckCircle2 className="w-3 h-3 text-emerald-700 shrink-0" />
-                                {t("common.approved")}
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="w-3 h-3 text-amber-700 shrink-0" />
-                                {t("seriesBuilder.pendingReviewBadge")}
-                              </>
-                            )}
-                          </span>
+                        <span
+                          className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            reservationType === "outside_church"
+                              ? "bg-amber-100 text-amber-950 border border-amber-300"
+                              : "bg-stone-100 text-stone-700 border border-stone-200"
+                          }`}
+                        >
+                          {reservationType === "outside_church" ? (
+                            <>
+                              <DollarSign className="w-3 h-3 text-amber-800 shrink-0" />
+                              <span>{t("admin.review.outsideBadge")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Church className="w-3 h-3 text-stone-500 shrink-0" />
+                              <span>{t("admin.review.inChurchBadge")}</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
 
-                          {!isApproved &&
-                            item.evaluation.reasons &&
-                            item.evaluation.reasons.length > 0 && (
-                              <span className="text-[10px] text-amber-800 text-right">
-                                {item.evaluation.reasons.join(", ")}
+                      {/* Key Info Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
+                          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                            {t("seriesBuilder.whatForLabel")}
+                          </div>
+                          <div className="font-bold text-stone-800 truncate mt-0.5">
+                            {serviceName || "—"}
+                          </div>
+                        </div>
+
+                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
+                          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                            {t("seriesBuilder.musicianNameLabel")}
+                          </div>
+                          <div className="font-bold text-stone-800 truncate mt-0.5">
+                            {musicianName || "—"}
+                          </div>
+                        </div>
+
+                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
+                          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                            {t("seriesBuilder.patternLabel")}
+                          </div>
+                          <div className="font-bold text-stone-800 capitalize truncate mt-0.5">
+                            {seriesResult.series.patternType} · {totalCount}{" "}
+                            {t("admin.review.datesCount", {
+                              count: totalCount,
+                              defaultValue: `${totalCount} dates`,
+                            })}
+                          </div>
+                        </div>
+
+                        {serviceLocation ? (
+                          <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
+                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                              {t("reservationForm.serviceLocation")}
+                            </div>
+                            <div className="font-bold text-stone-800 truncate mt-0.5">
+                              {serviceLocation}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 min-w-0">
+                            <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                              {t("seriesBuilder.seriesIdLabel")}
+                            </div>
+                            <div className="font-mono text-[11px] font-bold text-stone-600 truncate mt-0.5">
+                              {seriesResult.series.id.substring(0, 13)}...
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notes (if present) */}
+                      {note.trim() && (
+                        <div className="bg-stone-50 rounded-xl p-2.5 border border-stone-100 text-xs">
+                          <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mb-0.5">
+                            {t("seriesBuilder.noteLabel", {
+                              defaultValue: "Notes",
+                            })}
+                          </span>
+                          <p className="text-stone-700 leading-relaxed whitespace-pre-wrap break-words">
+                            {note.trim()}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Outside church WhatsApp notification */}
+                      {reservationType === "outside_church" && (
+                        <div className="bg-amber-100/70 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-medium flex items-start gap-2.5">
+                          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                            WA
+                          </div>
+                          <p className="leading-relaxed">
+                            {t("seriesBuilder.whatsappNotice")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Per-Occurrence Status Breakdown */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
+                          <CalendarDays className="w-4 h-4 text-amber-800 shrink-0" />
+                          <span>
+                            {t("seriesBuilder.perOccurrenceBreakdown")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowPolicyExplainer(true)}
+                            className="text-stone-400 hover:text-amber-800 transition cursor-pointer p-0.5"
+                            title={t("seriesBuilder.learnMoreLimitsTooltip")}
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {approvedCount > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
+                              <span>
+                                {approvedCount} {t("common.approved")}
                               </span>
-                            )}
+                            </span>
+                          )}
+                          {pendingCount > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                              <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
+                              <span>
+                                {pendingCount}{" "}
+                                {t("seriesBuilder.pendingReviewBadge")}
+                              </span>
+                            </span>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+
+                      {/* Naturally scrollable cards - NO nested scroll trap */}
+                      <div className="space-y-2.5">
+                        {occurrences.map((item, idx) => {
+                          const isApproved =
+                            item.evaluation.status === "approved";
+                          const startUtc = new Date(
+                            item.evaluation.startTimeUtc,
+                          );
+                          const endUtc = new Date(item.evaluation.endTimeUtc);
+
+                          const weekdayStr = startUtc.toLocaleDateString(
+                            isAr ? "ar-EG" : "en-US",
+                            { weekday: "short", timeZone: "Africa/Cairo" },
+                          );
+                          const dateStr = startUtc.toLocaleDateString(
+                            isAr ? "ar-EG" : "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              timeZone: "Africa/Cairo",
+                            },
+                          );
+                          const fullDateDisplay = `${weekdayStr}, ${dateStr}`;
+
+                          const timeStr = `${formatHhmmTo12Hour(
+                            getCairoTimeString(startUtc),
+                          )} – ${formatHhmmTo12Hour(
+                            getCairoTimeString(endUtc),
+                          )}`;
+
+                          const reasons = item.evaluation.reasons || [];
+
+                          return (
+                            <div
+                              key={item.reservation?.id || idx}
+                              className={`bg-white border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-2.5 transition ${
+                                isApproved
+                                  ? "border-emerald-200/90"
+                                  : "border-stone-200"
+                              }`}
+                            >
+                              {/* Top Row: Occurrence #, Date & Time, Status Badge */}
+                              <div className="flex items-start justify-between gap-2.5">
+                                <div className="flex items-start gap-2.5 min-w-0">
+                                  <span
+                                    className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shadow-2xs ${
+                                      isApproved
+                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                                    }`}
+                                  >
+                                    #{idx + 1}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-stone-900 text-xs sm:text-sm leading-snug">
+                                      {fullDateDisplay}
+                                    </div>
+                                    <div className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
+                                      <Clock className="w-3 h-3 text-stone-400 shrink-0" />
+                                      <span>{timeStr}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
+                                    isApproved
+                                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                                      : "bg-amber-100 text-amber-900 border border-amber-300"
+                                  }`}
+                                >
+                                  {isApproved ? (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
+                                      <span>{t("common.approved")}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
+                                      <span>
+                                        {t("seriesBuilder.pendingReviewBadge")}
+                                      </span>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+
+                              {/* Clean Bulleted Reasons Box (If Pending) */}
+                              {!isApproved && reasons.length > 0 && (
+                                <div className="pt-2 border-t border-amber-100/80 bg-amber-50/70 rounded-xl p-2.5 space-y-1 text-amber-950">
+                                  <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-900">
+                                    <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                                    <span>
+                                      {t("seriesBuilder.reviewReasonsLabel")}
+                                    </span>
+                                  </div>
+                                  <ul className="space-y-1 ps-4 text-[11px] text-amber-900/90 list-disc leading-snug">
+                                    {reasons.map(
+                                      (rStr: string, rIdx: number) => (
+                                        <li key={rIdx}>{rStr}</li>
+                                      ),
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Confirmation Footer */}
-            <div className="shrink-0 p-3.5 sm:px-8 sm:pb-6 border-t border-stone-200 bg-white shadow-xs">
+            <div className="shrink-0 p-3.5 sm:px-8 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-6 border-t border-stone-200 bg-white shadow-xs">
               <button
                 id="btn-series-done"
                 onClick={onClose}
-                className="w-full py-2.5 sm:py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation"
+                className="w-full py-3 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer shadow-md touch-manipulation flex items-center justify-center gap-2 active:scale-[0.99]"
               >
-                {t("seriesBuilder.doneReturnToCalendar")}
+                <Check className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
+                <span>{t("seriesBuilder.doneReturnToCalendar")}</span>
               </button>
             </div>
           </>

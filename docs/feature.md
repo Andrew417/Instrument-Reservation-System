@@ -1,4 +1,31 @@
-Here's the updated documentation with the new features added:
+# Church Instruments Reservation Platform — Comprehensive Feature Documentation
+
+---
+
+## ⚡ 1-Tap Quick Re-Book ("The WhatsApp Killer" & Routine Service Booking)
+
+- **Purpose** — Enables church musicians and choir members to re-book their routine weekly church services in 3 seconds with a single tap, eliminating repetitive form-filling and providing a faster, smoother experience than typing a message in a WhatsApp group.
+- **Ultra-Compact, Mobile-First Ergonomics**:
+  - **Minimal Vertical Footprint** — Streamlined card profile (< 100px vertical height) placed prominently at the top of the Home Screen / Calendar view, keeping the master timetable fully visible.
+  - **Zero Content Repetition** — Each data point (Instrument, Musician, Service, Date, Time, Status) is displayed exactly once in a clean, uncluttered layout designed for effortless scanning by members of all ages.
+  - **Single-Row Date & Time** — Date and service hours are unified into a single line (`📅 Fri, Oct 9, 2026 · ⏰ 6:00 PM – 8:00 PM (2h) · 🟢 Slot Available`).
+  - **Compact 1-Tap CTA** — Thumb-friendly `h-9` confirm button (`[ ⚡ Confirm in 1 Tap ]`) with instant tactile feedback.
+- **Service Switcher (Best Mobile UX)**:
+  - Embedded native `<select>` dropdown directly on the `Service:` line. On mobile devices, this triggers the native wheel / bottom-sheet picker without taking up any extra vertical rows or cluttering the interface with redundant pill buttons.
+  - Smoothly toggles between personal routine patterns and standard church service presets (Youth Meeting, Sunday Liturgy, Choir Rehearsal).
+  - Automatically filters out single-character test placeholders (e.g. "g") to keep the service list pristine.
+- **Intelligent Routine Detection & Cairo Timezone Engine**:
+  - **Endpoint**: `GET /api/reservations/quick-rebook-suggestion`
+  - Analyzes the musician's reservation history to identify recurring weekly patterns (instrument, day of week, Cairo wall-clock hours, duration).
+  - Dynamically calculates the exact upcoming date for the target day of the week in Cairo timezone (handling UTC and DST boundaries).
+  - Performs live availability checking to verify the slot is free and flags if the user already has an existing confirmed booking for that date.
+- **Flexibility & Customization**:
+  - **"Change Details" (`[تعديل التفاصيل]`) Button** — Instantly opens the full reservation form modal pre-filled with the routine instrument, service, date, time, and duration for adjustments before booking.
+  - **Non-Intrusive Dismiss & Restore** — Users can hide the card via `[✕]`; a subtle `⚡ Re-book Regular Service` restore button remains available to reopen it anytime without reloading.
+- **1-Click WhatsApp Group Sharing**:
+  - Upon 1-tap confirmation, the card transitions into a compact celebration receipt.
+  - Includes a `[ Share to WhatsApp Group ]` button that formats a complete, bilingual church reservation notice ready to send to the choir or ministry team chat.
+- **Full Bilingual & RTL Support** — Seamlessly localized in Arabic and English with proper RTL alignment, Western Arabic numerals, and culturally natural church service terminology.
 
 ---
 
@@ -132,53 +159,6 @@ Here's the updated documentation with the new features added:
 
 ---
 
-## Reservation Detail Enhancement
-
-- **Admin name fallback** — When a reservation is created by an admin (no user_id), the admin's name and phone number are displayed instead of "Unknown Member" / "N/A" using COALESCE fallback in the API query.
-- **Merged Day/Date columns** — In the handover sheet export, multiple reservations on the same day now show merged cells for Day and Date columns (XLSX format only).
-- **Bold day separators** — Bold border lines visually separate different days in the exported handover sheet.
-
----
-
-## API Consolidation
-
-- **Unified GET /reservations endpoint** — Single endpoint handling list view, single reservation, and handover sheet based on query parameters.
-- **Standardized series routes** — All series actions now use `/api/admin/reservations/series/:seriesId/...` pattern for consistency.
-- **Removed duplicate admin routes** — Cleaned up legacy `/api/reservations/admin/...` routes; all admin actions now use `/api/admin/...` canonical paths.
-- **TypeScript type safety** — Full type checking passes (`npm run lint`), ensuring route consistency and type correctness.
-## Admin Dashboard — Tabbed Views
-
-- **Needs Attention tab (default)** — pending requests nearing their slot time (e.g. within 24h) surfaced separately from the general pending count; slots with competing manual-mode pending requests flagged as conflict risk; pending recurring series awaiting Approve All/Reject All shown as a distinct count; requests unreviewed past a configurable staleness threshold flagged.
-- **Overview tab** — reservation volume trend (this week vs last), breakdown by instrument type.
-- Split rationale: action items and trend insight are different usage modes — action items always visible by default, trend view opted into separately.
-
-## Member Registration Approval
-
-- New member registrations require admin approval before the account can log in and reserve (`approval_status`: pending/active/rejected).
-- Dashboard summary card links directly to a filtered New Member Registrations view.
-- Not present in original spec (registration was previously instant) — formalizing as an intentional addition.
-
-## No-Show Tracking
-
-- Per-user no-show counter, incremented when an approved reservation passes its end time without visible fulfillment (exact trigger/marking mechanism TBD).
-- Surfaced on Member Profile standing summary; feeds into future limit/trust decisions if needed.
-- Not present in original spec — formalizing as an intentional addition.
-
-## Member Profile Modal (Compact Redesign)
-
-- Name + account-status badge on one header row (badge right-aligned), contact info and member-since date condensed below.
-- Trusted-status row: icon + label + Super Admin toggle, no separate label wrapper.
-- Fair-usage stat cards (no-shows, active reservations, today's bookings, hourly submissions): number + max only, no repeated caption text.
-- Bypassed-limits state shown inline on the stat cards themselves (e.g. struck-through max) rather than a separate banner, for Trusted/Admin profiles — *(pending decision, not yet implemented)*.
-- Deep-linkable via `?userId=`, wrapped in an error boundary so malformed timestamp data can't blank the page.
-
-## Timestamp Parsing Hardening
-
-- `date-utils.ts` functions (`getCairoParts`, `getCairoDateString`, `getCairoTimeString`, `formatCairoDateTime`) accept Date, ISO string, SQL timestamp string, number, or null/undefined without throwing.
-- Prevents unhandled `RangeError` during render when backend returns SQL-formatted timestamps.
-
----
-
 ## 🎸 "Band / Service Pack" (Multi-Instrument Co-Booking with Musician Assignment)
 
 - **Purpose** — Allows worship leaders and musicians to book a complete bundle of instruments (e.g. Drums + Keyboard + Guitar) for the same rehearsal or service in one single submission, preventing partial-booking frustration.
@@ -218,35 +198,7 @@ Here's the updated documentation with the new features added:
 
 ## 🛡️ Reliability & API Boundary Hardening
 
-- **Express/Vite API Boundary Protection** — Configured dedicated `app.all("/api/*")` 404 handler and global `/api/*` error handling middleware in Express, guaranteeing that all API calls receive standard JSON error responses and never fall through to the Vite SPA HTML fallback (`<!doctype html>`).
+- **Express/Vite API Boundary Protection** — Dedicated `app.all("/api/*")` 404 handler and global `/api/*` error handling middleware in Express, guaranteeing that all API calls receive standard JSON error responses and never fall through to the Vite SPA HTML fallback (`<!doctype html>`).
 - **Calendar Data Resiliency** — Client calendar fetching (`AvailabilityCalendar.tsx`) enforces `Accept: application/json` headers, URL encodes dates, and validates response `Content-Type` before parsing JSON.
 - **Unprivileged Runtime DB Protection** — Application startup eliminates raw unprivileged `ALTER TABLE` statements in favor of non-DDL verification on `information_schema.columns`. All DDL schema changes are managed via declarative migrations.
 - **Isolated Startup Error Boundaries** — Super admin seeding and database verification run in independent try-catch boundaries, ensuring server port binding is never blocked.
-
----
-
-## ⚡ 1-Tap Quick Re-Book ("The WhatsApp Killer" & Routine Service Booking)
-
-- **Purpose** — Enables church musicians and choir members to re-book their routine weekly church services in 3 seconds with a single tap, eliminating repetitive form-filling and providing a faster, smoother experience than typing a message in a WhatsApp group.
-- **Ultra-Compact, Mobile-First Ergonomics**:
-  - **Minimal Vertical Footprint** — Streamlined card profile (< 100px vertical height) placed prominently at the top of the Home Screen / Calendar view, keeping the master timetable fully visible.
-  - **Zero Content Repetition** — Each data point (Instrument, Musician, Service, Date, Time, Status) is displayed exactly once in a clean, uncluttered layout designed for effortless scanning by members of all ages.
-  - **Single-Row Date & Time** — Date and service hours are unified into a single line (`📅 Fri, Oct 9, 2026 · ⏰ 6:00 PM – 8:00 PM (2h) · 🟢 Slot Available`).
-  - **Compact 1-Tap CTA** — Thumb-friendly `h-9` confirm button (`[ ⚡ Confirm in 1 Tap ]`) with instant tactile feedback.
-- **Service Switcher (Best Mobile UX)**:
-  - Embedded native `<select>` dropdown directly on the `Service:` line. On mobile devices, this triggers the native wheel / bottom-sheet picker without taking up any extra vertical rows or cluttering the interface with redundant pill buttons.
-  - Smoothly toggles between personal routine patterns and standard church service presets (Youth Meeting, Sunday Liturgy, Choir Rehearsal).
-  - Automatically filters out single-character test placeholders (e.g. "g") to keep the service list pristine.
-- **Intelligent Routine Detection & Cairo Timezone Engine**:
-  - **Endpoint**: `GET /api/reservations/quick-rebook-suggestion`
-  - Analyzes the musician's reservation history to identify recurring weekly patterns (instrument, day of week, Cairo wall-clock hours, duration).
-  - Dynamically calculates the exact upcoming date for the target day of the week in Cairo timezone (handling UTC and DST boundaries).
-  - Performs live availability checking to verify the slot is free and flags if the user already has an existing confirmed booking for that date.
-- **Flexibility & Customization**:
-  - **"Change Details" (`[تعديل التفاصيل]`) Button** — Instantly opens the full reservation form modal pre-filled with the routine instrument, service, date, time, and duration for adjustments before booking.
-  - **Non-Intrusive Dismiss & Restore** — Users can hide the card via `[✕]`; a subtle `⚡ Re-book Regular Service` restore button remains available to reopen it anytime without reloading.
-- **1-Click WhatsApp Group Sharing**:
-  - Upon 1-tap confirmation, the card transitions into a compact celebration receipt.
-  - Includes a `[ Share to WhatsApp Group ]` button that formats a complete, bilingual church reservation notice ready to send to the choir or ministry team chat.
-- **Full Bilingual & RTL Support** — Seamlessly localized in Arabic and English with proper RTL alignment, Western Arabic numerals, and culturally natural church service terminology.
-

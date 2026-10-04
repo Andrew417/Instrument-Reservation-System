@@ -613,12 +613,13 @@ router.get(
         u.phone_number as user_phone,
         u.is_trusted as user_is_trusted,
         u.is_active as user_is_active,
-        a.name as admin_name
+        COALESCE(a.name, u2.name) as admin_name
       FROM reservations r
       JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
+      LEFT JOIN users u2 ON r.admin_id = u2.id
       LEFT JOIN admins nsa ON r.no_show_admin_id = nsa.id
       WHERE 1=1
     `;
@@ -629,6 +630,10 @@ router.get(
         querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${today}::date`;
       } else if (quickTab === "pending") {
         querySql = sql`${querySql} AND r.status = 'pending'`;
+      }
+
+      if (req.query.upcoming === "true") {
+        querySql = sql`${querySql} AND upper(r.time_range) > NOW()`;
       }
 
       if (
@@ -1386,7 +1391,11 @@ router.post(
  * Approve recurring series (all occurrences)
  */
 router.post(
-  "/reservations/series/:seriesId/approve",
+  [
+    "/reservations/series/:seriesId/approve",
+    "/series/:seriesId/approve",
+    "/series/:seriesId/approve-all",
+  ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
@@ -1408,7 +1417,11 @@ router.post(
  * Reject recurring series (all occurrences)
  */
 router.post(
-  "/reservations/series/:seriesId/reject",
+  [
+    "/reservations/series/:seriesId/reject",
+    "/series/:seriesId/reject",
+    "/series/:seriesId/reject-all",
+  ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
@@ -1472,7 +1485,10 @@ router.post(
  * Get all occurrences of a series for admin inspect
  */
 router.get(
-  "/reservations/series/:seriesId/occurrences",
+  [
+    "/reservations/series/:seriesId/occurrences",
+    "/series/:seriesId/occurrences",
+  ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
