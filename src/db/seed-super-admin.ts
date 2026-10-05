@@ -7,7 +7,7 @@ dotenv.config();
 
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db } from "./index.js";
+import { db, withRetry } from "./index.js";
 import { admins } from "./schema.js";
 
 /**
@@ -35,67 +35,72 @@ export async function seedSuperAdmin(): Promise<void> {
 
   const normalizedEmail = email.toLowerCase();
 
-  // 2. Idempotency check: verify if an admin account with this email already exists
-  const existing = await db
-    .select()
-    .from(admins)
-    .where(eq(admins.email, normalizedEmail))
-    .limit(1);
+  await withRetry(
+    async () => {
+      // 2. Idempotency check: verify if an admin account with this email already exists
+      const existing = await db
+        .select()
+        .from(admins)
+        .where(eq(admins.email, normalizedEmail))
+        .limit(1);
 
-  if (existing.length > 0) {
-    const adminRecord = existing[0];
-    const isPasswordMatch = await bcrypt.compare(
-      password,
-      adminRecord.passwordHash,
-    );
+      if (existing.length > 0) {
+        const adminRecord = existing[0];
+        const isPasswordMatch = await bcrypt.compare(
+          password,
+          adminRecord.passwordHash,
+        );
 
-    if (
-      !isPasswordMatch ||
-      !adminRecord.isSuperAdmin ||
-      adminRecord.role !== "super_admin"
-    ) {
+        if (
+          !isPasswordMatch ||
+          !adminRecord.isSuperAdmin ||
+          adminRecord.role !== "super_admin"
+        ) {
+          const saltRounds = 10;
+          const updatedHash = await bcrypt.hash(password, saltRounds);
+          await db
+            .update(admins)
+            .set({
+              name,
+              phoneNumber: phone,
+              passwordHash: updatedHash,
+              isSuperAdmin: true,
+              role: "super_admin",
+              approvalStatus: "approved",
+            })
+            .where(eq(admins.id, adminRecord.id));
+
+          console.log(
+            `[Super Admin Seed] ✅ Synchronized Super Admin credentials and status for ${normalizedEmail}.`,
+          );
+        } else {
+          console.log(
+            `[Super Admin Seed] Account for ${normalizedEmail} already exists and is up to date (ID: ${adminRecord.id}). Skipping insert.`,
+          );
+        }
+        return;
+      }
+
+      // 3. Hash the password with bcrypt (salt rounds: 10) before storing
       const saltRounds = 10;
-      const updatedHash = await bcrypt.hash(password, saltRounds);
-      await db
-        .update(admins)
-        .set({
-          name,
-          phoneNumber: phone,
-          passwordHash: updatedHash,
-          isSuperAdmin: true,
-          role: "super_admin",
-          approvalStatus: "approved",
-        })
-        .where(eq(admins.id, adminRecord.id));
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // 4. Insert directly into the admins table with Super Admin role/flags
+      await db.insert(admins).values({
+        name,
+        email: normalizedEmail,
+        phoneNumber: phone,
+        passwordHash,
+        isSuperAdmin: true,
+        role: "super_admin",
+        approvalStatus: "approved",
+      });
 
       console.log(
-        `[Super Admin Seed] ✅ Synchronized Super Admin credentials and status for ${normalizedEmail}.`,
+        `[Super Admin Seed] ✅ Successfully seeded Super Admin account for ${name} (${normalizedEmail}) with Super Admin authority.`,
       );
-    } else {
-      console.log(
-        `[Super Admin Seed] Account for ${normalizedEmail} already exists and is up to date (ID: ${adminRecord.id}). Skipping insert.`,
-      );
-    }
-    return;
-  }
-
-  // 3. Hash the password with bcrypt (salt rounds: 10) before storing
-  const saltRounds = 10;
-  const passwordHash = await bcrypt.hash(password, saltRounds);
-
-  // 4. Insert directly into the admins table with Super Admin role/flags
-  await db.insert(admins).values({
-    name,
-    email: normalizedEmail,
-    phoneNumber: phone,
-    passwordHash,
-    isSuperAdmin: true,
-    role: "super_admin",
-    approvalStatus: "approved",
-  });
-
-  console.log(
-    `[Super Admin Seed] ✅ Successfully seeded Super Admin account for ${name} (${normalizedEmail}) with Super Admin authority.`,
+    },
+    { retries: 5, delayMs: 2500, label: "Super Admin Seed" },
   );
 }
 

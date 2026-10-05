@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { db } from "../db/index.js";
+import { db, withRetry } from "../db/index.js";
 import { instruments, reservations } from "../db/schema.js";
 import { eq, and, sql, asc } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
@@ -64,129 +64,136 @@ const sortInstrumentsByManualOrder = <T extends { type: string; name: string }>(
 /**
  * Seed initial sample church instruments if table is empty
  */
-async function ensureSampleInstruments() {
-  const countRes = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(instruments);
-  const count = countRes[0]?.count || 0;
-  if (count === 0) {
-    await db.insert(instruments).values([
-      {
-        name: "Yamaha E-443",
-        type: "Piano",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS936UI_w4FsMusDoMEVRw9itHIR3q-aXHZ10Axo1XruQ&s=10",
-        isRemoved: false,
-      },
-      {
-        name: "Roland E-09",
-        type: "Piano",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://galaxydigital.co.in/wp-content/uploads/2025/09/Roland-E09-galaxy-digital-1.jpg",
-        isRemoved: false,
-      },
-      {
-        name: "Korg Pa-50",
-        type: "Piano",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://www.pngitem.com/pimgs/m/63-630610_korg-keyboard-pa-50-hd-png-download.png",
-        isRemoved: false,
-      },
-      {
-        name: "Roland E-A7",
-        type: "Piano",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtzHC3gJvlF5zIFWZU4dV27kpDe8iwsMOMI4yHbavYJw&s=10",
-        isRemoved: false,
-      },
-      {
-        name: "Roland GW-8",
-        type: "Piano",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReQ8fb-aHXk0DvzRp--DGeZFnVde7WokSh-EV0cwu6EAk6DyV3H_pL4JA&s=10",
-        isRemoved: false,
-      },
-      {
-        name: "Tama Swing Star",
-        type: "Drums",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://media.guitarcenter.com/is/image/MMGS7/L81860000004000-00-600x600.jpg",
-        isRemoved: false,
-      },
-      {
-        name: "Tama Silver Star",
-        type: "Drums",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://4.imimg.com/data4/PJ/MF/MY-5779806/tama-silverstar-drum-set.jpg",
-        isRemoved: false,
-      },
-      {
-        name: "Tama Star Classic",
-        type: "Drums",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRfmIzsInnH-xuH00D8nHLqIoRrmvtedrpwb_JIP-OOIA&s=10",
-        isRemoved: false,
-      },
-      {
-        name: "Conga",
-        type: "Percussion",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/3677843c-af54-4b82-ac75-df4363c5c6b4/dfy55un-83443b29-77f4-4457-a7de-819562aa7311.png",
-        isRemoved: false,
-      },
-      {
-        name: "Bongos",
-        type: "Percussion",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://www.pngitem.com/pimgs/m/414-4140737_transparent-bongos-png-cp221-aw-png-download.png",
-        isRemoved: false,
-      },
-      {
-        name: "Violin 3/4",
-        type: "Violin",
-        bookingMode: "manual",
-        outsideFeePerDay: "0.00",
-        description: null,
-        photoUrl:
-          "https://www.allmusicdirect.com.au/cdn/shop/products/VIENC44_in_case_display__92422_4edc67ac-0fe7-49bf-8d65-d0091fc78a7e_1024x1024.png?v=1587526435",
-        isRemoved: false,
-      },
-    ]);
-  }
+export async function ensureSampleInstruments(): Promise<void> {
+  await withRetry(
+    async () => {
+      const countRes = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(instruments);
+      const count = countRes[0]?.count || 0;
+      if (count === 0) {
+        await db.insert(instruments).values([
+          {
+            name: "Yamaha E-443",
+            type: "Piano",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS936UI_w4FsMusDoMEVRw9itHIR3q-aXHZ10Axo1XruQ&s=10",
+            isRemoved: false,
+          },
+          {
+            name: "Roland E-09",
+            type: "Piano",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://galaxydigital.co.in/wp-content/uploads/2025/09/Roland-E09-galaxy-digital-1.jpg",
+            isRemoved: false,
+          },
+          {
+            name: "Korg Pa-50",
+            type: "Piano",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://www.pngitem.com/pimgs/m/63-630610_korg-keyboard-pa-50-hd-png-download.png",
+            isRemoved: false,
+          },
+          {
+            name: "Roland E-A7",
+            type: "Piano",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRtzHC3gJvlF5zIFWZU4dV27kpDe8iwsMOMI4yHbavYJw&s=10",
+            isRemoved: false,
+          },
+          {
+            name: "Roland GW-8",
+            type: "Piano",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReQ8fb-aHXk0DvzRp--DGeZFnVde7WokSh-EV0cwu6EAk6DyV3H_pL4JA&s=10",
+            isRemoved: false,
+          },
+          {
+            name: "Tama Swing Star",
+            type: "Drums",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://media.guitarcenter.com/is/image/MMGS7/L81860000004000-00-600x600.jpg",
+            isRemoved: false,
+          },
+          {
+            name: "Tama Silver Star",
+            type: "Drums",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://4.imimg.com/data4/PJ/MF/MY-5779806/tama-silverstar-drum-set.jpg",
+            isRemoved: false,
+          },
+          {
+            name: "Tama Star Classic",
+            type: "Drums",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRfmIzsInnH-xuH00D8nHLqIoRrmvtedrpwb_JIP-OOIA&s=10",
+            isRemoved: false,
+          },
+          {
+            name: "Conga",
+            type: "Percussion",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/3677843c-af54-4b82-ac75-df4363c5c6b4/dfy55un-83443b29-77f4-4457-a7de-819562aa7311.png",
+            isRemoved: false,
+          },
+          {
+            name: "Bongos",
+            type: "Percussion",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://www.pngitem.com/pimgs/m/414-4140737_transparent-bongos-png-cp221-aw-png-download.png",
+            isRemoved: false,
+          },
+          {
+            name: "Violin 3/4",
+            type: "Violin",
+            bookingMode: "manual",
+            outsideFeePerDay: "0.00",
+            description: null,
+            photoUrl:
+              "https://www.allmusicdirect.com.au/cdn/shop/products/VIENC44_in_case_display__92422_4edc67ac-0fe7-49bf-8d65-d0091fc78a7e_1024x1024.png?v=1587526435",
+            isRemoved: false,
+          },
+        ]);
+      }
+    },
+    { retries: 5, delayMs: 2500, label: "Sample Instruments Seed" },
+  );
 }
 
-// Auto-seed in background on startup
-ensureSampleInstruments().catch(console.error);
+// Auto-seed in background on startup with retry
+ensureSampleInstruments().catch((err: any) => {
+  console.warn("[Instruments Seed Notice]:", err?.message || err);
+});
 
 /**
  * 1. Get all active instruments
