@@ -3339,7 +3339,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
                                   <span>
                                     {t("admin.review.approveSeriesBtn", {
-                                      defaultValue: "Approve Entire Series",
+                                      defaultValue: "Approve All",
                                     })}
                                   </span>
                                 </button>
@@ -3358,7 +3358,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
                                   <span>
                                     {t("admin.review.rejectSeriesBtn", {
-                                      defaultValue: "Reject Entire Series",
+                                      defaultValue: "Reject All",
                                     })}
                                   </span>
                                 </button>
