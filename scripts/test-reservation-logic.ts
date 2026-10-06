@@ -131,6 +131,15 @@ async function runTests() {
       `- Regular User: ${regularUser.name} (${regularUser.id}) [isTrusted: ${regularUser.isTrusted}]\n`,
     );
 
+    // Dynamic future date helper so tests pass on any current calendar date
+    const getFutureDateStr = (daysAhead: number) => {
+      const d = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
     // =========================================================================
     // TEST CASE 1: A Trusted user booking a Manual-mode instrument
     // EXPECTED: Should auto-approve (status = 'approved')
@@ -138,12 +147,13 @@ async function runTests() {
     console.log("------------------------------------------------------------");
     console.log("TEST 1: A Trusted user booking a Manual-mode instrument");
     console.log("------------------------------------------------------------");
+    const test1Date = getFutureDateStr(2);
     const test1Result = await createReservation({
       userId: trustedUser.id,
       instrumentId: manualPiano.id,
       serviceName: "Sunday Morning Service",
       musicianName: "Test Musician",
-      date: "2026-09-01",
+      date: test1Date,
       startTime: "10:00",
       duration: 2,
       reservationType: "in_church",
@@ -180,7 +190,7 @@ async function runTests() {
         instrumentId: instantGuitar.id,
         serviceName: `Rehearsal Session ${i}`,
         musicianName: "Test Musician",
-        date: `2026-09-0${i + 1}`,
+        date: getFutureDateStr(3 + i),
         startTime: "10:00",
         duration: 1,
         reservationType: "in_church",
@@ -189,12 +199,13 @@ async function runTests() {
 
     // Now attempt 6th reservation on instant instrument on a new date (no conflict)
     console.log("Submitting 6th reservation for regularUser...");
+    const test2Date = getFutureDateStr(12);
     const test2Result = await createReservation({
       userId: regularUser.id,
       instrumentId: instantGuitar.id,
       serviceName: "Overflow Practice Session",
       musicianName: "Test Musician",
-      date: "2026-09-10",
+      date: test2Date,
       startTime: "14:00",
       duration: 1,
       reservationType: "in_church",
@@ -220,16 +231,16 @@ async function runTests() {
       "TEST 3: Two overlapping submissions for same instant instrument, same slot",
     );
     console.log("------------------------------------------------------------");
-    // Submission A (from secondUser who is under limit, Instant instrument -> auto-approved)
+    const test3Date = getFutureDateStr(15);
     console.log(
-      "User A submits booking on 2026-09-15 11:00 - 13:00 (2 hours)...",
+      `User A submits booking on ${test3Date} 11:00 - 13:00 (2 hours)...`,
     );
     const firstSubmission = await createReservation({
       userId: secondUser.id,
       instrumentId: instantGuitar.id,
       serviceName: "Praise & Worship Team",
       musicianName: "Test Musician",
-      date: "2026-09-15",
+      date: test3Date,
       startTime: "11:00",
       duration: 2,
       reservationType: "in_church",
@@ -240,7 +251,7 @@ async function runTests() {
 
     // Submission B (from trustedUser or regularUser for the overlapping time 12:00 - 14:00)
     console.log(
-      "User B attempts overlapping booking on 2026-09-15 12:00 - 14:00...",
+      `User B attempts overlapping booking on ${test3Date} 12:00 - 14:00...`,
     );
     let secondSubmissionBlocked = false;
     let errorMessage = "";
@@ -250,7 +261,7 @@ async function runTests() {
         instrumentId: instantGuitar.id,
         serviceName: "Youth Band Rehearsal",
         musicianName: "Test Musician",
-        date: "2026-09-15",
+        date: test3Date,
         startTime: "12:00",
         duration: 2,
         reservationType: "in_church",
@@ -279,12 +290,17 @@ async function runTests() {
       "TEST 4: Recurring series with self-overlapping occurrences (3 and 4)",
     );
     console.log("------------------------------------------------------------");
+    const seriesDate1 = getFutureDateStr(20);
+    const seriesDate2 = getFutureDateStr(27);
+    const seriesDate3 = getFutureDateStr(34);
+    const seriesDate4 = getFutureDateStr(41);
+
     const occurrencesWithSelfOverlap = [
-      { date: "2026-10-01", startTime: "10:00", duration: 2 }, // Occ 1: Oct 1 10:00 - 12:00
-      { date: "2026-10-08", startTime: "10:00", duration: 2 }, // Occ 2: Oct 8 10:00 - 12:00
-      { date: "2026-10-15", startTime: "10:00", duration: 3 }, // Occ 3: Oct 15 10:00 - 13:00 (overlaps Occ 4)
-      { date: "2026-10-15", startTime: "12:00", duration: 2 }, // Occ 4: Oct 15 12:00 - 14:00 (overlaps Occ 3)
-      { date: "2026-10-22", startTime: "10:00", duration: 2 }, // Occ 5: Oct 22 10:00 - 12:00
+      { date: seriesDate1, startTime: "10:00", duration: 2 }, // Occ 1
+      { date: seriesDate2, startTime: "10:00", duration: 2 }, // Occ 2
+      { date: seriesDate3, startTime: "10:00", duration: 3 }, // Occ 3: overlaps Occ 4
+      { date: seriesDate3, startTime: "12:00", duration: 2 }, // Occ 4: overlaps Occ 3
+      { date: seriesDate4, startTime: "10:00", duration: 2 }, // Occ 5
     ];
 
     let seriesBlocked = false;
@@ -312,7 +328,7 @@ async function runTests() {
     const hasBothOccurrencesInError =
       seriesErrorMessage.includes("Occurrence #3") &&
       seriesErrorMessage.includes("Occurrence #4") &&
-      seriesErrorMessage.includes("2026-10-15");
+      seriesErrorMessage.includes(seriesDate3);
 
     console.log(
       `Assertion Test 4 (Blocked with detailed dates/occurrences):`,

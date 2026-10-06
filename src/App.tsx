@@ -244,6 +244,18 @@ const UserPortalMain: React.FC = () => {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  // Synchronize mobile bottom tab indicator whenever currentView changes
+  useEffect(() => {
+    if (
+      currentView === "calendar" ||
+      currentView === "my_reservations" ||
+      currentView === "notifications" ||
+      currentView === "admin_portal"
+    ) {
+      setActiveMobileTab(currentView);
+    }
+  }, [currentView]);
+
   // Initial fetch for notifications count
   useEffect(() => {
     const checkUnread = async () => {
@@ -761,6 +773,33 @@ const UserPortalMain: React.FC = () => {
         />
       )}
 
+      {/* Mobile Floating Action Button (FAB) for fast 1-tap booking */}
+      {currentView === "calendar" && !isAnyModalActive && (
+        <button
+          type="button"
+          id="mobile-fast-book-fab"
+          onClick={() => {
+            if (allInstruments.length > 0) {
+              setSelectedSlot({
+                instrument: allInstruments[0],
+                date: getTodayDateString(),
+                timeHhmm: "10:00",
+                duration: 2,
+              });
+            }
+          }}
+          className={`lg:hidden fixed bottom-20 ${
+            isRTL ? "left-4" : "right-4"
+          } z-40 bg-amber-800 hover:bg-amber-900 active:scale-95 text-white font-bold rounded-full py-3 px-4 shadow-xl flex items-center gap-2 border border-amber-700/50 transition-all touch-manipulation`}
+          aria-label={t("myReservations.newReservation")}
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span className="text-xs font-bold whitespace-nowrap">
+            {isRTL ? "حجز آلة" : "Reserve"}
+          </span>
+        </button>
+      )}
+
       {/* ✅ Mobile Bottom Navigation Bar — polished */}
       <nav
         id="mobile-bottom-nav"
@@ -772,7 +811,7 @@ const UserPortalMain: React.FC = () => {
         style={{
           transform: isAnyModalActive ? "translateY(100%)" : "translateZ(0)",
         }}
-        dir="ltr"
+        dir={isRTL ? "rtl" : "ltr"}
         aria-hidden={isAnyModalActive}
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">

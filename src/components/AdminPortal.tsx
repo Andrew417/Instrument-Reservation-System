@@ -395,6 +395,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   >(null);
   const [messageText, setMessageText] = useState<string>("");
   const [sendingMessage, setSendingMessage] = useState<boolean>(false);
+  const [msgReservationSearch, setMsgReservationSearch] = useState<string>("");
+  const [messagingReservations, setMessagingReservations] = useState<any[]>([]);
+  const [loadingMessagingReservations, setLoadingMessagingReservations] =
+    useState<boolean>(false);
 
   // Super Admin: Admin Accounts
   const [adminAccountsList, setAdminAccountsList] = useState<any[]>([]);
@@ -538,11 +542,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return res;
   };
 
-  // Re-fetch every stat card at once. Use this after any mutation so all
-  // six cards stay in sync in a single round-trip cycle. /dashboard-stats
-  // returns every field the six cards need, so one fetch is sufficient.
+  // Re-fetch stat cards and active dashboard subtabs after mutations
   const refreshAllStats = () => {
     fetchStats();
+    if (activeTab === "dashboard") {
+      fetchTodaysReservations();
+      fetchUpcomingReservations();
+    }
   };
 
   // Fetch Dashboard Stats
@@ -616,14 +622,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         throw new Error(data.error || "Failed to load upcoming schedule");
       }
       const now = Date.now();
-      const upcoming = (data.reservations || []).filter(
-        (r: any) => new Date(r.start_time || r.startTime).getTime() > now,
-      );
+      const upcoming = (data.reservations || [])
+        .filter((r: any) => {
+          const startMs = new Date(r.start_time || r.startTime).getTime();
+          const endMs = new Date(r.end_time || r.endTime || r.start_time || r.startTime).getTime();
+          return startMs > now || endMs > now;
+        })
+        .sort(
+          (a: any, b: any) =>
+            new Date(a.start_time || a.startTime).getTime() -
+            new Date(b.start_time || b.startTime).getTime(),
+        );
       setUpcomingReservations(upcoming);
     } catch (err: any) {
       showNotice(err.message || "Failed to load upcoming schedule", "error");
     } finally {
       setLoadingUpcomingReservations(false);
+    }
+  };
+
+  // Fetch full reservations list for Messaging tab (unrestricted by Review filters)
+  const fetchMessagingReservations = async (searchQuery?: string) => {
+    setLoadingMessagingReservations(true);
+    try {
+      const params = new URLSearchParams();
+      params.append("status", "all");
+      params.append("limit", "200");
+      if (searchQuery && searchQuery.trim()) {
+        params.append("search", searchQuery.trim());
+      }
+      const res = await adminFetch(`/reservations?${params.toString()}`);
+      const data = await res.json();
+      if (data.success && data.reservations) {
+        setMessagingReservations(data.reservations);
+      }
+    } catch {
+      // silent fallback
+    } finally {
+      setLoadingMessagingReservations(false);
     }
   };
 
@@ -962,8 +998,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     // so a single fetch keeps every card in sync.
     fetchStats();
     if (activeTab === "dashboard") {
-      fetchTodaysReservations();
-      if (dashboardSubTab === "upcoming") {
+      if (dashboardSubTab === "today") {
+        fetchTodaysReservations();
+      } else {
         fetchUpcomingReservations();
       }
     } else if (activeTab === "review") {
@@ -988,7 +1025,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } else if (activeTab === "notification_settings") {
       fetchNotificationSettings();
     } else if (activeTab === "messaging") {
-      fetchReservations();
+      fetchMessagingReservations();
     }
   }, [
     activeTab,
@@ -1002,6 +1039,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     approvalSearch,
     userFilterStatus,
     userSearch,
+    dashboardSubTab,
   ]);
 
   // Lock iOS rubber-band when the fixed bottom bar is visible
@@ -1024,14 +1062,25 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     setSelectedReservationIds([]);
   };
 
-  // ESC-to-close for all secondary modals
+  // ESC-to-close for all modals and dialogs
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      e.stopPropagation();
       if (confirmModal) setConfirmModal(null);
       else if (promoteModal) setPromoteModal(null);
       else if (rejectModal) setRejectModal(null);
       else if (cancelReasonModal) setCancelReasonModal(null);
+      else if (deletingInstrument) setDeletingInstrument(null);
+      else if (removingInstrument) setRemovingInstrument(null);
+      else if (showInstrumentModal) {
+        setShowInstrumentModal(false);
+        setEditingInstrument(null);
+      }
+      else if (showNewAdminModal) setShowNewAdminModal(false);
+      else if (bookOnBehalfUser) setBookOnBehalfUser(null);
+      else if (assignModal) setAssignModal(null);
+      else if (internalSelectedUserId) setInternalSelectedUserId(null);
       else if (isSelectionMode) exitSelectionMode();
     };
     window.addEventListener("keydown", onKey);
@@ -1041,6 +1090,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     promoteModal,
     rejectModal,
     cancelReasonModal,
+    deletingInstrument,
+    removingInstrument,
+    showInstrumentModal,
+    showNewAdminModal,
+    bookOnBehalfUser,
+    assignModal,
+    internalSelectedUserId,
     isSelectionMode,
   ]);
 
@@ -2459,7 +2515,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <button
                     type="button"
                     id="dashboard-subtab-today"
-                    onClick={() => setDashboardSubTab("today")}
+                    onClick={() => {
+                      setDashboardSubTab("today");
+                      fetchTodaysReservations();
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       dashboardSubTab === "today"
                         ? "bg-amber-800 text-white shadow-2xs"
@@ -2473,9 +2532,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     id="dashboard-subtab-upcoming"
                     onClick={() => {
                       setDashboardSubTab("upcoming");
-                      if (upcomingReservations.length === 0) {
-                        fetchUpcomingReservations();
-                      }
+                      fetchUpcomingReservations();
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       dashboardSubTab === "upcoming"
@@ -4809,28 +4866,113 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-2 max-h-96 overflow-y-auto">
-                <div className="text-[11px] font-bold uppercase text-stone-500">
-                  {t("admin.messaging.selectReservation")}
+              <div className="border border-stone-200 rounded-xl p-3 bg-stone-50/50 space-y-2 flex flex-col max-h-[500px]">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="text-[11px] font-bold uppercase text-stone-500">
+                    {t("admin.messaging.selectReservation")}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {loadingMessagingReservations && (
+                      <RefreshCw className="w-3 h-3 text-amber-700 animate-spin" />
+                    )}
+                    <span className="text-[10px] font-semibold text-stone-400">
+                      {(() => {
+                        const source =
+                          messagingReservations.length > 0
+                            ? messagingReservations
+                            : reservations;
+                        const term = msgReservationSearch.toLowerCase().trim();
+                        const list = term
+                          ? source.filter(
+                              (r) =>
+                                r.service_name?.toLowerCase().includes(term) ||
+                                r.user_name?.toLowerCase().includes(term) ||
+                                r.instrument_name?.toLowerCase().includes(term) ||
+                                r.user_phone?.includes(term),
+                            )
+                          : source;
+                        return `${list.length} bookings`;
+                      })()}
+                    </span>
+                  </div>
                 </div>
-                {reservations.slice(0, 15).map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => setSelectedMsgReservation(r)}
-                    className={`w-full text-left p-2.5 rounded-xl border text-xs transition cursor-pointer ${
-                      selectedMsgReservation?.id === r.id
-                        ? "bg-amber-50 border-amber-300 text-amber-950 shadow-2xs font-semibold"
-                        : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"
-                    }`}
-                  >
-                    <div className="font-bold text-stone-900">
-                      {r.service_name}
-                    </div>
-                    <div className="text-[11px] text-stone-500">
-                      {r.user_name} • {r.instrument_name}
-                    </div>
-                  </button>
-                ))}
+
+                {/* Search bar for reservations in messaging tab */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-2.5 rtl:left-auto rtl:right-2.5" />
+                  <input
+                    type="text"
+                    value={msgReservationSearch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMsgReservationSearch(val);
+                      if (val.trim().length >= 2 || val.trim().length === 0) {
+                        fetchMessagingReservations(val);
+                      }
+                    }}
+                    placeholder={t("admin.approvals.searchPlaceholder") || "Search by member, service, instrument..."}
+                    className="w-full pl-8 pr-7 rtl:pl-7 rtl:pr-8 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700"
+                  />
+                  {msgReservationSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMsgReservationSearch("");
+                        fetchMessagingReservations("");
+                      }}
+                      className="absolute right-2 top-2 rtl:right-auto rtl:left-2 text-stone-400 hover:text-stone-600 p-0.5 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
+                  {(() => {
+                    const source =
+                      messagingReservations.length > 0
+                        ? messagingReservations
+                        : reservations;
+                    const term = msgReservationSearch.toLowerCase().trim();
+                    const filtered = term
+                      ? source.filter(
+                          (r) =>
+                            r.service_name?.toLowerCase().includes(term) ||
+                            r.user_name?.toLowerCase().includes(term) ||
+                            r.instrument_name?.toLowerCase().includes(term) ||
+                            r.user_phone?.includes(term),
+                        )
+                      : source;
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="py-8 text-center text-xs text-stone-400">
+                          {term ? "No matching bookings found" : "No reservations available"}
+                        </div>
+                      );
+                    }
+
+                    return filtered.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedMsgReservation(r)}
+                        className={`w-full text-left rtl:text-right p-2.5 rounded-xl border text-xs transition cursor-pointer ${
+                          selectedMsgReservation?.id === r.id
+                            ? "bg-amber-50 border-amber-300 text-amber-950 shadow-2xs font-semibold"
+                            : "bg-white border-stone-200 text-stone-700 hover:bg-stone-50"
+                        }`}
+                      >
+                        <div className="font-bold text-stone-900 truncate">
+                          {r.service_name}
+                        </div>
+                        <div className="text-[11px] text-stone-500 truncate mt-0.5">
+                          {r.user_name} • {r.instrument_name}
+                        </div>
+                      </button>
+                    ));
+                  })()}
+                </div>
               </div>
 
               <div className="md:col-span-2 border border-stone-200 rounded-xl p-4 bg-white space-y-3">
@@ -5664,7 +5806,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 1: Add / Edit Instrument
           ============================================================= */}
       {showInstrumentModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <h3 className="font-bold text-stone-900 text-sm">
@@ -5961,7 +6103,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 2: Mark Unavailable Confirmation (Retire from Service)
           ============================================================= */}
       {removingInstrument && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2.5 text-amber-800">
@@ -6038,7 +6180,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 2B: Permanent Delete Confirmation (Mistaken Entries Only)
          ============================================================= */}
       {deletingInstrument && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-start justify-between gap-3 border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2.5 text-red-700">
@@ -6189,7 +6331,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 3: Book on Behalf of User
           ============================================================= */}
       {bookOnBehalfUser && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
@@ -6395,7 +6537,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 4: Provision Administrator Account (Super Admin)
           ============================================================= */}
       {showNewAdminModal && isSuperAdmin && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>
@@ -6553,7 +6695,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 5: In-App Rejection Dialog (Reliable, Beautiful, No iframe prompt blocks)
           ============================================================= */}
       {rejectModal && rejectModal.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2">
@@ -6721,7 +6863,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 5B: Bulk Cancellation Reason (Preset + Optional Custom Text)
          ============================================================= */}
       {cancelReasonModal && cancelReasonModal.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div className="flex items-center gap-2">
@@ -6836,7 +6978,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL 6: In-App Confirmation Dialog
          ============================================================= */}
       {confirmModal && confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div
@@ -6885,7 +7027,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           MODAL: Promote User — Choose Role
           ============================================================= */}
       {promoteModal && (
-        <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-stone-100 pb-3">
               <div>

@@ -57,14 +57,26 @@ export const AuthScreen: React.FC = () => {
   );
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
-  // Countdown timer for OTP resend cooldown
+  // Single-tick countdown timer for OTP resend cooldown (prevents duplicate intervals / double-speed ticking)
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const timer = setInterval(() => {
-      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    const timer = setTimeout(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
     }, 1000);
-    return () => clearInterval(timer);
+    return () => clearTimeout(timer);
   }, [resendCooldown]);
+
+  // Escape key handler for Forgot Password modal
+  useEffect(() => {
+    if (!showForgotPasswordModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowForgotPasswordModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showForgotPasswordModal]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,15 +102,6 @@ export const AuthScreen: React.FC = () => {
       setSubmitting(false);
     }
   };
-
-  // Countdown timer for OTP resend cooldown
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setInterval(() => {
-      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [resendCooldown]);
 
   // Force LTR while the auth screen is mounted; restore prior direction on unmount
   useEffect(() => {

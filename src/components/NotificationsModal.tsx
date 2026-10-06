@@ -114,6 +114,23 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   );
   const [rejectReason, setRejectReason] = useState<string>("");
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        if (rejectingNotif) {
+          setRejectingNotif(null);
+          setRejectReason("");
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, rejectingNotif, onClose]);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);

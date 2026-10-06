@@ -26,12 +26,24 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
 }) => {
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div
       id="policy-explainer-modal-backdrop"
-      className="fixed inset-0 bottom-[4.25rem] lg:bottom-0 z-50 bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
+      className="fixed inset-0 bottom-[4.25rem] lg:bottom-0 z-[100] bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
       dir="rtl"
     >
       <div

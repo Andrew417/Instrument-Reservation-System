@@ -363,13 +363,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
       </div>
 
       {/* Tabs Bar — App.tsx style pill switcher */}
-      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1 shadow-2xs">
-        <div className="flex items-center gap-1">
+      <div className="w-full rounded-2xl border border-stone-200 bg-stone-100 p-1 shadow-2xs overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 min-w-[340px] sm:min-w-full">
           <button
             type="button"
             id="tab-upcoming-reservations"
             onClick={() => setActiveTab("upcoming")}
-            className={`flex-1 h-9 rounded-xl px-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 touch-manipulation whitespace-nowrap ${
+            className={`flex-1 min-w-[74px] sm:min-w-0 h-9 rounded-xl px-2 text-center transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 touch-manipulation whitespace-nowrap ${
               activeTab === "upcoming"
                 ? "bg-white text-amber-950 shadow-2xs"
                 : "text-stone-600 hover:text-stone-900"

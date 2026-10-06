@@ -672,7 +672,11 @@ router.get(
       )`;
       }
 
-      querySql = sql`${querySql} ORDER BY lower(r.time_range) DESC LIMIT 200`;
+      if (req.query.upcoming === "true") {
+        querySql = sql`${querySql} ORDER BY lower(r.time_range) ASC LIMIT 200`;
+      } else {
+        querySql = sql`${querySql} ORDER BY lower(r.time_range) DESC LIMIT 200`;
+      }
 
       const result = await db.execute(querySql);
       const rows = (result as any).rows || [];

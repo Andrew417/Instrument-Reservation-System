@@ -95,6 +95,17 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     setCurrentInstrument(instrument);
   }, [instrument]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const handleToggleMode = async () => {
     if (!isAdminOrSuperAdmin || isUpdatingMode) return;
     const nextMode: "manual" | "instant" =

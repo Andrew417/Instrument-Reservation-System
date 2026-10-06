@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import {
@@ -107,6 +107,18 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !reservation) return null;
 
   const handleToggleTag = (tagId: string) => {
@@ -178,7 +190,7 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
   return (
     <div
       id="condition-check-modal-backdrop"
-      className="fixed inset-0 z-[100] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[115] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="condition-check-modal"

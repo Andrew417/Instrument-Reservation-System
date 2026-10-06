@@ -83,7 +83,19 @@ for (let hour = 9; hour <= 21; hour++) {
 }
 TIME_SLOTS.push("22:00");
 
-const MANUAL_TYPE_ORDER: string[] = ["Piano", "Drums", "Percussion", "Violin"];
+const MANUAL_TYPE_ORDER: string[] = [
+  "Piano",
+  "Keyboard",
+  "Drums",
+  "Percussion",
+  "Strings",
+  "Guitar",
+  "Violin",
+  "Bass",
+  "Brass",
+  "Wind",
+  "Vocals",
+];
 const MANUAL_INSTRUMENT_ORDER_BY_TYPE: Record<string, string[]> = {
   Piano: [
     "Yamaha E-443",
@@ -178,35 +190,47 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   }, []);
 
   useEffect(() => {
-    if (filtersInitialized.current || instruments.length === 0) return;
+    if (instruments.length === 0) return;
 
-    const defaultCheckedTypes = ["Piano", "Drums"];
-    const defaultTypes = Array.from(new Set(instruments.map((i) => i.type)))
-      .sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b))
-      .filter((type) =>
-        MANUAL_TYPE_ORDER.some(
-          (manualType) => manualType.toLowerCase() === type.toLowerCase(),
-        ),
-      )
-      .filter((type) =>
-        defaultCheckedTypes.some(
-          (dt) => dt.toLowerCase() === type.toLowerCase(),
-        ),
-      );
-
-    const defaultIds = new Set(
-      instruments
-        .filter((i) =>
-          defaultTypes.some(
-            (type) => type.toLowerCase() === i.type.toLowerCase(),
-          ),
-        )
-        .map((i) => i.id),
+    // Show all available instrument types by default so musicians see the entire inventory
+    const allTypes = Array.from(new Set(instruments.map((i) => i.type))).sort(
+      (a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b),
     );
+    const allIds = new Set(instruments.map((i) => i.id));
 
-    setCheckedTypes(defaultTypes);
-    setCheckedInstrumentIds(defaultIds);
-    filtersInitialized.current = true;
+    if (!filtersInitialized.current) {
+      setCheckedTypes(allTypes);
+      setCheckedInstrumentIds(allIds);
+      filtersInitialized.current = true;
+    } else {
+      // Auto-include any newly discovered instruments or types from backend
+      setCheckedInstrumentIds((prev) => {
+        const next = new Set(prev);
+        let changed = false;
+        instruments.forEach((inst) => {
+          if (!prev.has(inst.id)) {
+            next.add(inst.id);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+      setCheckedTypes((prev) => {
+        const set = new Set(prev);
+        let changed = false;
+        allTypes.forEach((t) => {
+          if (!set.has(t)) {
+            set.add(t);
+            changed = true;
+          }
+        });
+        return changed
+          ? Array.from(set).sort(
+              (a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b),
+            )
+          : prev;
+      });
+    }
   }, [instruments]);
 
   useEffect(() => {
@@ -221,8 +245,18 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
       }
     };
 
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsFilterPanelOpen(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isFilterPanelOpen]);
 
   const handleToggleType = (type: string) => {
@@ -409,13 +443,23 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   // Group instruments by type
   const groupedInstruments: Record<string, Instrument[]> = useMemo(() => {
     const groups: Record<string, Instrument[]> = {};
+    const effectiveCheckedIds =
+      !filtersInitialized.current || checkedInstrumentIds.size === 0
+        ? new Set(instruments.map((i) => i.id))
+        : checkedInstrumentIds;
 
-    Array.from(new Set(checkedTypes))
+    const availableTypes = Array.from(new Set(instruments.map((i) => i.type)));
+    const effectiveCheckedTypes =
+      !filtersInitialized.current || checkedTypes.length === 0
+        ? availableTypes
+        : checkedTypes;
+
+    Array.from(new Set(effectiveCheckedTypes))
       .sort((a, b) => getTypeOrderIndex(a) - getTypeOrderIndex(b))
       .forEach((type) => {
         const typeInstruments = sortInstrumentsByManualOrder(
           instruments.filter(
-            (inst) => inst.type === type && checkedInstrumentIds.has(inst.id),
+            (inst) => inst.type === type && effectiveCheckedIds.has(inst.id),
           ),
         );
         if (typeInstruments.length > 0) groups[type] = typeInstruments;

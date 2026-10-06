@@ -43,7 +43,7 @@ export const LanguageProfileDropdown: React.FC<
     Boolean(onOpenMinistryProfile) && !hideMinistryProfile && !isAdmin;
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
@@ -52,8 +52,10 @@ export const LanguageProfileDropdown: React.FC<
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
 
@@ -140,7 +142,7 @@ export const LanguageProfileDropdown: React.FC<
       {isOpen && (
         <div
           id="profile-dropdown-menu"
-          className="absolute right-0 rtl:right-auto rtl:left-0 mt-1.5 w-64 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 py-2 animate-in fade-in zoom-in-95 duration-100 overflow-hidden"
+          className="absolute right-0 rtl:right-auto rtl:left-0 mt-1.5 w-64 max-w-[calc(100vw-1.5rem)] bg-white border border-stone-200 rounded-2xl shadow-xl z-50 py-2 animate-in fade-in zoom-in-95 duration-100 overflow-hidden"
         >
           {/* User Card inside dropdown */}
           <div className="px-4 py-3 border-b border-stone-100 bg-stone-50/70">

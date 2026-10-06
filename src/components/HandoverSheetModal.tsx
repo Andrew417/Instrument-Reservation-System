@@ -83,6 +83,18 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Compute startDate and endDate based on viewMode and anchorDate
   const startDate = anchorDate;
   const endDate =
@@ -236,7 +248,7 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
   return (
     <div
       id="handover-sheet-modal-backdrop"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <div

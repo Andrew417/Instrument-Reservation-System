@@ -138,7 +138,9 @@ export function validateWorkingHours(start: Date, end: Date) {
   }
 
   const now = new Date();
-  if (start <= now || end <= now) {
+  // Allow a 2-minute grace window to protect against network delay and client-server clock drift
+  const graceThreshold = new Date(now.getTime() - 2 * 60 * 1000);
+  if (start < graceThreshold || end <= now) {
     throw new Error("Reservation time must be in the future.");
   }
 

@@ -227,6 +227,21 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        if (showPolicyExplainer) {
+          setShowPolicyExplainer(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showPolicyExplainer, onClose]);
+
   const isAdmin = Boolean(
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||

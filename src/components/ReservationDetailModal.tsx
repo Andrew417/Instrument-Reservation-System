@@ -196,6 +196,33 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        if (cancelPrompt) {
+          setCancelPrompt(null);
+        } else if (showMoreMenu) {
+          setShowMoreMenu(false);
+        } else if (deleteScreenshotConfirmOpen) {
+          setDeleteScreenshotConfirmOpen(false);
+        } else if (showInstrumentDetails) {
+          setShowInstrumentDetails(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    cancelPrompt,
+    showMoreMenu,
+    deleteScreenshotConfirmOpen,
+    showInstrumentDetails,
+    onClose,
+  ]);
+
+  useEffect(() => {
     if (activeTab === "chat") {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

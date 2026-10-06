@@ -189,6 +189,21 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     initialInstrument;
   const feeNumber = Number(currentInstrument.outsideFeePerDay || 0);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        if (showPolicyExplainer) {
+          setShowPolicyExplainer(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showPolicyExplainer, onClose]);
+
   // 1. Fetch runtime hard limits from /api/reservations/limits
   useEffect(() => {
     let isMounted = true;

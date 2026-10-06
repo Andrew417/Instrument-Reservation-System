@@ -137,6 +137,17 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   // Auto-grow helpers for the notes textarea
   const noteRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -248,7 +259,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       id="edit-reservation-modal-backdrop"
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[115] bg-stone-900/60 backdrop-blur-xs flex items-stretch sm:items-center justify-center p-0 sm:p-4"
     >
       <div
         id="edit-reservation-modal"

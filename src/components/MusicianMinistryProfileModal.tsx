@@ -35,7 +35,20 @@ export const MusicianMinistryProfileModal: React.FC<
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [stats, setStats] = useState<any | null>(null);
-  const [copySuccess, setCopySuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+
+  // Keyboard accessibility: ESC to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -76,24 +89,89 @@ export const MusicianMinistryProfileModal: React.FC<
 
   if (!isOpen) return null;
 
-  const handleShareWhatsApp = () => {
-    if (!stats) return;
-    const name = stats.userName || profile?.name || "خادم التسبيح";
+  const getShareMessage = () => {
+    if (!stats) return "";
+    const name = stats.userName || profile?.name || (isAr ? "خادم التسبيح" : "Church Musician");
     const hours = stats.totalHours || 0;
     const services = stats.totalServices || 0;
     const reliability = stats.reliabilityScore || 100;
 
-    let message = "";
     if (isAr) {
-      message = `🎵 *سجل خدمة وتسبيح كنسي*\n«سَبِّحُوا الرَّبَّ بِأَوْتَارٍ وَمِزْمَارٍ» (مز 150: 4)\n\n👤 *الخادم:* ${name}\n⏳ *ساعات الخدمة:* ${hours} ساعة\n⛪ *عدد البروفات والصلوات:* ${services} خدمة\n🛡️ *مؤشر الالتزام والأمانة:* ${reliability}%\n\nنشكر ربنا على نعمة الخدمة والتسبيح في بيت الله! ✨`;
-    } else {
-      message = `🎵 *Church Musical Ministry Record*\n"Praise Him with stringed instruments and flutes" (Ps 150:4)\n\n👤 *Musician:* ${name}\n⏳ *Total Service Hours:* ${hours} hrs\n⛪ *Services & Rehearsals:* ${services}\n🛡️ *Stewardship & Reliability:* ${reliability}%\n\nThankful for the blessing of praise and service! ✨`;
+      return `🎵 *سجل خدمة وتسبيح كنسي*\n«سَبِّحُوا الرَّبَّ بِأَوْتَارٍ وَمِزْمَارٍ» (مز 150: 4)\n\n👤 *الخادم:* ${name}\n⏳ *ساعات الخدمة:* ${hours} ساعة\n⛪ *عدد البروفات والصلوات:* ${services} خدمة\n🛡️ *مؤشر الالتزام والأمانة:* ${reliability}%\n\nنشكر ربنا على نعمة الخدمة والتسبيح في بيت الله! ✨`;
+    }
+    return `🎵 *Church Musical Ministry Record*\n"Praise Him with stringed instruments and flutes" (Ps 150:4)\n\n👤 *Musician:* ${name}\n⏳ *Total Service Hours:* ${hours} hrs\n⛪ *Services & Rehearsals:* ${services}\n🛡️ *Stewardship & Reliability:* ${reliability}%\n\nThankful for the blessing of praise and service! ✨`;
+  };
+
+  const shareMessage = getShareMessage();
+  const whatsappUrl = stats ? `https://wa.me/?text=${encodeURIComponent(shareMessage)}` : "#";
+
+  const handleCopyMessage = async () => {
+    if (!shareMessage) return;
+    try {
+      await navigator.clipboard.writeText(shareMessage);
+      setCopied(true);
+      setShareNotice(isAr ? "تم نسخ نص التهنئة إلى الحافظة بنجاح! ✨" : "Ministry record copied to clipboard! ✨");
+      setTimeout(() => {
+        setCopied(false);
+        setShareNotice(null);
+      }, 4000);
+    } catch {
+      // clipboard fallback
+    }
+  };
+
+  const handleShareWhatsApp = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!shareMessage) return;
+
+    // 1. Immediately copy to clipboard as guaranteed fallback
+    try {
+      await navigator.clipboard.writeText(shareMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      // ignore
     }
 
-    const encoded = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${encoded}`, "_blank");
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 3000);
+    // 2. Try native Web Share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: isAr ? "سجل خدمة وتسبيح كنسي" : "Church Musical Ministry Record",
+          text: shareMessage,
+        });
+        setShareNotice(isAr ? "تمت المشاركة بنجاح! ✨" : "Shared successfully! ✨");
+        setTimeout(() => setShareNotice(null), 4000);
+        return;
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+      }
+    }
+
+    // 3. Try opening WhatsApp directly
+    try {
+      const win = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (win) {
+        setShareNotice(
+          isAr
+            ? "تم فتح واتساب ونسخ النص إلى الحافظة! 📲"
+            : "Opening WhatsApp! Text is also copied to clipboard. 📲",
+        );
+      } else {
+        setShareNotice(
+          isAr
+            ? "تم نسخ النص إلى الحافظة! يمكنك الآن لصقه مباشرة في محادثة واتساب. ✨"
+            : "Copied to clipboard! You can now paste directly into your WhatsApp chat. ✨",
+        );
+      }
+    } catch {
+      setShareNotice(
+        isAr
+          ? "تم نسخ النص إلى الحافظة! يمكنك الآن لصقه مباشرة في محادثة واتساب. ✨"
+          : "Copied to clipboard! You can now paste directly into your WhatsApp chat. ✨",
+      );
+    }
+    setTimeout(() => setShareNotice(null), 6000);
   };
 
   return (
@@ -349,6 +427,23 @@ export const MusicianMinistryProfileModal: React.FC<
           ) : null}
         </div>
 
+        {/* Feedback / Fallback Banner */}
+        {shareNotice && (
+          <div className="shrink-0 px-4 sm:px-6 py-2.5 bg-emerald-50 border-t border-emerald-200 text-emerald-950 text-xs font-medium flex items-center justify-between gap-2 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{shareNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShareNotice(null)}
+              className="text-stone-400 hover:text-stone-600 p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Sticky Bottom Footer - Matching ReservationFormModal */}
         <div className="shrink-0 p-4 sm:px-6 sm:pb-5 border-t border-stone-200 bg-white flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
           <button
@@ -359,23 +454,40 @@ export const MusicianMinistryProfileModal: React.FC<
             {isAr ? "إغلاق" : "Close"}
           </button>
 
-          <button
-            type="button"
-            onClick={handleShareWhatsApp}
-            disabled={!stats}
-            className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-900/20 touch-manipulation disabled:opacity-50"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>
-              {copySuccess
-                ? isAr
-                  ? "جاري فتح واتساب..."
-                  : "Opening WhatsApp..."
-                : isAr
-                  ? "مشاركة بطاقة البركة على جروب الواتساب 📲"
-                  : "Share Ministry Card via WhatsApp 📲"}
-            </span>
-          </button>
+          <div className="w-full sm:flex-1 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyMessage}
+              disabled={!stats}
+              className="px-3.5 py-3.5 rounded-2xl border border-stone-200 hover:bg-stone-50 active:bg-stone-100 text-stone-700 text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation shrink-0"
+              title={isAr ? "نسخ نص البركة" : "Copy text"}
+            >
+              {copied ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span className="text-emerald-700">{isAr ? "تم النسخ" : "Copied"}</span>
+                </>
+              ) : (
+                <span>{isAr ? "نسخ النص" : "Copy"}</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShareWhatsApp}
+              disabled={!stats}
+              className={`flex-1 py-3.5 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-emerald-900/20 touch-manipulation ${
+                !stats ? "pointer-events-none opacity-50" : ""
+              }`}
+            >
+              <Share2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">
+                {isAr
+                  ? "مشاركة على واتساب 📲"
+                  : "Share on WhatsApp 📲"}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
