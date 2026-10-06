@@ -7,6 +7,7 @@ import {
   formatHhmmTo12Hour,
   addDaysToDateString,
   formatDisplayDate,
+  isNoShowWindowOpen,
 } from "../lib/date-utils";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import {
@@ -199,6 +200,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [reservations, setReservations] = useState<any[]>([]);
   const [loadingReservations, setLoadingReservations] =
     useState<boolean>(false);
+  const [noShowWindowNow, setNoShowWindowNow] = useState(() => Date.now());
   // Dashboard Overview (read-only, today's schedule)
   const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
   const [loadingTodaysReservations, setLoadingTodaysReservations] =
@@ -985,6 +987,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setFilterStatus("all");
     }
   }, [filterQuickTab]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNoShowWindowNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Trigger loads on tab switch or filter changes
   const firstLoadRef = useRef(true);
@@ -3798,8 +3805,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         {/* Action Buttons Bar - Standardized visual size and touch target matching Details & Chat */}
                         {!isSelectionMode &&
                           (isPending ||
-                            r.status === "completed" ||
-                            r.is_no_show) && (
+                            (r.status === "completed" &&
+                              (r.is_no_show ||
+                                isNoShowWindowOpen(r, noShowWindowNow)))) && (
                             <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 {isPending && (
@@ -3838,7 +3846,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
                                       <span>{t("common.unmarkNoShow")}</span>
                                     </button>
-                                  ) : (
+                                  ) : isNoShowWindowOpen(
+                                      r,
+                                      noShowWindowNow,
+                                    ) ? (
                                     <button
                                       type="button"
                                       onClick={() => handleMarkNoShow(r.id)}
@@ -3848,7 +3859,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       <UserX className="w-4 h-4 text-rose-700 shrink-0" />
                                       <span>{t("common.markNoShow")}</span>
                                     </button>
-                                  ))}
+                                  ) : null)}
                               </div>
                             </div>
                           )}

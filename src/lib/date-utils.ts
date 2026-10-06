@@ -5,6 +5,7 @@ import i18n from "./i18n.js";
  */
 
 export const APP_TIME_ZONE = "Africa/Cairo";
+export const NO_SHOW_WINDOW_HOURS = 48;
 
 export function isConditionCheckWindowOpen(
   reservation: {
@@ -27,6 +28,27 @@ export function isConditionCheckWindowOpen(
   return (
     Number.isFinite(startTime) &&
     now < startTime + 30 * 60 * 1000
+  );
+}
+
+export function isNoShowWindowOpen(
+  reservation: {
+    status?: string | null;
+    end_time?: string | null;
+    endTime?: string | null;
+  } | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!reservation || reservation.status !== "completed") {
+    return false;
+  }
+
+  const endTime = new Date(
+    reservation.end_time || reservation.endTime || "",
+  ).getTime();
+  return (
+    Number.isFinite(endTime) &&
+    now <= endTime + NO_SHOW_WINDOW_HOURS * 60 * 60 * 1000
   );
 }
 
