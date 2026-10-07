@@ -114,14 +114,14 @@ The billing unit is the **church working day (9AM–10PM)**, not the calendar da
 
 Applied per user to prevent monopolizing instruments and to prevent spam/abuse. All limits are **admin-editable at any time from Settings** — the values below are defaults, not fixed rules. Only the Super Admin can edit them. Trusted and Admin accounts bypass all of these.
 
-| Limit                                | Field name                 | Default | Scope                                                                                                                                                                                                                                                                               |
-| ------------------------------------ | -------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Max active reservations              | `max_active_reservations`  | 5       | Per user, global. Counts Pending + Approved combined. A recurring series counts as **1** toward this total, regardless of occurrence count.                                                                                                                                         |
-| Max reservations per day             | `max_reservations_per_day` | 5       | Per user, global                                                                                                                                                                                                                                                                    |
-| Max duration per single reservation  | `max_duration_hours`       | 5       | Per reservation                                                                                                                                                                                                                                                                     |
-| Max concurrent same-type instruments | `max_concurrent_per_type`  | 2       | Per user, per instrument type. Applies at any time, overlapping or not. A recurring series counts **each occurrence individually** toward this limit — unlike `max_active_reservations`, this limit tracks real concurrent holds, and a series genuinely creates one hold per date. |
-| Max occurrences per recurring series | `max_series_occurrences`   | 8       | Per series submission                                                                                                                                                                                                                                                               |
-| Submission rate limit                | `max_submissions_per_hour` | 10      | Per user, rolling 1-hour window, across all reservation submissions                                                                                                                                                                                                                 |
+| Limit                                | Field name                 | Default | Scope                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------ | -------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Max active reservations              | `max_active_reservations`  | 5       | Per user, global. Counts Pending + Approved combined. A recurring series counts as **1** toward this total, regardless of occurrence count.                                                                                                                                                                                                      |
+| Max reservations per day             | `max_reservations_per_day` | 5       | Per user, global                                                                                                                                                                                                                                                                                                                                 |
+| Max duration per single reservation  | `max_duration_hours`       | 5       | Per reservation                                                                                                                                                                                                                                                                                                                                  |
+| Max concurrent same-type instruments | `max_concurrent_per_type`  | 2       | Per user, per instrument type. Counts only the user's Pending + Approved reservations of that type whose time range overlaps the requested slot. Reservations on other dates or non-overlapping times do not count. A recurring series is evaluated per occurrence against its own slot, so a weekly series never triggers this limit by itself. |
+| Max occurrences per recurring series | `max_series_occurrences`   | 8       | Per series submission                                                                                                                                                                                                                                                                                                                            |
+| Submission rate limit                | `max_submissions_per_hour` | 10      | Per user, rolling 1-hour window, across all reservation submissions                                                                                                                                                                                                                                                                              |
 
 Exceeding the active/day/duration/concurrent-type limits does **not** block submission — it downgrades the request to **Pending** regardless of instrument mode. The user is shown a warning message explaining the reason.
 
@@ -177,14 +177,14 @@ Each occurrence in a series is evaluated independently against the conflict and 
 
 Users can edit a pending or approved reservation to change: instrument, date, start time, duration, service name, musician name, and notes.
 
-| Original Status                                     | After Edit                           |
-| --------------------------------------------------- | ------------------------------------ |
-| Pending                                             | Stays Pending                        |
-| Approved + In-Church + Instant mode instrument      | Auto-approved again (if no conflict) |
-| Approved + In-Church + Manual mode instrument       | Resets to Pending                    |
-| Approved + Outside-Church (any mode, regular user)  | Resets to Pending (requires review)  |
-| Approved + user over hard limits                    | Resets to Pending                    |
-| Approved + Trusted or Admin user                    | Auto-approved again (if no conflict) |
+| Original Status                                    | After Edit                           |
+| -------------------------------------------------- | ------------------------------------ |
+| Pending                                            | Stays Pending                        |
+| Approved + In-Church + Instant mode instrument     | Auto-approved again (if no conflict) |
+| Approved + In-Church + Manual mode instrument      | Resets to Pending                    |
+| Approved + Outside-Church (any mode, regular user) | Resets to Pending (requires review)  |
+| Approved + user over hard limits                   | Resets to Pending                    |
+| Approved + Trusted or Admin user                   | Auto-approved again (if no conflict) |
 
 Admin edits to their own reservations always re-trigger auto-approval. Any edit to an outside-church reservation by a regular user always resets to Pending for admin re-evaluation of fees and logistics.
 
@@ -369,43 +369,43 @@ Same flow used for both user and admin portals.
 
 ## Resolved Design Decisions
 
-| Topic                                | Decision                                                                                                     |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Forgot password                      | SMS OTP flow (3 steps)                                                                                       |
-| Login brute-force protection         | 15-min lockout after 5 failed password attempts (mirrors OTP lockout)                                        |
-| Notification delivery                | On-site bell + automated transactional emails (Gmail SMTP) for chat messages, pending requests & approvals  |
-| Admin-to-user contact                | Two-way in-system messaging scoped to reservation with automated bi-directional email dispatch & bell alerts |
-| Recurring series in manual mode      | Admin sees series as grouped card; approves/rejects all or individually                                      |
-| Booking mode scope                   | Per-instrument (not global) — but overridden entirely by Trusted status when present                         |
-| Calendar on mobile                   | Horizontal scroll; instrument detail has Daily/Weekly/Monthly toggle                                         |
-| Admin reservation                    | Always auto-approved; logged under admin's own account                                                       |
-| Trusted user status                  | Super Admin–granted per-user flag; auto-approves regardless of mode/limits; conflict rule still applies      |
-| Trusted + recurring series           | Still subject to conflict + self-overlap checks; only mode/limit checks are skipped                          |
-| Trusted + deactivation               | Flag persists through deactivate/reactivate                                                                  |
-| Hard limits behavior                 | Soft cap for active/day/duration/concurrent-type — over limit downgrades to Pending, not blocked             |
-| Hard limits editability              | All hard limits (including rate limit and series cap) admin-editable in Settings at any time                 |
-| Instant mode vs. over-limit order    | Conflict check always evaluated first; limit/mode checks only apply if no conflict exists                    |
-| Recurring conflict rule              | Any conflict with approved slot or self-overlap blocks submission; "Skip Conflicting Dates" discards conflicts|
-| Series occurrence cap                | Hard block at submission — default 8, admin-editable, bypassed by Trusted/Admin                              |
-| Submission rate limit                | Hard block at submission — default 10/hour per user, admin-editable, bypassed by Trusted/Admin               |
-| Cancel → rebook cooldown             | None — covered by the submission rate limit                                                                  |
-| Same-type concurrency rule           | Max 2 of same instrument type active at once, any time; recurring series counts each occurrence individually |
-| Active-reservations count for series | A recurring series counts as 1 toward `max_active_reservations`, regardless of occurrence count              |
-| Series rejection scope               | Future occurrences only                                                                                      |
-| Instrument mode change mid-flight    | Applies to future submissions only; existing Pending requests keep prior mode until acted on or edited       |
-| Instrument fee change mid-flight     | Fee is snapshotted at submission; later fee changes apply only to new submissions                            |
-| Force-remove instrument              | Cancels both Approved and Pending future reservations                                                        |
-| Admin account removal                | Own past/future reservations preserved as history; pending queue items untouched                             |
-| Deleted user data                    | Permanently erased — no anonymization                                                                        |
-| Deactivated user sessions            | Can still log in; cannot make new reservations                                                               |
-| Reactivated user                     | Starts fresh — no reservations restored; Trusted status restored if previously held                          |
-| Payment method                       | Instapay screenshot uploaded by user post-approval or direct church administration arrangement               |
-| Payment config                       | Instapay number/link set once in Settings by Super Admin                                                     |
-| OTP security                         | Max 3 requests/hour; 15-min lockout after 5 failures                                                         |
-| Approved-row uniqueness              | Enforced via DB exclusion constraint on `(instrument_id, time_range)` — Pending rows exempt                  |
-| Band / Service Pack Co-Booking       | Multi-instrument atomic booking with individual musician names, shared bandPackId, and unified outside fee   |
-| Pre-Handover Condition Check         | Musician liability protection with photo upload, pristine/issue status, timestamps, and condition tags      |
-| Musician Ministry Profile            | Worship hours counter, service milestones, reliability score, and Psalm 150:4 celebration cards              |
+| Topic                                | Decision                                                                                                                               |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Forgot password                      | SMS OTP flow (3 steps)                                                                                                                 |
+| Login brute-force protection         | 15-min lockout after 5 failed password attempts (mirrors OTP lockout)                                                                  |
+| Notification delivery                | On-site bell + automated transactional emails (Gmail SMTP) for chat messages, pending requests & approvals                             |
+| Admin-to-user contact                | Two-way in-system messaging scoped to reservation with automated bi-directional email dispatch & bell alerts                           |
+| Recurring series in manual mode      | Admin sees series as grouped card; approves/rejects all or individually                                                                |
+| Booking mode scope                   | Per-instrument (not global) — but overridden entirely by Trusted status when present                                                   |
+| Calendar on mobile                   | Horizontal scroll; instrument detail has Daily/Weekly/Monthly toggle                                                                   |
+| Admin reservation                    | Always auto-approved; logged under admin's own account                                                                                 |
+| Trusted user status                  | Super Admin–granted per-user flag; auto-approves regardless of mode/limits; conflict rule still applies                                |
+| Trusted + recurring series           | Still subject to conflict + self-overlap checks; only mode/limit checks are skipped                                                    |
+| Trusted + deactivation               | Flag persists through deactivate/reactivate                                                                                            |
+| Hard limits behavior                 | Soft cap for active/day/duration/concurrent-type — over limit downgrades to Pending, not blocked                                       |
+| Hard limits editability              | All hard limits (including rate limit and series cap) admin-editable in Settings at any time                                           |
+| Instant mode vs. over-limit order    | Conflict check always evaluated first; limit/mode checks only apply if no conflict exists                                              |
+| Recurring conflict rule              | Any conflict with approved slot or self-overlap blocks submission; "Skip Conflicting Dates" discards conflicts                         |
+| Series occurrence cap                | Hard block at submission — default 8, admin-editable, bypassed by Trusted/Admin                                                        |
+| Submission rate limit                | Hard block at submission — default 10/hour per user, admin-editable, bypassed by Trusted/Admin                                         |
+| Cancel → rebook cooldown             | None — covered by the submission rate limit                                                                                            |
+| Same-type concurrency rule           | Max 2 of same instrument type overlapping in time; non-overlapping reservations don't count; recurring series evaluated per occurrence |
+| Active-reservations count for series | A recurring series counts as 1 toward `max_active_reservations`, regardless of occurrence count                                        |
+| Series rejection scope               | Future occurrences only                                                                                                                |
+| Instrument mode change mid-flight    | Applies to future submissions only; existing Pending requests keep prior mode until acted on or edited                                 |
+| Instrument fee change mid-flight     | Fee is snapshotted at submission; later fee changes apply only to new submissions                                                      |
+| Force-remove instrument              | Cancels both Approved and Pending future reservations                                                                                  |
+| Admin account removal                | Own past/future reservations preserved as history; pending queue items untouched                                                       |
+| Deleted user data                    | Permanently erased — no anonymization                                                                                                  |
+| Deactivated user sessions            | Can still log in; cannot make new reservations                                                                                         |
+| Reactivated user                     | Starts fresh — no reservations restored; Trusted status restored if previously held                                                    |
+| Payment method                       | Instapay screenshot uploaded by user post-approval or direct church administration arrangement                                         |
+| Payment config                       | Instapay number/link set once in Settings by Super Admin                                                                               |
+| OTP security                         | Max 3 requests/hour; 15-min lockout after 5 failures                                                                                   |
+| Approved-row uniqueness              | Enforced via DB exclusion constraint on `(instrument_id, time_range)` — Pending rows exempt                                            |
+| Band / Service Pack Co-Booking       | Multi-instrument atomic booking with individual musician names, shared bandPackId, and unified outside fee                             |
+| Pre-Handover Condition Check         | Musician liability protection with photo upload, pristine/issue status, timestamps, and condition tags                                 |
+| Musician Ministry Profile            | Worship hours counter, service milestones, reliability score, and Psalm 150:4 celebration cards                                        |
 
 ---
 

@@ -81,7 +81,9 @@ export function getMaskedInstrumentName(type?: string | null): string {
   if (/brass|wind/i.test(cleanType)) return "Church Assigned Wind Instrument";
   if (/string/i.test(cleanType)) return "Church Assigned Strings";
   if (/audio/i.test(cleanType)) return "Church Assigned Audio Equipment";
-  return cleanType ? `Church Assigned ${cleanType}` : "Church Assigned Instrument";
+  return cleanType
+    ? `Church Assigned ${cleanType}`
+    : "Church Assigned Instrument";
 }
 
 /**
@@ -489,7 +491,7 @@ export async function evaluateReservationSubmission(
         );
       }
 
-      // Check 5d: max_concurrent_per_type (counts each individual occurrence)
+      // Check 5d: max_concurrent_per_type (counts same-type reservations overlapping the requested slot)
       if (cleanUserId) {
         const concurrentRes = await db
           .select({ count: sql<number>`count(*)::int` })
@@ -500,6 +502,7 @@ export async function evaluateReservationSubmission(
               eq(reservations.userId, cleanUserId),
               inArray(reservations.status, ["pending", "approved"]),
               eq(instruments.type, instrument.type),
+              sql`${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
             ),
           );
 
@@ -508,7 +511,7 @@ export async function evaluateReservationSubmission(
           limitExceeded = true;
           // 5d: max_concurrent_per_type
           reasons.push(
-            `You already have ${concurrentCount}/${limits.maxConcurrentPerType} active ${instrument.type} reservations. This request will wait for admin review instead of auto-approving.`,
+            `You already have ${concurrentCount}/${limits.maxConcurrentPerType} ${instrument.type} reservations at this same time. This request will wait for admin review instead of auto-approving.`,
           );
         }
       }
@@ -834,7 +837,9 @@ export async function createReservation(input: ReservationSubmissionInput) {
       };
 
       const startFmt = formatTimeToClean(input.startTime);
-      const endFmt = formatTimeToClean(getCairoTimeString(evalResult.endTimeUtc));
+      const endFmt = formatTimeToClean(
+        getCairoTimeString(evalResult.endTimeUtc),
+      );
       const durStr = input.duration ? ` (${input.duration}h)` : "";
       minimalRequestMsg = `${instrumentRow?.name || "Instrument"} on ${dayName} ${formattedDate} from ${startFmt} to ${endFmt}${durStr}`;
     } catch {
@@ -1237,9 +1242,13 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
 
         const sStartFmt = formatTimeToClean(firstOcc.startTime);
         const sDuration = firstOcc.duration;
-        const [sh, smin] = (firstOcc.startTime || "00:00").split(":").map(Number);
+        const [sh, smin] = (firstOcc.startTime || "00:00")
+          .split(":")
+          .map(Number);
         const sEndH = sh + (sDuration || 0);
-        const sEndFmt = formatTimeToClean(`${sEndH}:${String(smin || 0).padStart(2, "0")}`);
+        const sEndFmt = formatTimeToClean(
+          `${sEndH}:${String(smin || 0).padStart(2, "0")}`,
+        );
         const sDurStr = sDuration ? ` (${sDuration}h)` : "";
 
         seriesMinimalMsg = `${instrumentRow?.name || "Instrument"} (${createdOccurrences.length} sessions) on ${sDayName} ${sFormattedDate} from ${sStartFmt} to ${sEndFmt}${sDurStr}`;
