@@ -20,6 +20,7 @@ import {
   CalendarCheck,
   Music2,
   Bell,
+  BellRing,
   Users,
   MessageSquare,
   ShieldCheck,
@@ -443,6 +444,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   });
   const [savingNotificationSettings, setSavingNotificationSettings] =
     useState<boolean>(false);
+
+  // Admin Push Notification Preferences (Per Admin)
+  const [adminPushPrefs, setAdminPushPrefs] = useState<{
+    notifyRegistrations: boolean;
+    notifyReservations: boolean;
+    notifyChat: boolean;
+  }>({
+    notifyRegistrations: true,
+    notifyReservations: true,
+    notifyChat: true,
+  });
+  const [savingPushPrefs, setSavingPushPrefs] = useState<boolean>(false);
 
   // Super Admin: Payment Settings
   const [paymentSettingsState, setPaymentSettingsState] = useState<{
@@ -960,6 +973,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Fetch Admin Push Preferences (All Admins)
+  const fetchAdminPushPreferences = async () => {
+    try {
+      const res = await adminFetch("/push-preferences");
+      const data = await res.json();
+      if (data.success && data.preferences) {
+        setAdminPushPrefs({
+          notifyRegistrations: Boolean(data.preferences.notifyRegistrations),
+          notifyReservations: Boolean(data.preferences.notifyReservations),
+          notifyChat: Boolean(data.preferences.notifyChat),
+        });
+      }
+    } catch {
+      // silent
+    }
+  };
+
   // Fetch Payment Settings (Super Admin)
   const fetchPaymentSettings = async () => {
     if (!isSuperAdmin) return;
@@ -1030,7 +1060,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     } else if (activeTab === "payment_settings") {
       fetchPaymentSettings();
     } else if (activeTab === "notification_settings") {
-      fetchNotificationSettings();
+      fetchAdminPushPreferences();
+      if (isSuperAdmin) fetchNotificationSettings();
     } else if (activeTab === "messaging") {
       fetchMessagingReservations();
     }
@@ -1879,6 +1910,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  // Admin: Save Push Preferences (All Admins)
+  const handleSavePushPreferences = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPushPrefs(true);
+    try {
+      const res = await adminFetch("/push-preferences", {
+        method: "PUT",
+        body: JSON.stringify(adminPushPrefs),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice("Push notification preferences updated successfully.");
+      } else {
+        showNotice(data.error || "Failed to update push preferences.", "error");
+      }
+    } catch (err: any) {
+      showNotice(err.message, "error");
+    } finally {
+      setSavingPushPrefs(false);
+    }
+  };
+
   // Super Admin: Save Notification Settings
   const handleSaveNotificationSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2003,6 +2056,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       Icon: MessageSquare,
       count: 0,
     },
+    {
+      id: "notification_settings" as const,
+      label: t("admin.tabNotificationSettings"),
+      Icon: Bell,
+      count: 0,
+    },
   ];
 
   const superAdminTabs = [
@@ -2028,12 +2087,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       id: "payment_settings" as const,
       label: t("admin.tabPaymentSettings"),
       Icon: CreditCard,
-      count: 0,
-    },
-    {
-      id: "notification_settings" as const,
-      label: t("admin.tabNotificationSettings"),
-      Icon: Bell,
       count: 0,
     },
   ];
@@ -5593,103 +5646,228 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         )}
 
-        {activeTab === "notification_settings" && isSuperAdmin && (
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-            <div className="border-b border-stone-100 pb-3">
-              <h2 className="font-bold text-stone-900 text-sm">
-                {t("admin.notificationSettings.title")}
-              </h2>
-              <p className="text-xs text-stone-500">
-                {t("admin.notificationSettings.subtitle")}
-              </p>
+        {activeTab === "notification_settings" && (
+          <div className="space-y-6">
+            {/* 1. Admin Push Notification Preferences (Per-Admin Switches) */}
+            <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="border-b border-stone-100 pb-3">
+                <h2 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                  <BellRing className="w-4 h-4 text-amber-700" />
+                  <span>{t("admin.pushSettings.title")}</span>
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {t("admin.pushSettings.subtitle")}
+                </p>
+              </div>
+
+              <form onSubmit={handleSavePushPreferences} className="space-y-3">
+                {/* Switch 1: Registrations */}
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                  <div className="pr-4">
+                    <div className="font-bold text-stone-800 text-xs">
+                      {t("admin.pushSettings.registrationsTitle")}
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      {t("admin.pushSettings.registrationsDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle new registrations push notifications"
+                    onClick={() =>
+                      setAdminPushPrefs({
+                        ...adminPushPrefs,
+                        notifyRegistrations: !adminPushPrefs.notifyRegistrations,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
+                      adminPushPrefs.notifyRegistrations ? "bg-amber-700" : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        adminPushPrefs.notifyRegistrations ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Switch 2: Reservations */}
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                  <div className="pr-4">
+                    <div className="font-bold text-stone-800 text-xs">
+                      {t("admin.pushSettings.reservationsTitle")}
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      {t("admin.pushSettings.reservationsDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle new reservation requests push notifications"
+                    onClick={() =>
+                      setAdminPushPrefs({
+                        ...adminPushPrefs,
+                        notifyReservations: !adminPushPrefs.notifyReservations,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
+                      adminPushPrefs.notifyReservations ? "bg-amber-700" : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        adminPushPrefs.notifyReservations ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Switch 3: Chat */}
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                  <div className="pr-4">
+                    <div className="font-bold text-stone-800 text-xs">
+                      {t("admin.pushSettings.chatTitle")}
+                    </div>
+                    <div className="text-[11px] text-stone-500 mt-0.5">
+                      {t("admin.pushSettings.chatDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle member chat messages push notifications"
+                    onClick={() =>
+                      setAdminPushPrefs({
+                        ...adminPushPrefs,
+                        notifyChat: !adminPushPrefs.notifyChat,
+                      })
+                    }
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
+                      adminPushPrefs.notifyChat ? "bg-amber-700" : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                        adminPushPrefs.notifyChat ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="pt-3 border-t border-stone-100 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingPushPrefs}
+                    className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                  >
+                    {savingPushPrefs
+                      ? t("admin.pushSettings.saving")
+                      : t("admin.pushSettings.saveButton")}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <form
-              onSubmit={handleSaveNotificationSettings}
-              className="space-y-3"
-            >
-              <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                <div className="pr-4">
-                  <div className="font-bold text-stone-800 text-xs">
-                    {t("admin.notificationSettings.approvalEmailsTitle")}
-                  </div>
-                  <div className="text-[11px] text-stone-500 mt-0.5">
-                    {t("admin.notificationSettings.approvalEmailsDesc")}
-                  </div>
+            {/* 2. Global Email Mute Settings (Super Admin Only) */}
+            {isSuperAdmin && (
+              <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+                <div className="border-b border-stone-100 pb-3">
+                  <h2 className="font-bold text-stone-900 text-sm">
+                    {t("admin.notificationSettings.title")}
+                  </h2>
+                  <p className="text-xs text-stone-500">
+                    {t("admin.notificationSettings.subtitle")}
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Toggle account approval emails"
-                  onClick={() =>
-                    setNotificationSettingsState({
-                      ...notificationSettingsState,
-                      muteAccountApprovalEmails:
-                        !notificationSettingsState.muteAccountApprovalEmails,
-                    })
-                  }
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
-                    notificationSettingsState.muteAccountApprovalEmails
-                      ? "bg-stone-300"
-                      : "bg-amber-700"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      notificationSettingsState.muteAccountApprovalEmails
-                        ? "translate-x-1"
-                        : "translate-x-6"
-                    }`}
-                  />
-                </button>
-              </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                <div className="pr-4">
-                  <div className="font-bold text-stone-800 text-xs">
-                    {t("admin.notificationSettings.requestEmailsTitle")}
-                  </div>
-                  <div className="text-[11px] text-stone-500 mt-0.5">
-                    {t("admin.notificationSettings.requestEmailsDesc")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Toggle reservation request emails"
-                  onClick={() =>
-                    setNotificationSettingsState({
-                      ...notificationSettingsState,
-                      muteReservationRequestEmails:
-                        !notificationSettingsState.muteReservationRequestEmails,
-                    })
-                  }
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
-                    notificationSettingsState.muteReservationRequestEmails
-                      ? "bg-stone-300"
-                      : "bg-amber-700"
-                  }`}
+                <form
+                  onSubmit={handleSaveNotificationSettings}
+                  className="space-y-3"
                 >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      notificationSettingsState.muteReservationRequestEmails
-                        ? "translate-x-1"
-                        : "translate-x-6"
-                    }`}
-                  />
-                </button>
-              </div>
+                  <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                    <div className="pr-4">
+                      <div className="font-bold text-stone-800 text-xs">
+                        {t("admin.notificationSettings.approvalEmailsTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500 mt-0.5">
+                        {t("admin.notificationSettings.approvalEmailsDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle account approval emails"
+                      onClick={() =>
+                        setNotificationSettingsState({
+                          ...notificationSettingsState,
+                          muteAccountApprovalEmails:
+                            !notificationSettingsState.muteAccountApprovalEmails,
+                        })
+                      }
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                        notificationSettingsState.muteAccountApprovalEmails
+                          ? "bg-stone-300"
+                          : "bg-amber-700"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                          notificationSettingsState.muteAccountApprovalEmails
+                            ? "translate-x-1"
+                            : "translate-x-6"
+                        }`}
+                      />
+                    </button>
+                  </div>
 
-              <div className="pt-3 border-t border-stone-100 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={savingNotificationSettings}
-                  className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
-                >
-                  {savingNotificationSettings
-                    ? t("admin.notificationSettings.saving")
-                    : t("admin.notificationSettings.saveButton")}
-                </button>
+                  <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+                    <div className="pr-4">
+                      <div className="font-bold text-stone-800 text-xs">
+                        {t("admin.notificationSettings.requestEmailsTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500 mt-0.5">
+                        {t("admin.notificationSettings.requestEmailsDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle reservation request emails"
+                      onClick={() =>
+                        setNotificationSettingsState({
+                          ...notificationSettingsState,
+                          muteReservationRequestEmails:
+                            !notificationSettingsState.muteReservationRequestEmails,
+                        })
+                      }
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
+                        notificationSettingsState.muteReservationRequestEmails
+                          ? "bg-stone-300"
+                          : "bg-amber-700"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                          notificationSettingsState.muteReservationRequestEmails
+                            ? "translate-x-1"
+                            : "translate-x-6"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="pt-3 border-t border-stone-100 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={savingNotificationSettings}
+                      className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
+                    >
+                      {savingNotificationSettings
+                        ? t("admin.notificationSettings.saving")
+                        : t("admin.notificationSettings.saveButton")}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
           </div>
         )}
       </main>

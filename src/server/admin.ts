@@ -14,6 +14,7 @@ import {
   messages,
   sessions,
   notificationSettings,
+  adminPushPreferences,
 } from "../db/schema.js";
 import { eq, and, sql, desc, asc, inArray } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
@@ -24,6 +25,7 @@ import {
   isValidEmail,
 } from "../lib/auth-helpers.js";
 import { sendAccountApprovedEmail } from "../lib/mailer.js";
+import { dispatchSystemNotification } from "./notifications-service.js";
 import {
   adminApproveReservation,
   adminTransformToFullDay,
@@ -2504,11 +2506,17 @@ router.post(
 
       // Notify user of administrative reservation
       try {
-        await db.insert(notifications).values({
+        await dispatchSystemNotification({
           userId,
           reservationId: result.reservation.id,
           type: "reservation_approved",
-          message: `Church Administration created and approved an instrument reservation for you: "${serviceName}" on ${date} at ${startTime}.`,
+          bellMessage: `Church Administration created and approved an instrument reservation for you: "${serviceName}" on ${date} at ${startTime}.`,
+          pushCategory: "reservations",
+          metadata: {
+            date,
+            time: startTime,
+            url: `/?reservationId=${result.reservation.id}&tab=details`,
+          },
         });
       } catch {
         // non-fatal
@@ -2560,17 +2568,19 @@ router.post(
       );
       const userRows = (resInfo as any).rows || [];
       if (userRows.length > 0 && userRows[0].user_id) {
-        await db.execute(sql`
-        INSERT INTO notifications (user_id, type, message, is_read, reservation_id, created_at)
-        VALUES (
-          ${userRows[0].user_id}, 
-          'admin_message', 
-          ${`New message from administration regarding "${userRows[0].service_name || "Reservation"}": "${content.trim()}"`}, 
-          false, 
-          ${id}, 
-          NOW()
-        )
-      `);
+        await dispatchSystemNotification({
+          userId: userRows[0].user_id,
+          actorId: adminId || null,
+          reservationId: id,
+          type: "admin_message",
+          bellMessage: `New message from administration regarding "${userRows[0].service_name || "Reservation"}": "${content.trim()}"`,
+          pushCategory: "chat",
+          metadata: {
+            senderName: "Administration",
+            content: content.trim(),
+            url: `/?reservationId=${id}&tab=chat`,
+          },
+        });
       }
 
       res.json({
@@ -3291,6 +3301,111 @@ router.put(
       });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * GET /api/admin/push-preferences
+ * Retrieve current admin's push notification switches
+ */
+router.get(
+  "/push-preferences",
+  requireAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const adminId = (req as any).adminSession?.adminId;
+      if (!adminId) {
+        res.status(401).json({ success: false, error: "Admin session required" });
+        return;
+      }
+
+      const rows = await db
+        .select()
+        .from(adminPushPreferences)
+        .where(eq(adminPushPreferences.adminId, adminId))
+        .limit(1);
+
+      if (rows.length === 0) {
+        res.json({
+          success: true,
+          preferences: {
+            notifyRegistrations: true,
+            notifyReservations: true,
+            notifyChat: true,
+          },
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        preferences: {
+          notifyRegistrations: rows[0].notifyRegistrations,
+          notifyReservations: rows[0].notifyReservations,
+          notifyChat: rows[0].notifyChat,
+        },
+      });
+    } catch (err: any) {
+      console.error("Fetch push preferences error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * PUT /api/admin/push-preferences
+ * Update current admin's push notification switches
+ */
+router.put(
+  "/push-preferences",
+  requireAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const adminId = (req as any).adminSession?.adminId;
+      if (!adminId) {
+        res.status(401).json({ success: false, error: "Admin session required" });
+        return;
+      }
+
+      const { notifyRegistrations, notifyReservations, notifyChat } = req.body;
+
+      const reg = typeof notifyRegistrations === "boolean" ? notifyRegistrations : true;
+      const resv = typeof notifyReservations === "boolean" ? notifyReservations : true;
+      const chat = typeof notifyChat === "boolean" ? notifyChat : true;
+
+      const [updated] = await db
+        .insert(adminPushPreferences)
+        .values({
+          adminId,
+          notifyRegistrations: reg,
+          notifyReservations: resv,
+          notifyChat: chat,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: adminPushPreferences.adminId,
+          set: {
+            notifyRegistrations: reg,
+            notifyReservations: resv,
+            notifyChat: chat,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      res.json({
+        success: true,
+        preferences: {
+          notifyRegistrations: updated.notifyRegistrations,
+          notifyReservations: updated.notifyReservations,
+          notifyChat: updated.notifyChat,
+        },
+        message: "Push notification preferences updated successfully",
+      });
+    } catch (err: any) {
+      console.error("Update push preferences error:", err);
+      res.status(500).json({ success: false, error: err.message });
     }
   },
 );

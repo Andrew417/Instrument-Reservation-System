@@ -17,9 +17,14 @@ import { NotificationsModal } from "./components/NotificationsModal.tsx";
 import { AdminPortal } from "./components/AdminPortal.tsx";
 import { getTodayDateString } from "./lib/date-utils";
 import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
+import { PushNotificationPrompt } from "./components/PushNotificationPrompt.tsx";
 import { UserDetailModal } from "./components/UserDetailModal.tsx";
 import { ConditionCheckModal } from "./components/ConditionCheckModal.tsx";
 import { MusicianMinistryProfileModal } from "./components/MusicianMinistryProfileModal.tsx";
+import {
+  ChatAssistantModal,
+  ChatAssistantFloatingButton,
+} from "./components/ChatAssistantModal.tsx";
 import {
   LogOut,
   Sparkles,
@@ -168,6 +173,10 @@ const UserPortalMain: React.FC = () => {
   const [isNotificationsOpen, setIsNotificationsOpen] =
     useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  // Gemini AI Chatbot Assistant
+  const [isChatAssistantOpen, setIsChatAssistantOpen] =
+    useState<boolean>(false);
   // Bottom nav — which tab is visually active
   const [activeMobileTab, setActiveMobileTab] = useState<
     "calendar" | "my_reservations" | "notifications" | "admin_portal"
@@ -244,18 +253,6 @@ const UserPortalMain: React.FC = () => {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Synchronize mobile bottom tab indicator whenever currentView changes
-  useEffect(() => {
-    if (
-      currentView === "calendar" ||
-      currentView === "my_reservations" ||
-      currentView === "notifications" ||
-      currentView === "admin_portal"
-    ) {
-      setActiveMobileTab(currentView);
-    }
-  }, [currentView]);
-
   // Initial fetch for notifications count
   useEffect(() => {
     const checkUnread = async () => {
@@ -275,6 +272,36 @@ const UserPortalMain: React.FC = () => {
     };
     checkUnread();
   }, [sessionToken, refreshTrigger]);
+
+  // Listen for foreground push notification event to refresh bell count
+  useEffect(() => {
+    const handlePushRefresh = () => {
+      setRefreshTrigger((prev) => prev + 1);
+    };
+    window.addEventListener("refresh-notifications", handlePushRefresh);
+    return () => window.removeEventListener("refresh-notifications", handlePushRefresh);
+  }, []);
+
+  // Deep-link routing from push notifications (?reservationId=&tab=&adminTab=)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const resId = params.get("reservationId");
+    const tab = params.get("tab");
+    const adminTab = params.get("adminTab") as any;
+
+    if (resId) {
+      setSelectedReservationDetailId(resId);
+      if (tab === "chat") {
+        setReservationDetailInitialTab("chat");
+      }
+    }
+
+    if (adminTab && (profile?.role === "admin" || profile?.role === "super_admin")) {
+      setCurrentView("admin_portal");
+      setInitialAdminTab(adminTab);
+    }
+  }, [profile]);
 
   useEffect(() => {
     const fetchPolicyFlag = async () => {
@@ -419,6 +446,20 @@ const UserPortalMain: React.FC = () => {
 
           {/* User Profile & Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* AI Reservation Assistant */}
+            <button
+              id="header-chat-assistant-btn"
+              type="button"
+              onClick={() => setIsChatAssistantOpen(true)}
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 text-indigo-950 text-xs font-bold hover:bg-indigo-100/90 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title={t("chatAssistant.title", "Reservation Assistant")}
+            >
+              <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+              <span className="hidden md:inline">
+                {t("chatAssistant.title", "Reservation Assistant")}
+              </span>
+            </button>
+
             {policyExplainerEnabled && (
               <button
                 id="header-policy-help-btn"
@@ -773,32 +814,23 @@ const UserPortalMain: React.FC = () => {
         />
       )}
 
-      {/* Mobile Floating Action Button (FAB) for fast 1-tap booking */}
-      {currentView === "calendar" && !isAnyModalActive && (
-        <button
-          type="button"
-          id="mobile-fast-book-fab"
-          onClick={() => {
-            if (allInstruments.length > 0) {
-              setSelectedSlot({
-                instrument: allInstruments[0],
-                date: getTodayDateString(),
-                timeHhmm: "10:00",
-                duration: 2,
-              });
-            }
-          }}
-          className={`lg:hidden fixed bottom-20 ${
-            isRTL ? "left-4" : "right-4"
-          } z-40 bg-amber-800 hover:bg-amber-900 active:scale-95 text-white font-bold rounded-full py-3 px-4 shadow-xl flex items-center gap-2 border border-amber-700/50 transition-all touch-manipulation`}
-          aria-label={t("myReservations.newReservation")}
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span className="text-xs font-bold whitespace-nowrap">
-            {isRTL ? "حجز آلة" : "Reserve"}
-          </span>
-        </button>
-      )}
+      {/* Gemini AI Chatbot Floating Launcher Button */}
+      <ChatAssistantFloatingButton
+        isOpen={isChatAssistantOpen}
+        onClick={() => setIsChatAssistantOpen(true)}
+      />
+
+      {/* Gemini AI Chatbot Assistant Modal */}
+      <ChatAssistantModal
+        isOpen={isChatAssistantOpen}
+        onClose={() => setIsChatAssistantOpen(false)}
+        onNavigateView={(view) => {
+          setIsNotificationsOpen(false);
+          setCurrentView(view);
+          setActiveMobileTab(view);
+        }}
+        onOpenMinistryProfile={() => setIsMinistryProfileModalOpen(true)}
+      />
 
       {/* ✅ Mobile Bottom Navigation Bar — polished */}
       <nav
@@ -811,7 +843,7 @@ const UserPortalMain: React.FC = () => {
         style={{
           transform: isAnyModalActive ? "translateY(100%)" : "translateZ(0)",
         }}
-        dir={isRTL ? "rtl" : "ltr"}
+        dir="ltr"
         aria-hidden={isAnyModalActive}
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">
@@ -1390,6 +1422,9 @@ const UserPortalMain: React.FC = () => {
           </aside>
         </>
       )}
+
+      {/* Push Notification Opt-in Prompt & Guidance */}
+      <PushNotificationPrompt />
     </div>
   );
 };

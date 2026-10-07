@@ -349,6 +349,49 @@ export const roleAuditLog = pgTable("role_audit_log", {
     .notNull(),
 });
 
+// 15. Push Tokens Table
+export const pushTokens = pgTable(
+  "push_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    adminId: uuid("admin_id").references(() => admins.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    language: text("language").default("ar").notNull(), // 'ar' | 'en'
+    platform: text("platform"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique("push_tokens_token_key").on(table.token),
+    check(
+      "push_tokens_language_check",
+      sql`${table.language} IN ('ar', 'en')`,
+    ),
+    check(
+      "push_tokens_owner_check",
+      sql`${table.userId} IS NOT NULL OR ${table.adminId} IS NOT NULL`,
+    ),
+  ],
+);
+
+// 16. Admin Push Preferences Table (Per-admin settings)
+export const adminPushPreferences = pgTable("admin_push_preferences", {
+  adminId: uuid("admin_id")
+    .primaryKey()
+    .references(() => admins.id, { onDelete: "cascade" }),
+  notifyRegistrations: boolean("notify_registrations").default(true).notNull(),
+  notifyReservations: boolean("notify_reservations").default(true).notNull(),
+  notifyChat: boolean("notify_chat").default(true).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // Drizzle Relations
 export const usersRelations = relations(users, ({ many }) => ({
   reservations: many(reservations),
@@ -356,13 +399,19 @@ export const usersRelations = relations(users, ({ many }) => ({
   notifications: many(notifications),
   auditLogs: many(trustedStatusAuditLog),
   messages: many(messages),
+  pushTokens: many(pushTokens),
 }));
 
-export const adminsRelations = relations(admins, ({ many }) => ({
+export const adminsRelations = relations(admins, ({ one, many }) => ({
   reservations: many(reservations),
   series: many(reservationSeries),
   messages: many(messages),
   grantedAudits: many(trustedStatusAuditLog),
+  pushTokens: many(pushTokens),
+  pushPreferences: one(adminPushPreferences, {
+    fields: [admins.id],
+    references: [adminPushPreferences.adminId],
+  }),
 }));
 
 export const instrumentsRelations = relations(instruments, ({ many }) => ({
@@ -435,3 +484,19 @@ export const trustedStatusAuditLogRelations = relations(
     }),
   }),
 );
+
+export const pushTokensRelations = relations(pushTokens, ({ one }) => ({
+  user: one(users, { fields: [pushTokens.userId], references: [users.id] }),
+  admin: one(admins, { fields: [pushTokens.adminId], references: [admins.id] }),
+}));
+
+export const adminPushPreferencesRelations = relations(
+  adminPushPreferences,
+  ({ one }) => ({
+    admin: one(admins, {
+      fields: [adminPushPreferences.adminId],
+      references: [admins.id],
+    }),
+  }),
+);
+

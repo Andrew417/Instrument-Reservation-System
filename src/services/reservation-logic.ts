@@ -22,6 +22,7 @@ import {
   getCairoParts,
   getCairoTimeString,
 } from "../lib/date-utils.js";
+import { dispatchSystemNotification } from "../server/notifications-service.js";
 
 export interface TimeSlot {
   date: string; // 'YYYY-MM-DD'
@@ -564,15 +565,19 @@ export async function autoRejectOverlappingPending(
   const result = await db.execute(query);
   const autoRejectedRows = (result as any).rows || [];
 
-  // Notify affected users in-app
+  // Notify affected users in-app and via push
   for (const row of autoRejectedRows) {
     if (row.user_id) {
-      await db.insert(notifications).values({
+      await dispatchSystemNotification({
         userId: row.user_id,
         reservationId: row.id,
         type: "reservation_auto_rejected",
-        message:
+        bellMessage:
           "Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.",
+        pushCategory: "reservations",
+        metadata: {
+          url: `/?reservationId=${row.id}&tab=details`,
+        },
       });
     }
   }
@@ -686,11 +691,17 @@ export async function createReservation(input: ReservationSubmissionInput) {
 
     // 8. Notification for approved user
     if (cleanUserId) {
-      await db.insert(notifications).values({
+      await dispatchSystemNotification({
         userId: cleanUserId,
         reservationId: newReservation.id,
         type: "reservation_approved",
-        message: `Your reservation on ${input.date} (${input.startTime} - ${getCairoTimeString(evalResult.endTimeUtc)}) has been approved.`,
+        bellMessage: `Your reservation on ${input.date} (${input.startTime} - ${getCairoTimeString(evalResult.endTimeUtc)}) has been approved.`,
+        pushCategory: "reservations",
+        metadata: {
+          date: input.date,
+          time: input.startTime,
+          url: `/?reservationId=${newReservation.id}&tab=details`,
+        },
       });
 
       // Instant bookings do not require approval, but admins still receive an
@@ -846,17 +857,20 @@ export async function createReservation(input: ReservationSubmissionInput) {
       // fallback to default
     }
 
-    for (const adm of allAdmins) {
-      await db
-        .insert(notifications)
-        .values({
-          adminId: adm.id,
-          reservationId: newReservation.id,
-          type: "reservation_submitted",
-          message: minimalRequestMsg,
-        })
-        .catch(() => {});
-    }
+    await dispatchSystemNotification({
+      broadcastToAdmins: true,
+      actorId: cleanUserId || null,
+      reservationId: newReservation.id,
+      type: "reservation_submitted",
+      bellMessage: minimalRequestMsg,
+      pushCategory: "reservations",
+      metadata: {
+        userName: requester?.name || "Member",
+        instrumentName: instrumentRow?.name || "Instrument",
+        date: input.date,
+        url: `/?reservationId=${newReservation.id}&tab=details`,
+      },
+    });
   }
 
   return {
@@ -1256,17 +1270,20 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         // fallback
       }
 
-      for (const adm of allAdmins) {
-        await db
-          .insert(notifications)
-          .values({
-            adminId: adm.id,
-            reservationId: createdOccurrences[0].reservation.id,
-            type: "reservation_submitted",
-            message: seriesMinimalMsg,
-          })
-          .catch(() => {});
-      }
+      await dispatchSystemNotification({
+        broadcastToAdmins: true,
+        actorId: cleanUserId || null,
+        reservationId: createdOccurrences[0].reservation.id,
+        type: "series_submitted",
+        bellMessage: seriesMinimalMsg,
+        pushCategory: "reservations",
+        metadata: {
+          userName: requester?.name || "Member",
+          instrumentName: instrumentRow?.name || "Instrument",
+          count: createdOccurrences.length,
+          url: `/?reservationId=${createdOccurrences[0].reservation.id}&tab=details`,
+        },
+      });
     }
   }
 
@@ -1556,10 +1573,17 @@ export async function cancelReservation(
         new Set(cancelled.map((r) => r.userId).filter(Boolean)),
       );
       for (const uid of userIds) {
-        await db.insert(notifications).values({
+        await dispatchSystemNotification({
           userId: uid as string,
+          actorId: cleanCallerAdminId,
+          reservationId: cancelled[0]?.id,
           type: "reservation_cancelled",
-          message: bellMessage,
+          bellMessage: bellMessage,
+          pushCategory: "reservations",
+          metadata: {
+            reason: cleanReason,
+            url: cancelled[0]?.id ? `/?reservationId=${cancelled[0].id}&tab=details` : undefined,
+          },
         });
       }
     }
@@ -1579,11 +1603,17 @@ export async function cancelReservation(
     .returning();
 
   if (cleanCallerAdminId && cancelled.userId) {
-    await db.insert(notifications).values({
+    await dispatchSystemNotification({
       userId: cancelled.userId,
+      actorId: cleanCallerAdminId,
       reservationId: cancelled.id,
       type: "reservation_cancelled",
-      message: bellMessage,
+      bellMessage: bellMessage,
+      pushCategory: "reservations",
+      metadata: {
+        reason: cleanReason,
+        url: `/?reservationId=${cancelled.id}&tab=details`,
+      },
     });
   }
 
@@ -1699,11 +1729,17 @@ export async function adminApproveReservation(
       ? `Your reservation for "${res.serviceName}" has been approved! The church administration has allocated "${userVisibleInstName}" for your service.`
       : `Your reservation for "${res.serviceName}" (${userVisibleInstName}) has been approved by an administrator.`;
 
-    await db.insert(notifications).values({
+    await dispatchSystemNotification({
       userId: res.userId,
+      actorId: cleanAdminId || null,
       reservationId: res.id,
       type: "reservation_approved",
-      message: approvalNotice,
+      bellMessage: approvalNotice,
+      pushCategory: "reservations",
+      metadata: {
+        instrumentName: userVisibleInstName,
+        url: `/?reservationId=${res.id}&tab=details`,
+      },
     });
 
     // Send transactional email (non-blocking) unless skipped (e.g. during series approval)
@@ -1934,11 +1970,17 @@ export async function adminRejectReservation(
     .returning();
 
   if (res.userId) {
-    await db.insert(notifications).values({
+    await dispatchSystemNotification({
       userId: res.userId,
+      actorId: cleanAdminId || null,
       reservationId: res.id,
       type: "reservation_rejected",
-      message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
+      bellMessage: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
+      pushCategory: "reservations",
+      metadata: {
+        reason: reason.trim(),
+        url: `/?reservationId=${res.id}&tab=details`,
+      },
     });
 
     // Also record the rejection reason as an admin message in the conversation thread
@@ -2141,10 +2183,17 @@ export async function adminRejectSeries(
   // Notify user in-app
   const userId = seriesOccurrences[0]?.userId;
   if (userId) {
-    await db.insert(notifications).values({
+    await dispatchSystemNotification({
       userId,
-      type: "series_rejected",
-      message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
+      actorId: cleanAdminId || null,
+      reservationId: seriesOccurrences[0]?.id,
+      type: "reservation_rejected",
+      bellMessage: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
+      pushCategory: "reservations",
+      metadata: {
+        reason: reason.trim(),
+        url: `/?reservationId=${seriesOccurrences[0]?.id}&tab=details`,
+      },
     });
 
     // Also record the rejection reason as an admin message in the conversation thread for each occurrence
@@ -2290,10 +2339,15 @@ export async function adminBulkReject(
     new Set(rejectedList.map((r) => r.userId).filter(Boolean)),
   );
   for (const uid of userIds) {
-    await db.insert(notifications).values({
+    await dispatchSystemNotification({
       userId: uid as string,
+      actorId: cleanAdminId || null,
       type: "reservation_rejected",
-      message: `Your reservation request(s) were rejected by an administrator. Reason: ${reason.trim()}`,
+      bellMessage: `Your reservation request(s) were rejected by an administrator. Reason: ${reason.trim()}`,
+      pushCategory: "reservations",
+      metadata: {
+        reason: reason.trim(),
+      },
     });
   }
 

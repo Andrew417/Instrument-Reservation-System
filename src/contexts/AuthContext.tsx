@@ -5,11 +5,18 @@ import React, {
   useState,
   ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   normalizeEmail,
   normalizePhoneNumber,
   isValidEmail,
 } from "../lib/auth-helpers";
+import {
+  unregisterPushNotification,
+  syncTokenWithServer,
+  getStoredPushToken,
+  setupForegroundPushListener,
+} from "../lib/push-client";
 
 export interface UserProfile {
   id: string;
@@ -81,6 +88,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [lockRemainingSeconds, setLockRemainingSeconds] = useState<number>(0);
+  const { i18n } = useTranslation();
+
+  // Foreground push notification listener to trigger refresh events
+  useEffect(() => {
+    const unsubscribe = setupForegroundPushListener();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Sync token language preference when app language changes
+  useEffect(() => {
+    const storedToken = getStoredPushToken();
+    if (sessionToken && storedToken) {
+      const lang = i18n.language === "en" ? "en" : "ar";
+      syncTokenWithServer(storedToken, sessionToken, lang);
+    }
+  }, [i18n.language, sessionToken]);
 
   // Lock countdown timer
   useEffect(() => {
@@ -313,6 +338,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     try {
       const token = sessionToken || sessionStorage.getItem(SESSION_TOKEN_KEY);
       if (token) {
+        await unregisterPushNotification(token).catch(() => {});
         await fetch("/api/auth/logout", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },

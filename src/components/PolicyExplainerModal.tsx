@@ -13,6 +13,7 @@ import {
   Church,
   ArrowRight,
   Repeat,
+  BellRing,
 } from "lucide-react";
 
 export interface PolicyExplainerModalProps {
@@ -131,6 +132,22 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 </div>
                 <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
                   سيصلك تنبيه على الجرس وعلى الإيميل عند الموافقة على حجزك. وبعدها، اطلب من أي مسؤول أن يفتح لك الغرفة في الوقت المحجوز.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 4: Push Notifications */}
+            <div className="bg-white rounded-2xl p-4 border border-amber-200/80 bg-amber-50/25 shadow-2xs flex items-start gap-3 sm:gap-4 transition hover:border-amber-400">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-200 text-amber-950 font-extrabold text-base sm:text-lg flex items-center justify-center shrink-0 border border-amber-300">
+                ٤
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-stone-900">
+                  <BellRing className="w-4 h-4 text-amber-700" />
+                  <span>فعّل إشعارات الهاتف الفورية</span>
+                </div>
+                <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                  اضغط على زر <span className="inline-block px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-950 font-bold border border-amber-300 text-xs">"تفعيل الإشعارات"</span> لتصلك تنبيهات فورية ومباشرة على شاشة هاتفك بمجرد موافقة الإدارة أو إرسال أي رد على حجزك، حتى لو كان المتصفح مغلقاً.
                 </p>
               </div>
             </div>

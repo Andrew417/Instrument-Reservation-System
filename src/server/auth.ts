@@ -18,12 +18,9 @@ import {
   normalizePhoneNumber,
   isValidEmail,
 } from "../lib/auth-helpers.js";
-import {
-  createSession,
-  validateSession,
-  destroySession,
-} from "./session-manager.js";
+import { createSession, validateSession, destroySession } from "./session-manager.js";
 import { getNotificationSettings } from "../services/reservation-logic.js";
+import { dispatchSystemNotification } from "./notifications-service.js";
 
 const router = Router();
 
@@ -223,20 +220,18 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       ).catch(() => {});
     }
 
-    const allAdmins = await db.select({ id: admins.id }).from(admins);
-    for (const adm of allAdmins) {
-      await db
-        .insert(notifications)
-        .values({
-          adminId: adm.id,
-          type: "account_approval_submitted",
-          message: JSON.stringify({
-            key: "notifications.msgAccountApproval",
-            params: { name: newUser.name, userId: newUser.id },
-          }),
-        })
-        .catch(() => {});
-    }
+    await dispatchSystemNotification({
+      broadcastToAdmins: true,
+      type: "account_approval_submitted",
+      bellMessage: JSON.stringify({
+        key: "notifications.msgAccountApproval",
+        params: { name: newUser.name, userId: newUser.id },
+      }),
+      pushCategory: "registrations",
+      metadata: {
+        userName: newUser.name,
+      },
+    });
 
     // Clear any stale failed attempts for this email
     await db

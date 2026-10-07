@@ -1105,6 +1105,19 @@
       "saveButton": "Save Notification Settings",
       "saving": "Saving..."
     },
+    "pushSettings": {
+      "title": "Push Notifications (Web Push)",
+      "subtitle": "Customize which immediate phone & desktop alerts you receive on this device as an administrator.",
+      "registrationsTitle": "New Member Registrations",
+      "registrationsDesc": "Receive immediate push when a new member registers and awaits approval.",
+      "reservationsTitle": "Pending Reservation Requests",
+      "reservationsDesc": "Receive immediate push when a new reservation request is submitted.",
+      "chatTitle": "Member Chat Messages",
+      "chatDesc": "Receive immediate push when a member sends a chat message regarding a reservation.",
+      "saveButton": "Save Push Preferences",
+      "saving": "Saving...",
+      "savedNotice": "Push notification preferences updated successfully."
+    },
     "userDetail": {
       "clickToOpen": "Click to view full user profile",
       "managementActions": "Management Actions",
@@ -1403,5 +1416,30 @@
     "dismiss": "Hide",
     "reopenPrompt": "Re-book Regular Service",
     "rebookAnother": "Book Another Slot"
+  },
+  "chatAssistant": {
+    "title": "Reservation Assistant",
+    "subtitle": "AI Guide for Church Instruments & Booking",
+    "badge": "AI Assistant",
+    "placeholder": "Ask anything about instruments, reservations, or rules...",
+    "send": "Send",
+    "clearChat": "Clear Chat",
+    "minimize": "Minimize",
+    "maximize": "Expand",
+    "close": "Close",
+    "greeting": "Hello! I am your AI Reservation Assistant for St. Mark Church. How can I help you today? You can ask me how to book an instrument, check church rules, or explore equipment.",
+    "thinking": "Thinking...",
+    "errorOccurred": "Failed to get a response. Please try again.",
+    "retry": "Retry",
+    "quickQuestionsTitle": "Suggested questions",
+    "q1": "How do I book an instrument?",
+    "q2": "What are working hours & rules?",
+    "q3": "In-Church vs Outside-Church fees?",
+    "q4": "How do recurring series work?",
+    "q5": "What is the Condition Check sheet?",
+    "goToCalendar": "Go to Calendar",
+    "goToMyReservations": "My Reservations",
+    "openProfile": "Ministry Profile",
+    "shortcutActions": "Quick Shortcuts"
   }
 }

@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { dispatchSystemNotification } from "./notifications-service.js";
 import {
   createReservation,
   createReservationSeries,
@@ -865,38 +866,34 @@ router.post(
       // Create notifications
       try {
         if (senderRole === "user") {
-          // Notify approved admins of user reply
-          const adminList = await db.execute(
-            sql`SELECT id FROM admins WHERE approval_status = 'approved'`,
-          );
-          const allAdmins = (adminList as any).rows || [];
-          for (const adm of allAdmins) {
-            await db.execute(sql`
-            INSERT INTO notifications (admin_id, type, message, is_read, reservation_id, created_at)
-            VALUES (
-              ${adm.id},
-              'user_reply',
-              ${`${senderName || "Member"} replied on reservation "${resRecord?.service_name || "Reservation"}": "${content.trim()}"`},
-              false,
-              ${id},
-              NOW()
-            )
-          `);
-          }
+          // Notify approved admins of user reply (excluding sender if admin)
+          await dispatchSystemNotification({
+            broadcastToAdmins: true,
+            actorId: userId || null,
+            reservationId: id,
+            type: "user_reply",
+            bellMessage: `${senderName || "Member"} replied on reservation "${resRecord?.service_name || "Reservation"}": "${content.trim()}"`,
+            pushCategory: "chat",
+            metadata: {
+              senderName: senderName || "Member",
+              content: content.trim(),
+            },
+          });
         } else {
-          // Notify user of admin message
+          // Notify user of admin message (excluding sender if admin)
           if (resRecord?.user_id) {
-            await db.execute(sql`
-            INSERT INTO notifications (user_id, type, message, is_read, reservation_id, created_at)
-            VALUES (
-              ${resRecord.user_id}, 
-              'admin_message', 
-              ${`New message from administration regarding "${resRecord.service_name || "Reservation"}": "${content.trim()}"`}, 
-              false, 
-              ${id}, 
-              NOW()
-            )
-          `);
+            await dispatchSystemNotification({
+              userId: resRecord.user_id,
+              actorId: adminId || null,
+              reservationId: id,
+              type: "admin_message",
+              bellMessage: `New message from administration regarding "${resRecord.service_name || "Reservation"}": "${content.trim()}"`,
+              pushCategory: "chat",
+              metadata: {
+                senderName: senderName || "Administration",
+                content: content.trim(),
+              },
+            });
           }
         }
       } catch (notifErr: any) {

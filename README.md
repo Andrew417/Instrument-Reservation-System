@@ -54,6 +54,17 @@ SUPER_ADMIN_PASSWORD="StrongPassword123!"
 RESEND_API_KEY=""
 RESEND_FROM_EMAIL="St. Mark Reservations <onboarding@resend.dev>"
 
+# Firebase Cloud Messaging (Web Push Notifications)
+# 1. Frontend VAPID Key (Firebase Console > Project Settings > Cloud Messaging > Web configuration > Web Push certificates)
+VITE_FIREBASE_VAPID_KEY="your-public-vapid-key"
+
+# 2. Backend Firebase Admin SDK Credentials (either JSON string or individual vars)
+FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"...","private_key":"...","client_email":"..."}'
+# OR individual vars:
+# FIREBASE_PROJECT_ID="famous-palace-vlzxc"
+# FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxx@famous-palace-vlzxc.iam.gserviceaccount.com"
+# FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
 NODE_ENV="development"
 ```
 

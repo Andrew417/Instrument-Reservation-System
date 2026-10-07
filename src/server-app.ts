@@ -4,6 +4,8 @@ import reservationsRouter from "./server/reservations.js";
 import instrumentsRouter from "./server/instruments.js";
 import notificationsRouter from "./server/notifications.js";
 import adminRouter from "./server/admin.js";
+import chatRouter from "./server/chat.js";
+import pushRouter from "./server/push.js";
 
 export function createExpressApp() {
   const app = express();
@@ -22,6 +24,8 @@ export function createExpressApp() {
   app.use("/api/instruments", instrumentsRouter);
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/chat", chatRouter);
+  app.use("/api/push", pushRouter);
 
   // 404 handler for any unhandled /api/* requests so they never fall through to HTML/Vite SPA handler
   app.all("/api/*", (req, res) => {
