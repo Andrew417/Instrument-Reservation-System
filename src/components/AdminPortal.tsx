@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
@@ -219,14 +219,159 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
   const [loadingUpcomingReservations, setLoadingUpcomingReservations] =
     useState<boolean>(false);
+  const [showDashboardFilters, setShowDashboardFilters] =
+    useState<boolean>(false);
+  const dashboardFilterRef = useRef<HTMLDivElement>(null);
+  const [showReviewFilters, setShowReviewFilters] = useState<boolean>(false);
+  const reviewFilterRef = useRef<HTMLDivElement>(null);
+  const [dashboardFilterUser, setDashboardFilterUser] =
+    useState<string>("all");
+  const [dashboardFilterMusician, setDashboardFilterMusician] =
+    useState<string>("");
+  const [dashboardFilterInstrument, setDashboardFilterInstrument] =
+    useState<string>("all");
+  const [dashboardFilterCategory, setDashboardFilterCategory] =
+    useState<string>("all");
+  const [dashboardFilterDay, setDashboardFilterDay] = useState<string>("");
+  const [dashboardFilterStatus, setDashboardFilterStatus] =
+    useState<string>("all");
   const [filterQuickTab, setFilterQuickTab] = useState<
     "all" | "today" | "pending"
   >("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterInstrument, setFilterInstrument] = useState<string>("all");
-  const [filterSearch, setFilterSearch] = useState<string>("");
-  const [filterStartDate, setFilterStartDate] = useState<string>("");
-  const [filterEndDate, setFilterEndDate] = useState<string>("");
+  const [reviewFilterUser, setReviewFilterUser] = useState<string>("all");
+  const [reviewFilterMusician, setReviewFilterMusician] =
+    useState<string>("");
+  const [reviewFilterInstrument, setReviewFilterInstrument] =
+    useState<string>("all");
+  const [reviewFilterCategory, setReviewFilterCategory] =
+    useState<string>("all");
+  const [reviewFilterDay, setReviewFilterDay] = useState<string>("");
+
+  useEffect(() => {
+    if (!showDashboardFilters && !showReviewFilters) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (dashboardFilterRef.current && !dashboardFilterRef.current.contains(target)) {
+        setShowDashboardFilters(false);
+      }
+      if (reviewFilterRef.current && !reviewFilterRef.current.contains(target)) {
+        setShowReviewFilters(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showDashboardFilters, showReviewFilters]);
+
+  const dashboardFilterOptions = useMemo(() => {
+    const source = [...todaysReservations, ...upcomingReservations];
+    const unique = (key: string) =>
+      Array.from(
+        new Set(
+          source
+            .map((reservation) => reservation[key])
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((a, b) => a.localeCompare(b));
+    const userNames = Array.from(
+      new Set(
+        source
+          .flatMap((reservation) =>
+            reservation.booked_by_admin || reservation.bookedByAdmin
+              ? [reservation.admin_name]
+              : [reservation.user_name],
+          )
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+
+    return {
+      users: userNames,
+      instruments: unique("instrument_name"),
+      categories: unique("instrument_type"),
+      statuses: unique("status"),
+    };
+  }, [todaysReservations, upcomingReservations]);
+
+  const filterDashboardReservations = (items: any[]) =>
+    items.filter((reservation) => {
+      const isAdminBooking = Boolean(
+        reservation.booked_by_admin || reservation.bookedByAdmin,
+      );
+      const reservationOwner = isAdminBooking
+        ? reservation.admin_name
+        : reservation.user_name;
+      if (
+        dashboardFilterUser !== "all" &&
+        reservationOwner !== dashboardFilterUser
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterMusician.trim() &&
+        !String(reservation.musician_name || reservation.musicianName || "")
+          .toLowerCase()
+          .includes(dashboardFilterMusician.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterInstrument !== "all" &&
+        reservation.instrument_name !== dashboardFilterInstrument
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterCategory !== "all" &&
+        reservation.instrument_type !== dashboardFilterCategory
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterStatus !== "all" &&
+        reservation.status !== dashboardFilterStatus
+      ) {
+        return false;
+      }
+      if (dashboardFilterDay) {
+        const reservationWeekday = new Intl.DateTimeFormat("en-US", {
+          weekday: "long",
+          timeZone: "Africa/Cairo",
+        }).format(new Date(reservation.start_time || reservation.startTime));
+        if (reservationWeekday !== dashboardFilterDay) return false;
+      }
+      return true;
+    });
+
+  const dashboardFilterCount = [
+    dashboardFilterUser !== "all",
+    Boolean(dashboardFilterMusician.trim()),
+    dashboardFilterInstrument !== "all",
+    dashboardFilterCategory !== "all",
+    Boolean(dashboardFilterDay),
+    dashboardFilterStatus !== "all",
+  ].filter(Boolean).length;
+
+  const clearDashboardFilters = () => {
+    setDashboardFilterUser("all");
+    setDashboardFilterMusician("");
+    setDashboardFilterInstrument("all");
+    setDashboardFilterCategory("all");
+    setDashboardFilterDay("");
+    setDashboardFilterStatus("all");
+  };
+
+  const dashboardWeekdays = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
 
   // Handover Sheet Export (CSV & XLSX) modal state
   const [showHandoverModal, setShowHandoverModal] = useState<boolean>(false);
@@ -674,11 +819,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const params = new URLSearchParams();
       if (filterQuickTab !== "all") params.append("quickTab", filterQuickTab);
       if (filterStatus !== "all") params.append("status", filterStatus);
-      if (filterInstrument !== "all")
-        params.append("instrumentId", filterInstrument);
-      if (filterSearch) params.append("search", filterSearch);
-      if (filterStartDate) params.append("startDate", filterStartDate);
-      if (filterEndDate) params.append("endDate", filterEndDate);
 
       const res = await adminFetch(`/reservations?${params.toString()}`);
       const data = await res.json();
@@ -1136,10 +1276,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     activeTab,
     filterQuickTab,
     filterStatus,
-    filterInstrument,
-    filterSearch,
-    filterStartDate,
-    filterEndDate,
     approvalFilterStatus,
     approvalSearch,
     userFilterStatus,
@@ -2276,12 +2412,93 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
+  const reviewFilterOptions = useMemo(() => {
+    const unique = (key: string) =>
+      Array.from(
+        new Set(
+          reservations
+            .map((reservation) => reservation[key])
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((a, b) => a.localeCompare(b));
+    const users = Array.from(
+      new Set(
+        reservations
+          .map((reservation) =>
+            isReservationAdminBooked(reservation)
+              ? getAdminDisplayName(reservation)
+              : reservation.user_name,
+          )
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+
+    return {
+      users,
+      instruments: unique("instrument_name"),
+      categories: unique("instrument_type"),
+    };
+  }, [reservations]);
+
+  const filteredReviewReservations = useMemo(
+    () =>
+      reservations.filter((reservation) => {
+        const reservationOwner = isReservationAdminBooked(reservation)
+          ? getAdminDisplayName(reservation)
+          : reservation.user_name;
+        if (
+          reviewFilterUser !== "all" &&
+          reservationOwner !== reviewFilterUser
+        ) {
+          return false;
+        }
+        if (
+          reviewFilterMusician.trim() &&
+          !String(
+            reservation.musician_name || reservation.musicianName || "",
+          )
+            .toLowerCase()
+            .includes(reviewFilterMusician.trim().toLowerCase())
+        ) {
+          return false;
+        }
+        if (
+          reviewFilterInstrument !== "all" &&
+          reservation.instrument_name !== reviewFilterInstrument
+        ) {
+          return false;
+        }
+        if (
+          reviewFilterCategory !== "all" &&
+          reservation.instrument_type !== reviewFilterCategory
+        ) {
+          return false;
+        }
+        if (reviewFilterDay) {
+          const reservationWeekday = new Intl.DateTimeFormat("en-US", {
+            weekday: "long",
+            timeZone: "Africa/Cairo",
+          }).format(new Date(reservation.start_time || reservation.startTime));
+          if (reservationWeekday !== reviewFilterDay) return false;
+        }
+        return true;
+      }),
+    [
+      reservations,
+      reviewFilterUser,
+      reviewFilterMusician,
+      reviewFilterInstrument,
+      reviewFilterCategory,
+      reviewFilterDay,
+    ],
+  );
+
   // Group reservations by series_id if recurring series, deduplicate duplicate occurrences by date/time
   const groupedReservationItems = React.useMemo(() => {
     const seriesMap = new Map<string, any[]>();
     const singleItems: any[] = [];
 
-    for (const r of reservations) {
+    for (const r of filteredReviewReservations) {
       if (r.series_id) {
         if (!seriesMap.has(r.series_id)) {
           seriesMap.set(r.series_id, []);
@@ -2360,7 +2577,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return [...seriesItems, ...singleItems].sort(
       (a, b) => b.sortTime - a.sortTime,
     );
-  }, [reservations]);
+  }, [filteredReviewReservations]);
 
   return (
     <div
@@ -2665,16 +2882,181 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </button>
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (dashboardSubTab === "today") fetchTodaysReservations();
-                    else fetchUpcomingReservations();
-                  }}
-                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                  title={t("admin.dashboard.refreshTooltip")}
+                <div
+                  ref={dashboardFilterRef}
+                  className="flex items-center gap-2 relative"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDashboardFilters((open) => !open)}
+                    className={`shrink-0 px-2.5 py-2 rounded-xl border transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      dashboardFilterCount > 0
+                        ? "bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200"
+                    }`}
+                    title={t("admin.dashboard.filters.button")}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>{t("admin.dashboard.filters.button")}</span>
+                    {dashboardFilterCount > 0 && (
+                      <span className="min-w-4 h-4 px-1 rounded-full bg-amber-800 text-white text-[10px] leading-4 text-center">
+                        {dashboardFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {showDashboardFilters && (
+                    <div
+                      id="dashboard-reservation-filters"
+                      className={`absolute top-full mt-2 z-30 w-[min(90vw,320px)] rounded-2xl border border-stone-200 bg-white p-4 shadow-xl ${
+                        isAr ? "left-0" : "right-0"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h3 className="text-xs font-extrabold text-stone-900">
+                          {t("admin.dashboard.filters.title")}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={clearDashboardFilters}
+                          className="text-[11px] font-semibold text-amber-800 hover:text-amber-950 cursor-pointer"
+                        >
+                          {t("admin.dashboard.filters.clear")}
+                        </button>
+                      </div>
+                      <div className="space-y-2.5">
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.user")}
+                          <select
+                            value={dashboardFilterUser}
+                            onChange={(event) =>
+                              setDashboardFilterUser(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.users.map((user) => (
+                              <option key={user} value={user}>
+                                {user}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.musician")}
+                          <input
+                            type="text"
+                            value={dashboardFilterMusician}
+                            onChange={(event) =>
+                              setDashboardFilterMusician(event.target.value)
+                            }
+                            placeholder={t(
+                              "admin.dashboard.filters.musicianPlaceholder",
+                            )}
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900 placeholder:text-stone-400"
+                          />
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.instrument")}
+                          <select
+                            value={dashboardFilterInstrument}
+                            onChange={(event) =>
+                              setDashboardFilterInstrument(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.instruments.map(
+                              (instrument) => (
+                                <option key={instrument} value={instrument}>
+                                  {instrument}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.category")}
+                          <select
+                            value={dashboardFilterCategory}
+                            onChange={(event) =>
+                              setDashboardFilterCategory(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.categories.map(
+                              (category) => (
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.weekday")}
+                          <select
+                            value={dashboardFilterDay}
+                            onChange={(event) =>
+                              setDashboardFilterDay(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="">
+                              {t("admin.dashboard.filters.allWeekdays")}
+                            </option>
+                            {dashboardWeekdays.map((weekday) => (
+                              <option key={weekday} value={weekday}>
+                                {t(
+                                  `analytics.weekday.${weekday.toLowerCase()}`,
+                                )}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("common.status")}
+                          <select
+                            value={dashboardFilterStatus}
+                            onChange={(event) =>
+                              setDashboardFilterStatus(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.statuses.map((status) => (
+                              <option key={status} value={status}>
+                                {translateStatus(status)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dashboardSubTab === "today")
+                        fetchTodaysReservations();
+                      else fetchUpcomingReservations();
+                    }}
+                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                    title={t("admin.dashboard.refreshTooltip")}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {dashboardSubTab === "today" ? (
@@ -2687,7 +3069,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
                 ) : (
                   (() => {
-                    const todayApproved = todaysReservations
+                    const todayApproved = filterDashboardReservations(
+                      todaysReservations,
+                    )
                       .filter((r) => r.status === "approved")
                       .sort(
                         (a, b) =>
@@ -2778,7 +3162,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               ) : (
                 (() => {
-                  const sorted = [...upcomingReservations].sort(
+                  const sorted = [...filterDashboardReservations(
+                    upcomingReservations,
+                  )].sort(
                     (a, b) =>
                       new Date(a.start_time).getTime() -
                       new Date(b.start_time).getTime(),
@@ -2960,6 +3346,185 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                <div ref={reviewFilterRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowReviewFilters((open) => !open)}
+                    className={`shrink-0 px-2.5 py-2 rounded-xl border transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      reviewFilterUser !== "all" ||
+                      reviewFilterMusician ||
+                      reviewFilterInstrument !== "all" ||
+                      reviewFilterCategory !== "all" ||
+                      reviewFilterDay ||
+                      filterStatus !== "all"
+                        ? "bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200"
+                    }`}
+                    title={t("admin.dashboard.filters.button")}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>{t("admin.dashboard.filters.button")}</span>
+                    {(reviewFilterUser !== "all" ||
+                      reviewFilterMusician ||
+                      reviewFilterInstrument !== "all" ||
+                      reviewFilterCategory !== "all" ||
+                      reviewFilterDay ||
+                      filterStatus !== "all") && (
+                      <span className="min-w-4 h-4 px-1 rounded-full bg-amber-800 text-white text-[10px] leading-4 text-center">
+                        {[
+                          reviewFilterUser !== "all",
+                          Boolean(reviewFilterMusician),
+                          reviewFilterInstrument !== "all",
+                          reviewFilterCategory !== "all",
+                          Boolean(reviewFilterDay),
+                          filterStatus !== "all",
+                        ].filter(Boolean).length}
+                      </span>
+                    )}
+                  </button>
+
+                  {showReviewFilters && (
+                    <div
+                      id="review-reservation-filters"
+                      className={`absolute top-full mt-2 z-30 w-[min(90vw,320px)] rounded-2xl border border-stone-200 bg-white p-4 shadow-xl ${
+                        isAr ? "left-0" : "right-0"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h3 className="text-xs font-extrabold text-stone-900">
+                          {t("admin.dashboard.filters.title")}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewFilterUser("all");
+                            setReviewFilterMusician("");
+                            setReviewFilterInstrument("all");
+                            setReviewFilterCategory("all");
+                            setReviewFilterDay("");
+                            setFilterStatus("all");
+                          }}
+                          className="text-[11px] font-semibold text-amber-800 hover:text-amber-950 cursor-pointer"
+                        >
+                          {t("admin.dashboard.filters.clear")}
+                        </button>
+                      </div>
+                      <div className="space-y-2.5">
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.user")}
+                          <select
+                            value={reviewFilterUser}
+                            onChange={(event) =>
+                              setReviewFilterUser(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {reviewFilterOptions.users.map((user) => (
+                              <option key={user} value={user}>
+                                {user}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.musician")}
+                          <input
+                            type="text"
+                            value={reviewFilterMusician}
+                            onChange={(event) =>
+                              setReviewFilterMusician(event.target.value)
+                            }
+                            placeholder={t(
+                              "admin.dashboard.filters.musicianPlaceholder",
+                            )}
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900 placeholder:text-stone-400"
+                          />
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.instrument")}
+                          <select
+                            value={reviewFilterInstrument}
+                            onChange={(event) =>
+                              setReviewFilterInstrument(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {reviewFilterOptions.instruments.map((instrument) => (
+                              <option key={instrument} value={instrument}>
+                                {instrument}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.category")}
+                          <select
+                            value={reviewFilterCategory}
+                            onChange={(event) =>
+                              setReviewFilterCategory(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {reviewFilterOptions.categories.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.weekday")}
+                          <select
+                            value={reviewFilterDay}
+                            onChange={(event) =>
+                              setReviewFilterDay(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardWeekdays.map((day) => (
+                              <option key={day} value={day}>
+                                {day}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("common.status")}
+                          <select
+                            value={filterStatus}
+                            onChange={(event) =>
+                              setFilterStatus(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            <option value="pending">{t("common.pending")}</option>
+                            <option value="approved">{t("common.approved")}</option>
+                            <option value="ongoing">{t("common.ongoing")}</option>
+                            <option value="completed">{t("common.completed")}</option>
+                            <option value="expired">{t("common.expired")}</option>
+                            <option value="rejected">{t("common.rejected")}</option>
+                            <option value="cancelled">{t("common.cancelled")}</option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {!isSelectionMode &&
                   !loadingReservations &&
                   reservations.length > 0 && (
@@ -3072,104 +3637,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
             )}
 
-            {/* Filters */}
-            <div className="bg-stone-50/80 border border-stone-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2.5">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end text-xs">
-                {/* Search - takes wider space on md+ */}
-                <div className="md:col-span-6 lg:col-span-6">
-                  <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1">
-                    {t("admin.review.searchLabel")}
-                  </label>
-                  <div className="relative flex items-center">
-                    <Search className="w-3.5 h-3.5 text-stone-400 absolute start-3 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder={t("admin.review.searchPlaceholder")}
-                      value={filterSearch}
-                      onChange={(e) => setFilterSearch(e.target.value)}
-                      className="w-full ps-9 pe-9 py-2 bg-white border border-stone-200 rounded-xl text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700 shadow-2xs transition"
-                    />
-                    {filterSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setFilterSearch("")}
-                        className="absolute end-2.5 p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer flex items-center justify-center"
-                        title={t("common.clear") || "Clear search"}
-                        aria-label="Clear search"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Instrument and Status side by side */}
-                <div className="md:col-span-6 lg:col-span-6 grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 truncate">
-                      {t("admin.review.instrumentLabel")}
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={filterInstrument}
-                        onChange={(e) => setFilterInstrument(e.target.value)}
-                        className={`w-full appearance-none pl-3 pr-8 rtl:pl-8 rtl:pr-3 py-2 bg-white border rounded-xl text-stone-900 focus:outline-none focus:border-amber-700 shadow-2xs transition cursor-pointer truncate ${
-                          filterInstrument !== "all"
-                            ? "border-amber-600 bg-amber-50/30 font-semibold text-amber-900"
-                            : "border-stone-200"
-                        }`}
-                      >
-                        <option value="all">
-                          {t("admin.review.allInstruments")}
-                        </option>
-                        {instrumentsList.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 rtl:right-auto rtl:left-2.5 top-3 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase text-stone-500 mb-1 truncate">
-                      {t("common.status")}
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className={`w-full appearance-none pl-3 pr-8 rtl:pl-8 rtl:pr-3 py-2 bg-white border rounded-xl text-stone-900 focus:outline-none focus:border-amber-700 shadow-2xs transition cursor-pointer truncate ${
-                          filterStatus !== "all"
-                            ? "border-amber-600 bg-amber-50/30 font-semibold text-amber-900"
-                            : "border-stone-200"
-                        }`}
-                      >
-                        <option value="all">
-                          {t("admin.review.allStatuses")}
-                        </option>
-                        <option value="pending">{t("common.pending")}</option>
-                        <option value="approved">{t("common.approved")}</option>
-                        <option value="ongoing">{t("common.ongoing")}</option>
-                        <option value="completed">
-                          {t("common.completed")}
-                        </option>
-                        <option value="expired">{t("common.expired")}</option>
-                        <option value="rejected">{t("common.rejected")}</option>
-                        <option value="cancelled">
-                          {t("common.cancelled")}
-                        </option>
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-stone-400 absolute right-2.5 rtl:right-auto rtl:left-2.5 top-3 pointer-events-none" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active filters summary bar & quick reset if any filter active */}
-              {(filterSearch ||
-                filterInstrument !== "all" ||
+            {/* Active filters summary bar & quick reset if any filter active */}
+              {(reviewFilterUser !== "all" ||
+                reviewFilterMusician ||
+                reviewFilterInstrument !== "all" ||
+                reviewFilterCategory !== "all" ||
+                reviewFilterDay ||
                 filterStatus !== "all") && (
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60 text-[11px] text-stone-600">
                   <div className="flex items-center gap-1.5 flex-wrap min-w-0">
@@ -3181,30 +3654,66 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         })}
                       </span>
                     </span>
-                    {filterSearch && (
+                    {reviewFilterUser !== "all" && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
                         <span className="truncate max-w-[120px]">
-                          "{filterSearch}"
+                          {reviewFilterUser}
                         </span>
                         <button
                           type="button"
-                          onClick={() => setFilterSearch("")}
+                          onClick={() => setReviewFilterUser("all")}
                           className="hover:text-stone-900 cursor-pointer"
                         >
                           <X className="w-2.5 h-2.5" />
                         </button>
                       </span>
                     )}
-                    {filterInstrument !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                    {reviewFilterMusician && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
                         <span className="truncate max-w-[120px]">
-                          {instrumentsList.find(
-                            (i) => i.id === filterInstrument,
-                          )?.name || filterInstrument}
+                          "{reviewFilterMusician}"
                         </span>
                         <button
                           type="button"
-                          onClick={() => setFilterInstrument("all")}
+                          onClick={() => setReviewFilterMusician("")}
+                          className="hover:text-stone-900 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    )}
+                    {reviewFilterInstrument !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                        <span className="truncate max-w-[120px]">
+                          {reviewFilterInstrument}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setReviewFilterInstrument("all")}
+                          className="hover:text-amber-950 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    )}
+                    {reviewFilterCategory !== "all" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                        <span>{reviewFilterCategory}</span>
+                        <button
+                          type="button"
+                          onClick={() => setReviewFilterCategory("all")}
+                          className="hover:text-amber-950 cursor-pointer"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </span>
+                    )}
+                    {reviewFilterDay && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                        <span>{reviewFilterDay}</span>
+                        <button
+                          type="button"
+                          onClick={() => setReviewFilterDay("")}
                           className="hover:text-amber-950 cursor-pointer"
                         >
                           <X className="w-2.5 h-2.5" />
@@ -3228,8 +3737,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setFilterSearch("");
-                      setFilterInstrument("all");
+                      setReviewFilterUser("all");
+                      setReviewFilterMusician("");
+                      setReviewFilterInstrument("all");
+                      setReviewFilterCategory("all");
+                      setReviewFilterDay("");
                       setFilterStatus("all");
                     }}
                     className="shrink-0 text-amber-800 hover:text-amber-950 hover:underline font-bold text-[10px] cursor-pointer"
@@ -3238,7 +3750,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </button>
                 </div>
               )}
-            </div>
 
             {/* Cards */}
             <div className="mt-2">

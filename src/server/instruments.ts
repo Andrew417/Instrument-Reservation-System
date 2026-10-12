@@ -295,7 +295,7 @@ router.get(
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
-      WHERE r.status IN ('approved', 'ongoing')
+      WHERE r.status IN ('approved', 'ongoing', 'completed')
         AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
@@ -403,7 +403,7 @@ router.get(
       FROM reservations r
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
-      WHERE r.status IN ('approved', 'ongoing')
+      WHERE r.status IN ('approved', 'ongoing', 'completed')
         AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
