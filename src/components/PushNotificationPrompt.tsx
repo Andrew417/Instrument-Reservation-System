@@ -143,7 +143,7 @@ export const PushNotificationPrompt: React.FC = () => {
       <aside
         dir={isRTL ? "rtl" : "ltr"}
         aria-label={t("pushPrompt.enabledTitle")}
-        className="w-full max-w-4xl mx-auto mb-3 rounded-2xl bg-emerald-50 border border-emerald-300 px-3.5 py-2.5 shadow-2xs animate-in fade-in zoom-in-95 duration-200"
+        className="w-full mb-3 rounded-2xl bg-emerald-50 border border-emerald-300 px-3.5 py-2.5 shadow-2xs animate-in fade-in zoom-in-95 duration-200"
       >
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
@@ -265,7 +265,7 @@ export const PushNotificationPrompt: React.FC = () => {
     <aside
       dir={isRTL ? "rtl" : "ltr"}
       aria-label={t("pushPrompt.promptTitle")}
-      className={`w-full max-w-4xl mx-auto mb-3 rounded-2xl bg-white border ${tone.headerBorder} shadow-2xs overflow-hidden transition-all`}
+      className={`w-full mb-3 rounded-2xl bg-white border ${tone.headerBorder} shadow-2xs overflow-hidden transition-all`}
     >
       {/* Header */}
       <div
