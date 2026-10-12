@@ -201,7 +201,7 @@
     "durationLimitDesc": "This booking is {{actual}} long; the limit for one reservation is {{max}}.",
     "durationLimitNext": "Your request was submitted for admin approval. Please wait for the decision.",
     "categoryLimitTitle": "Same-category instrument limit",
-    "categoryLimitDesc": "You already have a reservation in this instrument category ({{current}}/{{max}}).",
+    "categoryLimitDesc": "You already have reservations in this instrument category at this same time ({{current}}/{{max}}).",
     "categoryLimitNext": "Your request was submitted for admin approval. Please wait for the decision.",
     "seriesLimitTitle": "Recurring series limit",
     "seriesLimitDesc": "This series includes {{actual}} dates; the limit is {{max}} occurrences.",
