@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -8,7 +8,6 @@ import {
   getNotificationPermission,
   getCurrentSubscription,
   subscribeToPush,
-  sendTestNotification,
 } from "../lib/push-client";
 import {
   Bell,
@@ -18,33 +17,48 @@ import {
   Share,
   PlusSquare,
   Smartphone,
-  Send,
   Loader2,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 
-const DISMISSED_KEY = "church_push_banner_dismissed_v1";
+/* ------------------------------------------------------------------ */
+/* Colored keyword spans                                              */
+/* ------------------------------------------------------------------ */
+
+const KeywordApproved: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <span className="font-bold text-emerald-700">{children}</span>;
+
+const KeywordRejected: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <span className="font-bold text-red-600">{children}</span>;
+
+const KeywordNeutral: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => <span className="font-bold text-amber-800">{children}</span>;
+
+/* ------------------------------------------------------------------ */
+/* Component                                                          */
+/* ------------------------------------------------------------------ */
+
+type PromptVariant = "inApp" | "ios" | "blocked" | "normal";
 
 export const PushNotificationPrompt: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { isAuthenticated, sessionToken, user } = useAuth();
   const isRTL = i18n.language === "ar";
 
-  const [isDismissed, setIsDismissed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(DISMISSED_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [isDismissed, setIsDismissed] = useState(false);
+  const [permission, setPermission] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [showEnabledConfirmation, setShowEnabledConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [testSending, setTestSending] = useState(false);
-  const [testStatus, setTestStatus] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showSteps, setShowSteps] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const dismissTimerRef = useRef<number | null>(null);
 
   const inAppBrowser = isInAppBrowser();
   const ios = isIOS();
@@ -70,33 +84,41 @@ export const PushNotificationPrompt: React.FC = () => {
     }
   }, [isAuthenticated, sessionToken, i18n.language]);
 
+  useEffect(() => {
+    return () => {
+      if (dismissTimerRef.current !== null) {
+        window.clearTimeout(dismissTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showEnabledConfirmation) return;
+
+    dismissTimerRef.current = window.setTimeout(() => {
+      setIsDismissed(true);
+      setShowEnabledConfirmation(false);
+    }, 2000);
+
+    return () => {
+      if (dismissTimerRef.current !== null) {
+        window.clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+    };
+  }, [showEnabledConfirmation]);
+
   if (!isAuthenticated || !sessionToken) return null;
+  if (isDismissed) return null;
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
-  const handleDismiss = () => {
-    try {
-      localStorage.setItem(DISMISSED_KEY, "true");
-    } catch {
-      // ignore
-    }
-    setIsDismissed(true);
-  };
-
-  const handleRestore = () => {
-    try {
-      localStorage.removeItem(DISMISSED_KEY);
-    } catch {
-      // ignore
-    }
-    setIsDismissed(false);
-  };
+  const handleDismiss = () => setIsDismissed(true);
 
   const handleSubscribe = async () => {
     if (!sessionToken) return;
     setLoading(true);
     setErrorMsg(null);
-    setTestStatus(null);
 
     const res = await subscribeToPush(sessionToken, i18n.language);
     setLoading(false);
@@ -104,7 +126,7 @@ export const PushNotificationPrompt: React.FC = () => {
     if (res.success) {
       setPermission("granted");
       setIsSubscribed(true);
-      setTestStatus(t("pushPrompt.testSuccess"));
+      setShowEnabledConfirmation(true);
     } else {
       setPermission(getNotificationPermission());
       if (res.permission === "denied") {
@@ -115,286 +137,284 @@ export const PushNotificationPrompt: React.FC = () => {
     }
   };
 
-  const handleSendTest = async () => {
-    if (!sessionToken) return;
-    setTestSending(true);
-    setTestStatus(null);
-    setErrorMsg(null);
-
-    const res = await sendTestNotification(sessionToken, i18n.language);
-    setTestSending(false);
-
-    if (res.success) {
-      setTestStatus(t("pushPrompt.testSent"));
-    } else {
-      setErrorMsg(res.error || t("pushPrompt.testFailed"));
-    }
-  };
-
-  // Slim / Collapsed State if user dismissed banner
-  if (isDismissed) {
+  /* ---- Success confirmation ---- */
+  if (showEnabledConfirmation) {
     return (
       <aside
         dir={isRTL ? "rtl" : "ltr"}
-        aria-label={t("pushPrompt.collapsedTitle")}
-        className="w-full max-w-4xl mx-auto mb-3 bg-stone-900/90 border border-amber-500/30 text-stone-200 rounded-xl px-3.5 py-1.5 shadow-sm flex items-center justify-between gap-3 text-xs sm:text-sm transition-all"
+        aria-label={t("pushPrompt.enabledTitle")}
+        className="w-full max-w-4xl mx-auto mb-3 rounded-2xl bg-emerald-50 border border-emerald-300 px-3.5 py-2.5 shadow-2xs animate-in fade-in zoom-in-95 duration-200"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <Bell className="w-4 h-4 text-amber-400 shrink-0" />
-          <span className="truncate font-medium">{t("pushPrompt.collapsedTitle")}</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs sm:text-sm font-bold text-emerald-950 leading-tight truncate">
+              {t("pushPrompt.enabledTitle")}
+            </p>
+            <p className="text-[11px] text-emerald-800/90 leading-tight mt-0.5 truncate">
+              {t("pushPrompt.enabledDesc")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label={t("pushPrompt.dismiss")}
+            className="h-8 w-8 -me-1 rounded-lg text-emerald-800/70 hover:text-emerald-950 hover:bg-emerald-100 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleRestore}
-          className="min-h-[44px] px-3 py-1.5 text-xs sm:text-sm font-bold text-amber-300 hover:text-amber-200 active:scale-[0.98] hover:bg-white/10 rounded-lg transition cursor-pointer shrink-0 flex items-center gap-1.5"
-        >
-          <span>{t("pushPrompt.restoreBtn")}</span>
-        </button>
       </aside>
     );
   }
 
+  if (isSubscribed && permission === "granted") return null;
+
+  /* ---- Pick variant ---- */
+  const variant: PromptVariant = inAppBrowser
+    ? "inApp"
+    : ios && !iosStandalone
+      ? "ios"
+      : permission === "denied"
+        ? "blocked"
+        : "normal";
+
+  /* ---- Per-variant config ---- */
+  const variantConfig: Record<
+    PromptVariant,
+    {
+      Icon: typeof Bell;
+      title: string;
+      desc?: string;
+      steps?: { Icon: typeof Bell; text: string }[];
+      tone: "amber" | "red";
+    }
+  > = {
+    inApp: {
+      Icon: AlertTriangle,
+      title: t("pushPrompt.whatsappTitle"),
+      desc: t("pushPrompt.whatsappDesc"),
+      steps: [
+        { Icon: Share, text: t("pushPrompt.whatsappStep1") },
+        { Icon: Smartphone, text: t("pushPrompt.whatsappStep2") },
+      ],
+      tone: "amber",
+    },
+    ios: {
+      Icon: Smartphone,
+      title: t("pushPrompt.iosTitle"),
+      desc: t("pushPrompt.iosDesc"),
+      steps: [
+        { Icon: Share, text: t("pushPrompt.iosStep1") },
+        { Icon: PlusSquare, text: t("pushPrompt.iosStep2") },
+        { Icon: CheckCircle2, text: t("pushPrompt.iosStep3") },
+      ],
+      tone: "amber",
+    },
+    blocked: {
+      Icon: Lock,
+      title: t("pushPrompt.blockedTitle"),
+      desc: t("pushPrompt.blockedWhy"),
+      steps: [
+        { Icon: Lock, text: t("pushPrompt.blockedStep1") },
+        { Icon: CheckCircle2, text: t("pushPrompt.blockedStep2") },
+      ],
+      tone: "red",
+    },
+    normal: {
+      Icon: Bell,
+      title: isAdmin
+        ? t("pushPrompt.adminPromptTitle")
+        : t("pushPrompt.memberPromptTitle"),
+      tone: "amber",
+    },
+  };
+
+  const cfg = variantConfig[variant];
+
+  const tone = {
+    amber: {
+      headerBg: "bg-amber-50/70 hover:bg-amber-100/60",
+      headerBorder: "border-amber-200",
+      chipBg: "bg-amber-800",
+      chipText: "text-amber-100",
+      titleText: "text-stone-900",
+      bodyBorder: "border-amber-100",
+      stepChip: "bg-amber-100 text-amber-900",
+      linkText: "text-amber-800 hover:text-amber-950",
+    },
+    red: {
+      headerBg: "bg-red-50/70 hover:bg-red-100/60",
+      headerBorder: "border-red-200",
+      chipBg: "bg-red-700",
+      chipText: "text-red-50",
+      titleText: "text-stone-900",
+      bodyBorder: "border-red-100",
+      stepChip: "bg-red-100 text-red-900",
+      linkText: "text-red-800 hover:text-red-950",
+    },
+  }[cfg.tone];
+
+  const hasExpandableContent =
+    variant === "normal" || Boolean(cfg.steps && cfg.steps.length > 0);
+
+  /* ---- Main card ---- */
   return (
     <aside
       dir={isRTL ? "rtl" : "ltr"}
       aria-label={t("pushPrompt.promptTitle")}
-      className="w-full max-w-4xl mx-auto mb-4 bg-gradient-to-r from-stone-900 via-stone-900/98 to-amber-950/90 border border-amber-500/30 text-white rounded-2xl p-3.5 sm:p-4 shadow-lg relative backdrop-blur-md transition-all duration-200 overflow-hidden"
+      className={`w-full max-w-4xl mx-auto mb-3 rounded-2xl bg-white border ${tone.headerBorder} shadow-2xs overflow-hidden transition-all`}
     >
-      <button
-        type="button"
-        onClick={handleDismiss}
-        className="absolute top-2.5 end-2.5 w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-stone-300 hover:text-white flex items-center justify-center transition cursor-pointer z-10"
-        aria-label={t("pushPrompt.dismiss")}
+      {/* Header */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => hasExpandableContent && setIsExpanded((p) => !p)}
+        onKeyDown={(e) => {
+          if (!hasExpandableContent) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsExpanded((p) => !p);
+          }
+        }}
+        className={`${tone.headerBg} px-3.5 py-2.5 flex items-center justify-between gap-2 transition select-none touch-manipulation ${
+          hasExpandableContent ? "cursor-pointer" : ""
+        }`}
+        aria-expanded={hasExpandableContent ? isExpanded : undefined}
       >
-        <X className="w-4 h-4" />
-      </button>
-
-      {/* Case 1: WhatsApp / In-App Browser Detected */}
-      {inAppBrowser && (
-        <div className="pe-11 space-y-2.5 text-start">
-          <div className="flex items-center gap-2.5 text-amber-300 font-bold text-sm sm:text-base">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-            <span className="leading-snug">{t("pushPrompt.whatsappTitle")}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <div
+            className={`w-7 h-7 rounded-lg ${tone.chipBg} ${tone.chipText} flex items-center justify-center shrink-0 shadow-2xs`}
+          >
+            <cfg.Icon className="w-3.5 h-3.5" />
           </div>
-          <p className="text-sm text-stone-200 leading-snug break-words">
-            {t("pushPrompt.whatsappDesc")}
-          </p>
+          <span
+            className={`text-xs sm:text-sm font-bold ${tone.titleText} truncate`}
+          >
+            {cfg.title}
+          </span>
+        </div>
 
+        <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
-            onClick={() => setShowSteps(!showSteps)}
-            className="w-full min-h-[44px] px-3 py-2 text-xs sm:text-sm font-semibold text-amber-300 hover:text-amber-200 bg-white/5 hover:bg-white/10 rounded-xl transition flex items-center justify-between cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDismiss();
+            }}
+            className={`px-2 py-1 rounded-md text-[11px] font-semibold ${tone.linkText} hover:bg-white/60 transition cursor-pointer touch-manipulation`}
           >
-            <span>{t("pushPrompt.whatsappHow")}</span>
-            <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${showSteps ? "rotate-180" : ""}`}
-            />
+            {t("pushPrompt.later")}
           </button>
 
-          {showSteps && (
-            <div className="bg-black/40 rounded-xl p-3 border border-white/10 text-xs sm:text-sm space-y-2 mt-2 animate-in fade-in duration-150 text-stone-200">
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
-                  1
-                </span>
-                <span>{t("pushPrompt.whatsappStep1")}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-300 font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
-                  2
-                </span>
-                <span>{t("pushPrompt.whatsappStep2")}</span>
-              </div>
+          {hasExpandableContent && (
+            <div
+              className={`w-6 h-6 rounded-md flex items-center justify-center text-stone-500 transition-transform duration-200 ${
+                isExpanded ? "rotate-180" : ""
+              }`}
+            >
+              <ChevronDown className="w-4 h-4" />
             </div>
           )}
         </div>
-      )}
+      </div>
 
-      {/* Case 2: iPhone / iPad not yet added to Home Screen */}
-      {!inAppBrowser && ios && !iosStandalone && (
-        <div className="pe-11 space-y-2.5 text-start">
-          <div className="flex items-center gap-2.5 text-amber-300 font-bold text-sm sm:text-base">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-              <Smartphone className="w-4 h-4" />
-            </div>
-            <span className="leading-snug">{t("pushPrompt.iosTitle")}</span>
-          </div>
-          <p className="text-sm text-stone-200 leading-snug break-words">
-            {t("pushPrompt.iosDesc")}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setShowSteps(!showSteps)}
-            className="w-full min-h-[44px] px-3 py-2 text-xs sm:text-sm font-semibold text-amber-300 hover:text-amber-200 bg-white/5 hover:bg-white/10 rounded-xl transition flex items-center justify-between cursor-pointer"
-          >
-            <span>{t("pushPrompt.iosHow")}</span>
-            <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${showSteps ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showSteps && (
-            <div className="bg-black/40 rounded-xl p-3 border border-white/10 text-xs sm:text-sm space-y-2.5 mt-2 animate-in fade-in duration-150 text-stone-200">
-              <div className="flex items-start gap-2">
-                <Share className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                <span>{t("pushPrompt.iosStep1")}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <PlusSquare className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                <span>{t("pushPrompt.iosStep2")}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>{t("pushPrompt.iosStep3")}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Case 3: Permission Blocked / Denied */}
-      {!inAppBrowser && !(ios && !iosStandalone) && permission === "denied" && (
-        <div className="pe-11 space-y-2.5 text-start">
-          <div className="flex items-center gap-2.5 text-red-300 font-bold text-sm sm:text-base">
-            <div className="w-8 h-8 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-            <span className="leading-snug">{t("pushPrompt.blockedTitle")}</span>
-          </div>
-          <p className="text-sm text-stone-200 leading-snug break-words">
-            {t("pushPrompt.blockedWhy")}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setShowSteps(!showSteps)}
-            className="w-full min-h-[44px] px-3 py-2 text-xs sm:text-sm font-semibold text-red-200 hover:text-red-100 bg-white/5 hover:bg-white/10 rounded-xl transition flex items-center justify-between cursor-pointer"
-          >
-            <span>{t("pushPrompt.blockedHow")}</span>
-            <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${showSteps ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {showSteps && (
-            <div className="bg-black/40 rounded-xl p-3 border border-white/10 text-xs sm:text-sm space-y-1.5 mt-2 animate-in fade-in duration-150 text-stone-200">
-              <p className="leading-relaxed">{t("pushPrompt.blockedStep1")}</p>
-              <p className="leading-relaxed">{t("pushPrompt.blockedStep2")}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Case 4: Subscribed and Ready -> Show Test Notification Button */}
-      {!inAppBrowser && !(ios && !iosStandalone) && isSubscribed && permission === "granted" && (
-        <div className="pe-11 space-y-2 text-start">
-          <div className="flex items-center gap-2.5 text-emerald-300 font-bold text-sm sm:text-base">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <span className="leading-snug">{t("pushPrompt.enabledTitle")}</span>
-          </div>
-          <p className="text-sm text-stone-200 leading-snug break-words">
-            {t("pushPrompt.enabledDesc")}
-          </p>
-
-          {testStatus && (
-            <div className="bg-emerald-500/20 border border-emerald-400/30 text-emerald-200 text-xs sm:text-sm p-2.5 rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>{testStatus}</span>
-            </div>
-          )}
-
-          {errorMsg && (
-            <div className="bg-red-500/20 border border-red-400/30 text-red-200 text-xs sm:text-sm p-2.5 rounded-xl flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleSendTest}
-            disabled={testSending}
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-sm bg-amber-600 hover:bg-amber-500 active:scale-[0.99] text-white shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2.5"
-          >
-            {testSending ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>{t("pushPrompt.sending")}</span>
-              </>
+      {/* Body */}
+      {isExpanded && hasExpandableContent && (
+        <div
+          className={`p-3 space-y-3 border-t ${tone.bodyBorder} animate-in fade-in duration-150`}
+        >
+          {/* Benefit line — colored keywords for the normal variant */}
+          {variant === "normal" ? (
+            isAdmin ? (
+              <p className="text-xs text-stone-600 leading-relaxed">
+                {t("pushPrompt.adminPromptPrefix")}{" "}
+                <KeywordNeutral>
+                  {t("pushPrompt.adminKbBooking")}
+                </KeywordNeutral>
+                {t("pushPrompt.adminKbComma1")}{" "}
+                <KeywordNeutral>{t("pushPrompt.adminKbSignup")}</KeywordNeutral>
+                {t("pushPrompt.adminKbComma2")}{" "}
+                <KeywordNeutral>
+                  {t("pushPrompt.adminKbReplies")}
+                </KeywordNeutral>
+                {t("pushPrompt.adminPromptSuffix")}
+              </p>
             ) : (
-              <>
-                <Send className="w-4 h-4" />
-                <span>{t("pushPrompt.sendTestBtn")}</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
+              <p className="text-xs text-stone-600 leading-relaxed">
+                {t("pushPrompt.memberPromptPrefix")}{" "}
+                <KeywordApproved>
+                  {t("pushPrompt.memberKbApproved")}
+                </KeywordApproved>
+                {t("pushPrompt.memberKbComma1")}{" "}
+                <KeywordRejected>
+                  {t("pushPrompt.memberKbRejected")}
+                </KeywordRejected>
+                {t("pushPrompt.memberKbComma2")}{" "}
+                <KeywordNeutral>
+                  {t("pushPrompt.memberKbReplies")}
+                </KeywordNeutral>
+                {t("pushPrompt.memberPromptSuffix")}
+              </p>
+            )
+          ) : (
+            <p className="text-xs text-stone-600 leading-snug">{cfg.desc}</p>
+          )}
 
-      {/* Case 5: Normal Flow -> Ask to Enable Notifications */}
-      {!inAppBrowser && !(ios && !iosStandalone) && permission !== "denied" && !isSubscribed && (
-        <div className="pe-11 space-y-2 text-start">
-          <div className="flex items-center gap-2.5 text-amber-200 font-bold text-sm sm:text-base">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-              <Bell className="w-4 h-4" />
-            </div>
-            <span className="leading-snug">
-              {isAdmin
-                ? t("pushPrompt.adminPromptTitle")
-                : t("pushPrompt.memberPromptTitle")}
-            </span>
-          </div>
-
-          <p className="text-sm text-stone-200 leading-snug break-words">
-            {isAdmin
-              ? t("pushPrompt.adminPromptDesc")
-              : t("pushPrompt.memberPromptDesc")}
-          </p>
-
-          <p className="text-xs text-amber-200/90 flex items-center gap-1.5 leading-snug">
-            <span>{t("pushPrompt.reassurance")}</span>
-          </p>
-
-          {errorMsg && (
-            <div className="bg-red-500/20 border border-red-400/30 text-red-200 text-xs sm:text-sm p-2.5 rounded-xl flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>{errorMsg}</span>
+          {/* Steps (inApp / iOS / blocked) */}
+          {cfg.steps && cfg.steps.length > 0 && (
+            <div className="bg-stone-50 rounded-xl border border-stone-200 p-2.5 space-y-2">
+              {cfg.steps.map((step, idx) => {
+                const StepIcon = step.Icon;
+                return (
+                  <div key={idx} className="flex items-start gap-2">
+                    <span
+                      className={`w-5 h-5 rounded-md ${tone.stepChip} font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5`}
+                    >
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs text-stone-700 leading-snug flex items-start gap-1.5">
+                      <StepIcon className="w-3.5 h-3.5 text-stone-500 shrink-0 mt-0.5" />
+                      <span>{step.text}</span>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          <div className="space-y-1 pt-1">
-            <button
-              type="button"
-              onClick={handleSubscribe}
-              disabled={loading}
-              className="w-full min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 active:scale-[0.99] text-white shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{t("pushPrompt.enabling")}</span>
-                </>
-              ) : (
-                <>
-                  <Bell className="w-4 h-4" />
-                  <span>{t("pushPrompt.enableNow")}</span>
-                </>
+          {/* CTA (normal only) */}
+          {variant === "normal" && (
+            <>
+              {errorMsg && (
+                <div className="bg-red-50 border border-red-200 text-red-800 text-xs p-2.5 rounded-xl flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                  <span className="break-words">{errorMsg}</span>
+                </div>
               )}
-            </button>
 
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="w-full min-h-[44px] px-3 py-2 text-xs sm:text-sm font-medium text-stone-300 hover:text-white rounded-xl transition flex items-center justify-center cursor-pointer"
-            >
-              {t("pushPrompt.later")}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleSubscribe}
+                disabled={loading}
+                className="w-full h-9 rounded-xl font-bold text-xs bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white shadow-2xs transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.99] touch-manipulation"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{t("pushPrompt.enabling")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>{t("pushPrompt.enableNow")}</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       )}
     </aside>
