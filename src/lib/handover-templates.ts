@@ -79,12 +79,17 @@ function formatDateForWhatsApp(iso: string): string {
   return iso;
 }
 
-/** Build "9:00 AM - 10:00 PM" using existing 12-hour formatter. */
+/**
+ * Build a stable left-to-right time range.
+ *
+ * The handover message is Arabic by default, so the surrounding RTL text can
+ * otherwise cause the Latin AM/PM values and separator to render out of order.
+ */
 function formatTimeRange(startHhmm: string, endHhmm: string): string {
   const s = startHhmm ? formatHhmmTo12Hour(startHhmm) : "";
   const e = endHhmm ? formatHhmmTo12Hour(endHhmm) : "";
-  if (s && e) return `${s} - ${e}`;
-  return s || e || "";
+  const range = s && e ? `${s} - ${e}` : s || e || "";
+  return range ? `\u2066${range}\u2069` : "";
 }
 
 /** Group reservations by reservation_date, preserving sort order. */
