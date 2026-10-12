@@ -21,7 +21,7 @@ A church member or performer who reserves instruments. Identified by name and ph
 
 ### Admin
 
-A privileged operator who manages the instrument catalog, reviews reservation requests, and controls system-wide settings. Logs in with phone number and password. Created and managed by the Super Admin. Admins can also make reservations under their own account — always auto-approved regardless of instrument mode or hard limits.
+A privileged operator who manages the instrument catalog, reviews reservation requests, and controls system-wide settings. Logs in with phone number and password. Created and managed by the Super Admin. Admins can also make reservations on behalf of members (with admin logged as creator for the audit trail) or under their own account — always auto-approved regardless of instrument mode or hard limits.
 
 ### Super Admin
 
@@ -312,7 +312,7 @@ If an admin removes an instrument with existing future reservations (Approved or
     - Trusted status, if previously held, is restored
 - Admins can **delete** a user:
     - All user data permanently erased (no anonymization)
-- Admins can **make a reservation on behalf of their own account** from a user's profile page (always auto-approved)
+- Admins can **make a reservation on behalf of a member** from that user's profile page (or for themselves; always auto-approved)
 
 ---
 
@@ -378,7 +378,7 @@ Same flow used for both user and admin portals.
 | Recurring series in manual mode      | Admin sees series as grouped card; approves/rejects all or individually                                                                |
 | Booking mode scope                   | Per-instrument (not global) — but overridden entirely by Trusted status when present                                                   |
 | Calendar on mobile                   | Horizontal scroll; instrument detail has Daily/Weekly/Monthly toggle                                                                   |
-| Admin reservation                    | Always auto-approved; logged under admin's own account                                                                                 |
+| Admin reservation                    | Always auto-approved; assigned to member (with admin logged as creator for audit trail) or under admin's own account |
 | Trusted user status                  | Super Admin–granted per-user flag; auto-approves regardless of mode/limits; conflict rule still applies                                |
 | Trusted + recurring series           | Still subject to conflict + self-overlap checks; only mode/limit checks are skipped                                                    |
 | Trusted + deactivation               | Flag persists through deactivate/reactivate                                                                                            |

@@ -1,0 +1,25 @@
+{
+  "name": "حجز آلات كنيسة مارمرقس",
+  "short_name": "حجز الآلات",
+  "description": "نظام حجز آلات الكنيسة لخدمات القداسات والاجتماعات والكورال",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1c1917",
+  "theme_color": "#78350f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

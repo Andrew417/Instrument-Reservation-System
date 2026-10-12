@@ -20,6 +20,7 @@ import {
   addDaysToDateString,
   parseLocalDate,
 } from "../lib/date-utils.js";
+import { sendPushToUser, sendPushToAdmins } from "../lib/push-service.js";
 
 const router = Router();
 
@@ -903,6 +904,61 @@ router.post(
         console.warn(
           "Could not insert chat message notification:",
           notifErr.message,
+        );
+      }
+
+      // Web Push Notifications for Chat Messages
+      try {
+        const cleanContent = content.trim();
+        const snippet =
+          cleanContent.length > 70
+            ? cleanContent.substring(0, 67) + "..."
+            : cleanContent;
+        const resTitle =
+          resRecord?.service_name ||
+          resRecord?.instrument_name ||
+          "Reservation";
+
+        if (senderRole === "user") {
+          // Member replied -> Push to all approved admins who haven't muted member messages
+          const memberLabelAr = senderName || resRecord?.user_name || "عضو";
+          const memberLabelEn =
+            senderName || resRecord?.user_name || "A member";
+
+          sendPushToAdmins(
+            {
+              titleAr: `رسالة جديدة من ${memberLabelAr}`,
+              titleEn: `New message from ${memberLabelEn}`,
+              bodyAr: `${resTitle}: "${snippet}"`,
+              bodyEn: `${resTitle}: "${snippet}"`,
+              tag: `chat-${id}`,
+              url: `/?reservationId=${id}&tab=chat`,
+              data: { reservationId: id, tab: "chat", type: "chat_message" },
+            },
+            "member_messages",
+          ).catch((e) =>
+            console.warn("[Push chat member->admin error]:", e.message),
+          );
+        } else {
+          // Admin sent -> Push to reservation member
+          if (resRecord?.user_id) {
+            sendPushToUser(resRecord.user_id, {
+              titleAr: "رسالة من إدارة الكنيسة",
+              titleEn: "Message from Church Administration",
+              bodyAr: `${resTitle}: "${snippet}"`,
+              bodyEn: `${resTitle}: "${snippet}"`,
+              tag: `chat-${id}`,
+              url: `/?reservationId=${id}&tab=chat`,
+              data: { reservationId: id, tab: "chat", type: "chat_message" },
+            }).catch((e) =>
+              console.warn("[Push chat admin->member error]:", e.message),
+            );
+          }
+        }
+      } catch (pushErr: any) {
+        console.warn(
+          "Could not dispatch chat push notification (non-fatal):",
+          pushErr.message,
         );
       }
 

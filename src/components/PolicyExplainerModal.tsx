@@ -13,6 +13,7 @@ import {
   Church,
   ArrowRight,
   Repeat,
+  Bell,
 } from "lucide-react";
 
 export interface PolicyExplainerModalProps {
@@ -130,8 +131,21 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                   <span>استلم الآلة في موعدك</span>
                 </div>
                 <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                  سيصلك تنبيه على الجرس وعلى الإيميل عند الموافقة على حجزك. وبعدها، اطلب من أي مسؤول أن يفتح لك الغرفة في الوقت المحجوز.
+                  سيصلك تنبيه فوري على شاشة هاتفك وجرس الموقع والإيميل عند الموافقة على حجزك أو استلام أي رد. بعدها، توجه للكنيسة في الوقت المحجوز لاستلام الآلة.
                 </p>
+              </div>
+            </div>
+
+            {/* Notification Tip */}
+            <div className="bg-amber-50/80 rounded-2xl p-3.5 border border-amber-200/80 shadow-2xs flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div className="flex-1 text-xs sm:text-sm leading-relaxed text-amber-950">
+                <span className="font-bold text-amber-900 block mb-0.5">
+                  🔔 تفعيل إشعارات الهاتف:
+                </span>
+                احرص على الضغط على زر <span className="font-bold text-amber-800">"تفعيل الإشعارات"</span> بأعلى الموقع بعد تسجيل الدخول، لتصلك تنبيهات سريعة على شاشة هاتفك مثل برامج الموبايل حتى لو كان الموقع مغلقاً.
               </div>
             </div>
           </div>

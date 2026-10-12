@@ -20,6 +20,7 @@ import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
 import { UserDetailModal } from "./components/UserDetailModal.tsx";
 import { ConditionCheckModal } from "./components/ConditionCheckModal.tsx";
 import { MusicianMinistryProfileModal } from "./components/MusicianMinistryProfileModal.tsx";
+import { PushNotificationPrompt } from "./components/PushNotificationPrompt.tsx";
 import {
   LogOut,
   Sparkles,
@@ -243,6 +244,54 @@ const UserPortalMain: React.FC = () => {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  // Listen for Notification click deep-links (via query params or service worker message)
+  useEffect(() => {
+    const handleUrlDeepLink = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const resId = params.get("reservationId");
+        const tab = params.get("tab") as "details" | "chat" | null;
+        const adminTab = params.get("adminTab");
+
+        if (resId) {
+          setSelectedReservationDetailId(resId);
+          setReservationDetailInitialTab(tab || "details");
+          setReservationDetailFromNotifications(true);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (adminTab && isAdminOrSuperAdmin) {
+          setInitialAdminTab(adminTab as any);
+          setCurrentView("admin_portal");
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } catch {
+        // non-fatal
+      }
+    };
+
+    handleUrlDeepLink();
+
+    const onSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === "NOTIFICATION_CLICKED" && e.data?.payload) {
+        const payload = e.data.payload;
+        if (payload.reservationId) {
+          setSelectedReservationDetailId(payload.reservationId);
+          setReservationDetailInitialTab(payload.tab || "details");
+          setReservationDetailFromNotifications(true);
+        } else if (payload.action === "approvals" && isAdminOrSuperAdmin) {
+          setInitialAdminTab("approvals");
+          setCurrentView("admin_portal");
+        }
+      }
+    };
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", onSwMessage);
+      return () => {
+        navigator.serviceWorker.removeEventListener("message", onSwMessage);
+      };
+    }
+  }, [isAdminOrSuperAdmin]);
 
   // Synchronize mobile bottom tab indicator whenever currentView changes
   useEffect(() => {
@@ -487,6 +536,9 @@ const UserPortalMain: React.FC = () => {
             : ""
         }`}
       >
+        {/* Friendly Web Push Notification Enable Prompt */}
+        <PushNotificationPrompt />
+
         {currentView === "calendar" && (
           <AvailabilityCalendar
             onSelectSlot={handleSelectSlot}

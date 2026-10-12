@@ -22,6 +22,7 @@ import {
   getCairoParts,
   getCairoTimeString,
 } from "../lib/date-utils.js";
+import { sendPushToUser, sendPushToAdmins } from "../lib/push-service.js";
 
 export interface TimeSlot {
   date: string; // 'YYYY-MM-DD'
@@ -574,6 +575,18 @@ export async function autoRejectOverlappingPending(
         message:
           "Your pending reservation was auto-rejected due to a conflict with an approved reservation for this time slot.",
       });
+
+      sendPushToUser(row.user_id, {
+        titleAr: "تعذر حجز الموعد بسبب تعارض",
+        titleEn: "Reservation Request Conflict",
+        bodyAr: `تم رفض حجز "${row.service_name || "الخدمة"}" تلقائياً بسبب اعتماد حجز آخر في نفس التوقيت.`,
+        bodyEn: `Your booking for "${row.service_name || "Reservation"}" was auto-rejected due to a conflict with an approved reservation.`,
+        tag: `res-status-${row.id}`,
+        url: `/?reservationId=${row.id}`,
+        data: { reservationId: row.id, status: "auto_rejected" },
+      }).catch((e) =>
+        console.warn("[Push auto-reject error]:", e.message),
+      );
     }
   }
 
@@ -857,6 +870,25 @@ export async function createReservation(input: ReservationSubmissionInput) {
         })
         .catch(() => {});
     }
+
+    // Web Push notification to admins for new request
+    sendPushToAdmins(
+      {
+        titleAr: "طلب حجز جديد",
+        titleEn: "New Reservation Request",
+        bodyAr: `${requester?.name || "عضو"}: ${instrumentRow?.name || "آلة"} (${input.serviceName || "خدمة"})`,
+        bodyEn: `${requester?.name || "A member"}: ${instrumentRow?.name || "Instrument"} (${input.serviceName || "Service"})`,
+        tag: "admin-new-requests",
+        url: `/?reservationId=${newReservation.id}`,
+        data: {
+          reservationId: newReservation.id,
+          type: "reservation_request",
+        },
+      },
+      "new_requests",
+    ).catch((e) =>
+      console.warn("[Push new reservation error]:", e.message),
+    );
   }
 
   return {
@@ -1267,6 +1299,26 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
           })
           .catch(() => {});
       }
+
+      // Web Push notification to admins for new recurring series (1 notification only)
+      sendPushToAdmins(
+        {
+          titleAr: "طلب حجز متكرر جديد",
+          titleEn: "New Recurring Series Request",
+          bodyAr: `${requester?.name || "عضو"}: ${instrumentRow?.name || "آلة"} (${createdOccurrences.length} مواعيد)`,
+          bodyEn: `${requester?.name || "A member"}: ${instrumentRow?.name || "Instrument"} (${createdOccurrences.length} dates)`,
+          tag: "admin-new-requests",
+          url: `/?reservationId=${createdOccurrences[0].reservation.id}`,
+          data: {
+            reservationId: createdOccurrences[0].reservation.id,
+            seriesId: newSeries.id,
+            type: "series_request",
+          },
+        },
+        "new_requests",
+      ).catch((e) =>
+        console.warn("[Push series request error]:", e.message),
+      );
     }
   }
 
@@ -1556,11 +1608,29 @@ export async function cancelReservation(
         new Set(cancelled.map((r) => r.userId).filter(Boolean)),
       );
       for (const uid of userIds) {
-        await db.insert(notifications).values({
-          userId: uid as string,
-          type: "reservation_cancelled",
-          message: bellMessage,
-        });
+        if (uid !== cleanCallerAdminId) {
+          await db.insert(notifications).values({
+            userId: uid as string,
+            type: "reservation_cancelled",
+            message: bellMessage,
+          });
+
+          sendPushToUser(uid as string, {
+            titleAr: "تم إلغاء السلسلة بواسطة الإدارة",
+            titleEn: "Series Cancelled by Administration",
+            bodyAr: cleanReason
+              ? `تم إلغاء حجز سلسلتك المتكررة — السبب: ${cleanReason}`
+              : "تم إلغاء حجز سلسلتك المتكررة بواسطة إدارة الكنيسة.",
+            bodyEn: cleanReason
+              ? `Your recurring series was cancelled — Reason: ${cleanReason}`
+              : "Your recurring series was cancelled by administration.",
+            tag: `series-status-${target.seriesId}`,
+            url: `/?reservationId=${cancelled[0]?.id || ""}`,
+            data: { seriesId: target.seriesId, status: "cancelled" },
+          }).catch((e) =>
+            console.warn("[Push series cancel error]:", e.message),
+          );
+        }
       }
     }
 
@@ -1578,13 +1648,29 @@ export async function cancelReservation(
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  if (cleanCallerAdminId && cancelled.userId) {
+  if (cleanCallerAdminId && cancelled.userId && cancelled.userId !== cleanCallerAdminId) {
     await db.insert(notifications).values({
       userId: cancelled.userId,
       reservationId: cancelled.id,
       type: "reservation_cancelled",
       message: bellMessage,
     });
+
+    sendPushToUser(cancelled.userId, {
+      titleAr: "تم إلغاء الحجز بواسطة الإدارة",
+      titleEn: "Reservation Cancelled by Administration",
+      bodyAr: cleanReason
+        ? `تم إلغاء حجز "${cancelled.serviceName}" — السبب: ${cleanReason}`
+        : `تم إلغاء حجز "${cancelled.serviceName}" بواسطة إدارة الكنيسة.`,
+      bodyEn: cleanReason
+        ? `Your reservation for "${cancelled.serviceName}" was cancelled — Reason: ${cleanReason}`
+        : `Your reservation for "${cancelled.serviceName}" was cancelled by administration.`,
+      tag: `res-status-${cancelled.id}`,
+      url: `/?reservationId=${cancelled.id}`,
+      data: { reservationId: cancelled.id, status: "cancelled" },
+    }).catch((e) =>
+      console.warn("[Push single cancel error]:", e.message),
+    );
   }
 
   return { mode: "single", reservation: cancelled };
@@ -1705,6 +1791,20 @@ export async function adminApproveReservation(
       type: "reservation_approved",
       message: approvalNotice,
     });
+
+    if (!options?.skipEmail && res.userId !== cleanAdminId) {
+      sendPushToUser(res.userId, {
+        titleAr: "تمت الموافقة على حجزك! 🎉",
+        titleEn: "Your reservation has been approved! 🎉",
+        bodyAr: `تم قبول حجز "${res.serviceName}" (${userVisibleInstName}).`,
+        bodyEn: `Your reservation for "${res.serviceName}" (${userVisibleInstName}) has been approved.`,
+        tag: `res-status-${res.id}`,
+        url: `/?reservationId=${res.id}`,
+        data: { reservationId: res.id, status: "approved" },
+      }).catch((e) =>
+        console.warn("[Push single approve error]:", e.message),
+      );
+    }
 
     // Send transactional email (non-blocking) unless skipped (e.g. during series approval)
     if (!options?.skipEmail) {
@@ -1862,6 +1962,20 @@ export async function adminTransformToFullDay(
       message: `Your reservation for "${res.serviceName}" on ${dateStr} has been transformed to a Full Day booking (09:00 AM – 10:00 PM) and approved by administration.`,
     });
 
+    if (res.userId !== cleanAdminId) {
+      sendPushToUser(res.userId, {
+        titleAr: "تعديل الموعد ليوم كامل 📅",
+        titleEn: "Reservation Transformed to Full Day! 📅",
+        bodyAr: `تم تعديل حجز "${res.serviceName}" يوم ${dateStr} ليوم كامل (٩ ص - ١٠ م) والموافقة عليه.`,
+        bodyEn: `Your reservation for "${res.serviceName}" on ${dateStr} was transformed to a Full Day slot (9 AM - 10 PM) and approved.`,
+        tag: `res-status-${res.id}`,
+        url: `/?reservationId=${res.id}`,
+        data: { reservationId: res.id, status: "approved" },
+      }).catch((e) =>
+        console.warn("[Push full day error]:", e.message),
+      );
+    }
+
     if (!options?.skipEmail) {
       (async () => {
         try {
@@ -1940,6 +2054,20 @@ export async function adminRejectReservation(
       type: "reservation_rejected",
       message: `Your reservation request was rejected by an administrator. Reason: ${reason.trim()}`,
     });
+
+    if (res.userId !== cleanAdminId) {
+      sendPushToUser(res.userId, {
+        titleAr: "تنبيه بشأن طلب حجزك",
+        titleEn: "Update on your reservation request",
+        bodyAr: `تعذر قبول حجز "${res.serviceName}" — السبب: ${reason.trim()}`,
+        bodyEn: `Your reservation for "${res.serviceName}" was not approved — Reason: ${reason.trim()}`,
+        tag: `res-status-${res.id}`,
+        url: `/?reservationId=${res.id}`,
+        data: { reservationId: res.id, status: "rejected" },
+      }).catch((e) =>
+        console.warn("[Push single reject error]:", e.message),
+      );
+    }
 
     // Also record the rejection reason as an admin message in the conversation thread
     try {
@@ -2046,8 +2174,23 @@ export async function adminApproveSeries(
     }
   }
 
-  // Send ONE consolidated approval email for the recurring series
+  // Send ONE consolidated approval email and Web Push for the recurring series
   if (approvedList.length > 0 && pendingOccurrences[0]?.userId) {
+    const firstOcc = pendingOccurrences[0];
+    if (firstOcc.userId !== cleanAdminId) {
+      sendPushToUser(firstOcc.userId!, {
+        titleAr: "تمت الموافقة على سلسلتك المتكررة! 🎉",
+        titleEn: "Your recurring series has been approved! 🎉",
+        bodyAr: `تم قبول حجز "${firstOcc.serviceName}" (${approvedList.length} مواعيد).`,
+        bodyEn: `Your series for "${firstOcc.serviceName}" (${approvedList.length} dates) has been approved.`,
+        tag: `series-status-${seriesId}`,
+        url: `/?reservationId=${firstOcc.id}`,
+        data: { reservationId: firstOcc.id, seriesId, status: "approved" },
+      }).catch((e) =>
+        console.warn("[Push series approve error]:", e.message),
+      );
+    }
+
     (async () => {
       try {
         const firstOcc = pendingOccurrences[0];
@@ -2146,6 +2289,20 @@ export async function adminRejectSeries(
       type: "series_rejected",
       message: `Your recurring series was rejected by an administrator. Reason: ${reason.trim()}`,
     });
+
+    if (userId !== cleanAdminId) {
+      sendPushToUser(userId, {
+        titleAr: "تنبيه بشأن سلسلتك المتكررة",
+        titleEn: "Update on your recurring series",
+        bodyAr: `تم رفض السلسلة المتكررة (${seriesOccurrences.length} مواعيد) — السبب: ${reason.trim()}`,
+        bodyEn: `Your recurring series (${seriesOccurrences.length} dates) was rejected — Reason: ${reason.trim()}`,
+        tag: `series-status-${seriesId}`,
+        url: `/?reservationId=${seriesOccurrences[0]?.id || ""}`,
+        data: { seriesId, status: "rejected" },
+      }).catch((e) =>
+        console.warn("[Push series reject error]:", e.message),
+      );
+    }
 
     // Also record the rejection reason as an admin message in the conversation thread for each occurrence
     try {
@@ -2295,6 +2452,18 @@ export async function adminBulkReject(
       type: "reservation_rejected",
       message: `Your reservation request(s) were rejected by an administrator. Reason: ${reason.trim()}`,
     });
+
+    sendPushToUser(uid as string, {
+      titleAr: "تنبيه بشأن طلبات الحجز",
+      titleEn: "Update on reservation requests",
+      bodyAr: `تم رفض طلبات الحجز بواسطة الإدارة — السبب: ${reason.trim()}`,
+      bodyEn: `Your reservation request(s) were rejected — Reason: ${reason.trim()}`,
+      tag: `bulk-reject-${Date.now()}`,
+      url: "/?view=my_reservations",
+      data: { status: "rejected" },
+    }).catch((e) =>
+      console.warn("[Push bulk reject error]:", e.message),
+    );
   }
 
   return {
@@ -2573,6 +2742,29 @@ export async function removeInstrumentWithConfirmation(
     .set({ isRemoved: true })
     .where(eq(instruments.id, instrumentId))
     .returning();
+
+  // Send Web Push notification to each affected member (1 push per member per instrument)
+  if (futureActive.length > 0) {
+    const uniqueUserIds = Array.from(
+      new Set(futureActive.map((r) => r.userId).filter(Boolean) as string[]),
+    );
+    const instName = removedInstrument?.name || "الآلة";
+    for (const uid of uniqueUserIds) {
+      if (uid !== cleanAdminId) {
+        sendPushToUser(uid, {
+          titleAr: "إلغاء حجز بسبب إزالة الآلة ⚠️",
+          titleEn: "Reservation Cancelled - Instrument Removed ⚠️",
+          bodyAr: `تم إلغاء حجزك لأن الآلة "${instName}" تمت إزالتها من العهدة بواسطة الإدارة.`,
+          bodyEn: `Your reservation was cancelled because "${instName}" was removed from inventory by church administration.`,
+          tag: `inst-removed-${instrumentId}`,
+          url: "/?view=calendar",
+          data: { instrumentId, type: "instrument_removed" },
+        }).catch((e) =>
+          console.warn("[Push inst remove error]:", e.message),
+        );
+      }
+    }
+  }
 
   return {
     success: true,

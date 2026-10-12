@@ -10,6 +10,10 @@ import {
   normalizePhoneNumber,
   isValidEmail,
 } from "../lib/auth-helpers";
+import {
+  unsubscribeFromPush,
+  resyncPushSubscriptionOnLogin,
+} from "../lib/push-client";
 
 export interface UserProfile {
   id: string;
@@ -126,6 +130,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               USER_PROFILE_KEY,
               JSON.stringify(data.profile),
             );
+            resyncPushSubscriptionOnLogin(token).catch(() => {});
           } else {
             handleLogoutLocally();
           }
@@ -210,6 +215,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
         sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
         setError(null);
+        resyncPushSubscriptionOnLogin(data.token).catch(() => {});
       }
     } catch (err: any) {
       console.error("Login error:", err);
@@ -287,6 +293,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         sessionStorage.setItem(SESSION_TOKEN_KEY, data.token);
         sessionStorage.setItem(USER_PROFILE_KEY, JSON.stringify(data.profile));
         setError(null);
+        resyncPushSubscriptionOnLogin(data.token).catch(() => {});
         return {
           pendingApproval: false,
           message: "Registration successful",
@@ -312,6 +319,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const logout = async () => {
     try {
       const token = sessionToken || sessionStorage.getItem(SESSION_TOKEN_KEY);
+      // Unsubscribe device from push notifications on logout
+      await unsubscribeFromPush(token).catch(() => {});
       if (token) {
         await fetch("/api/auth/logout", {
           method: "POST",

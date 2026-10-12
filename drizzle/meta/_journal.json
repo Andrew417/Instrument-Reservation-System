@@ -36,6 +36,13 @@
       "when": 1790791588563,
       "tag": "0004_worried_dark_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791800000000,
+      "tag": "0005_web_push_notifications",
+      "breakpoints": true
     }
   ]
 }

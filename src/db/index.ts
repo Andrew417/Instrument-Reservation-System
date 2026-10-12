@@ -150,3 +150,26 @@ export async function ensureEnhancedColumns(): Promise<void> {
     console.warn("[DB Warning] Column check notice:", err?.message || err);
   }
 }
+
+/**
+ * Idempotently verifies push notification tables exist.
+ * Note: DDL / schema alterations are handled via Drizzle migrations.
+ */
+export async function ensurePushTables(): Promise<void> {
+  try {
+    await withRetry(
+      async () => {
+        const res = await pool.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_name IN ('push_subscriptions', 'admin_push_preferences');
+        `);
+        const found = res.rows.map((r: any) => r.table_name);
+        console.log(`[DB] Push notification tables verified (${found.length}/2 present).`);
+      },
+      { retries: 5, delayMs: 2000, label: "Push Notification Tables Check" },
+    );
+  } catch (err: any) {
+    console.warn("[DB Warning] Push tables check notice:", err?.message || err);
+  }
+}

@@ -349,6 +349,47 @@ export const roleAuditLog = pgTable("role_audit_log", {
     .notNull(),
 });
 
+// 15. Push Subscriptions Table (Web Push multi-device subscriptions)
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  adminId: uuid("admin_id").references(() => admins.id, {
+    onDelete: "cascade",
+  }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  language: text("language").default("ar").notNull(), // 'ar' | 'en'
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// 16. Admin Push Preferences Table (Per-admin notification category toggles)
+export const adminPushPreferences = pgTable("admin_push_preferences", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  adminId: uuid("admin_id")
+    .references(() => admins.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  notifyNewRegistrations: boolean("notify_new_registrations")
+    .default(true)
+    .notNull(),
+  notifyNewRequests: boolean("notify_new_requests")
+    .default(true)
+    .notNull(),
+  notifyMemberMessages: boolean("notify_member_messages")
+    .default(true)
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // Drizzle Relations
 export const usersRelations = relations(users, ({ many }) => ({
   reservations: many(reservations),
@@ -356,13 +397,19 @@ export const usersRelations = relations(users, ({ many }) => ({
   notifications: many(notifications),
   auditLogs: many(trustedStatusAuditLog),
   messages: many(messages),
+  pushSubscriptions: many(pushSubscriptions),
 }));
 
-export const adminsRelations = relations(admins, ({ many }) => ({
+export const adminsRelations = relations(admins, ({ one, many }) => ({
   reservations: many(reservations),
   series: many(reservationSeries),
   messages: many(messages),
   grantedAudits: many(trustedStatusAuditLog),
+  pushSubscriptions: many(pushSubscriptions),
+  pushPreferences: one(adminPushPreferences, {
+    fields: [admins.id],
+    references: [adminPushPreferences.adminId],
+  }),
 }));
 
 export const instrumentsRelations = relations(instruments, ({ many }) => ({

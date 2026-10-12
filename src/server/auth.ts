@@ -24,6 +24,7 @@ import {
   destroySession,
 } from "./session-manager.js";
 import { getNotificationSettings } from "../services/reservation-logic.js";
+import { sendPushToAdmins } from "../lib/push-service.js";
 
 const router = Router();
 
@@ -237,6 +238,22 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
         })
         .catch(() => {});
     }
+
+    // Web Push notification to approved admins for new registration
+    sendPushToAdmins(
+      {
+        titleAr: "عضو جديد بانتظار الموافقة",
+        titleEn: "New Member Awaiting Approval",
+        bodyAr: `سجّل ${newUser.name} حسابه وينتظر مراجعتك للموافقة عليه.`,
+        bodyEn: `${newUser.name} registered and is awaiting your approval.`,
+        tag: "admin-new-registrations",
+        url: "/?adminTab=approvals",
+        data: { action: "approvals", userId: newUser.id },
+      },
+      "new_registrations",
+    ).catch((e) =>
+      console.warn("[Push new member registration error]:", e.message),
+    );
 
     // Clear any stale failed attempts for this email
     await db

@@ -24,6 +24,7 @@ import {
   isValidEmail,
 } from "../lib/auth-helpers.js";
 import { sendAccountApprovedEmail } from "../lib/mailer.js";
+import { sendPushToUser, safeWaitUntil } from "../lib/push-service.js";
 import {
   adminApproveReservation,
   adminTransformToFullDay,
@@ -2510,6 +2511,23 @@ router.post(
           type: "reservation_approved",
           message: `Church Administration created and approved an instrument reservation for you: "${serviceName}" on ${date} at ${startTime}.`,
         });
+
+        // Push notification: notify member of approval if member != actor
+        if (userId && userId !== adminId) {
+          safeWaitUntil(
+            sendPushToUser(userId, {
+              titleAr: "تم حجز الآلة واعتمادها لك",
+              titleEn: "Reservation Created & Approved",
+              bodyAr: `قامت إدارة الكنيسة بحجز واعتماد الآلة لك لخدمة "${serviceName}" يوم ${date}.`,
+              bodyEn: `Church administration has reserved and approved the instrument for you for "${serviceName}" on ${date}.`,
+              url: `/?tab=reservations&reservationId=${result.reservation.id}`,
+              data: {
+                reservationId: result.reservation.id,
+                type: "reservation_approved",
+              },
+            }),
+          );
+        }
       } catch {
         // non-fatal
       }

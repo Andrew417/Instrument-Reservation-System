@@ -6,7 +6,7 @@ Here's the updated documentation with the new features added:
 
 - **Booking modes** — per-instrument, Instant or Manual. Instant auto-confirms within limits; Manual always requires admin review regardless of limits.
 - **Trusted user status** — Super Admin-granted flag; auto-approves regardless of instrument mode or hard limits. Conflict with an approved slot is never bypassed.
-- **Admin reservations** — always auto-approved, logged under the admin's own account.
+- **Admin reservations** — always auto-approved, bookable on behalf of members (with the admin recorded as creator for the audit trail) or under the admin's own account.
 - **Fair usage (hard limits)** — active reservations, per-day count, max duration, same-type concurrency, series occurrence cap, submission rate limit. All admin-editable in Settings; Trusted/Admin bypass all. Most limits downgrade to Pending rather than block; submission rate limit blocks outright.
 - **In-church vs outside-church usage type** — in-church is free; outside-church carries a per-day fee, snapshotted at submission (later fee changes don't retroactively apply). Outside-church requests always require admin review and default to Pending status regardless of instrument mode.
 - **Outside-church payment flow** — user submits and checks acknowledgment box; after admin review/approval, user can upload an Instapay transfer receipt screenshot via the Reservation Detail modal (with admin ability to view/remove screenshot) or arrange payment via church administration.

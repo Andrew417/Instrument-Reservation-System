@@ -65,6 +65,7 @@ import {
   DollarSign,
   Church,
   BarChart3,
+  Smartphone,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { HandoverSheetModal } from "./HandoverSheetModal";
@@ -73,6 +74,11 @@ import { UserDetailModal } from "./UserDetailModal";
 import { AssignInstrumentModal } from "./AssignInstrumentModal";
 import { AnalyticsTab } from "./AnalyticsTab";
 import { getStatusColor, getReservationTypeColor } from "../lib/status-colors";
+import {
+  getCurrentSubscription,
+  subscribeToPush,
+  sendTestNotification,
+} from "../lib/push-client";
 
 // Add this after the imports and before the component definition
 const sortInstrumentsByStatus = (instruments: any[]) => {
@@ -103,6 +109,7 @@ type AdminTab =
   | "users"
   | "analytics"
   | "messaging"
+  | "push_notifications"
   // Super Admin Exclusive Tabs
   | "admin_accounts"
   | "trusted_status"
@@ -147,6 +154,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
+  const isRTL = isAr;
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
 
   const ADMIN_TABS_EVENT = "admin-tabs:update";
@@ -528,6 +536,96 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   ) => {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 5000);
+  };
+
+  // Push Notification Preferences for current admin
+  const [adminPushPrefs, setAdminPushPrefs] = useState({
+    notifyNewRegistrations: true,
+    notifyNewRequests: true,
+    notifyMemberMessages: true,
+  });
+  const [loadingPushPrefs, setLoadingPushPrefs] = useState(false);
+  const [savingPushPrefs, setSavingPushPrefs] = useState(false);
+  const [adminDeviceSubscribed, setAdminDeviceSubscribed] = useState(false);
+  const [testPushStatus, setTestPushStatus] = useState<string | null>(null);
+  const [testPushSending, setTestPushSending] = useState(false);
+
+  const fetchPushPreferences = async () => {
+    if (!sessionToken) return;
+    setLoadingPushPrefs(true);
+    try {
+      const res = await fetch("/api/push/preferences", {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.preferences) {
+        setAdminPushPrefs(data.preferences);
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setLoadingPushPrefs(false);
+    }
+  };
+
+  const handleTogglePushPref = async (
+    key: "notifyNewRegistrations" | "notifyNewRequests" | "notifyMemberMessages",
+  ) => {
+    if (!sessionToken || savingPushPrefs) return;
+    const updated = { ...adminPushPrefs, [key]: !adminPushPrefs[key] };
+    setAdminPushPrefs(updated);
+    setSavingPushPrefs(true);
+    try {
+      const res = await fetch("/api/push/preferences", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify(updated),
+      });
+      const data = await res.json();
+      if (data.success && data.preferences) {
+        setAdminPushPrefs(data.preferences);
+        showNotice(t("adminPush.prefsUpdated"), "success");
+      }
+    } catch {
+      showNotice(t("adminPush.prefsUpdateFailed"), "error");
+    } finally {
+      setSavingPushPrefs(false);
+    }
+  };
+
+  const handleAdminSubscribeDevice = async () => {
+    if (!sessionToken) return;
+    setSavingPushPrefs(true);
+    const res = await subscribeToPush(sessionToken, i18n.language);
+    setSavingPushPrefs(false);
+    if (res.success) {
+      setAdminDeviceSubscribed(true);
+      showNotice(t("adminPush.deviceSubscribed"), "success");
+    } else {
+      showNotice(
+        res.error || t("adminPush.deviceSubscribeFailed"),
+        "error",
+      );
+    }
+  };
+
+  const handleAdminTestPush = async () => {
+    if (!sessionToken) return;
+    setTestPushSending(true);
+    setTestPushStatus(null);
+    const res = await sendTestNotification(sessionToken, i18n.language);
+    setTestPushSending(false);
+    if (res.success) {
+      setTestPushStatus(t("adminPush.testDelivered"));
+    } else {
+      showNotice(
+        res.error || t("adminPush.testFailed"),
+        "error",
+      );
+    }
   };
 
   // Helper fetch with session token
@@ -2003,6 +2101,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       Icon: MessageSquare,
       count: 0,
     },
+    {
+      id: "push_notifications" as const,
+      label: t("admin.tabPushNotifications"),
+      Icon: Bell,
+      count: 0,
+    },
   ];
 
   const superAdminTabs = [
@@ -2074,6 +2178,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     return () =>
       window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
   }, []);
+
+  // Fetch push preferences when entering push_notifications tab
+  useEffect(() => {
+    if (activeTab === "push_notifications") {
+      fetchPushPreferences();
+      getCurrentSubscription().then((sub) => {
+        setAdminDeviceSubscribed(Boolean(sub));
+      });
+    }
+  }, [activeTab, sessionToken]);
 
   // Recurring series expansion state & helpers
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
@@ -5690,6 +5804,196 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* =============================================================
+              TAB: PUSH NOTIFICATIONS (Personal Admin Preferences)
+             ============================================================= */}
+        {activeTab === "push_notifications" && (
+          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-5">
+            <div className="border-b border-stone-100 pb-3 flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-700" />
+                  <span>{t("adminPush.title")}</span>
+                </h2>
+                <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                  {t("adminPush.desc")}
+                </p>
+              </div>
+
+              {loadingPushPrefs && (
+                <div className="text-xs text-amber-700 flex items-center gap-1.5 font-medium">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>{t("adminPush.loading")}</span>
+                </div>
+              )}
+            </div>
+
+            {/* 3 On/Off Category Switches */}
+            <div className="space-y-3">
+              {/* Switch 1: New Requests */}
+              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 p-3.5 transition">
+                <div className="pr-4 rtl:pr-0 rtl:pl-4">
+                  <div className="font-bold text-stone-900 text-xs sm:text-sm">
+                    {t("adminPush.reqTitle")}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-relaxed">
+                    {t("adminPush.reqDesc")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Toggle new requests notifications"
+                  disabled={savingPushPrefs}
+                  onClick={() => handleTogglePushPref("notifyNewRequests")}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
+                    adminPushPrefs.notifyNewRequests
+                      ? "bg-amber-700"
+                      : "bg-stone-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      adminPushPrefs.notifyNewRequests
+                        ? "translate-x-6 rtl:-translate-x-6"
+                        : "translate-x-1 rtl:-translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Switch 2: New Registrations */}
+              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 p-3.5 transition">
+                <div className="pr-4 rtl:pr-0 rtl:pl-4">
+                  <div className="font-bold text-stone-900 text-xs sm:text-sm">
+                    {t("adminPush.regTitle")}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-relaxed">
+                    {t("adminPush.regDesc")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Toggle new registrations notifications"
+                  disabled={savingPushPrefs}
+                  onClick={() =>
+                    handleTogglePushPref("notifyNewRegistrations")
+                  }
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
+                    adminPushPrefs.notifyNewRegistrations
+                      ? "bg-amber-700"
+                      : "bg-stone-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      adminPushPrefs.notifyNewRegistrations
+                        ? "translate-x-6 rtl:-translate-x-6"
+                        : "translate-x-1 rtl:-translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Switch 3: Member Chat Messages */}
+              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 p-3.5 transition">
+                <div className="pr-4 rtl:pr-0 rtl:pl-4">
+                  <div className="font-bold text-stone-900 text-xs sm:text-sm">
+                    {t("adminPush.chatTitle")}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-relaxed">
+                    {t("adminPush.chatDesc")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Toggle member messages notifications"
+                  disabled={savingPushPrefs}
+                  onClick={() => handleTogglePushPref("notifyMemberMessages")}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
+                    adminPushPrefs.notifyMemberMessages
+                      ? "bg-amber-700"
+                      : "bg-stone-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      adminPushPrefs.notifyMemberMessages
+                        ? "translate-x-6 rtl:-translate-x-6"
+                        : "translate-x-1 rtl:-translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Device Status & Test Card */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-amber-700 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-bold text-amber-950">
+                      {t("adminPush.deviceStatusTitle")}
+                    </div>
+                    <div className="text-xs text-amber-800 mt-0.5">
+                      {adminDeviceSubscribed
+                        ? t("adminPush.deviceActive")
+                        : t("adminPush.deviceInactive")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {!adminDeviceSubscribed ? (
+                    <button
+                      type="button"
+                      onClick={handleAdminSubscribeDevice}
+                      disabled={savingPushPrefs}
+                      className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                    >
+                      {t("adminPush.enableDeviceBtn")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAdminTestPush}
+                      disabled={testPushSending}
+                      className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {testPushSending ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>{t("adminPush.sending")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>{t("adminPush.sendTestBtn")}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Reassurance Line */}
+              <div className="text-xs text-amber-900/90 bg-amber-100/70 rounded-xl p-2.5 border border-amber-200/80 flex items-center gap-2 leading-relaxed">
+                <Bell className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>{t("adminPush.reassurance")}</span>
+              </div>
+
+              {testPushStatus && (
+                <div className="p-2.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs sm:text-sm flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>{testPushStatus}</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
