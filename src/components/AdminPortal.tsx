@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
@@ -211,6 +211,18 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
   const [loadingUpcomingReservations, setLoadingUpcomingReservations] =
     useState<boolean>(false);
+  const [showDashboardFilters, setShowDashboardFilters] =
+    useState<boolean>(false);
+  const dashboardFilterRef = useRef<HTMLDivElement>(null);
+  const [dashboardFilterUser, setDashboardFilterUser] =
+    useState<string>("all");
+  const [dashboardFilterMusician, setDashboardFilterMusician] =
+    useState<string>("");
+  const [dashboardFilterInstrument, setDashboardFilterInstrument] =
+    useState<string>("all");
+  const [dashboardFilterCategory, setDashboardFilterCategory] =
+    useState<string>("all");
+  const [dashboardFilterDay, setDashboardFilterDay] = useState<string>("");
   const [filterQuickTab, setFilterQuickTab] = useState<
     "all" | "today" | "pending"
   >("all");
@@ -219,6 +231,121 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [filterSearch, setFilterSearch] = useState<string>("");
   const [filterStartDate, setFilterStartDate] = useState<string>("");
   const [filterEndDate, setFilterEndDate] = useState<string>("");
+
+  useEffect(() => {
+    if (!showDashboardFilters) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        dashboardFilterRef.current &&
+        !dashboardFilterRef.current.contains(event.target as Node)
+      ) {
+        setShowDashboardFilters(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showDashboardFilters]);
+
+  const dashboardFilterOptions = useMemo(() => {
+    const source = [...todaysReservations, ...upcomingReservations];
+    const unique = (key: string) =>
+      Array.from(
+        new Set(
+          source
+            .map((reservation) => reservation[key])
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((a, b) => a.localeCompare(b));
+    const userNames = Array.from(
+      new Set(
+        source
+          .flatMap((reservation) =>
+            reservation.booked_by_admin || reservation.bookedByAdmin
+              ? [reservation.admin_name]
+              : [reservation.user_name],
+          )
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+
+    return {
+      users: userNames,
+      instruments: unique("instrument_name"),
+      categories: unique("instrument_type"),
+    };
+  }, [todaysReservations, upcomingReservations]);
+
+  const filterDashboardReservations = (items: any[]) =>
+    items.filter((reservation) => {
+      const isAdminBooking = Boolean(
+        reservation.booked_by_admin || reservation.bookedByAdmin,
+      );
+      const reservationOwner = isAdminBooking
+        ? reservation.admin_name
+        : reservation.user_name;
+      if (
+        dashboardFilterUser !== "all" &&
+        reservationOwner !== dashboardFilterUser
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterMusician.trim() &&
+        !String(reservation.musician_name || reservation.musicianName || "")
+          .toLowerCase()
+          .includes(dashboardFilterMusician.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterInstrument !== "all" &&
+        reservation.instrument_name !== dashboardFilterInstrument
+      ) {
+        return false;
+      }
+      if (
+        dashboardFilterCategory !== "all" &&
+        reservation.instrument_type !== dashboardFilterCategory
+      ) {
+        return false;
+      }
+      if (dashboardFilterDay) {
+        const reservationWeekday = new Intl.DateTimeFormat("en-US", {
+          weekday: "long",
+          timeZone: "Africa/Cairo",
+        }).format(new Date(reservation.start_time || reservation.startTime));
+        if (reservationWeekday !== dashboardFilterDay) return false;
+      }
+      return true;
+    });
+
+  const dashboardFilterCount = [
+    dashboardFilterUser !== "all",
+    Boolean(dashboardFilterMusician.trim()),
+    dashboardFilterInstrument !== "all",
+    dashboardFilterCategory !== "all",
+    Boolean(dashboardFilterDay),
+  ].filter(Boolean).length;
+
+  const clearDashboardFilters = () => {
+    setDashboardFilterUser("all");
+    setDashboardFilterMusician("");
+    setDashboardFilterInstrument("all");
+    setDashboardFilterCategory("all");
+    setDashboardFilterDay("");
+  };
+
+  const dashboardWeekdays = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
 
   // Handover Sheet Export (CSV & XLSX) modal state
   const [showHandoverModal, setShowHandoverModal] = useState<boolean>(false);
@@ -2551,16 +2678,162 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </button>
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (dashboardSubTab === "today") fetchTodaysReservations();
-                    else fetchUpcomingReservations();
-                  }}
-                  className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-                  title={t("admin.dashboard.refreshTooltip")}
+                <div
+                  ref={dashboardFilterRef}
+                  className="flex items-center gap-2 relative"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDashboardFilters((open) => !open)}
+                    className={`shrink-0 px-2.5 py-2 rounded-xl border transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      dashboardFilterCount > 0
+                        ? "bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200"
+                    }`}
+                    title={t("admin.dashboard.filters.button")}
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>{t("admin.dashboard.filters.button")}</span>
+                    {dashboardFilterCount > 0 && (
+                      <span className="min-w-4 h-4 px-1 rounded-full bg-amber-800 text-white text-[10px] leading-4 text-center">
+                        {dashboardFilterCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {showDashboardFilters && (
+                    <div
+                      id="dashboard-reservation-filters"
+                      className={`absolute top-full mt-2 z-30 w-[min(90vw,320px)] rounded-2xl border border-stone-200 bg-white p-4 shadow-xl ${
+                        isAr ? "left-0" : "right-0"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h3 className="text-xs font-extrabold text-stone-900">
+                          {t("admin.dashboard.filters.title")}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={clearDashboardFilters}
+                          className="text-[11px] font-semibold text-amber-800 hover:text-amber-950 cursor-pointer"
+                        >
+                          {t("admin.dashboard.filters.clear")}
+                        </button>
+                      </div>
+                      <div className="space-y-2.5">
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.user")}
+                          <select
+                            value={dashboardFilterUser}
+                            onChange={(event) =>
+                              setDashboardFilterUser(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.users.map((user) => (
+                              <option key={user} value={user}>
+                                {user}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.musician")}
+                          <input
+                            type="text"
+                            value={dashboardFilterMusician}
+                            onChange={(event) =>
+                              setDashboardFilterMusician(event.target.value)
+                            }
+                            placeholder={t(
+                              "admin.dashboard.filters.musicianPlaceholder",
+                            )}
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900 placeholder:text-stone-400"
+                          />
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.instrument")}
+                          <select
+                            value={dashboardFilterInstrument}
+                            onChange={(event) =>
+                              setDashboardFilterInstrument(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.instruments.map(
+                              (instrument) => (
+                                <option key={instrument} value={instrument}>
+                                  {instrument}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.category")}
+                          <select
+                            value={dashboardFilterCategory}
+                            onChange={(event) =>
+                              setDashboardFilterCategory(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="all">
+                              {t("admin.dashboard.filters.all")}
+                            </option>
+                            {dashboardFilterOptions.categories.map(
+                              (category) => (
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <label className="block text-[11px] font-semibold text-stone-600">
+                          {t("admin.dashboard.filters.weekday")}
+                          <select
+                            value={dashboardFilterDay}
+                            onChange={(event) =>
+                              setDashboardFilterDay(event.target.value)
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-2 text-xs text-stone-900"
+                          >
+                            <option value="">
+                              {t("admin.dashboard.filters.allWeekdays")}
+                            </option>
+                            {dashboardWeekdays.map((weekday) => (
+                              <option key={weekday} value={weekday}>
+                                {t(
+                                  `analytics.weekday.${weekday.toLowerCase()}`,
+                                )}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dashboardSubTab === "today")
+                        fetchTodaysReservations();
+                      else fetchUpcomingReservations();
+                    }}
+                    className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
+                    title={t("admin.dashboard.refreshTooltip")}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {dashboardSubTab === "today" ? (
@@ -2573,7 +2846,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </div>
                 ) : (
                   (() => {
-                    const todayApproved = todaysReservations
+                    const todayApproved = filterDashboardReservations(
+                      todaysReservations,
+                    )
                       .filter((r) => r.status === "approved")
                       .sort(
                         (a, b) =>
@@ -2664,7 +2939,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               ) : (
                 (() => {
-                  const sorted = [...upcomingReservations].sort(
+                  const sorted = [...filterDashboardReservations(
+                    upcomingReservations,
+                  )].sort(
                     (a, b) =>
                       new Date(a.start_time).getTime() -
                       new Date(b.start_time).getTime(),
