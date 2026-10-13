@@ -6306,9 +6306,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
         {(activeTab === "notification_settings" ||
           activeTab === "push_notifications") && (
-          <div className="w-full max-w-2xl mx-auto space-y-3">
+          <div
+            className={`grid grid-cols-1 ${
+              isSuperAdmin ? "lg:grid-cols-2" : "max-w-2xl"
+            } gap-3 sm:gap-4`}
+          >
             {/* Push Notifications Card */}
-            <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden">
+            <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden flex flex-col">
               {/* Card Header */}
               <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -6327,7 +6331,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 ) : (
                   <span className="text-[11px] text-stone-400 inline-flex items-center gap-1 shrink-0">
                     <Check className="w-3 h-3 text-emerald-600" />
-                    <span>{t("adminPush.autoSaved")}</span>
+                    <span className="hidden sm:inline">
+                      {t("adminPush.autoSaved")}
+                    </span>
                   </span>
                 )}
               </div>
@@ -6355,7 +6361,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       type="button"
                       onClick={handleAdminSubscribeDevice}
                       disabled={savingPushPrefs}
-                      className="w-full h-9 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      className="w-full sm:w-auto sm:min-w-[180px] h-9 px-4 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                     >
                       <Bell className="w-3.5 h-3.5" />
                       <span>{t("adminPush.enableDeviceBtn")}</span>
@@ -6365,7 +6371,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       type="button"
                       onClick={handleAdminTestPush}
                       disabled={testPushSending}
-                      className="w-full h-9 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-bold transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      className="w-full sm:w-auto sm:min-w-[180px] h-9 px-4 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-bold transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
                       {testPushSending ? (
                         <>
@@ -6396,7 +6402,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               </div>
 
               {/* Preference Switches */}
-              <div className="border-t border-stone-100 divide-y divide-stone-100">
+              <div className="border-t border-stone-100 divide-y divide-stone-100 mt-auto">
                 {/* New Requests */}
                 <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-stone-50/70 transition">
                   <div className="min-w-0 flex-1">
@@ -6496,7 +6502,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
             {/* Email Notifications Card (Super Admin only) */}
             {isSuperAdmin && (
-              <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden">
+              <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden flex flex-col">
                 <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-amber-800 text-white flex items-center justify-center shrink-0">
                     <Mail className="w-3.5 h-3.5" />
