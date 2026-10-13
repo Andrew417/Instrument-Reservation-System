@@ -180,7 +180,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab || "dashboard");
+  const [activeTab, setActiveTab] = useState<AdminTab>(
+    initialTab || "dashboard",
+  );
 
   useEffect(() => {
     if (initialTab) {
@@ -225,8 +227,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const dashboardFilterRef = useRef<HTMLDivElement>(null);
   const [showReviewFilters, setShowReviewFilters] = useState<boolean>(false);
   const reviewFilterRef = useRef<HTMLDivElement>(null);
-  const [dashboardFilterUser, setDashboardFilterUser] =
-    useState<string>("all");
+  const [dashboardFilterUser, setDashboardFilterUser] = useState<string>("all");
   const [dashboardFilterMusician, setDashboardFilterMusician] =
     useState<string>("");
   const [dashboardFilterInstrument, setDashboardFilterInstrument] =
@@ -241,8 +242,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   >("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [reviewFilterUser, setReviewFilterUser] = useState<string>("all");
-  const [reviewFilterMusician, setReviewFilterMusician] =
-    useState<string>("");
+  const [reviewFilterMusician, setReviewFilterMusician] = useState<string>("");
   const [reviewFilterInstrument, setReviewFilterInstrument] =
     useState<string>("all");
   const [reviewFilterCategory, setReviewFilterCategory] =
@@ -254,10 +254,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (dashboardFilterRef.current && !dashboardFilterRef.current.contains(target)) {
+      if (
+        dashboardFilterRef.current &&
+        !dashboardFilterRef.current.contains(target)
+      ) {
         setShowDashboardFilters(false);
       }
-      if (reviewFilterRef.current && !reviewFilterRef.current.contains(target)) {
+      if (
+        reviewFilterRef.current &&
+        !reviewFilterRef.current.contains(target)
+      ) {
         setShowReviewFilters(false);
       }
     };
@@ -715,7 +721,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const handleTogglePushPref = async (
-    key: "notifyNewRegistrations" | "notifyNewRequests" | "notifyMemberMessages",
+    key:
+      | "notifyNewRegistrations"
+      | "notifyNewRequests"
+      | "notifyMemberMessages",
   ) => {
     if (!sessionToken || savingPushPrefs) return;
     const updated = { ...adminPushPrefs, [key]: !adminPushPrefs[key] };
@@ -751,10 +760,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       setAdminDeviceSubscribed(true);
       showNotice(t("adminPush.deviceSubscribed"), "success");
     } else {
-      showNotice(
-        res.error || t("adminPush.deviceSubscribeFailed"),
-        "error",
-      );
+      showNotice(res.error || t("adminPush.deviceSubscribeFailed"), "error");
     }
   };
 
@@ -767,10 +773,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     if (res.success) {
       setTestPushStatus(t("adminPush.testDelivered"));
     } else {
-      showNotice(
-        res.error || t("adminPush.testFailed"),
-        "error",
-      );
+      showNotice(res.error || t("adminPush.testFailed"), "error");
     }
   };
 
@@ -866,7 +869,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       const upcoming = (data.reservations || [])
         .filter((r: any) => {
           const startMs = new Date(r.start_time || r.startTime).getTime();
-          const endMs = new Date(r.end_time || r.endTime || r.start_time || r.startTime).getTime();
+          const endMs = new Date(
+            r.end_time || r.endTime || r.start_time || r.startTime,
+          ).getTime();
           return startMs > now || endMs > now;
         })
         .sort(
@@ -1228,7 +1233,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   }, [filterQuickTab]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNoShowWindowNow(Date.now()), 30_000);
+    const timer = window.setInterval(
+      () => setNoShowWindowNow(Date.now()),
+      30_000,
+    );
     return () => window.clearInterval(timer);
   }, []);
 
@@ -1321,8 +1329,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       else if (showInstrumentModal) {
         setShowInstrumentModal(false);
         setEditingInstrument(null);
-      }
-      else if (showNewAdminModal) setShowNewAdminModal(false);
+      } else if (showNewAdminModal) setShowNewAdminModal(false);
       else if (bookOnBehalfUser) setBookOnBehalfUser(null);
       else if (assignModal) setAssignModal(null);
       else if (internalSelectedUserId) setInternalSelectedUserId(null);
@@ -1558,10 +1565,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
     try {
       if (isSeriesReject && seriesId) {
-        const res = await adminFetch(`/reservations/series/${seriesId}/reject`, {
-          method: "POST",
-          body: JSON.stringify({ reason: reason.trim() }),
-        });
+        const res = await adminFetch(
+          `/reservations/series/${seriesId}/reject`,
+          {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() }),
+          },
+        );
         const data = await res.json();
         if (data.success) {
           showNotice(
@@ -2140,11 +2150,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           setNotificationSettingsState({
             muteAccountApprovalEmails: Boolean(
               data.settings.muteAccountApprovalEmails ??
-                data.settings.mute_account_approval_emails,
+              data.settings.mute_account_approval_emails,
             ),
             muteReservationRequestEmails: Boolean(
               data.settings.muteReservationRequestEmails ??
-                data.settings.mute_reservation_request_emails,
+              data.settings.mute_reservation_request_emails,
             ),
           });
         }
@@ -2400,7 +2410,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   };
 
   const getAdminDisplayName = (r: any): string => {
-    if (r?.admin_name && typeof r.admin_name === "string" && r.admin_name.trim()) {
+    if (
+      r?.admin_name &&
+      typeof r.admin_name === "string" &&
+      r.admin_name.trim()
+    ) {
       return r.admin_name.trim();
     }
     if (r?.admin_id) {
@@ -2494,9 +2508,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         }
         if (
           reviewFilterMusician.trim() &&
-          !String(
-            reservation.musician_name || reservation.musicianName || "",
-          )
+          !String(reservation.musician_name || reservation.musicianName || "")
             .toLowerCase()
             .includes(reviewFilterMusician.trim().toLowerCase())
         ) {
@@ -3170,10 +3182,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                 )}
                                 <span className="text-stone-300">·</span>
                                 <span>
-                                  {new Date(r.start_time).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}{" "}
+                                  {new Date(r.start_time).toLocaleTimeString(
+                                    [],
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}{" "}
                                   -{" "}
                                   {new Date(r.end_time).toLocaleTimeString([], {
                                     hour: "2-digit",
@@ -3202,9 +3217,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 </div>
               ) : (
                 (() => {
-                  const sorted = [...filterDashboardReservations(
-                    upcomingReservations,
-                  )].sort(
+                  const sorted = [
+                    ...filterDashboardReservations(upcomingReservations),
+                  ].sort(
                     (a, b) =>
                       new Date(a.start_time).getTime() -
                       new Date(b.start_time).getTime(),
@@ -3317,13 +3332,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                           minute: "2-digit",
                                         })}{" "}
                                         -{" "}
-                                        {new Date(r.end_time).toLocaleTimeString(
-                                          [],
-                                          {
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                          },
-                                        )}
+                                        {new Date(
+                                          r.end_time,
+                                        ).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
                                       </span>
                                     </div>
                                   </div>
@@ -3411,14 +3425,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                       reviewFilterDay ||
                       filterStatus !== "all") && (
                       <span className="min-w-4 h-4 px-1 rounded-full bg-amber-800 text-white text-[10px] leading-4 text-center">
-                        {[
-                          reviewFilterUser !== "all",
-                          Boolean(reviewFilterMusician),
-                          reviewFilterInstrument !== "all",
-                          reviewFilterCategory !== "all",
-                          Boolean(reviewFilterDay),
-                          filterStatus !== "all",
-                        ].filter(Boolean).length}
+                        {
+                          [
+                            reviewFilterUser !== "all",
+                            Boolean(reviewFilterMusician),
+                            reviewFilterInstrument !== "all",
+                            reviewFilterCategory !== "all",
+                            Boolean(reviewFilterDay),
+                            filterStatus !== "all",
+                          ].filter(Boolean).length
+                        }
                       </span>
                     )}
                   </button>
@@ -3495,11 +3511,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <option value="all">
                               {t("admin.dashboard.filters.all")}
                             </option>
-                            {reviewFilterOptions.instruments.map((instrument) => (
-                              <option key={instrument} value={instrument}>
-                                {instrument}
-                              </option>
-                            ))}
+                            {reviewFilterOptions.instruments.map(
+                              (instrument) => (
+                                <option key={instrument} value={instrument}>
+                                  {instrument}
+                                </option>
+                              ),
+                            )}
                           </select>
                         </label>
                         <label className="block text-[11px] font-semibold text-stone-600">
@@ -3552,13 +3570,27 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                             <option value="all">
                               {t("admin.dashboard.filters.all")}
                             </option>
-                            <option value="pending">{t("common.pending")}</option>
-                            <option value="approved">{t("common.approved")}</option>
-                            <option value="ongoing">{t("common.ongoing")}</option>
-                            <option value="completed">{t("common.completed")}</option>
-                            <option value="expired">{t("common.expired")}</option>
-                            <option value="rejected">{t("common.rejected")}</option>
-                            <option value="cancelled">{t("common.cancelled")}</option>
+                            <option value="pending">
+                              {t("common.pending")}
+                            </option>
+                            <option value="approved">
+                              {t("common.approved")}
+                            </option>
+                            <option value="ongoing">
+                              {t("common.ongoing")}
+                            </option>
+                            <option value="completed">
+                              {t("common.completed")}
+                            </option>
+                            <option value="expired">
+                              {t("common.expired")}
+                            </option>
+                            <option value="rejected">
+                              {t("common.rejected")}
+                            </option>
+                            <option value="cancelled">
+                              {t("common.cancelled")}
+                            </option>
                           </select>
                         </label>
                       </div>
@@ -3678,118 +3710,118 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             )}
 
             {/* Active filters summary bar & quick reset if any filter active */}
-              {(reviewFilterUser !== "all" ||
-                reviewFilterMusician ||
-                reviewFilterInstrument !== "all" ||
-                reviewFilterCategory !== "all" ||
-                reviewFilterDay ||
-                filterStatus !== "all") && (
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60 text-[11px] text-stone-600">
-                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <span className="font-semibold text-stone-500 flex items-center gap-1">
-                      <Filter className="w-3 h-3 text-amber-700" />
-                      <span>
-                        {t("admin.review.activeFilters", {
-                          defaultValue: "Filters applied:",
-                        })}
-                      </span>
+            {(reviewFilterUser !== "all" ||
+              reviewFilterMusician ||
+              reviewFilterInstrument !== "all" ||
+              reviewFilterCategory !== "all" ||
+              reviewFilterDay ||
+              filterStatus !== "all") && (
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-200/60 text-[11px] text-stone-600">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span className="font-semibold text-stone-500 flex items-center gap-1">
+                    <Filter className="w-3 h-3 text-amber-700" />
+                    <span>
+                      {t("admin.review.activeFilters", {
+                        defaultValue: "Filters applied:",
+                      })}
                     </span>
-                    {reviewFilterUser !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
-                        <span className="truncate max-w-[120px]">
-                          {reviewFilterUser}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setReviewFilterUser("all")}
-                          className="hover:text-stone-900 cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                  </span>
+                  {reviewFilterUser !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
+                      <span className="truncate max-w-[120px]">
+                        {reviewFilterUser}
                       </span>
-                    )}
-                    {reviewFilterMusician && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
-                        <span className="truncate max-w-[120px]">
-                          "{reviewFilterMusician}"
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setReviewFilterMusician("")}
-                          className="hover:text-stone-900 cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewFilterUser("all")}
+                        className="hover:text-stone-900 cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
+                  {reviewFilterMusician && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
+                      <span className="truncate max-w-[120px]">
+                        "{reviewFilterMusician}"
                       </span>
-                    )}
-                    {reviewFilterInstrument !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
-                        <span className="truncate max-w-[120px]">
-                          {reviewFilterInstrument}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setReviewFilterInstrument("all")}
-                          className="hover:text-amber-950 cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewFilterMusician("")}
+                        className="hover:text-stone-900 cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
+                  {reviewFilterInstrument !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                      <span className="truncate max-w-[120px]">
+                        {reviewFilterInstrument}
                       </span>
-                    )}
-                    {reviewFilterCategory !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
-                        <span>{reviewFilterCategory}</span>
-                        <button
-                          type="button"
-                          onClick={() => setReviewFilterCategory("all")}
-                          className="hover:text-amber-950 cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    )}
-                    {reviewFilterDay && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
-                        <span>{reviewFilterDay}</span>
-                        <button
-                          type="button"
-                          onClick={() => setReviewFilterDay("")}
-                          className="hover:text-amber-950 cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    )}
-                    {filterStatus !== "all" && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
-                        <span>{translateStatus(filterStatus)}</span>
-                        <button
-                          type="button"
-                          onClick={() => setFilterStatus("all")}
-                          className="hover:text-amber-950 cursor-pointer"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReviewFilterUser("all");
-                      setReviewFilterMusician("");
-                      setReviewFilterInstrument("all");
-                      setReviewFilterCategory("all");
-                      setReviewFilterDay("");
-                      setFilterStatus("all");
-                    }}
-                    className="shrink-0 text-amber-800 hover:text-amber-950 hover:underline font-bold text-[10px] cursor-pointer"
-                  >
-                    {t("admin.review.resetFilters")}
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewFilterInstrument("all")}
+                        className="hover:text-amber-950 cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
+                  {reviewFilterCategory !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                      <span>{reviewFilterCategory}</span>
+                      <button
+                        type="button"
+                        onClick={() => setReviewFilterCategory("all")}
+                        className="hover:text-amber-950 cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
+                  {reviewFilterDay && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                      <span>{reviewFilterDay}</span>
+                      <button
+                        type="button"
+                        onClick={() => setReviewFilterDay("")}
+                        className="hover:text-amber-950 cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
+                  {filterStatus !== "all" && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                      <span>{translateStatus(filterStatus)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFilterStatus("all")}
+                        className="hover:text-amber-950 cursor-pointer"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </span>
+                  )}
                 </div>
-              )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewFilterUser("all");
+                    setReviewFilterMusician("");
+                    setReviewFilterInstrument("all");
+                    setReviewFilterCategory("all");
+                    setReviewFilterDay("");
+                    setFilterStatus("all");
+                  }}
+                  className="shrink-0 text-amber-800 hover:text-amber-950 hover:underline font-bold text-[10px] cursor-pointer"
+                >
+                  {t("admin.review.resetFilters")}
+                </button>
+              </div>
+            )}
 
             {/* Cards */}
             <div className="mt-2">
@@ -3921,7 +3953,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   {isReservationAdminBooked(primary) ? (
                                     <div className="text-xs font-bold text-amber-800 py-0.5 inline-flex items-center gap-1">
                                       <Shield className="w-3 h-3 text-amber-700 shrink-0" />
-                                      <span>{getAdminDisplayName(primary)}</span>
+                                      <span>
+                                        {getAdminDisplayName(primary)}
+                                      </span>
                                     </div>
                                   ) : primary.user_id ? (
                                     <button
@@ -4460,7 +4494,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                   className="shrink-0 min-h-[32px] px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white transition-all duration-150 cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs hover:shadow touch-manipulation active:scale-[0.98] whitespace-nowrap"
                                   title="View details and conversation"
                                 >
-                                  <span>{t("admin.review.detailsChatBtn")}</span>
+                                  <span>
+                                    {t("admin.review.detailsChatBtn")}
+                                  </span>
                                 </button>
                               )}
                             </div>
@@ -4511,10 +4547,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                                       <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
                                       <span>{t("common.unmarkNoShow")}</span>
                                     </button>
-                                  ) : isNoShowWindowOpen(
-                                      r,
-                                      noShowWindowNow,
-                                    ) ? (
+                                  ) : isNoShowWindowOpen(r, noShowWindowNow) ? (
                                     <button
                                       type="button"
                                       onClick={() => handleMarkNoShow(r.id)}
@@ -5563,7 +5596,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                               (r) =>
                                 r.service_name?.toLowerCase().includes(term) ||
                                 r.user_name?.toLowerCase().includes(term) ||
-                                r.instrument_name?.toLowerCase().includes(term) ||
+                                r.instrument_name
+                                  ?.toLowerCase()
+                                  .includes(term) ||
                                 r.user_phone?.includes(term),
                             )
                           : source;
@@ -5586,7 +5621,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                         fetchMessagingReservations(val);
                       }
                     }}
-                    placeholder={t("admin.approvals.searchPlaceholder") || "Search by member, service, instrument..."}
+                    placeholder={
+                      t("admin.approvals.searchPlaceholder") ||
+                      "Search by member, service, instrument..."
+                    }
                     className="w-full pl-8 pr-7 rtl:pl-7 rtl:pr-8 py-1.5 bg-white border border-stone-200 rounded-xl text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-amber-700"
                   />
                   {msgReservationSearch && (
@@ -5623,7 +5661,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                     if (filtered.length === 0) {
                       return (
                         <div className="py-8 text-center text-xs text-stone-400">
-                          {term ? "No matching bookings found" : "No reservations available"}
+                          {term
+                            ? "No matching bookings found"
+                            : "No reservations available"}
                         </div>
                       );
                     }
@@ -6266,324 +6306,282 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
              ============================================================= */}
         {(activeTab === "notification_settings" ||
           activeTab === "push_notifications") && (
-          <div className="space-y-4">
-            {/* Header Card (Compact) */}
-            <div className="bg-white border border-stone-200 rounded-xl px-4 py-3 sm:py-3.5 shadow-2xs">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <h2 className="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span>{t("admin.tabNotificationSettings")}</span>
-                  </h2>
-                  <p className="text-xs text-stone-500 mt-0.5 truncate sm:text-clip">
-                    {t("adminPush.desc")}
-                  </p>
+          <div className="w-full max-w-2xl mx-auto space-y-3">
+            {/* Push Notifications Card */}
+            <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden">
+              {/* Card Header */}
+              <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-amber-800 text-white flex items-center justify-center shrink-0">
+                    <Smartphone className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-stone-900 text-sm truncate">
+                    {t("adminPush.title")}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[11px] text-stone-500 hidden sm:inline-flex items-center gap-1">
+                {savingPushPrefs || loadingPushPrefs ? (
+                  <span className="text-[11px] text-amber-700 flex items-center gap-1 font-medium shrink-0">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-stone-400 inline-flex items-center gap-1 shrink-0">
                     <Check className="w-3 h-3 text-emerald-600" />
                     <span>{t("adminPush.autoSaved")}</span>
                   </span>
-
-                  {(loadingPushPrefs ||
-                    savingPushPrefs ||
-                    savingNotificationSettings) && (
-                    <div className="text-xs text-amber-700 flex items-center gap-1.5 font-medium">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>
-                        {savingPushPrefs || savingNotificationSettings
-                          ? t("admin.notificationSettings.saving")
-                          : t("adminPush.loading")}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-            </div>
 
-            {/* Grid Layout: Compact side-by-side on lg screens */}
-            <div
-              className={`grid grid-cols-1 ${
-                isSuperAdmin ? "lg:grid-cols-2" : "max-w-2xl"
-              } gap-4`}
-            >
-              {/* Section 1: Mobile & Desktop Push Notifications */}
-              <div className="bg-white border border-stone-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3">
-                <div className="border-b border-stone-100 pb-2.5 flex items-center justify-between">
-                  <h3 className="font-bold text-stone-900 text-xs sm:text-sm flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span>{t("adminPush.title")}</span>
-                  </h3>
-                </div>
-
-                {/* Device Status & Test Card (Compact) */}
-                <div className="rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 sm:p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2.5 flex-wrap">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                          adminDeviceSubscribed
-                            ? "bg-emerald-500 ring-2 ring-emerald-200"
-                            : "bg-amber-400"
-                        }`}
-                      />
-                      <div className="text-xs text-amber-950 font-medium truncate">
-                        <span className="font-bold">
-                          {t("adminPush.deviceStatusTitle")}:{" "}
-                        </span>
-                        <span className="text-amber-800">
-                          {adminDeviceSubscribed
-                            ? t("adminPush.deviceActive")
-                            : t("adminPush.deviceInactive")}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="shrink-0">
-                      {!adminDeviceSubscribed ? (
-                        <button
-                          type="button"
-                          onClick={handleAdminSubscribeDevice}
-                          disabled={savingPushPrefs}
-                          className="px-3 py-1.5 rounded-lg bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-semibold transition shadow-2xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
-                        >
-                          {t("adminPush.enableDeviceBtn")}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleAdminTestPush}
-                          disabled={testPushSending}
-                          className="px-3 py-1.5 rounded-lg bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-semibold transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        >
-                          {testPushSending ? (
-                            <>
-                              <RefreshCw className="w-3 h-3 animate-spin" />
-                              <span>{t("adminPush.sending")}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3 h-3" />
-                              <span>{t("adminPush.sendTestBtn")}</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
+              {/* Device Status + Test Button */}
+              <div className="p-3 sm:p-4 space-y-3">
+                <div className="rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 space-y-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                        adminDeviceSubscribed
+                          ? "bg-emerald-500 ring-2 ring-emerald-200"
+                          : "bg-amber-400"
+                      }`}
+                    />
+                    <span className="text-xs text-amber-950 font-semibold truncate">
+                      {adminDeviceSubscribed
+                        ? t("adminPush.deviceActive")
+                        : t("adminPush.deviceInactive")}
+                    </span>
                   </div>
 
-                  <div className="text-[11px] text-amber-900/80 flex items-center gap-1.5 leading-tight">
-                    <Bell className="w-3 h-3 text-amber-700 shrink-0" />
+                  {!adminDeviceSubscribed ? (
+                    <button
+                      type="button"
+                      onClick={handleAdminSubscribeDevice}
+                      disabled={savingPushPrefs}
+                      className="w-full h-9 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>{t("adminPush.enableDeviceBtn")}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAdminTestPush}
+                      disabled={testPushSending}
+                      className="w-full h-9 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-bold transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {testPushSending ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>{t("adminPush.sending")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5" />
+                          <span>{t("adminPush.sendTestBtn")}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  <div className="text-[11px] text-amber-900/80 flex items-start gap-1.5 leading-snug">
+                    <Bell className="w-3 h-3 text-amber-700 shrink-0 mt-0.5" />
                     <span>{t("adminPush.reassurance")}</span>
                   </div>
 
                   {testPushStatus && (
-                    <div className="p-2 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs flex items-center gap-1.5 animate-in fade-in">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <div className="p-2 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs flex items-start gap-1.5 animate-in fade-in leading-snug">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
                       <span>{testPushStatus}</span>
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* 3 Push Notification Preference Switches (Compact List) */}
-                <div className="border border-stone-200 rounded-lg divide-y divide-stone-100 overflow-hidden bg-stone-50/40">
-                  {/* Switch 1: New Requests */}
-                  <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
-                    <div className="pr-3 rtl:pr-0 rtl:pl-3">
-                      <div className="font-semibold text-stone-900 text-xs">
-                        {t("adminPush.reqTitle")}
-                      </div>
-                      <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
-                        {t("adminPush.reqDesc")}
-                      </div>
+              {/* Preference Switches */}
+              <div className="border-t border-stone-100 divide-y divide-stone-100">
+                {/* New Requests */}
+                <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-stone-50/70 transition">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-stone-900 text-xs leading-snug">
+                      {t("adminPush.reqTitle")}
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Toggle new requests notifications"
-                      disabled={savingPushPrefs}
-                      onClick={() => handleTogglePushPref("notifyNewRequests")}
-                      className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                    <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                      {t("adminPush.reqDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle new requests notifications"
+                    disabled={savingPushPrefs}
+                    onClick={() => handleTogglePushPref("notifyNewRequests")}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                      adminPushPrefs.notifyNewRequests
+                        ? "bg-amber-700"
+                        : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
                         adminPushPrefs.notifyNewRequests
-                          ? "bg-amber-700"
-                          : "bg-stone-300"
+                          ? "translate-x-5 rtl:-translate-x-5"
+                          : "translate-x-0.5 rtl:-translate-x-0.5"
                       }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
-                          adminPushPrefs.notifyNewRequests
-                            ? "translate-x-5 rtl:-translate-x-5"
-                            : "translate-x-0.5 rtl:-translate-x-0.5"
-                        }`}
-                      />
-                    </button>
-                  </div>
+                    />
+                  </button>
+                </div>
 
-                  {/* Switch 2: New Registrations */}
-                  <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
-                    <div className="pr-3 rtl:pr-0 rtl:pl-3">
-                      <div className="font-semibold text-stone-900 text-xs">
-                        {t("adminPush.regTitle")}
-                      </div>
-                      <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
-                        {t("adminPush.regDesc")}
-                      </div>
+                {/* New Registrations */}
+                <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-stone-50/70 transition">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-stone-900 text-xs leading-snug">
+                      {t("adminPush.regTitle")}
                     </div>
-                    <button
-                      type="button"
-                      aria-label="Toggle new registrations notifications"
-                      disabled={savingPushPrefs}
-                      onClick={() =>
-                        handleTogglePushPref("notifyNewRegistrations")
-                      }
-                      className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                    <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                      {t("adminPush.regDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle new registrations notifications"
+                    disabled={savingPushPrefs}
+                    onClick={() =>
+                      handleTogglePushPref("notifyNewRegistrations")
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                      adminPushPrefs.notifyNewRegistrations
+                        ? "bg-amber-700"
+                        : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
                         adminPushPrefs.notifyNewRegistrations
-                          ? "bg-amber-700"
-                          : "bg-stone-300"
+                          ? "translate-x-5 rtl:-translate-x-5"
+                          : "translate-x-0.5 rtl:-translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Member Messages */}
+                <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-stone-50/70 transition">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-stone-900 text-xs leading-snug">
+                      {t("adminPush.chatTitle")}
+                    </div>
+                    <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                      {t("adminPush.chatDesc")}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle member messages notifications"
+                    disabled={savingPushPrefs}
+                    onClick={() => handleTogglePushPref("notifyMemberMessages")}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                      adminPushPrefs.notifyMemberMessages
+                        ? "bg-amber-700"
+                        : "bg-stone-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                        adminPushPrefs.notifyMemberMessages
+                          ? "translate-x-5 rtl:-translate-x-5"
+                          : "translate-x-0.5 rtl:-translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Email Notifications Card (Super Admin only) */}
+            {isSuperAdmin && (
+              <div className="bg-white border border-stone-200 rounded-2xl shadow-2xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-stone-100 flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-800 text-white flex items-center justify-center shrink-0">
+                    <Mail className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-stone-900 text-sm truncate">
+                    {t("admin.notificationSettings.title")}
+                  </span>
+                  {savingNotificationSettings && (
+                    <RefreshCw className="w-3 h-3 text-amber-700 animate-spin ms-auto shrink-0" />
+                  )}
+                </div>
+
+                <div className="divide-y divide-stone-100">
+                  {/* Approval Emails */}
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-stone-50/70 transition">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-stone-900 text-xs leading-snug">
+                        {t("admin.notificationSettings.approvalEmailsTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                        {t("admin.notificationSettings.approvalEmailsDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle account approval emails"
+                      disabled={savingNotificationSettings}
+                      onClick={() =>
+                        handleToggleEmailNotificationSetting(
+                          "muteAccountApprovalEmails",
+                        )
+                      }
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                        notificationSettingsState.muteAccountApprovalEmails
+                          ? "bg-stone-300"
+                          : "bg-amber-700"
                       }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
-                          adminPushPrefs.notifyNewRegistrations
-                            ? "translate-x-5 rtl:-translate-x-5"
-                            : "translate-x-0.5 rtl:-translate-x-0.5"
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                          notificationSettingsState.muteAccountApprovalEmails
+                            ? "translate-x-0.5 rtl:-translate-x-0.5"
+                            : "translate-x-5 rtl:-translate-x-5"
                         }`}
                       />
                     </button>
                   </div>
 
-                  {/* Switch 3: Member Chat Messages */}
-                  <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
-                    <div className="pr-3 rtl:pr-0 rtl:pl-3">
-                      <div className="font-semibold text-stone-900 text-xs">
-                        {t("adminPush.chatTitle")}
+                  {/* Request Emails */}
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-stone-50/70 transition">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-stone-900 text-xs leading-snug">
+                        {t("admin.notificationSettings.requestEmailsTitle")}
                       </div>
                       <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
-                        {t("adminPush.chatDesc")}
+                        {t("admin.notificationSettings.requestEmailsDesc")}
                       </div>
                     </div>
                     <button
                       type="button"
-                      aria-label="Toggle member messages notifications"
-                      disabled={savingPushPrefs}
+                      aria-label="Toggle reservation request emails"
+                      disabled={savingNotificationSettings}
                       onClick={() =>
-                        handleTogglePushPref("notifyMemberMessages")
+                        handleToggleEmailNotificationSetting(
+                          "muteReservationRequestEmails",
+                        )
                       }
-                      className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
-                        adminPushPrefs.notifyMemberMessages
-                          ? "bg-amber-700"
-                          : "bg-stone-300"
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                        notificationSettingsState.muteReservationRequestEmails
+                          ? "bg-stone-300"
+                          : "bg-amber-700"
                       }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
-                          adminPushPrefs.notifyMemberMessages
-                            ? "translate-x-5 rtl:-translate-x-5"
-                            : "translate-x-0.5 rtl:-translate-x-0.5"
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                          notificationSettingsState.muteReservationRequestEmails
+                            ? "translate-x-0.5 rtl:-translate-x-0.5"
+                            : "translate-x-5 rtl:-translate-x-5"
                         }`}
                       />
                     </button>
                   </div>
                 </div>
               </div>
-
-              {/* Section 2: Automated Email Notifications (Super Admin) */}
-              {isSuperAdmin && (
-                <div className="bg-white border border-stone-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3">
-                  <div className="border-b border-stone-100 pb-2.5 flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-bold text-stone-900 text-xs sm:text-sm flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-amber-700 shrink-0" />
-                        <span>{t("admin.notificationSettings.title")}</span>
-                      </h3>
-                      <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
-                        {t("admin.notificationSettings.subtitle")}
-                      </p>
-                    </div>
-                    {savingNotificationSettings && (
-                      <div className="text-xs text-amber-700 flex items-center gap-1 font-medium shrink-0">
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        <span className="hidden sm:inline">
-                          {t("admin.notificationSettings.saving")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border border-stone-200 rounded-lg divide-y divide-stone-100 overflow-hidden bg-stone-50/40">
-                    {/* Switch 1: Account Approval Emails */}
-                    <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
-                      <div className="pr-3 rtl:pr-0 rtl:pl-3">
-                        <div className="font-semibold text-stone-800 text-xs">
-                          {t("admin.notificationSettings.approvalEmailsTitle")}
-                        </div>
-                        <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
-                          {t("admin.notificationSettings.approvalEmailsDesc")}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Toggle account approval emails"
-                        disabled={savingNotificationSettings}
-                        onClick={() =>
-                          handleToggleEmailNotificationSetting(
-                            "muteAccountApprovalEmails",
-                          )
-                        }
-                        className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
-                          notificationSettingsState.muteAccountApprovalEmails
-                            ? "bg-stone-300"
-                            : "bg-amber-700"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
-                            notificationSettingsState.muteAccountApprovalEmails
-                              ? "translate-x-0.5 rtl:-translate-x-0.5"
-                              : "translate-x-5 rtl:-translate-x-5"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Switch 2: Reservation Request Emails */}
-                    <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
-                      <div className="pr-3 rtl:pr-0 rtl:pl-3">
-                        <div className="font-semibold text-stone-800 text-xs">
-                          {t("admin.notificationSettings.requestEmailsTitle")}
-                        </div>
-                        <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
-                          {t("admin.notificationSettings.requestEmailsDesc")}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Toggle reservation request emails"
-                        disabled={savingNotificationSettings}
-                        onClick={() =>
-                          handleToggleEmailNotificationSetting(
-                            "muteReservationRequestEmails",
-                          )
-                        }
-                        className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
-                          notificationSettingsState.muteReservationRequestEmails
-                            ? "bg-stone-300"
-                            : "bg-amber-700"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
-                            notificationSettingsState.muteReservationRequestEmails
-                              ? "translate-x-0.5 rtl:-translate-x-0.5"
-                              : "translate-x-5 rtl:-translate-x-5"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
       </main>
