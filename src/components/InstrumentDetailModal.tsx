@@ -1062,32 +1062,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                               d.dateStr,
                               slotHhmm,
                             );
-                          {/* 7 Days for this time */}
-                          {weekDays.map((d) => {
-                            const booked = isSlotBooked(d.dateStr, slotHhmm);
-                            const slotRes = getSlotReservation(
-                              d.dateStr,
-                              slotHhmm,
-                            );
 
-                            if (booked) {
-                              if (isAdminOrSuperAdmin) {
-                                const reservantKey =
-                                  slotRes?.user_id ||
-                                  slotRes?.userId ||
-                                  slotRes?.user_name ||
-                                  slotRes?.userName ||
-                                  "admin-booking";
-                                const colorTheme =
-                                  getReservantColorTheme(reservantKey);
-                                const reservantName =
-                                  slotRes?.user_name ||
-                                  slotRes?.userName ||
-                                  "Reservant";
-                                const serviceName =
-                                  slotRes?.service_name ||
-                                  slotRes?.serviceName ||
-                                  "Reserved Service";
                             if (booked) {
                               if (isAdminOrSuperAdmin) {
                                 const reservantKey =
@@ -1144,43 +1119,6 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                   </button>
                                 );
                               }
-                                return (
-                                  <button
-                                    key={d.dateStr}
-                                    type="button"
-                                    disabled={true}
-                                    title={t(
-                                      "instrumentDetail.reservedByTooltip",
-                                      {
-                                        name: reservantName,
-                                        service: serviceName,
-                                      },
-                                    )}
-                                    style={{
-                                      backgroundColor: colorTheme.bgHex,
-                                      borderColor: colorTheme.borderHex,
-                                    }}
-                                    className="p-1 border-r last:border-r-0 transition h-7 flex items-center justify-center select-none cursor-not-allowed text-white"
-                                  >
-                                    <div className="flex flex-col items-center justify-center leading-tight w-full px-0.5 overflow-hidden text-center">
-                                      <span
-                                        className="font-bold text-[9px] truncate max-w-full"
-                                        style={{ color: colorTheme.nameHex }}
-                                        title={reservantName}
-                                      >
-                                        {reservantName}
-                                      </span>
-                                      <span
-                                        className="text-[8px] truncate max-w-full opacity-90"
-                                        style={{ color: colorTheme.serviceHex }}
-                                        title={serviceName}
-                                      >
-                                        {serviceName}
-                                      </span>
-                                    </div>
-                                  </button>
-                                );
-                              }
 
                               return (
                                 <button
@@ -1196,50 +1134,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                                 </button>
                               );
                             }
-                              return (
-                                <button
-                                  key={d.dateStr}
-                                  type="button"
-                                  disabled={true}
-                                  title={t("instrumentDetail.bookedLegend")}
-                                  className="p-1 border-r last:border-r-0 border-stone-900 bg-black text-white cursor-not-allowed flex items-center justify-center select-none h-7"
-                                >
-                                  <span className="text-[9px] font-bold tracking-wider uppercase text-white">
-                                    {t("instrumentDetail.bookedLegend")}
-                                  </span>
-                                </button>
-                              );
-                            }
 
-                            return (
-                              <button
-                                key={d.dateStr}
-                                type="button"
-                                onClick={() =>
-                                  onSelectSlot(
-                                    instrument,
-                                    d.dateStr,
-                                    slotHhmm,
-                                    2,
-                                  )
-                                }
-                                title={t(
-                                  "instrumentDetail.availableSlotTooltip",
-                                  {
-                                    time: formatHhmmTo12Hour(slotHhmm),
-                                  },
-                                )}
-                                className="p-1 border-r last:border-r-0 border-stone-100 transition h-7 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 active:bg-amber-100 text-stone-300 hover:text-amber-900 cursor-pointer touch-manipulation"
-                              >
-                                <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">
-                                  +
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
                             return (
                               <button
                                 key={d.dateStr}
@@ -1398,11 +1293,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
 
         {/* Modal Footer */}
         <div className="px-3 py-2 sm:px-4 sm:py-2.5 bg-stone-50 border-t border-stone-200 flex items-center justify-end shrink-0">
-        <div className="px-3 py-2 sm:px-4 sm:py-2.5 bg-stone-50 border-t border-stone-200 flex items-center justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 text-xs bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold rounded-lg transition cursor-pointer shadow-xs touch-manipulation shrink-0"
             className="px-3.5 py-1.5 text-xs bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold rounded-lg transition cursor-pointer shadow-xs touch-manipulation shrink-0"
           >
             {t("instrumentDetail.closeButton")}
