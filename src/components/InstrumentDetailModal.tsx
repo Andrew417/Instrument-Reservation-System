@@ -1012,107 +1012,125 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 </span>
               </div>
 
-              <div className="border border-stone-200 rounded-2xl overflow-x-auto overscroll-contain bg-white shadow-2xs">
-                <div className="min-w-[640px]">
-                  {/* Day Headers */}
-                  <div className="grid grid-cols-8 border-b border-stone-200 bg-stone-50 text-center text-xs font-bold text-stone-800">
-                    <div className="p-2.5 text-stone-400 border-r border-stone-200 text-[11px]">
-                      {t("instrumentDetail.timeColumnLabel")}
-                    </div>
-                    {weekDays.map((d) => (
-                      <div
-                        key={d.dateStr}
-                        className={`p-2.5 border-r last:border-r-0 border-stone-200 ${
-                          d.isSelected
-                            ? "bg-amber-800 text-white font-bold"
-                            : ""
-                        }`}
-                      >
+              <div className="border border-stone-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                <div className="overflow-auto overscroll-contain max-h-[420px] [scrollbar-gutter:stable]">
+                  <div className="min-w-[620px]">
+                    {/* Day Headers (sticky) */}
+                    <div className="grid grid-cols-[56px_repeat(7,80px)] sm:grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-stone-200 bg-stone-50 text-center text-xs font-bold text-stone-800 sticky top-0 z-30">
+                      <div className="px-1 py-1.5 text-stone-400 border-r border-stone-200 text-[10px] sticky left-0 top-0 z-40 bg-stone-50">
+                        {t("instrumentDetail.timeColumnLabel")}
+                      </div>
+                      {weekDays.map((d) => (
                         <div
-                          className={`text-[10px] uppercase ${
-                            d.isSelected ? "text-amber-100" : "text-stone-500"
+                          key={d.dateStr}
+                          className={`px-1 py-1.5 border-r last:border-r-0 border-stone-200 ${
+                            d.isSelected
+                              ? "bg-amber-800 text-white font-bold"
+                              : ""
                           }`}
                         >
-                          {d.dayName}
+                          <div
+                            className={`text-[9px] uppercase leading-tight ${
+                              d.isSelected ? "text-amber-100" : "text-stone-500"
+                            }`}
+                          >
+                            {d.dayName}
+                          </div>
+                          <div className="text-[10px] leading-tight">
+                            {d.dateStr.slice(5)}
+                          </div>
                         </div>
-                        <div>{d.dateStr.slice(5)}</div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
 
-                  {/* Time rows */}
-                  <div className="divide-y divide-stone-100 max-h-[380px] overflow-y-auto overscroll-contain">
-                    {TIME_SLOTS.slice(0, -1).map((slotHhmm) => (
-                      <div
-                        key={slotHhmm}
-                        className="grid grid-cols-8 text-center text-xs"
-                      >
-                        {/* Time Column */}
-                        <div className="p-2 text-[11px] font-semibold text-stone-500 bg-stone-50/50 border-r border-stone-200 flex items-center justify-center">
-                          {formatHhmmTo12Hour(slotHhmm)}
-                        </div>
+                    {/* Time rows */}
+                    <div className="divide-y divide-stone-100">
+                      {TIME_SLOTS.slice(0, -1).map((slotHhmm) => (
+                        <div
+                          key={slotHhmm}
+                          className="grid grid-cols-[56px_repeat(7,80px)] sm:grid-cols-[64px_repeat(7,minmax(0,1fr))] text-center text-xs"
+                        >
+                          {/* Time Column (sticky) */}
+                          <div className="px-1 py-0.5 text-[10px] font-semibold text-stone-500 bg-stone-50 border-r border-stone-200 flex items-center justify-center sticky left-0 z-10 h-7">
+                            {formatHhmmTo12Hour(slotHhmm)}
+                          </div>
 
-                        {/* 7 Days for this time */}
-                        {weekDays.map((d) => {
-                          const booked = isSlotBooked(d.dateStr, slotHhmm);
-                          const slotRes = getSlotReservation(
-                            d.dateStr,
-                            slotHhmm,
-                          );
+                          {/* 7 Days for this time */}
+                          {weekDays.map((d) => {
+                            const booked = isSlotBooked(d.dateStr, slotHhmm);
+                            const slotRes = getSlotReservation(
+                              d.dateStr,
+                              slotHhmm,
+                            );
 
-                          if (booked) {
-                            if (isAdminOrSuperAdmin) {
-                              const reservantKey =
-                                slotRes?.user_id ||
-                                slotRes?.userId ||
-                                slotRes?.user_name ||
-                                slotRes?.userName ||
-                                "admin-booking";
-                              const colorTheme =
-                                getReservantColorTheme(reservantKey);
-                              const reservantName =
-                                slotRes?.user_name ||
-                                slotRes?.userName ||
-                                "Reservant";
-                              const serviceName =
-                                slotRes?.service_name ||
-                                slotRes?.serviceName ||
-                                "Reserved Service";
+                            if (booked) {
+                              if (isAdminOrSuperAdmin) {
+                                const reservantKey =
+                                  slotRes?.user_id ||
+                                  slotRes?.userId ||
+                                  slotRes?.user_name ||
+                                  slotRes?.userName ||
+                                  "admin-booking";
+                                const colorTheme =
+                                  getReservantColorTheme(reservantKey);
+                                const reservantName =
+                                  slotRes?.user_name ||
+                                  slotRes?.userName ||
+                                  "Reservant";
+                                const serviceName =
+                                  slotRes?.service_name ||
+                                  slotRes?.serviceName ||
+                                  "Reserved Service";
+
+                                return (
+                                  <button
+                                    key={d.dateStr}
+                                    type="button"
+                                    disabled={true}
+                                    title={t(
+                                      "instrumentDetail.reservedByTooltip",
+                                      {
+                                        name: reservantName,
+                                        service: serviceName,
+                                      },
+                                    )}
+                                    style={{
+                                      backgroundColor: colorTheme.bgHex,
+                                      borderColor: colorTheme.borderHex,
+                                    }}
+                                    className="p-1 border-r last:border-r-0 transition h-7 flex items-center justify-center select-none cursor-not-allowed text-white"
+                                  >
+                                    <div className="flex flex-col items-center justify-center leading-tight w-full px-0.5 overflow-hidden text-center">
+                                      <span
+                                        className="font-bold text-[9px] truncate max-w-full"
+                                        style={{ color: colorTheme.nameHex }}
+                                        title={reservantName}
+                                      >
+                                        {reservantName}
+                                      </span>
+                                      <span
+                                        className="text-[8px] truncate max-w-full opacity-90"
+                                        style={{ color: colorTheme.serviceHex }}
+                                        title={serviceName}
+                                      >
+                                        {serviceName}
+                                      </span>
+                                    </div>
+                                  </button>
+                                );
+                              }
 
                               return (
                                 <button
                                   key={d.dateStr}
                                   type="button"
                                   disabled={true}
-                                  title={t(
-                                    "instrumentDetail.reservedByTooltip",
-                                    {
-                                      name: reservantName,
-                                      service: serviceName,
-                                    },
-                                  )}
-                                  style={{
-                                    backgroundColor: colorTheme.bgHex,
-                                    borderColor: colorTheme.borderHex,
-                                  }}
-                                  className="p-1 border-r last:border-r-0 transition h-11 flex items-center justify-center select-none cursor-not-allowed text-white"
+                                  title={t("instrumentDetail.bookedLegend")}
+                                  className="p-1 border-r last:border-r-0 border-stone-900 bg-black text-white cursor-not-allowed flex items-center justify-center select-none h-7"
                                 >
-                                  <div className="flex flex-col items-center justify-center leading-tight w-full px-0.5 overflow-hidden text-center">
-                                    <span
-                                      className="font-bold text-[9px] truncate max-w-full"
-                                      style={{ color: colorTheme.nameHex }}
-                                      title={reservantName}
-                                    >
-                                      {reservantName}
-                                    </span>
-                                    <span
-                                      className="text-[8px] truncate max-w-full opacity-90"
-                                      style={{ color: colorTheme.serviceHex }}
-                                      title={serviceName}
-                                    >
-                                      {serviceName}
-                                    </span>
-                                  </div>
+                                  <span className="text-[9px] font-bold tracking-wider uppercase text-white">
+                                    {t("instrumentDetail.bookedLegend")}
+                                  </span>
                                 </button>
                               );
                             }
@@ -1121,40 +1139,31 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                               <button
                                 key={d.dateStr}
                                 type="button"
-                                disabled={true}
-                                title={t("instrumentDetail.bookedLegend")}
-                                className="p-1 border-r last:border-r-0 border-stone-900 bg-black text-white cursor-not-allowed flex items-center justify-center select-none h-11"
+                                onClick={() =>
+                                  onSelectSlot(
+                                    instrument,
+                                    d.dateStr,
+                                    slotHhmm,
+                                    2,
+                                  )
+                                }
+                                title={t(
+                                  "instrumentDetail.availableSlotTooltip",
+                                  {
+                                    time: formatHhmmTo12Hour(slotHhmm),
+                                  },
+                                )}
+                                className="p-1 border-r last:border-r-0 border-stone-100 transition h-7 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 active:bg-amber-100 text-stone-300 hover:text-amber-900 cursor-pointer touch-manipulation"
                               >
-                                <span className="text-[9px] font-bold tracking-wider uppercase text-white">
-                                  {t("instrumentDetail.bookedLegend")}
+                                <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">
+                                  +
                                 </span>
                               </button>
                             );
-                          }
-
-                          return (
-                            <button
-                              key={d.dateStr}
-                              type="button"
-                              onClick={() =>
-                                onSelectSlot(instrument, d.dateStr, slotHhmm, 2)
-                              }
-                              title={t(
-                                "instrumentDetail.availableSlotTooltip",
-                                {
-                                  time: formatHhmmTo12Hour(slotHhmm),
-                                },
-                              )}
-                              className="p-1 border-r last:border-r-0 border-stone-100 transition h-11 flex items-center justify-center select-none bg-white hover:bg-amber-100/50 active:bg-amber-100 text-stone-300 hover:text-amber-900 cursor-pointer touch-manipulation"
-                            >
-                              <span className="text-[10px] opacity-0 hover:opacity-100 font-bold">
-                                +
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ))}
+                          })}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1283,20 +1292,11 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 sm:p-4 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-stone-500 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <Info className="w-4 h-4 text-stone-400 shrink-0" />
-            <span className="truncate">
-              {isAdminOrSuperAdmin
-                ? t("instrumentDetail.adminFooterNote")
-                : t("instrumentDetail.userFooterNote")}
-            </span>
-          </div>
-
+        <div className="px-3 py-2 sm:px-4 sm:py-2.5 bg-stone-50 border-t border-stone-200 flex items-center justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold rounded-xl transition cursor-pointer shadow-xs touch-manipulation shrink-0 self-end sm:self-auto"
+            className="px-3.5 py-1.5 text-xs bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white font-bold rounded-lg transition cursor-pointer shadow-xs touch-manipulation shrink-0"
           >
             {t("instrumentDetail.closeButton")}
           </button>
