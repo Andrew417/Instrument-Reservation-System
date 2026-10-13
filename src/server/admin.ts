@@ -14,6 +14,7 @@ import {
   messages,
   sessions,
   notificationSettings,
+  pushSubscriptions,
 } from "../db/schema.js";
 import { eq, and, sql, desc, asc, inArray } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
@@ -2189,22 +2190,109 @@ router.post(
     try {
       const { id } = req.params;
       const { isActive } = req.body;
+      const nextActive = isActive === true || isActive === "true";
 
-      const [updated] = await db
-        .update(users)
-        .set({ isActive: Boolean(isActive) })
-        .where(eq(users.id, id))
-        .returning();
+      // 1. Guard against targeting administrator accounts
+      const [existingAdmin] = await db
+        .select({ id: admins.id })
+        .from(admins)
+        .where(eq(admins.id, id))
+        .limit(1);
 
-      if (!updated) {
+      if (existingAdmin) {
+        res.status(400).json({
+          success: false,
+          error:
+            "Cannot deactivate an administrator account through member status toggle.",
+        });
+        return;
+      }
+
+      // 2. Perform status change and cancellations in ONE database transaction
+      const result = await db.transaction(async (tx) => {
+        // Fetch target user to ensure account exists
+        const [existingUser] = await tx
+          .select()
+          .from(users)
+          .where(eq(users.id, id))
+          .limit(1);
+
+        if (!existingUser) {
+          return { notFound: true, updated: null, cancelledCount: 0 };
+        }
+
+        if (!nextActive) {
+          // --- DEACTIVATION ---
+          // a) Set user to inactive; is_trusted flag is retained untouched
+          const [updated] = await tx
+            .update(users)
+            .set({ isActive: false })
+            .where(eq(users.id, id))
+            .returning();
+
+          // b) Immediately cancel ALL Pending and Approved reservations (future and ongoing),
+          // including individual occurrences of recurring series.
+          // Past and completed reservations are untouched.
+          const cancelled = await tx
+            .update(reservations)
+            .set({
+              status: "cancelled",
+              cancellationReason: "Account deactivated by administration",
+              rejectionReason: "Account deactivated by administration",
+            })
+            .where(
+              and(
+                eq(reservations.userId, id),
+                inArray(reservations.status, ["pending", "approved", "ongoing"]),
+                sql`upper(${reservations.timeRange}) > NOW()`,
+              ),
+            )
+            .returning({
+              id: reservations.id,
+              seriesId: reservations.seriesId,
+              status: reservations.status,
+            });
+
+          // c) Delete all push_subscriptions for this user so no device keeps receiving pushes
+          await tx
+            .delete(pushSubscriptions)
+            .where(eq(pushSubscriptions.userId, id));
+
+          return {
+            notFound: false,
+            updated,
+            cancelledCount: cancelled.length,
+            cancelledIds: cancelled.map((r) => r.id),
+          };
+        } else {
+          // --- REACTIVATION ---
+          // Reactivation restores nothing: no cancelled reservation comes back,
+          // no push subscriptions restored. User is simply marked active.
+          const [updated] = await tx
+            .update(users)
+            .set({ isActive: true })
+            .where(eq(users.id, id))
+            .returning();
+
+          return {
+            notFound: false,
+            updated,
+            cancelledCount: 0,
+            cancelledIds: [],
+          };
+        }
+      });
+
+      if (result.notFound || !result.updated) {
         res.status(404).json({ success: false, error: "User not found." });
         return;
       }
 
       res.json({
         success: true,
-        user: updated,
-        message: `User account has been ${updated.isActive ? "reactivated" : "deactivated"}.`,
+        user: result.updated,
+        cancelledCount: result.cancelledCount,
+        message: `User account has been ${result.updated.isActive ? "reactivated" : "deactivated"}.`,
       });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
