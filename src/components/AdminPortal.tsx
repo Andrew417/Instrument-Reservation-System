@@ -66,6 +66,7 @@ import {
   Church,
   BarChart3,
   Smartphone,
+  Mail,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { HandoverSheetModal } from "./HandoverSheetModal";
@@ -1267,7 +1268,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       fetchHardLimits();
     } else if (activeTab === "payment_settings") {
       fetchPaymentSettings();
-    } else if (activeTab === "notification_settings") {
+    } else if (
+      activeTab === "notification_settings" ||
+      activeTab === "push_notifications"
+    ) {
       fetchNotificationSettings();
     } else if (activeTab === "messaging") {
       fetchMessagingReservations();
@@ -2113,23 +2117,59 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  // Super Admin: Save Notification Settings
-  const handleSaveNotificationSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Super Admin: Instant auto-save for Email Notification Settings
+  const handleToggleEmailNotificationSetting = async (
+    key: "muteAccountApprovalEmails" | "muteReservationRequestEmails",
+  ) => {
+    if (savingNotificationSettings) return;
+    const previous = { ...notificationSettingsState };
+    const updated = {
+      ...notificationSettingsState,
+      [key]: !notificationSettingsState[key],
+    };
+    setNotificationSettingsState(updated);
     setSavingNotificationSettings(true);
     try {
       const res = await adminFetch("/notification-settings", {
         method: "PUT",
-        body: JSON.stringify(notificationSettingsState),
+        body: JSON.stringify(updated),
       });
       const data = await res.json();
       if (data.success) {
-        showNotice("Notification email settings updated.");
+        if (data.settings) {
+          setNotificationSettingsState({
+            muteAccountApprovalEmails: Boolean(
+              data.settings.muteAccountApprovalEmails ??
+                data.settings.mute_account_approval_emails,
+            ),
+            muteReservationRequestEmails: Boolean(
+              data.settings.muteReservationRequestEmails ??
+                data.settings.mute_reservation_request_emails,
+            ),
+          });
+        }
+        showNotice(
+          t("admin.notificationSettings.saved") ||
+            "Notification email settings updated.",
+          "success",
+        );
       } else {
-        showNotice(data.error, "error");
+        setNotificationSettingsState(previous);
+        showNotice(
+          data.error ||
+            t("admin.notificationSettings.saveFailed") ||
+            "Failed to update settings",
+          "error",
+        );
       }
     } catch (err: any) {
-      showNotice(err.message, "error");
+      setNotificationSettingsState(previous);
+      showNotice(
+        err.message ||
+          t("admin.notificationSettings.saveFailed") ||
+          "Failed to update settings",
+        "error",
+      );
     } finally {
       setSavingNotificationSettings(false);
     }
@@ -2238,8 +2278,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       count: 0,
     },
     {
-      id: "push_notifications" as const,
-      label: t("admin.tabPushNotifications"),
+      id: "notification_settings" as const,
+      label: t("admin.tabNotificationSettings"),
       Icon: Bell,
       count: 0,
     },
@@ -2268,12 +2308,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       id: "payment_settings" as const,
       label: t("admin.tabPaymentSettings"),
       Icon: CreditCard,
-      count: 0,
-    },
-    {
-      id: "notification_settings" as const,
-      label: t("admin.tabNotificationSettings"),
-      Icon: Bell,
       count: 0,
     },
   ];
@@ -2315,15 +2349,21 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
       window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
   }, []);
 
-  // Fetch push preferences when entering push_notifications tab
+  // Fetch push preferences when entering notification_settings or push_notifications tab
   useEffect(() => {
-    if (activeTab === "push_notifications") {
+    if (
+      activeTab === "notification_settings" ||
+      activeTab === "push_notifications"
+    ) {
       fetchPushPreferences();
       getCurrentSubscription().then((sub) => {
         setAdminDeviceSubscribed(Boolean(sub));
       });
+      if (isSuperAdmin) {
+        fetchNotificationSettings();
+      }
     }
-  }, [activeTab, sessionToken]);
+  }, [activeTab, sessionToken, isSuperAdmin]);
 
   // Recurring series expansion state & helpers
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<string>>(
@@ -6218,290 +6258,329 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
           </div>
         )}
 
-        {activeTab === "notification_settings" && isSuperAdmin && (
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-            <div className="border-b border-stone-100 pb-3">
-              <h2 className="font-bold text-stone-900 text-sm">
-                {t("admin.notificationSettings.title")}
-              </h2>
-              <p className="text-xs text-stone-500">
-                {t("admin.notificationSettings.subtitle")}
-              </p>
-            </div>
-
-            <form
-              onSubmit={handleSaveNotificationSettings}
-              className="space-y-3"
-            >
-              <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                <div className="pr-4">
-                  <div className="font-bold text-stone-800 text-xs">
-                    {t("admin.notificationSettings.approvalEmailsTitle")}
-                  </div>
-                  <div className="text-[11px] text-stone-500 mt-0.5">
-                    {t("admin.notificationSettings.approvalEmailsDesc")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Toggle account approval emails"
-                  onClick={() =>
-                    setNotificationSettingsState({
-                      ...notificationSettingsState,
-                      muteAccountApprovalEmails:
-                        !notificationSettingsState.muteAccountApprovalEmails,
-                    })
-                  }
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
-                    notificationSettingsState.muteAccountApprovalEmails
-                      ? "bg-stone-300"
-                      : "bg-amber-700"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      notificationSettingsState.muteAccountApprovalEmails
-                        ? "translate-x-1"
-                        : "translate-x-6"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-                <div className="pr-4">
-                  <div className="font-bold text-stone-800 text-xs">
-                    {t("admin.notificationSettings.requestEmailsTitle")}
-                  </div>
-                  <div className="text-[11px] text-stone-500 mt-0.5">
-                    {t("admin.notificationSettings.requestEmailsDesc")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Toggle reservation request emails"
-                  onClick={() =>
-                    setNotificationSettingsState({
-                      ...notificationSettingsState,
-                      muteReservationRequestEmails:
-                        !notificationSettingsState.muteReservationRequestEmails,
-                    })
-                  }
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ${
-                    notificationSettingsState.muteReservationRequestEmails
-                      ? "bg-stone-300"
-                      : "bg-amber-700"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      notificationSettingsState.muteReservationRequestEmails
-                        ? "translate-x-1"
-                        : "translate-x-6"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="pt-3 border-t border-stone-100 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={savingNotificationSettings}
-                  className="px-4 py-2 rounded-xl bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white font-bold text-xs transition cursor-pointer shadow-xs"
-                >
-                  {savingNotificationSettings
-                    ? t("admin.notificationSettings.saving")
-                    : t("admin.notificationSettings.saveButton")}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
         {/* =============================================================
-              TAB: PUSH NOTIFICATIONS (Personal Admin Preferences)
+              TAB: NOTIFICATION SETTINGS (Merged Push & Email in One Tab)
              ============================================================= */}
-        {activeTab === "push_notifications" && (
-          <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-5">
-            <div className="border-b border-stone-100 pb-3 flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-amber-700" />
-                  <span>{t("adminPush.title")}</span>
-                </h2>
-                <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                  {t("adminPush.desc")}
-                </p>
-              </div>
-
-              {loadingPushPrefs && (
-                <div className="text-xs text-amber-700 flex items-center gap-1.5 font-medium">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>{t("adminPush.loading")}</span>
+        {/* =============================================================
+              TAB: NOTIFICATION SETTINGS (Merged Push & Email in One Tab)
+             ============================================================= */}
+        {(activeTab === "notification_settings" ||
+          activeTab === "push_notifications") && (
+          <div className="space-y-4">
+            {/* Header Card (Compact) */}
+            <div className="bg-white border border-stone-200 rounded-xl px-4 py-3 sm:py-3.5 shadow-2xs">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <h2 className="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>{t("admin.tabNotificationSettings")}</span>
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5 truncate sm:text-clip">
+                    {t("adminPush.desc")}
+                  </p>
                 </div>
-              )}
-            </div>
 
-            {/* 3 On/Off Category Switches */}
-            <div className="space-y-3">
-              {/* Switch 1: New Requests */}
-              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 p-3.5 transition">
-                <div className="pr-4 rtl:pr-0 rtl:pl-4">
-                  <div className="font-bold text-stone-900 text-xs sm:text-sm">
-                    {t("adminPush.reqTitle")}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-relaxed">
-                    {t("adminPush.reqDesc")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Toggle new requests notifications"
-                  disabled={savingPushPrefs}
-                  onClick={() => handleTogglePushPref("notifyNewRequests")}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
-                    adminPushPrefs.notifyNewRequests
-                      ? "bg-amber-700"
-                      : "bg-stone-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      adminPushPrefs.notifyNewRequests
-                        ? "translate-x-6 rtl:-translate-x-6"
-                        : "translate-x-1 rtl:-translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[11px] text-stone-500 hidden sm:inline-flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span>{t("adminPush.autoSaved")}</span>
+                  </span>
 
-              {/* Switch 2: New Registrations */}
-              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 p-3.5 transition">
-                <div className="pr-4 rtl:pr-0 rtl:pl-4">
-                  <div className="font-bold text-stone-900 text-xs sm:text-sm">
-                    {t("adminPush.regTitle")}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-relaxed">
-                    {t("adminPush.regDesc")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Toggle new registrations notifications"
-                  disabled={savingPushPrefs}
-                  onClick={() =>
-                    handleTogglePushPref("notifyNewRegistrations")
-                  }
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
-                    adminPushPrefs.notifyNewRegistrations
-                      ? "bg-amber-700"
-                      : "bg-stone-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      adminPushPrefs.notifyNewRegistrations
-                        ? "translate-x-6 rtl:-translate-x-6"
-                        : "translate-x-1 rtl:-translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Switch 3: Member Chat Messages */}
-              <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-stone-50 p-3.5 transition">
-                <div className="pr-4 rtl:pr-0 rtl:pl-4">
-                  <div className="font-bold text-stone-900 text-xs sm:text-sm">
-                    {t("adminPush.chatTitle")}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-relaxed">
-                    {t("adminPush.chatDesc")}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Toggle member messages notifications"
-                  disabled={savingPushPrefs}
-                  onClick={() => handleTogglePushPref("notifyMemberMessages")}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 cursor-pointer ${
-                    adminPushPrefs.notifyMemberMessages
-                      ? "bg-amber-700"
-                      : "bg-stone-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      adminPushPrefs.notifyMemberMessages
-                        ? "translate-x-6 rtl:-translate-x-6"
-                        : "translate-x-1 rtl:-translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Device Status & Test Card */}
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-amber-700 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <Smartphone className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-xs sm:text-sm font-bold text-amber-950">
-                      {t("adminPush.deviceStatusTitle")}
+                  {(loadingPushPrefs ||
+                    savingPushPrefs ||
+                    savingNotificationSettings) && (
+                    <div className="text-xs text-amber-700 flex items-center gap-1.5 font-medium">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>
+                        {savingPushPrefs || savingNotificationSettings
+                          ? t("admin.notificationSettings.saving")
+                          : t("adminPush.loading")}
+                      </span>
                     </div>
-                    <div className="text-xs text-amber-800 mt-0.5">
-                      {adminDeviceSubscribed
-                        ? t("adminPush.deviceActive")
-                        : t("adminPush.deviceInactive")}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  {!adminDeviceSubscribed ? (
-                    <button
-                      type="button"
-                      onClick={handleAdminSubscribeDevice}
-                      disabled={savingPushPrefs}
-                      className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
-                    >
-                      {t("adminPush.enableDeviceBtn")}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleAdminTestPush}
-                      disabled={testPushSending}
-                      className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs sm:text-sm font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {testPushSending ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>{t("adminPush.sending")}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          <span>{t("adminPush.sendTestBtn")}</span>
-                        </>
-                      )}
-                    </button>
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Reassurance Line */}
-              <div className="text-xs text-amber-900/90 bg-amber-100/70 rounded-xl p-2.5 border border-amber-200/80 flex items-center gap-2 leading-relaxed">
-                <Bell className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>{t("adminPush.reassurance")}</span>
+            {/* Grid Layout: Compact side-by-side on lg screens */}
+            <div
+              className={`grid grid-cols-1 ${
+                isSuperAdmin ? "lg:grid-cols-2" : "max-w-2xl"
+              } gap-4`}
+            >
+              {/* Section 1: Mobile & Desktop Push Notifications */}
+              <div className="bg-white border border-stone-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3">
+                <div className="border-b border-stone-100 pb-2.5 flex items-center justify-between">
+                  <h3 className="font-bold text-stone-900 text-xs sm:text-sm flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>{t("adminPush.title")}</span>
+                  </h3>
+                </div>
+
+                {/* Device Status & Test Card (Compact) */}
+                <div className="rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 sm:p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2.5 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                          adminDeviceSubscribed
+                            ? "bg-emerald-500 ring-2 ring-emerald-200"
+                            : "bg-amber-400"
+                        }`}
+                      />
+                      <div className="text-xs text-amber-950 font-medium truncate">
+                        <span className="font-bold">
+                          {t("adminPush.deviceStatusTitle")}:{" "}
+                        </span>
+                        <span className="text-amber-800">
+                          {adminDeviceSubscribed
+                            ? t("adminPush.deviceActive")
+                            : t("adminPush.deviceInactive")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {!adminDeviceSubscribed ? (
+                        <button
+                          type="button"
+                          onClick={handleAdminSubscribeDevice}
+                          disabled={savingPushPrefs}
+                          className="px-3 py-1.5 rounded-lg bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-semibold transition shadow-2xs cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                        >
+                          {t("adminPush.enableDeviceBtn")}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleAdminTestPush}
+                          disabled={testPushSending}
+                          className="px-3 py-1.5 rounded-lg bg-amber-800 hover:bg-amber-900 active:scale-[0.99] text-white text-xs font-semibold transition shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {testPushSending ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>{t("adminPush.sending")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3 h-3" />
+                              <span>{t("adminPush.sendTestBtn")}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-amber-900/80 flex items-center gap-1.5 leading-tight">
+                    <Bell className="w-3 h-3 text-amber-700 shrink-0" />
+                    <span>{t("adminPush.reassurance")}</span>
+                  </div>
+
+                  {testPushStatus && (
+                    <div className="p-2 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs flex items-center gap-1.5 animate-in fade-in">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>{testPushStatus}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3 Push Notification Preference Switches (Compact List) */}
+                <div className="border border-stone-200 rounded-lg divide-y divide-stone-100 overflow-hidden bg-stone-50/40">
+                  {/* Switch 1: New Requests */}
+                  <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
+                    <div className="pr-3 rtl:pr-0 rtl:pl-3">
+                      <div className="font-semibold text-stone-900 text-xs">
+                        {t("adminPush.reqTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                        {t("adminPush.reqDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle new requests notifications"
+                      disabled={savingPushPrefs}
+                      onClick={() => handleTogglePushPref("notifyNewRequests")}
+                      className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                        adminPushPrefs.notifyNewRequests
+                          ? "bg-amber-700"
+                          : "bg-stone-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
+                          adminPushPrefs.notifyNewRequests
+                            ? "translate-x-5 rtl:-translate-x-5"
+                            : "translate-x-0.5 rtl:-translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Switch 2: New Registrations */}
+                  <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
+                    <div className="pr-3 rtl:pr-0 rtl:pl-3">
+                      <div className="font-semibold text-stone-900 text-xs">
+                        {t("adminPush.regTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                        {t("adminPush.regDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle new registrations notifications"
+                      disabled={savingPushPrefs}
+                      onClick={() =>
+                        handleTogglePushPref("notifyNewRegistrations")
+                      }
+                      className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                        adminPushPrefs.notifyNewRegistrations
+                          ? "bg-amber-700"
+                          : "bg-stone-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
+                          adminPushPrefs.notifyNewRegistrations
+                            ? "translate-x-5 rtl:-translate-x-5"
+                            : "translate-x-0.5 rtl:-translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Switch 3: Member Chat Messages */}
+                  <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
+                    <div className="pr-3 rtl:pr-0 rtl:pl-3">
+                      <div className="font-semibold text-stone-900 text-xs">
+                        {t("adminPush.chatTitle")}
+                      </div>
+                      <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                        {t("adminPush.chatDesc")}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle member messages notifications"
+                      disabled={savingPushPrefs}
+                      onClick={() =>
+                        handleTogglePushPref("notifyMemberMessages")
+                      }
+                      className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                        adminPushPrefs.notifyMemberMessages
+                          ? "bg-amber-700"
+                          : "bg-stone-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
+                          adminPushPrefs.notifyMemberMessages
+                            ? "translate-x-5 rtl:-translate-x-5"
+                            : "translate-x-0.5 rtl:-translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {testPushStatus && (
-                <div className="p-2.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs sm:text-sm flex items-center gap-2 animate-in fade-in">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span>{testPushStatus}</span>
+              {/* Section 2: Automated Email Notifications (Super Admin) */}
+              {isSuperAdmin && (
+                <div className="bg-white border border-stone-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3">
+                  <div className="border-b border-stone-100 pb-2.5 flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-bold text-stone-900 text-xs sm:text-sm flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span>{t("admin.notificationSettings.title")}</span>
+                      </h3>
+                      <p className="text-[11px] text-stone-500 mt-0.5 leading-snug">
+                        {t("admin.notificationSettings.subtitle")}
+                      </p>
+                    </div>
+                    {savingNotificationSettings && (
+                      <div className="text-xs text-amber-700 flex items-center gap-1 font-medium shrink-0">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        <span className="hidden sm:inline">
+                          {t("admin.notificationSettings.saving")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-stone-200 rounded-lg divide-y divide-stone-100 overflow-hidden bg-stone-50/40">
+                    {/* Switch 1: Account Approval Emails */}
+                    <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
+                      <div className="pr-3 rtl:pr-0 rtl:pl-3">
+                        <div className="font-semibold text-stone-800 text-xs">
+                          {t("admin.notificationSettings.approvalEmailsTitle")}
+                        </div>
+                        <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                          {t("admin.notificationSettings.approvalEmailsDesc")}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Toggle account approval emails"
+                        disabled={savingNotificationSettings}
+                        onClick={() =>
+                          handleToggleEmailNotificationSetting(
+                            "muteAccountApprovalEmails",
+                          )
+                        }
+                        className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                          notificationSettingsState.muteAccountApprovalEmails
+                            ? "bg-stone-300"
+                            : "bg-amber-700"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
+                            notificationSettingsState.muteAccountApprovalEmails
+                              ? "translate-x-0.5 rtl:-translate-x-0.5"
+                              : "translate-x-5 rtl:-translate-x-5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Switch 2: Reservation Request Emails */}
+                    <div className="flex items-center justify-between p-2.5 sm:px-3 sm:py-2.5 hover:bg-stone-50/80 transition">
+                      <div className="pr-3 rtl:pr-0 rtl:pl-3">
+                        <div className="font-semibold text-stone-800 text-xs">
+                          {t("admin.notificationSettings.requestEmailsTitle")}
+                        </div>
+                        <div className="text-[11px] text-stone-500 leading-snug mt-0.5">
+                          {t("admin.notificationSettings.requestEmailsDesc")}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Toggle reservation request emails"
+                        disabled={savingNotificationSettings}
+                        onClick={() =>
+                          handleToggleEmailNotificationSetting(
+                            "muteReservationRequestEmails",
+                          )
+                        }
+                        className={`relative inline-flex h-5.5 w-10 items-center rounded-full transition-colors shrink-0 cursor-pointer disabled:opacity-50 ${
+                          notificationSettingsState.muteReservationRequestEmails
+                            ? "bg-stone-300"
+                            : "bg-amber-700"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
+                            notificationSettingsState.muteReservationRequestEmails
+                              ? "translate-x-0.5 rtl:-translate-x-0.5"
+                              : "translate-x-5 rtl:-translate-x-5"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

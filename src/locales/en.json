@@ -1117,7 +1117,9 @@
       "requestEmailsTitle": "Reservation Request Emails",
       "requestEmailsDesc": "Email sent when a reservation is submitted and requires manual review.",
       "saveButton": "Save Notification Settings",
-      "saving": "Saving..."
+      "saving": "Saving...",
+      "saved": "Email notification settings updated successfully",
+      "saveFailed": "Failed to update email notification settings"
     },
     "userDetail": {
       "clickToOpen": "Click to view full user profile",
@@ -1497,6 +1499,7 @@
     "deviceSubscribed": "Device subscribed successfully! 🎉",
     "deviceSubscribeFailed": "Failed to subscribe device",
     "testDelivered": "Test notification delivered to your device screen! 📲",
-    "testFailed": "Failed to send test push"
+    "testFailed": "Failed to send test push",
+    "autoSaved": "Settings auto-save instantly"
   }
 }
