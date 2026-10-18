@@ -154,9 +154,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     return () => window.clearInterval(timer);
   }, []);
 
-  const [selectedOccurrencesBySeries, setSelectedOccurrencesBySeries] = useState<
-    Record<string, string[]>
-  >({});
+  const [selectedOccurrencesBySeries, setSelectedOccurrencesBySeries] =
+    useState<Record<string, string[]>>({});
   const [seriesSelectMode, setSeriesSelectMode] = useState<
     Record<string, boolean>
   >({});
@@ -655,7 +654,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
         </div>
       ) : (
         <div className="space-y-3 sm:space-y-4">
-          {currentList.map((item, idx) => {
+          {currentList.map((item) => {
             if (item.type === "single") {
               const res = item.data;
               const startUtc = new Date(res.start_time || res.startTime);
@@ -672,7 +671,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   : `${formatHhmmTo12Hour(getCairoTimeString(startUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(endUtc))}`;
               const isApproved =
                 res.status === "approved" || res.status === "ongoing";
-              const isPending = res.status === "pending";
               const isPast = endUtc < new Date();
               const isCancelled =
                 res.status === "cancelled" || res.status === "rejected";
@@ -815,14 +813,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </div>
 
                         {isAdminBooked && (
-                          <div className="text-[11px] text-amber-800 font-bold flex items-center gap-1.5 min-w-0">
-                            <img
-                              src="/logo.png"
-                              alt=""
-                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-800/30"
-                            />
-                            <span className="truncate">
-                              {res.admin_name || "Admin"}
+                          <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
+                            <Shield className="w-3 h-3 shrink-0 mt-0.5" />
+                            <span className="break-words min-w-0">
+                              {t("common.adminBooked")}
                             </span>
                           </div>
                         )}
@@ -909,160 +903,214 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                   </div>
                 </div>
               );
-            } else {
-              // RECURRING SERIES GROUPED CARD
-              const sg: GroupedSeries = item.data;
-              const isExpanded = Boolean(expandedSeries[sg.seriesId]);
-              const approvedCount = sg.occurrences.filter(
-                (o) => o.status === "approved",
-              ).length;
-              const pendingCount = sg.occurrences.filter(
-                (o) => o.status === "pending",
-              ).length;
-              const firstOcc = sg.occurrences[0];
+            }
 
-              return (
+            // ─────────────────────────────────────────────
+            // RECURRING SERIES — mirrors single-card layout
+            // ─────────────────────────────────────────────
+            const sg: GroupedSeries = item.data;
+            const isExpanded = Boolean(expandedSeries[sg.seriesId]);
+            const approvedCount = sg.occurrences.filter(
+              (o) => o.status === "approved",
+            ).length;
+            const pendingCount = sg.occurrences.filter(
+              (o) => o.status === "pending",
+            ).length;
+            const firstOcc = sg.occurrences[0];
+
+            const firstStartUtc = new Date(
+              firstOcc.start_time || firstOcc.startTime,
+            );
+            const firstEndUtc = new Date(firstOcc.end_time || firstOcc.endTime);
+            const firstDateRaw =
+              firstOcc.reservation_date ||
+              (firstOcc.start_time
+                ? String(firstOcc.start_time).substring(0, 10)
+                : getCairoDateString(firstStartUtc));
+            const firstDateStr = formatDisplayDate(firstDateRaw);
+            const firstTimeStr =
+              firstOcc.start_hhmm && firstOcc.end_hhmm
+                ? `${formatHhmmTo12Hour(firstOcc.start_hhmm)} – ${formatHhmmTo12Hour(firstOcc.end_hhmm)}`
+                : `${formatHhmmTo12Hour(getCairoTimeString(firstStartUtc))} – ${formatHhmmTo12Hour(getCairoTimeString(firstEndUtc))}`;
+
+            return (
+              <div
+                key={sg.seriesId}
+                className="bg-white rounded-2xl border border-stone-200 shadow-2xs hover:shadow-xs transition overflow-hidden"
+              >
+                {/* ── Header body — mirrors single card ── */}
                 <div
-                  key={sg.seriesId}
-                  className="bg-white rounded-3xl border border-amber-900/20 shadow-2xs hover:shadow-xs transition overflow-hidden"
+                  onClick={() => onSelectReservationDetail(firstOcc.id)}
+                  className="p-4 sm:p-5 cursor-pointer group touch-manipulation"
                 >
-                  {/* Series Header Card */}
-                  <div className="p-5 bg-linear-to-r from-amber-50/60 to-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div
-                      onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                      className="flex items-start gap-3.5 cursor-pointer flex-1 select-none touch-manipulation"
-                    >
-                      <div className="w-10 h-10 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold shrink-0 mt-0.5 shadow-2xs">
-                        <Repeat className="w-5 h-5" />
-                      </div>
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0 group-hover:bg-amber-100 transition">
+                      <Repeat className="w-5 h-5" />
+                    </div>
 
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-stone-900 text-sm truncate max-w-full">
-                            {sg.serviceName}
-                          </span>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-start gap-2">
+                        <span
+                          className="font-bold text-stone-900 text-sm group-hover:text-amber-900 transition truncate flex-1 min-w-0"
+                          title={sg.serviceName}
+                        >
+                          {sg.serviceName}
+                        </span>
 
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-950 border border-amber-300 uppercase tracking-wider shrink-0">
-                            <Layers className="w-3 h-3" />
-                            {t("myReservations.sessionsSeriesBadge", {
-                              count: sg.occurrences.length,
-                            })}
-                          </span>
-
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-stone-100 text-stone-700 capitalize shrink-0">
+                        {/* Top-right: pattern badge + cancel icon only */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold capitalize shrink-0 ${
+                              String(sg.patternType).toLowerCase() === "weekly"
+                                ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                : "bg-stone-100 text-stone-700"
+                            }`}
+                          >
                             {t("myReservations.patternSuffix", {
                               pattern: sg.patternType,
                             })}
                           </span>
 
                           {sg.occurrences.some(
-                            (occ) => occ.booked_by_admin || occ.bookedByAdmin,
+                            (occ) =>
+                              ![
+                                "cancelled",
+                                "rejected",
+                                "completed",
+                                "expired",
+                              ].includes(occ.status),
                           ) && (
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-800 shrink-0">
-                              <img
-                                src="/logo.png"
-                                alt=""
-                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-800/30"
-                              />
-                              <span className="truncate">
-                                {sg.occurrences.find((occ) => occ.admin_name)?.admin_name || "Admin"}
-                              </span>
-                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCancellingItem({
+                                  id: sg.occurrences[0].id,
+                                  mode: "series",
+                                  title: t("myReservations.cancelSeriesTitle", {
+                                    service: sg.serviceName,
+                                  }),
+                                });
+                              }}
+                              title={t("myReservations.cancelEntireSeries")}
+                              aria-label={t(
+                                "myReservations.cancelEntireSeries",
+                              )}
+                              className="w-6 h-6 rounded-lg bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 border border-red-200 flex items-center justify-center transition cursor-pointer shrink-0 touch-manipulation"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
-                        </div>
-
-                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-2 sm:gap-3">
-                          <span className="font-semibold text-stone-800 truncate max-w-full">
-                            {sg.instrumentName}
-                          </span>
-                          {sg.serviceLocation && (
-                            <span className="inline-flex items-center gap-1 text-amber-800 font-medium">
-                              <Church className="w-3 h-3 text-amber-700 shrink-0" />
-                              <span className="truncate">
-                                {sg.serviceLocation}
-                              </span>
-                            </span>
-                          )}
-                          <span className="text-stone-500 whitespace-nowrap">
-                            {t("myReservations.approvedPendingCount", {
-                              approved: approvedCount,
-                              pending: pendingCount,
-                            })}
-                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Series Header Actions (Compact & Responsive on Mobile) */}
-                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
-                      {sg.occurrences.some(
-                        (occ) =>
-                          !["cancelled", "rejected", "completed", "expired"].includes(
-                            occ.status,
-                          ),
-                      ) && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onEditReservation({
-                                ...firstOcc,
-                                _initialScope: "series",
-                              })
-                            }
-                            className="h-8 px-2.5 sm:px-3 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-bold rounded-xl transition flex items-center gap-1 cursor-pointer touch-manipulation whitespace-nowrap shadow-2xs"
-                            title={t("myReservations.editEntireSeries")}
-                          >
-                            <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                            <span className="hidden sm:inline">{t("myReservations.editEntireSeries")}</span>
-                            <span className="sm:hidden">{t("common.edit", { defaultValue: "Edit" })}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCancellingItem({
-                                id: sg.occurrences[0].id,
-                                mode: "series",
-                                title: t("myReservations.cancelSeriesTitle", {
-                                  service: sg.serviceName,
-                                }),
-                              })
-                            }
-                            className="h-8 px-2.5 sm:px-3 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1 cursor-pointer touch-manipulation whitespace-nowrap shadow-2xs"
-                            title={t("myReservations.cancelEntireSeries")}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                            <span className="hidden sm:inline">{t("myReservations.cancelEntireSeries")}</span>
-                            <span className="sm:hidden">{t("common.cancel", { defaultValue: "Cancel" })}</span>
-                          </button>
-                        </>
+                      {sg.serviceLocation && (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-800 font-medium my-0.5">
+                          <Church className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                          <span className="truncate">{sg.serviceLocation}</span>
+                        </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                        className="h-8 px-3 sm:px-3.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation shadow-2xs"
-                      >
-                        <span className="hidden sm:inline">
-                          {isExpanded
-                            ? t("myReservations.collapse")
-                            : t("myReservations.viewOccurrences")}
+
+                      {/* Badges row — only Outside Church remains (admin + counts relocated) */}
+                      {sg.reservationType === "outside_church" && (
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
+                            <DollarSign className="w-3 h-3" />
+                            {t("common.outsideChurch")}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Admin booked — plain primary-color line, matching single card */}
+                      {sg.occurrences.some(
+                        (occ) => occ.booked_by_admin || occ.bookedByAdmin,
+                      ) && (
+                        <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
+                          <Shield className="w-3 h-3 shrink-0 mt-0.5" />
+                          <span className="break-words min-w-0">
+                            {t("common.adminBooked")}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Instrument + first date/time */}
+                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-semibold text-stone-800 truncate max-w-full">
+                          {sg.instrumentName}
                         </span>
-                        <span className="sm:hidden">
-                          {isExpanded
-                            ? t("myReservations.collapse")
-                            : `${sg.occurrences.length} ${t("myReservations.individualSessionsTitle", { defaultValue: "Dates" })}`}
+                        <span className="text-stone-500 font-medium whitespace-nowrap">
+                          {firstDateStr} ({firstTimeStr})
                         </span>
-                        {isExpanded ? (
-                          <ChevronUp className="w-3.5 h-3.5 shrink-0" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                        )}
-                      </button>
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Expandable Individual Occurrences List */}
-                  {isExpanded && (() => {
+                {/* ── Bottom action row — mirrors single card ── */}
+                <div className="px-4 sm:px-5 py-3 bg-stone-50/70 border-t border-stone-100 flex items-center gap-2">
+                  {sg.occurrences.some(
+                    (occ) =>
+                      ![
+                        "cancelled",
+                        "rejected",
+                        "completed",
+                        "expired",
+                      ].includes(occ.status),
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onEditReservation({
+                          ...firstOcc,
+                          _initialScope: "series",
+                        })
+                      }
+                      className="h-9 px-3 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 touch-manipulation whitespace-nowrap"
+                      title={t("myReservations.editEntireSeries")}
+                    >
+                      <Edit className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                      <span>{t("common.edit")}</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onSelectReservationDetail(firstOcc.id)}
+                    className="flex-1 h-9 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-lg transition cursor-pointer whitespace-nowrap touch-manipulation"
+                  >
+                    {t("myReservations.viewDetails")}
+                  </button>
+                </div>
+
+                {/* ── Full-width collapse control + inline approved/pending ── */}
+                <button
+                  type="button"
+                  onClick={() => toggleSeriesExpansion(sg.seriesId)}
+                  className="w-full h-10 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer touch-manipulation border-t border-stone-200"
+                >
+                  <span className="inline-flex items-center gap-1.5 flex-wrap justify-center">
+                    <span>
+                      {isExpanded
+                        ? t("myReservations.collapse")
+                        : `${t("myReservations.viewOccurrences")} (${sg.occurrences.length})`}
+                    </span>
+                    <span className="text-[10px] font-semibold text-stone-500 normal-case">
+                      {t("myReservations.approvedPendingCount", {
+                        approved: approvedCount,
+                        pending: pendingCount,
+                      })}
+                    </span>
+                  </span>
+                  {isExpanded ? (
+                    <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                  )}
+                </button>
+
+                {/* ── Expandable individual occurrences ── */}
+                {isExpanded &&
+                  (() => {
                     const selectedForSeries =
                       selectedOccurrencesBySeries[sg.seriesId] || [];
                     const hasSelected = selectedForSeries.length > 0;
@@ -1071,9 +1119,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                     );
                     const actionableOccurrences = sg.occurrences.filter(
                       (o) =>
-                        !["cancelled", "rejected", "completed", "expired"].includes(
-                          o.status,
-                        ) && new Date(o.end_time || o.endTime) >= new Date(),
+                        ![
+                          "cancelled",
+                          "rejected",
+                          "completed",
+                          "expired",
+                        ].includes(o.status) &&
+                        new Date(o.end_time || o.endTime) >= new Date(),
                     );
 
                     return (
@@ -1084,58 +1136,28 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               {t("myReservations.individualSessionsTitle")}
                             </span>
                             {actionableOccurrences.length > 0 && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleSeriesSelectMode(sg.seriesId)
-                                  }
-                                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
-                                    isSeriesSelectActive
-                                      ? "bg-amber-800 text-white shadow-2xs"
-                                      : "bg-stone-200/80 hover:bg-stone-300 text-stone-700"
-                                  }`}
-                                >
-                                  <CheckSquare className="w-3 h-3" />
-                                  <span>
-                                    {isSeriesSelectActive
-                                      ? t("common.done", {
-                                          defaultValue: "Done",
-                                        })
-                                      : t("common.select", {
-                                          defaultValue: "Select",
-                                        })}
-                                  </span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSeriesSelectMode((prev) => ({
-                                      ...prev,
-                                      [sg.seriesId]: true,
-                                    }));
-                                    if (
-                                      selectedForSeries.length ===
-                                      actionableOccurrences.length
-                                    ) {
-                                      clearOccurrenceSelectionInSeries(
-                                        sg.seriesId,
-                                      );
-                                    } else {
-                                      selectAllOccurrencesInSeries(
-                                        sg.seriesId,
-                                        actionableOccurrences.map((o) => o.id),
-                                      );
-                                    }
-                                  }}
-                                  className="text-[10px] text-amber-800 hover:underline font-semibold cursor-pointer"
-                                >
-                                  {selectedForSeries.length ===
-                                  actionableOccurrences.length
-                                    ? t("myReservations.deselectAll")
-                                    : t("myReservations.selectAll")}
-                                </button>
-                              </>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  toggleSeriesSelectMode(sg.seriesId)
+                                }
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                                  isSeriesSelectActive
+                                    ? "bg-amber-800 text-white shadow-2xs"
+                                    : "bg-stone-200/80 hover:bg-stone-300 text-stone-700"
+                                }`}
+                              >
+                                <CheckSquare className="w-3 h-3" />
+                                <span>
+                                  {isSeriesSelectActive
+                                    ? t("common.done", {
+                                        defaultValue: "Done",
+                                      })
+                                    : t("common.select", {
+                                        defaultValue: "Select",
+                                      })}
+                                </span>
+                              </button>
                             )}
                           </div>
                           <span className="text-stone-400 hidden sm:inline">
@@ -1143,25 +1165,13 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                           </span>
                         </div>
 
-                        {/* Batch Action Bar if sessions selected */}
                         {hasSelected && (
                           <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-2 animate-in fade-in">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-amber-950">
-                                {t("myReservations.batchSelectedCount", {
-                                  count: selectedForSeries.length,
-                                })}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  clearOccurrenceSelectionInSeries(sg.seriesId)
-                                }
-                                className="text-[11px] text-stone-500 hover:text-stone-800 font-semibold hover:underline cursor-pointer"
-                              >
-                                {t("myReservations.deselectAll")}
-                              </button>
-                            </div>
+                            <span className="text-xs font-bold text-amber-950">
+                              {t("myReservations.batchSelectedCount", {
+                                count: selectedForSeries.length,
+                              })}
+                            </span>
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
@@ -1175,7 +1185,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                 className="px-2.5 py-1 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer touch-manipulation"
                               >
                                 <Edit className="w-3 h-3" />
-                                <span>{t("myReservations.editSelected")}</span>
+                                <span>{t("common.edit")}</span>
                               </button>
                               <button
                                 type="button"
@@ -1196,7 +1206,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                 className="px-2.5 py-1 bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-800 border border-red-300 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer touch-manipulation"
                               >
                                 <Trash2 className="w-3 h-3" />
-                                <span>{t("myReservations.cancelSelected")}</span>
+                                <span>{t("common.cancel")}</span>
                               </button>
                             </div>
                           </div>
@@ -1220,9 +1230,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               occ.start_hhmm && occ.end_hhmm
                                 ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
                                 : `${formatHhmmTo12Hour(getCairoTimeString(occStart))} – ${formatHhmmTo12Hour(getCairoTimeString(occEnd))}`;
-                            const isOccApproved =
-                              occ.status === "approved" ||
-                              occ.status === "ongoing";
                             const isOccPast = occEnd < new Date();
                             const isOccCancelled =
                               occ.status === "cancelled" ||
@@ -1234,22 +1241,24 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                 className="p-2 sm:p-2.5 text-xs flex items-center justify-between gap-1.5 sm:gap-2 hover:bg-stone-50/80 transition"
                               >
                                 <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-                                  {!isOccPast && !isOccCancelled && isSeriesSelectActive && (
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedForSeries.includes(
-                                        occ.id,
-                                      )}
-                                      onChange={() =>
-                                        toggleOccurrenceSelection(
-                                          sg.seriesId,
+                                  {!isOccPast &&
+                                    !isOccCancelled &&
+                                    isSeriesSelectActive && (
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedForSeries.includes(
                                           occ.id,
-                                        )
-                                      }
-                                      aria-label={`Select session ${occIdx + 1}`}
-                                      className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-800 cursor-pointer shrink-0"
-                                    />
-                                  )}
+                                        )}
+                                        onChange={() =>
+                                          toggleOccurrenceSelection(
+                                            sg.seriesId,
+                                            occ.id,
+                                          )
+                                        }
+                                        aria-label={`Select session ${occIdx + 1}`}
+                                        className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-800 cursor-pointer shrink-0"
+                                      />
+                                    )}
 
                                   <div
                                     onClick={() =>
@@ -1260,12 +1269,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                     <span className="w-5 h-5 rounded-md bg-stone-100 text-stone-700 font-bold flex items-center justify-center text-[10px] shrink-0">
                                       #{occIdx + 1}
                                     </span>
-                                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 flex-1 truncate">
-                                      <span className="font-bold text-stone-900 group-hover:text-amber-900 truncate">
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                      <span className="font-bold text-stone-900 group-hover:text-amber-900 truncate text-[11px] sm:text-xs">
                                         {occDateStr}
                                       </span>
-                                      <span className="text-[11px] text-stone-400 hidden xs:inline">·</span>
-                                      <span className="text-[11px] text-stone-500 truncate hidden xs:inline">
+                                      <span className="text-[10px] text-stone-500 truncate">
                                         {occTimeStr}
                                       </span>
                                     </div>
@@ -1288,24 +1296,21 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                   </span>
                                 </div>
 
-                                {/* Inline Actions */}
+                                {/* Inline actions — Details first, then Cancel */}
                                 <div className="flex items-center gap-1 shrink-0">
-                                  {!isOccPast && !isOccCancelled && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        onEditReservation({
-                                          ...occ,
-                                          _initialScope: "single",
-                                        })
-                                      }
-                                      className="h-7 px-2 sm:px-2.5 rounded-lg bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap touch-manipulation shadow-2xs"
-                                      title={t("myReservations.editSessionTooltip")}
-                                    >
-                                      <Edit className="w-3 h-3 text-stone-500 shrink-0" />
-                                      <span className="hidden sm:inline">{t("myReservations.editSession")}</span>
-                                    </button>
-                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onSelectReservationDetail(occ.id)
+                                    }
+                                    className="h-7 px-2 sm:px-2.5 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap touch-manipulation shadow-2xs"
+                                    title={t("common.details")}
+                                  >
+                                    <Eye className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="hidden md:inline">
+                                      {t("common.details")}
+                                    </span>
+                                  </button>
 
                                   {!isOccPast && !isOccCancelled && (
                                     <button
@@ -1327,21 +1332,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                       title={t("myReservations.cancelSlot")}
                                     >
                                       <Trash2 className="w-3 h-3 shrink-0" />
-                                      <span className="hidden sm:inline">{t("myReservations.cancelSlot")}</span>
+                                      <span className="hidden sm:inline">
+                                        {t("myReservations.cancelSlot")}
+                                      </span>
                                     </button>
                                   )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      onSelectReservationDetail(occ.id)
-                                    }
-                                    className="h-7 px-2 sm:px-2.5 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap touch-manipulation shadow-2xs"
-                                    title={t("common.details")}
-                                  >
-                                    <Eye className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="hidden md:inline">{t("common.details")}</span>
-                                  </button>
                                 </div>
                               </div>
                             );
@@ -1350,9 +1345,8 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       </div>
                     );
                   })()}
-                </div>
-              );
-            }
+              </div>
+            );
           })}
         </div>
       )}

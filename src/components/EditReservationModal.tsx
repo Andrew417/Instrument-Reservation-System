@@ -104,8 +104,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
   const isAdmin = Boolean(
     profile?.role === "admin" ||
-      profile?.role === "super_admin" ||
-      (profile as any)?.isSuperAdmin,
+    profile?.role === "super_admin" ||
+    (profile as any)?.isSuperAdmin,
   );
   const isTrustedOrAdmin = Boolean(profile?.isTrusted || isAdmin);
 
@@ -174,7 +174,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const [activeReservation, setActiveReservation] = useState<any>(reservation);
   const [allSeriesOccurrences, setAllSeriesOccurrences] = useState<any[]>([]);
   const [upcomingOccurrences, setUpcomingOccurrences] = useState<any[]>([]);
-  const [isLoadingOccurrences, setIsLoadingOccurrences] = useState<boolean>(false);
+  const [isLoadingOccurrences, setIsLoadingOccurrences] =
+    useState<boolean>(false);
   const [selectedOccurrenceIds, setSelectedOccurrenceIds] = useState<string[]>(
     initialSelectedIds && initialSelectedIds.length > 0
       ? initialSelectedIds
@@ -182,19 +183,20 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         ? [reservation.id]
         : [],
   );
-  const [applySelectionMode, setApplySelectionMode] = useState<"all" | "selected">(
+  const [applySelectionMode, setApplySelectionMode] = useState<
+    "all" | "selected"
+  >(
     initialScope === "single" ||
       (initialSelectedIds && initialSelectedIds.length > 0)
       ? "selected"
       : "all",
   );
-  const [showOccurrenceList, setShowOccurrenceList] = useState<boolean>(
-    Boolean(initialSelectedIds && initialSelectedIds.length > 0),
-  );
   const [isMultiSelectMode, setIsMultiSelectMode] = useState<boolean>(
     Boolean(initialSelectedIds && initialSelectedIds.length > 1),
   );
-  const [shiftType, setShiftType] = useState<"none" | "days" | "weekday">("none");
+  const [shiftType, setShiftType] = useState<"none" | "days" | "weekday">(
+    "none",
+  );
   const [shiftDays, setShiftDays] = useState<number>(0);
   const [targetWeekday, setTargetWeekday] = useState<number>(
     new Date(startUtc).getUTCDay(),
@@ -254,15 +256,13 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             setAllSeriesOccurrences(sorted);
             const now = Date.now();
             const future = sorted.filter((r: any) => {
-              const statusOk = r.status === "pending" || r.status === "approved";
+              const statusOk =
+                r.status === "pending" || r.status === "approved";
               const startMs = new Date(r.start_time || r.startTime).getTime();
               return statusOk && startMs > now;
             });
             setUpcomingOccurrences(future);
-            if (
-              selectedOccurrenceIds.length === 0 &&
-              future.length > 0
-            ) {
+            if (selectedOccurrenceIds.length === 0 && future.length > 0) {
               if (
                 activeReservation?.id &&
                 future.some((f: any) => f.id === activeReservation.id)
@@ -300,22 +300,6 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     }
   };
   const endTimeStr = calculateEndTime();
-
-  const isAdminBooked = Boolean(
-    reservation.booked_by_admin ||
-      (reservation as any).bookedByAdmin ||
-      reservation.admin_name ||
-      (reservation as any).admin_id ||
-      allSeriesOccurrences.some(
-        (o: any) => o.booked_by_admin || o.bookedByAdmin || o.admin_name,
-      ),
-  );
-
-  const adminDisplayName =
-    reservation.admin_name ||
-    allSeriesOccurrences.find((o: any) => o.admin_name)?.admin_name ||
-    "Admin";
-
 
   // Multi-occurrence selection helpers
   const toggleOccurrenceSelection = (id: string) => {
@@ -396,7 +380,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         (occ.start_time
           ? String(occ.start_time).substring(0, 10)
           : getCairoDateString(new Date(occ.start_time)));
-      const oldTime = occ.start_hhmm || getCairoTimeString(new Date(occ.start_time));
+      const oldTime = formatHhmmTo12Hour(
+        occ.start_hhmm || getCairoTimeString(new Date(occ.start_time)),
+      );
       let newDate = oldDate;
 
       if (shiftType === "days") {
@@ -422,7 +408,14 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         isPast,
       };
     });
-  }, [scope, targetOccurrences, shiftType, shiftDays, targetWeekday, startTime]);
+  }, [
+    scope,
+    targetOccurrences,
+    shiftType,
+    shiftDays,
+    targetWeekday,
+    startTime,
+  ]);
 
   const hasPastShiftError = previewOccurrences.some((p) => p.isPast);
 
@@ -440,7 +433,13 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       return targetOccurrences.filter((o) => o.status === "approved").length;
     }
     return 0;
-  }, [isTrustedOrAdmin, scope, currentInstrument, reservationType, targetOccurrences]);
+  }, [
+    isTrustedOrAdmin,
+    scope,
+    currentInstrument,
+    reservationType,
+    targetOccurrences,
+  ]);
 
   // Form Submit Handler
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -461,8 +460,10 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       setErrorMsg(t("editReservation.errAcknowledgeFee"));
       return;
     }
-    if (seriesId) {
-      if (applySelectionMode === "selected" && selectedOccurrenceIds.length === 0) {
+    // Only enforce series-selection checks when actually in bulk-edit mode
+    const isBulkMode = Boolean(seriesId) && applySelectionMode === "selected";
+    if (isBulkMode) {
+      if (selectedOccurrenceIds.length === 0) {
         setErrorMsg(
           t("editReservation.errNoOccurrencesSelected", {
             defaultValue: "Please select at least one session to update.",
@@ -485,53 +486,14 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
     setConflictsList(null);
 
     try {
-      if (seriesId) {
-        // If exactly 1 session is selected AND shiftType === "none" (direct date edit):
-        if (
-          applySelectionMode === "selected" &&
-          selectedOccurrenceIds.length === 1 &&
-          shiftType === "none"
-        ) {
-          const targetId = selectedOccurrenceIds[0];
-          const body: Record<string, unknown> = {
-            instrumentId: currentInstrument.id,
-            serviceName: serviceName.trim(),
-            serviceLocation: serviceLocation.trim() || undefined,
-            musicianName: musicianName.trim(),
-            note: note.trim() || undefined,
-            date,
-            startTime,
-            duration,
-            reservationType,
-            feeAcknowledged:
-              reservationType === "outside_church" ? feeAcknowledged : false,
-          };
-          if (!sessionToken && !isAdmin) {
-            body.userId = profile.id;
-          }
+      // Determine whether we should do a series/bulk PATCH or a single PUT.
+      const shouldBulkPatch =
+        Boolean(seriesId) &&
+        (applySelectionMode === "all" ||
+          selectedOccurrenceIds.length > 1 ||
+          shiftType !== "none");
 
-          const res = await fetch(`/api/reservations/${targetId}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-            },
-            body: JSON.stringify(body),
-          });
-
-          const data = await res.json();
-          if (!res.ok || !data.success) {
-            setErrorMsg(data.error || t("editReservation.errUpdateFailed"));
-            setIsSubmitting(false);
-            return;
-          }
-
-          setIsSubmitting(false);
-          onSuccess(data.reservation);
-          return;
-        }
-
-        // Bulk edit entire series OR selected occurrences
+      if (shouldBulkPatch) {
         const body: Record<string, unknown> = {
           changes: {
             instrumentId: currentInstrument.id,
@@ -556,7 +518,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           },
           scope: "future",
           occurrenceIds:
-            applySelectionMode === "selected" ? selectedOccurrenceIds : undefined,
+            applySelectionMode === "selected"
+              ? selectedOccurrenceIds
+              : undefined,
         };
 
         const endpoint = isAdmin
@@ -567,7 +531,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+            ...(sessionToken
+              ? { Authorization: `Bearer ${sessionToken}` }
+              : {}),
           },
           body: JSON.stringify(body),
         });
@@ -589,45 +555,50 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
         setIsSubmitting(false);
         onSuccess(data);
-      } else {
-        // Single occurrence edit (non-series)
-        const body: Record<string, unknown> = {
-          instrumentId: currentInstrument.id,
-          serviceName: serviceName.trim(),
-          serviceLocation: serviceLocation.trim() || undefined,
-          musicianName: musicianName.trim(),
-          note: note.trim() || undefined,
-          date,
-          startTime,
-          duration,
-          reservationType,
-          feeAcknowledged:
-            reservationType === "outside_church" ? feeAcknowledged : false,
-        };
-        if (!sessionToken && !isAdmin) {
-          body.userId = profile.id;
-        }
-
-        const targetId = activeReservation?.id || reservation.id;
-        const res = await fetch(`/api/reservations/${targetId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
-          },
-          body: JSON.stringify(body),
-        });
-
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          setErrorMsg(data.error || t("editReservation.errUpdateFailed"));
-          setIsSubmitting(false);
-          return;
-        }
-
-        setIsSubmitting(false);
-        onSuccess(data.reservation);
+        return;
       }
+
+      // Single-occurrence PUT (both for series-single and non-series)
+      const targetId =
+        seriesId && selectedOccurrenceIds.length === 1
+          ? selectedOccurrenceIds[0]
+          : activeReservation?.id || reservation.id;
+
+      const body: Record<string, unknown> = {
+        instrumentId: currentInstrument.id,
+        serviceName: serviceName.trim(),
+        serviceLocation: serviceLocation.trim() || undefined,
+        musicianName: musicianName.trim(),
+        note: note.trim() || undefined,
+        date,
+        startTime,
+        duration,
+        reservationType,
+        feeAcknowledged:
+          reservationType === "outside_church" ? feeAcknowledged : false,
+      };
+      if (!sessionToken && !isAdmin) {
+        body.userId = profile.id;
+      }
+
+      const res = await fetch(`/api/reservations/${targetId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error || t("editReservation.errUpdateFailed"));
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSubmitting(false);
+      onSuccess(data.reservation);
     } catch (err: any) {
       setErrorMsg(err.message || t("editReservation.errNetwork"));
       setIsSubmitting(false);
@@ -660,7 +631,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
         <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-stone-800">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
-              {scope === "series" ? (
+              {scope === "series" && seriesId ? (
                 <Repeat className="w-5 h-5" />
               ) : (
                 <Music2 className="w-5 h-5" />
@@ -668,19 +639,23 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
             </div>
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
-                {scope === "series"
-                  ? applySelectionMode === "selected"
-                    ? t("editReservation.scopeSelectedTitle", {
-                        defaultValue: "Edit Selected Occurrences",
-                      })
-                    : t("editReservation.scopeSeriesTitle", {
-                        defaultValue: "Edit Entire Series",
-                      })
-                  : t("editReservation.headerTitle")}
+                {scope === "chooser"
+                  ? t("editReservation.scopeChooserTitle", {
+                      defaultValue: "Edit Recurring Reservation",
+                    })
+                  : seriesId
+                    ? applySelectionMode === "selected"
+                      ? t("editReservation.scopeSelectedTitle", {
+                          defaultValue: "Edit Selected Occurrences",
+                        })
+                      : t("editReservation.scopeSeriesTitle", {
+                          defaultValue: "Edit Entire Series",
+                        })
+                    : t("editReservation.headerTitle")}
               </h2>
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-[11px] sm:text-xs text-stone-400 truncate">
-                  {scope === "series"
+                  {seriesId
                     ? applySelectionMode === "selected"
                       ? t("editReservation.editingSelectedBanner", {
                           count: targetOccurrences.length,
@@ -693,16 +668,6 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                         })
                     : t("editReservation.headerSubtitle")}
                 </p>
-                {isAdminBooked && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-400 shrink-0">
-                    <img
-                      src="/logo.png"
-                      alt=""
-                      className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-400/40"
-                    />
-                    <span>{adminDisplayName}</span>
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -818,7 +783,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           >
             {/* Scrollable body */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-7 py-4 sm:py-5 space-y-4 sm:space-y-5">
-              {/* Scope Segmented Control Bar */}
+              {/* Series Options panel — always inline */}
               {seriesId && (
                 <div className="space-y-3">
                   <div className="bg-stone-200/70 p-1 rounded-2xl flex items-center gap-1 text-xs font-bold shadow-2xs">
@@ -830,7 +795,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                           if (activeReservation?.id) {
                             setSelectedOccurrenceIds([activeReservation.id]);
                           } else if (upcomingOccurrences.length > 0) {
-                            setSelectedOccurrenceIds([upcomingOccurrences[0].id]);
+                            setSelectedOccurrenceIds([
+                              upcomingOccurrences[0].id,
+                            ]);
                           }
                         }
                       }}
@@ -881,8 +848,6 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   {/* Selected Sessions: Checklist */}
                   {applySelectionMode === "selected" && (
                     <div className="bg-white rounded-2xl border border-stone-200 p-3.5 space-y-3 shadow-2xs animate-in fade-in">
-
-                      {/* Header with counts, Select button, and Select All / Clear */}
                       <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
                         <div className="font-bold text-stone-900 flex items-center gap-1.5 min-w-0">
                           <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
@@ -891,20 +856,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                               defaultValue: "Sessions in this series:",
                             })}
                           </span>
-                          {isAdminBooked && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 shrink-0">
-                              <img
-                                src="/logo.png"
-                                alt=""
-                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-800/30"
-                              />
-                              <span>{adminDisplayName}</span>
-                            </span>
-                          )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                           <span className="text-[11px] font-bold text-amber-950 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                            {selectedOccurrenceIds.length} / {upcomingOccurrences.length || allSeriesOccurrences.length}
+                            {selectedOccurrenceIds.length} /{" "}
+                            {upcomingOccurrences.length ||
+                              allSeriesOccurrences.length}
                           </span>
                           <button
                             type="button"
@@ -921,7 +878,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                             <span>
                               {isMultiSelectMode
                                 ? t("common.done", { defaultValue: "Done" })
-                                : t("common.select", { defaultValue: "Select" })}
+                                : t("common.select", {
+                                    defaultValue: "Select",
+                                  })}
                             </span>
                           </button>
                           <button
@@ -932,7 +891,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                             }}
                             className="text-[11px] text-amber-800 font-bold hover:underline cursor-pointer"
                           >
-                            {t("common.selectAll", { defaultValue: "Select All" })}
+                            {t("common.selectAll", {
+                              defaultValue: "Select All",
+                            })}
                           </button>
                           {isMultiSelectMode && (
                             <>
@@ -949,7 +910,6 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Occurrences List */}
                       <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
                         {(upcomingOccurrences.length > 0
                           ? upcomingOccurrences
@@ -974,28 +934,41 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                                   toggleOccurrenceSelection(occ.id);
                                 } else {
                                   setActiveReservation(occ);
-                                  const sUtc = new Date(occ.start_time || occ.startTime);
-                                  const eUtc = new Date(occ.end_time || occ.endTime);
+                                  const sUtc = new Date(
+                                    occ.start_time || occ.startTime,
+                                  );
+                                  const eUtc = new Date(
+                                    occ.end_time || occ.endTime,
+                                  );
                                   const dStr =
                                     occ.reservation_date ||
                                     (occ.start_time
                                       ? String(occ.start_time).substring(0, 10)
                                       : getCairoDateString(sUtc));
-                                  const tStr = occ.start_hhmm || getCairoTimeString(sUtc);
+                                  const tStr =
+                                    occ.start_hhmm || getCairoTimeString(sUtc);
                                   const durH = Math.max(
                                     0.5,
-                                    (eUtc.getTime() - sUtc.getTime()) / (3600 * 1000),
+                                    (eUtc.getTime() - sUtc.getTime()) /
+                                      (3600 * 1000),
                                   );
                                   setDate(dStr);
                                   setStartTime(tStr);
                                   setDuration(durH);
-                                  if (occ.instrument_id) setSelectedInstrumentId(occ.instrument_id);
-                                  if (occ.service_name) setServiceName(occ.service_name);
+                                  if (occ.instrument_id)
+                                    setSelectedInstrumentId(occ.instrument_id);
+                                  if (occ.service_name)
+                                    setServiceName(occ.service_name);
                                   if (occ.service_location !== undefined)
-                                    setServiceLocation(occ.service_location || "");
-                                  if (occ.musician_name) setMusicianName(occ.musician_name);
-                                  if (occ.note !== undefined) setNote(occ.note || "");
-                                  if (occ.reservation_type) setReservationType(occ.reservation_type);
+                                    setServiceLocation(
+                                      occ.service_location || "",
+                                    );
+                                  if (occ.musician_name)
+                                    setMusicianName(occ.musician_name);
+                                  if (occ.note !== undefined)
+                                    setNote(occ.note || "");
+                                  if (occ.reservation_type)
+                                    setReservationType(occ.reservation_type);
                                   setSelectedOccurrenceIds([occ.id]);
                                 }
                               }}
@@ -1017,17 +990,29 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                                     className="rounded border-stone-300 text-amber-800 focus:ring-amber-700 w-4 h-4 cursor-pointer shrink-0"
                                   />
                                 )}
-                                <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                  isChecked ? "bg-amber-800 text-white" : "bg-stone-200/80 text-stone-700"
-                                }`}>
+                                <span
+                                  className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                    isChecked
+                                      ? "bg-amber-800 text-white"
+                                      : "bg-stone-200/80 text-stone-700"
+                                  }`}
+                                >
                                   {idx + 1}
                                 </span>
-                                <span className="font-semibold truncate">
-                                  {formatDisplayDate(rawDate)}
-                                </span>
-                                <span className="text-[11px] text-stone-500 shrink-0 hidden xs:inline">
-                                  {formatHhmmTo12Hour(timeStr)}
-                                </span>
+                                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0 min-w-0 flex-1">
+                                  <span className="font-semibold truncate">
+                                    {formatDisplayDate(rawDate)}
+                                  </span>
+                                  <span className="text-[10px] text-stone-500 truncate">
+                                    {formatHhmmTo12Hour(timeStr)} –{" "}
+                                    {formatHhmmTo12Hour(
+                                      occ.end_hhmm ||
+                                        getCairoTimeString(
+                                          new Date(occ.end_time || occ.endTime),
+                                        ),
+                                    )}
+                                  </span>
+                                </div>
                               </div>
                               <span
                                 className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold uppercase shrink-0 ${
@@ -1059,6 +1044,131 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                       </div>
                     </div>
                   )}
+
+                  {/* Date Shifting (only when bulk/series mode active) */}
+                  {applySelectionMode === "all" ||
+                  selectedOccurrenceIds.length > 1 ? (
+                    <div className="bg-white border border-stone-200 rounded-2xl p-4 space-y-3.5 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                        <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-amber-800" />
+                          <span>
+                            {t("editReservation.dateShiftTitle", {
+                              defaultValue: "Date Shifting",
+                            })}
+                          </span>
+                        </span>
+                        <span className="text-[11px] font-mono text-stone-500">
+                          {upcomingOccurrences.length} sessions
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-1.5 p-1 bg-stone-100 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setShiftType("weekday")}
+                          className={`py-2 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center touch-manipulation ${
+                            shiftType === "weekday"
+                              ? "bg-white text-stone-900 shadow-xs"
+                              : "text-stone-600 hover:text-stone-900"
+                          }`}
+                        >
+                          {t("editReservation.dateShiftWeekday", {
+                            defaultValue: "Change weekday",
+                          })}
+                        </button>
+                      </div>
+
+                      {shiftType === "weekday" && (
+                        <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2 animate-in fade-in">
+                          <label className="block text-xs font-semibold text-stone-700">
+                            {t("editReservation.shiftWeekdayLabel", {
+                              defaultValue:
+                                "Move all dates to the nearest weekday on or after each occurrence:",
+                            })}
+                          </label>
+                          <div className="grid grid-cols-7 gap-1">
+                            {WEEKDAYS.map((wd) => (
+                              <button
+                                key={wd.val}
+                                type="button"
+                                onClick={() => setTargetWeekday(wd.val)}
+                                className={`py-2 px-1 rounded-xl text-xs font-bold transition cursor-pointer text-center touch-manipulation border ${
+                                  targetWeekday === wd.val
+                                    ? "bg-amber-800 text-white border-amber-900 shadow-xs"
+                                    : "bg-white text-stone-700 border-stone-200 hover:bg-stone-100"
+                                }`}
+                              >
+                                {isAr ? wd.labelAr : wd.labelEn}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Live Schedule Preview */}
+                      <div className="space-y-1.5 pt-1">
+                        <span className="block text-[11px] font-bold text-stone-600 uppercase tracking-wide">
+                          {t("editReservation.dateShiftPreviewTitle", {
+                            defaultValue:
+                              "Schedule Preview (Old Date → New Date)",
+                          })}
+                        </span>
+                        <div className="space-y-1 max-h-36 overflow-y-auto p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs">
+                          {isLoadingOccurrences ? (
+                            <div className="py-4 text-center text-stone-400">
+                              Loading...
+                            </div>
+                          ) : previewOccurrences.length === 0 ? (
+                            <div className="py-2 text-center text-stone-400">
+                              No upcoming occurrences found.
+                            </div>
+                          ) : (
+                            previewOccurrences.map((item) => (
+                              <div
+                                key={item.id}
+                                className={`flex items-center justify-between py-1 px-2.5 rounded-lg border text-xs ${
+                                  item.isPast
+                                    ? "bg-rose-50 border-rose-200 text-rose-900 font-bold"
+                                    : "bg-white border-stone-100 text-stone-700"
+                                }`}
+                              >
+                                <span className="text-stone-500 font-mono">
+                                  #{item.index}{" "}
+                                  {formatDisplayDate(item.oldDate)}
+                                </span>
+                                <span className="font-bold flex items-center gap-1.5">
+                                  <span>→</span>
+                                  <span
+                                    className={
+                                      item.isPast
+                                        ? "text-rose-700 underline"
+                                        : "text-amber-900"
+                                    }
+                                  >
+                                    {formatDisplayDate(item.newDate)}
+                                  </span>
+                                </span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Past Date Block Message */}
+                      {hasPastShiftError && (
+                        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center gap-2 animate-in fade-in font-bold">
+                          <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
+                          <span>
+                            {t("editReservation.dateShiftPastError", {
+                              defaultValue:
+                                "Shifted dates cannot land in the past. Please adjust days or weekday.",
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -1277,7 +1387,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 />
               </div>
 
-              {/* Notes */}
+              {/* Notes — auto-grows with content, starts at 1 line */}
               <div className="space-y-1.5">
                 <label
                   htmlFor="input-edit-reservation-note"
@@ -1307,11 +1417,11 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 />
               </div>
 
-              {/* 3. Date Selection (Single / 1 Selected) OR Date Shifting (Series) */}
+              {/* 3. Date + Duration preview — matches old file exactly */}
               {(!seriesId ||
                 (applySelectionMode === "selected" &&
                   selectedOccurrenceIds.length === 1 &&
-                  shiftType === "none")) ? (
+                  shiftType === "none")) && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label
@@ -1339,182 +1449,6 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                       {formatHhmmTo12Hour(endTimeStr)}
                     </div>
                   </div>
-                </div>
-              ) : (
-                /* Date Shifting Segmented Control (Series Mode) */
-                <div className="bg-white border border-stone-200 rounded-2xl p-4 space-y-3.5 shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-                    <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-amber-800" />
-                      <span>{t("editReservation.dateShiftTitle", { defaultValue: "Date Shifting" })}</span>
-                    </span>
-                    <span className="text-[11px] font-mono text-stone-500">
-                      {upcomingOccurrences.length} sessions
-                    </span>
-                  </div>
-
-                  {/* 3 Segmented Options */}
-                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-stone-100 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setShiftType("none")}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center touch-manipulation ${
-                        shiftType === "none"
-                          ? "bg-white text-stone-900 shadow-xs"
-                          : "text-stone-600 hover:text-stone-900"
-                      }`}
-                    >
-                      {t("editReservation.dateShiftKeep", { defaultValue: "Keep dates" })}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShiftType("days")}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center touch-manipulation ${
-                        shiftType === "days"
-                          ? "bg-white text-stone-900 shadow-xs"
-                          : "text-stone-600 hover:text-stone-900"
-                      }`}
-                    >
-                      {t("editReservation.dateShiftDays", { defaultValue: "Shift by days" })}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShiftType("weekday")}
-                      className={`py-2 px-2 rounded-lg text-xs font-bold transition cursor-pointer text-center touch-manipulation ${
-                        shiftType === "weekday"
-                          ? "bg-white text-stone-900 shadow-xs"
-                          : "text-stone-600 hover:text-stone-900"
-                      }`}
-                    >
-                      {t("editReservation.dateShiftWeekday", { defaultValue: "Change weekday" })}
-                    </button>
-                  </div>
-
-                  {/* Option 2: Shift by Days Stepper */}
-                  {shiftType === "days" && (
-                    <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2 animate-in fade-in">
-                      <label className="block text-xs font-semibold text-stone-700">
-                        {t("editReservation.shiftDaysLabel", {
-                          defaultValue: "Number of days to shift (positive or negative):",
-                        })}
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setShiftDays((d) => d - 1)}
-                          className="w-10 h-10 rounded-xl bg-white border border-stone-200 hover:bg-stone-100 active:bg-stone-200 text-stone-800 flex items-center justify-center cursor-pointer font-bold touch-manipulation"
-                          aria-label="Decrease days"
-                        >
-                          <Minus className="w-4 h-4" />
-                        </button>
-                        <input
-                          type="number"
-                          value={shiftDays}
-                          onChange={(e) => setShiftDays(parseInt(e.target.value) || 0)}
-                          className="w-24 text-center font-mono font-bold bg-white border border-stone-300 rounded-xl py-2 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShiftDays((d) => d + 1)}
-                          className="w-10 h-10 rounded-xl bg-white border border-stone-200 hover:bg-stone-100 active:bg-stone-200 text-stone-800 flex items-center justify-center cursor-pointer font-bold touch-manipulation"
-                          aria-label="Increase days"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                        <span className="text-xs font-bold text-amber-900">
-                          {shiftDays === 0
-                            ? t("editReservation.noDayShift", { defaultValue: "No shift" })
-                            : shiftDays > 0
-                              ? `+${shiftDays} ${t("editReservation.days", { defaultValue: "days" })}`
-                              : `${shiftDays} ${t("editReservation.days", { defaultValue: "days" })}`}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Option 3: Change Weekday Selector */}
-                  {shiftType === "weekday" && (
-                    <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2 animate-in fade-in">
-                      <label className="block text-xs font-semibold text-stone-700">
-                        {t("editReservation.shiftWeekdayLabel", {
-                          defaultValue:
-                            "Move all dates to the nearest weekday on or after each occurrence:",
-                        })}
-                      </label>
-                      <div className="grid grid-cols-7 gap-1">
-                        {WEEKDAYS.map((wd) => (
-                          <button
-                            key={wd.val}
-                            type="button"
-                            onClick={() => setTargetWeekday(wd.val)}
-                            className={`py-2 px-1 rounded-xl text-xs font-bold transition cursor-pointer text-center touch-manipulation border ${
-                              targetWeekday === wd.val
-                                ? "bg-amber-800 text-white border-amber-900 shadow-xs"
-                                : "bg-white text-stone-700 border-stone-200 hover:bg-stone-100"
-                            }`}
-                          >
-                            {isAr ? wd.labelAr : wd.labelEn}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Live Schedule Preview */}
-                  <div className="space-y-1.5 pt-1">
-                    <span className="block text-[11px] font-bold text-stone-600 uppercase tracking-wide">
-                      {t("editReservation.dateShiftPreviewTitle", {
-                        defaultValue: "Schedule Preview (Old Date → New Date)",
-                      })}
-                    </span>
-                    <div className="space-y-1 max-h-36 overflow-y-auto p-2 bg-stone-50 border border-stone-200 rounded-xl text-xs">
-                      {isLoadingOccurrences ? (
-                        <div className="py-4 text-center text-stone-400">Loading...</div>
-                      ) : previewOccurrences.length === 0 ? (
-                        <div className="py-2 text-center text-stone-400">
-                          No upcoming occurrences found.
-                        </div>
-                      ) : (
-                        previewOccurrences.map((item) => (
-                          <div
-                            key={item.id}
-                            className={`flex items-center justify-between py-1 px-2.5 rounded-lg border text-xs ${
-                              item.isPast
-                                ? "bg-rose-50 border-rose-200 text-rose-900 font-bold"
-                                : "bg-white border-stone-100 text-stone-700"
-                            }`}
-                          >
-                            <span className="text-stone-500 font-mono">
-                              #{item.index} {formatDisplayDate(item.oldDate)} ({item.oldTime})
-                            </span>
-                            <span className="font-bold flex items-center gap-1.5">
-                              <span>→</span>
-                              <span
-                                className={
-                                  item.isPast ? "text-rose-700 underline" : "text-amber-900"
-                                }
-                              >
-                                {formatDisplayDate(item.newDate)} ({startTime})
-                              </span>
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Past Date Block Message */}
-                  {hasPastShiftError && (
-                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center gap-2 animate-in fade-in font-bold">
-                      <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
-                      <span>
-                        {t("editReservation.dateShiftPastError", {
-                          defaultValue:
-                            "Shifted dates cannot land in the past. Please adjust days or weekday.",
-                        })}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1631,7 +1565,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                         {t("editReservation.outsideChurchLabel")}
                       </span>
                       <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-800 whitespace-nowrap">
-                        {t("editReservation.egpPerDayBadge", { fee: feeNumber })}
+                        {t("editReservation.egpPerDayBadge", {
+                          fee: feeNumber,
+                        })}
                       </span>
                     </div>
                     <p className="text-[11px] text-stone-500 leading-snug text-start">
@@ -1654,11 +1590,11 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                         <div className="text-purple-900 text-[11px] leading-relaxed">
                           {t("reservationDetail.paymentNotice")}
                         </div>
-                        {scope === "series" && (
+                        {seriesId && (
                           <div className="text-purple-950 font-bold text-xs pt-1 border-t border-purple-200">
                             Total estimated fee: EGP{" "}
-                            {feeNumber * (upcomingOccurrences.length || 1)} (
-                            {upcomingOccurrences.length} sessions)
+                            {feeNumber * (targetOccurrences.length || 1)} (
+                            {targetOccurrences.length} sessions)
                           </div>
                         )}
                       </div>
@@ -1710,7 +1646,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     <span>
-                      {scope === "series"
+                      {seriesId
                         ? t("editReservation.updatingSeries", {
                             defaultValue: "Updating Series...",
                           })
@@ -1721,20 +1657,17 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                   <>
                     <CheckCircle2 className="w-4 h-4" />
                     <span>
-                      {scope === "series" ? (
-                        applySelectionMode === "selected" ? (
-                          t("editReservation.updateSelectedButton", {
-                            count: targetOccurrences.length,
-                            defaultValue: `Update ${targetOccurrences.length} Selected Occurrences`,
-                          })
-                        ) : (
-                          t("editReservation.updateSeriesButton", {
-                            defaultValue: "Update Entire Series",
-                          })
-                        )
-                      ) : (
-                        t("editReservation.updateButton")
-                      )}
+                      {seriesId
+                        ? applySelectionMode === "selected" &&
+                          selectedOccurrenceIds.length > 1
+                          ? t("editReservation.updateSelectedButton", {
+                              count: selectedOccurrenceIds.length,
+                              defaultValue: `Update ${selectedOccurrenceIds.length} Selected`,
+                            })
+                          : t("editReservation.updateSeriesButton", {
+                              defaultValue: "Update Entire Series",
+                            })
+                        : t("editReservation.updateButton")}
                     </span>
                     {isAr ? (
                       <ArrowRight className="w-4 h-4 rotate-180" />
