@@ -361,15 +361,17 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     });
   };
 
-  // WEEKLY VIEW CALCULATIONS
+  // WEEKLY VIEW CALCULATIONS — week starts on Friday
   const weekDays = useMemo(() => {
     const base = parseLocalDate(selectedDate);
-    const dayOfWeek = base.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(
+    const dayOfWeek = base.getDay(); // 0=Sun … 6=Sat
+    // Friday = 5. Compute offset back to the most recent Friday.
+    // Fri->0, Sat->-1, Sun->-2, Mon->-3, Tue->-4, Wed->-5, Thu->-6
+    const diffToFriday = (dayOfWeek - 5 + 7) % 7; // 0..6, days since Friday
+    const friday = new Date(
       base.getFullYear(),
       base.getMonth(),
-      base.getDate() + diffToMonday,
+      base.getDate() - diffToFriday,
     );
 
     const days: {
@@ -380,9 +382,9 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     }[] = [];
     for (let i = 0; i < 7; i++) {
       const dayDate = new Date(
-        monday.getFullYear(),
-        monday.getMonth(),
-        monday.getDate() + i,
+        friday.getFullYear(),
+        friday.getMonth(),
+        friday.getDate() + i,
       );
       const dateStr = getLocalDateString(dayDate);
       days.push({
