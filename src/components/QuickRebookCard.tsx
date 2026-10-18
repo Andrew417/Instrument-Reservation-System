@@ -63,6 +63,10 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
 
+  // Quick Rebook is available to ALL authenticated users, including admins
+  // and super-admins, since admins are musicians too and make their own
+  // personal bookings. The backend endpoint resolves the caller's own
+  // identity (user OR admin) and returns suggestions from their own history.
   const [suggestions, setSuggestions] = useState<QuickRebookSuggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -97,11 +101,16 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
         const list: QuickRebookSuggestion[] =
           data.allSuggestions || (data.suggestion ? [data.suggestion] : []);
         setSuggestions(list);
-        if (selectedIndex >= list.length) {
-          setSelectedIndex(0);
-        }
       } else {
         setSuggestions([]);
+        if (
+          typeof import.meta !== "undefined" &&
+          (import.meta as any).env?.DEV &&
+          (data as any).reason
+        ) {
+          // eslint-disable-next-line no-console
+          console.info("[QuickRebook] no suggestion:", (data as any).reason);
+        }
       }
     } catch (err: any) {
       console.warn("Could not load quick rebook suggestion:", err.message);
@@ -109,7 +118,16 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [profile?.id, sessionToken, selectedIndex]);
+  }, [profile?.id, sessionToken]);
+
+  // Keep the selected index valid whenever the suggestion list changes.
+  useEffect(() => {
+    if (suggestions.length === 0) {
+      setSelectedIndex(0);
+    } else if (selectedIndex >= suggestions.length) {
+      setSelectedIndex(0);
+    }
+  }, [suggestions, selectedIndex]);
 
   useEffect(() => {
     fetchSuggestions();
@@ -120,33 +138,59 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
   }
 
   const activeSuggestion = suggestions[selectedIndex] || suggestions[0];
-  const dayName = isAr ? activeSuggestion.dayNameAr : activeSuggestion.dayNameEn;
+  const dayName = isAr
+    ? activeSuggestion.dayNameAr
+    : activeSuggestion.dayNameEn;
   const timeFormatted = `${formatHhmmTo12Hour(activeSuggestion.startTime)} – ${formatHhmmTo12Hour(activeSuggestion.endTime)}`;
-  const dateFormatted = formatDisplayDate(activeSuggestion.date, isAr ? "ar" : "en");
+  const dateFormatted = formatDisplayDate(
+    activeSuggestion.date,
+    isAr ? "ar" : "en",
+  );
 
-  // Helper to format service display name nicely according to active language
   const getLocalizedServiceName = (name: string): string => {
     if (!name) return "";
     const lower = name.toLowerCase().trim();
     if (isAr) {
-      if (lower.includes("youth") || lower.includes("شباب")) return "اجتماع الشباب";
-      if (lower.includes("sunday") || (lower.includes("liturgy") && lower.includes("أحد"))) return "قداس الأحد";
-      if (lower.includes("friday") || (lower.includes("liturgy") && lower.includes("جمعة"))) return "قداس الجمعة";
-      if (lower.includes("choir") || lower.includes("كورال") || lower.includes("ترانيم")) return "بروفة الكورال";
-      if (lower.includes("prayer") || lower.includes("صلاة") || lower.includes("عشية")) return "اجتماع صلاة وعشية";
+      if (lower.includes("youth") || lower.includes("شباب"))
+        return "اجتماع الشباب";
+      if (
+        lower.includes("sunday") ||
+        (lower.includes("liturgy") && lower.includes("أحد"))
+      )
+        return "قداس الأحد";
+      if (
+        lower.includes("friday") ||
+        (lower.includes("liturgy") && lower.includes("جمعة"))
+      )
+        return "قداس الجمعة";
+      if (
+        lower.includes("choir") ||
+        lower.includes("كورال") ||
+        lower.includes("ترانيم")
+      )
+        return "بروفة الكورال";
+      if (
+        lower.includes("prayer") ||
+        lower.includes("صلاة") ||
+        lower.includes("عشية")
+      )
+        return "اجتماع صلاة وعشية";
     } else {
       if (lower.includes("شباب")) return "Youth Meeting";
-      if (lower.includes("قداس") && lower.includes("أحد")) return "Sunday Liturgy";
-      if (lower.includes("قداس") && lower.includes("جمعة")) return "Friday Liturgy";
+      if (lower.includes("قداس") && lower.includes("أحد"))
+        return "Sunday Liturgy";
+      if (lower.includes("قداس") && lower.includes("جمعة"))
+        return "Friday Liturgy";
       if (lower.includes("كورال")) return "Choir Rehearsal";
       if (lower.includes("صلاة")) return "Prayer Meeting";
     }
     return name;
   };
 
-  const localizedActiveService = getLocalizedServiceName(activeSuggestion.serviceName);
+  const localizedActiveService = getLocalizedServiceName(
+    activeSuggestion.serviceName,
+  );
 
-  // Find instrument object from loaded instruments
   const matchedInstrument =
     instruments.find((i) => i.id === activeSuggestion.instrumentId) ||
     instruments[0] ||
@@ -242,10 +286,14 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
 
             <div className="min-w-0">
               <h4 className="text-xs sm:text-sm font-bold text-stone-900 truncate">
-                {t("quickRebook.successTitle", "Reservation Confirmed!")} — {confirmedBooking.instrumentName}
+                {t("quickRebook.successTitle", "Reservation Confirmed!")} —{" "}
+                {confirmedBooking.instrumentName}
               </h4>
               <p className="text-[11px] text-stone-600 font-medium truncate mt-0.5">
-                {confirmedBooking.serviceName} · {confirmedBooking.dayName}, {formatDisplayDate(confirmedBooking.date, isAr ? "ar" : "en")} · {formatHhmmTo12Hour(confirmedBooking.startTime)} – {formatHhmmTo12Hour(confirmedBooking.endTime)}
+                {confirmedBooking.serviceName} · {confirmedBooking.dayName},{" "}
+                {formatDisplayDate(confirmedBooking.date, isAr ? "ar" : "en")} ·{" "}
+                {formatHhmmTo12Hour(confirmedBooking.startTime)} –{" "}
+                {formatHhmmTo12Hour(confirmedBooking.endTime)}
               </p>
             </div>
           </div>
@@ -274,13 +322,12 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
     );
   }
 
-  // State B: Routine Service Ready to Re-Book (Collapsed by default, shows only title bar, expandable)
+  // State B: Routine Service Ready to Re-Book (collapsible)
   return (
     <div
       id="quick-rebook-routine-card"
       className="rounded-2xl bg-white border border-amber-200 shadow-2xs overflow-hidden transition-all hover:border-amber-300"
     >
-      {/* 1. Header / Collapsible Toggle Bar */}
       <div
         role="button"
         tabIndex={0}
@@ -334,23 +381,20 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
         </div>
       </div>
 
-      {/* 2. Card Content (Only shown when expanded) */}
       {isExpanded && (
         <div className="p-2.5 sm:p-3 space-y-2 border-t border-amber-100 animate-in fade-in duration-150">
-          {/* Main Details and Action Button container */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="space-y-1.5 min-w-0 flex-1">
-              {/* Row 1: Instrument Name + Service Dropdown */}
               <div className="flex items-center gap-2 flex-wrap text-xs">
-                {/* Instrument */}
                 <div className="flex items-center gap-1 font-bold text-stone-900 min-w-0">
                   <Music2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                  <span className="truncate">{activeSuggestion.instrumentName}</span>
+                  <span className="truncate">
+                    {activeSuggestion.instrumentName}
+                  </span>
                 </div>
 
                 <span className="text-stone-300 font-bold">·</span>
 
-                {/* Service Dropdown */}
                 <div className="flex items-center gap-1 min-w-0">
                   <Church className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                   <div className="relative inline-flex items-center">
@@ -362,7 +406,8 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
                     >
                       {suggestions.map((sug, idx) => (
                         <option key={idx} value={idx}>
-                          {getLocalizedServiceName(sug.serviceName)} ({isAr ? sug.dayNameAr : sug.dayNameEn})
+                          {getLocalizedServiceName(sug.serviceName)} (
+                          {isAr ? sug.dayNameAr : sug.dayNameEn})
                         </option>
                       ))}
                     </select>
@@ -370,9 +415,10 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
                   </div>
                 </div>
 
-                <span className="text-stone-300 font-bold hidden xs:inline">·</span>
+                <span className="text-stone-300 font-bold hidden xs:inline">
+                  ·
+                </span>
 
-                {/* Musician */}
                 <div className="items-center gap-1 text-stone-600 hidden xs:inline-flex min-w-0">
                   <User className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                   <span className="truncate font-medium">
@@ -381,7 +427,6 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
                 </div>
               </div>
 
-              {/* Row 2: Date & Time + Status */}
               <div className="flex items-center gap-1.5 flex-wrap text-xs text-stone-700 font-semibold">
                 <div className="inline-flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
@@ -400,11 +445,12 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
 
                 <span className="text-stone-300 font-bold">·</span>
 
-                {/* Status Indicator */}
                 {activeSuggestion.alreadyBooked ? (
                   <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-emerald-800 bg-emerald-100/90 px-1.5 py-0.2 rounded">
                     <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                    <span>{t("quickRebook.alreadyBookedShort", "Already Booked")}</span>
+                    <span>
+                      {t("quickRebook.alreadyBookedShort", "Already Booked")}
+                    </span>
                   </span>
                 ) : activeSuggestion.isAvailable ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700">
@@ -414,13 +460,14 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
                 ) : (
                   <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-amber-800 bg-amber-100/90 px-1.5 py-0.2 rounded">
                     <AlertCircle className="w-3 h-3 text-amber-700" />
-                    <span>{t("quickRebook.slotOccupiedShort", "Occupied")}</span>
+                    <span>
+                      {t("quickRebook.slotOccupiedShort", "Occupied")}
+                    </span>
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Action Button Container */}
             <div className="shrink-0 flex items-center justify-end">
               {activeSuggestion.alreadyBooked ? null : activeSuggestion.isAvailable ? (
                 <button
@@ -432,12 +479,16 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
                   {submitting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
-                      <span>{t("quickRebook.confirming", "Confirming...")}</span>
+                      <span>
+                        {t("quickRebook.confirming", "Confirming...")}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Zap className="w-3.5 h-3.5 fill-current text-amber-400" />
-                      <span>{t("quickRebook.confirmBtn", "Confirm in 1 Tap")}</span>
+                      <span>
+                        {t("quickRebook.confirmBtn", "Confirm in 1 Tap")}
+                      </span>
                     </>
                   )}
                 </button>
@@ -454,7 +505,6 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
             </div>
           </div>
 
-          {/* Error notification if submit failed */}
           {errorMsg && (
             <div className="bg-red-50 border border-red-200 text-red-800 text-[11px] font-semibold px-2 py-1 rounded-md flex items-center justify-between gap-2 animate-in fade-in">
               <span className="truncate">{errorMsg}</span>

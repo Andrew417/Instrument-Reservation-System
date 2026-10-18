@@ -68,6 +68,40 @@ async function extractSessionIdentity(req: Request) {
 }
 
 /**
+ * Resolve the calling user's OWN identity for "self-booking" features
+ * like quick-rebook. Returns the users.id when a member session is present,
+ * or the admins.id when an admin / super_admin session is present.
+ *
+ * Admins are musicians too and often book instruments for themselves
+ * through the normal member flow — those bookings are stored with
+ * r.admin_id set and r.user_id = NULL.
+ */
+async function extractSelfBookingIdentity(
+  req: Request,
+): Promise<{ id: string; kind: "user" | "admin" } | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  const token = authHeader.substring(7).trim();
+  try {
+    const { valid, session } = await validateSession(token);
+    if (!valid || !session) return null;
+    const role = (session as any).role;
+    const isAdminRole = role === "admin" || role === "super_admin";
+    if (isAdminRole) {
+      const adminId =
+        (session as any).adminId ?? (session as any).admin?.id ?? null;
+      if (!adminId) return null;
+      return { id: adminId, kind: "admin" };
+    }
+    const userId = (session as any).userId ?? (session as any).user?.id ?? null;
+    if (!userId) return null;
+    return { id: userId, kind: "user" };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * FIX: Returns true only when the Bearer token belongs to a super_admin session.
  * Never reads from the request body.
  */
@@ -131,75 +165,71 @@ router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
 /**
  * 2. Create recurring reservation series
  */
-router.post(
-  "/series",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      if (!req.body.serviceName || !req.body.serviceName.trim()) {
-        res.status(400).json({
-          success: false,
-          error: "What this reservation is for (service_name) is required.",
-        });
-        return;
-      }
-      if (!req.body.musicianName || !req.body.musicianName.trim()) {
-        res.status(400).json({
-          success: false,
-          error: "Musician name is required.",
-        });
-        return;
-      }
-      if (!req.body.instrumentId) {
-        res.status(400).json({
-          success: false,
-          error: "Instrument is required.",
-        });
-        return;
-      }
-      if (
-        !Array.isArray(req.body.occurrences) ||
-        req.body.occurrences.length === 0
-      ) {
-        res.status(400).json({
-          success: false,
-          error: "Series must have at least one occurrence.",
-        });
-        return;
-      }
-
-      const sessionIdentity = await extractSessionIdentity(req);
-      const payload = {
-        ...req.body,
-        ...(sessionIdentity
-          ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
-          : {}),
-      };
-      const result = await createReservationSeries(payload);
-      res.status(201).json({ success: true, ...result });
-    } catch (err: any) {
-      console.error("Reservation series create error:", err);
-      const msg: string =
-        err.message || "Failed to create reservation series.";
-      const status =
-        err.code === "SUBMISSION_BLOCKED"
-          ? 400
-          : /not authorized/i.test(msg)
-            ? 403
-            : /not found/i.test(msg)
-              ? 404
-              : /conflicts?|working hours|maximum duration|exceeds|overlap|future|at least|at most|selected|invalid date|duration must|limit/i.test(
-                    msg,
-                  )
-                ? 400
-                : 500;
-      res.status(status).json({
+router.post("/series", async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.body.serviceName || !req.body.serviceName.trim()) {
+      res.status(400).json({
         success: false,
-        error: msg,
-        cause: err.cause?.message,
+        error: "What this reservation is for (service_name) is required.",
       });
+      return;
     }
-  },
-);
+    if (!req.body.musicianName || !req.body.musicianName.trim()) {
+      res.status(400).json({
+        success: false,
+        error: "Musician name is required.",
+      });
+      return;
+    }
+    if (!req.body.instrumentId) {
+      res.status(400).json({
+        success: false,
+        error: "Instrument is required.",
+      });
+      return;
+    }
+    if (
+      !Array.isArray(req.body.occurrences) ||
+      req.body.occurrences.length === 0
+    ) {
+      res.status(400).json({
+        success: false,
+        error: "Series must have at least one occurrence.",
+      });
+      return;
+    }
+
+    const sessionIdentity = await extractSessionIdentity(req);
+    const payload = {
+      ...req.body,
+      ...(sessionIdentity
+        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
+        : {}),
+    };
+    const result = await createReservationSeries(payload);
+    res.status(201).json({ success: true, ...result });
+  } catch (err: any) {
+    console.error("Reservation series create error:", err);
+    const msg: string = err.message || "Failed to create reservation series.";
+    const status =
+      err.code === "SUBMISSION_BLOCKED"
+        ? 400
+        : /not authorized/i.test(msg)
+          ? 403
+          : /not found/i.test(msg)
+            ? 404
+            : /conflicts?|working hours|maximum duration|exceeds|overlap|future|at least|at most|selected|invalid date|duration must|limit/i.test(
+                  msg,
+                )
+              ? 400
+              : 500;
+    res.status(status).json({
+      success: false,
+      error: msg,
+      cause: err.cause?.message,
+    });
+  }
+});
 
 /**
  * 3. Create single reservation
@@ -253,53 +283,52 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 /**
  * Bulk edit upcoming occurrences of a recurring series (owner or admin)
  */
-router.patch("/series/:seriesId", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { seriesId } = req.params;
-    const sessionIdentity = await extractSessionIdentity(req);
-    const rawBody = (req.body ?? {}) as Record<string, unknown>;
+router.patch(
+  "/series/:seriesId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { seriesId } = req.params;
+      const sessionIdentity = await extractSessionIdentity(req);
+      const rawBody = (req.body ?? {}) as Record<string, unknown>;
 
-    const actor = sessionIdentity
-      ? {
-          userId: sessionIdentity.userId,
-          adminId: sessionIdentity.adminId,
-          isSuperAdmin: await resolveIsSuperAdmin(req),
-        }
-      : {
-          userId: (rawBody.userId as string | undefined) ?? null,
-          adminId: null,
-          isSuperAdmin: false,
-        };
+      const actor = sessionIdentity
+        ? {
+            userId: sessionIdentity.userId,
+            adminId: sessionIdentity.adminId,
+            isSuperAdmin: await resolveIsSuperAdmin(req),
+          }
+        : {
+            userId: (rawBody.userId as string | undefined) ?? null,
+            adminId: null,
+            isSuperAdmin: false,
+          };
 
-    const result = await editReservationSeries(
-      seriesId,
-      req.body,
-      actor,
-    );
+      const result = await editReservationSeries(seriesId, req.body, actor);
 
-    res.json({
-      success: true,
-      updatedCount: result.updatedCount,
-      statusSummary: result.statusSummary,
-      ...(result.message ? { message: result.message } : {}),
-    });
-  } catch (err: any) {
-    console.error("Series edit error:", err);
-    const msg: string = err.message || "Failed to edit recurring series.";
-    const status = /not authorized/i.test(msg)
-      ? 403
-      : /not found/i.test(msg)
-        ? 404
-        : /conflict|working hours|past/i.test(msg)
-          ? 400
-          : 500;
-    res.status(status).json({
-      success: false,
-      error: msg,
-      conflicts: err.conflicts || undefined,
-    });
-  }
-});
+      res.json({
+        success: true,
+        updatedCount: result.updatedCount,
+        statusSummary: result.statusSummary,
+        ...(result.message ? { message: result.message } : {}),
+      });
+    } catch (err: any) {
+      console.error("Series edit error:", err);
+      const msg: string = err.message || "Failed to edit recurring series.";
+      const status = /not authorized/i.test(msg)
+        ? 403
+        : /not found/i.test(msg)
+          ? 404
+          : /conflict|working hours|past/i.test(msg)
+            ? 400
+            : 500;
+      res.status(status).json({
+        success: false,
+        error: msg,
+        conflicts: err.conflicts || undefined,
+      });
+    }
+  },
+);
 
 /**
  * FIX: Actor identity is ALWAYS resolved from the Bearer session token — never
@@ -310,7 +339,6 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    // FIX: strip client-supplied identity claims so they can't be spoofed.
     const rawBody = (req.body ?? {}) as Record<string, unknown>;
     const updates: Record<string, unknown> = { ...rawBody };
     delete updates.userId;
@@ -319,8 +347,6 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
 
     const sessionIdentity = await extractSessionIdentity(req);
 
-    // FIX: build the actor from the token; only fall back to a body userId
-    // (never a body adminId) when there is no session at all.
     const actor: {
       userId?: string | null;
       adminId?: string | null;
@@ -496,7 +522,6 @@ router.get(
       );
       let rows = (result as any).rows || [];
       if (rows.length === 0) {
-        // Initialize default payment settings
         const inserted = await db.execute(sql`
         INSERT INTO payment_settings (instapay_number, instapay_link, updated_at)
         VALUES ('0100 123 4567', 'https://ipn.eg/coptic-church-instruments', NOW())
@@ -610,10 +635,8 @@ router.delete(
     try {
       const { id } = req.params;
 
-      // Resolve actor identity from the Bearer token (same pattern as other routes)
       const sessionIdentity = await extractSessionIdentity(req);
 
-      // Fetch the reservation to verify ownership
       const lookup = await db.execute(sql`
         SELECT id, user_id, payment_screenshot_url
         FROM reservations
@@ -630,8 +653,6 @@ router.delete(
 
       const reservation = lookupRows[0];
 
-      // If we have a session token, enforce ownership for non-admins.
-      // Admins / super_admins may delete on behalf of any reservation.
       if (sessionIdentity) {
         const isAdminActor = Boolean(sessionIdentity.adminId);
         const isOwner =
@@ -643,12 +664,7 @@ router.delete(
           return;
         }
       }
-      // If no session identity is present, we still allow the request
-      // (matches the trust model of the existing POST endpoint in this file,
-      //  which also has no auth check). If you want stricter behavior,
-      // return 401 here instead.
 
-      // Clear the screenshot column
       const result = await db.execute(sql`
         UPDATE reservations
         SET payment_screenshot_url = NULL
@@ -678,7 +694,6 @@ router.delete(
 
 /**
  * 14c. Confirm payment (member presses "Save") → email all approved admins
- * No DB schema changes: uses existing payment_screenshot_url as proof.
  */
 router.post(
   "/:id/confirm-paid",
@@ -686,10 +701,8 @@ router.post(
     try {
       const { id } = req.params;
 
-      // Resolve actor from Bearer token
       const sessionIdentity = await extractSessionIdentity(req);
 
-      // Load reservation + member + instrument context
       const lookup = await db.execute(sql`
         SELECT
           r.id,
@@ -721,7 +734,6 @@ router.post(
       }
       const r = rows[0];
 
-      // Ownership check (session-based)
       if (sessionIdentity) {
         const isAdminActor = Boolean(sessionIdentity.adminId);
         const isOwner =
@@ -736,7 +748,6 @@ router.post(
       const instrumentName = r.instrument_name || "an instrument";
       const serviceName = r.service_name || "Reservation";
 
-      // Send email via shared mailer
       let emailSent = false;
       let emailError: string | null = null;
       let recipientCount = 0;
@@ -763,7 +774,6 @@ router.post(
         console.warn("Confirm-paid email failed:", emailError);
       }
 
-      // Also insert in-app notifications for approved admins (fallback / belt & suspenders)
       try {
         const adminIdsRes = await db.execute(sql`
           SELECT id FROM admins WHERE approval_status = 'approved'
@@ -806,6 +816,7 @@ router.post(
     }
   },
 );
+
 /**
  * 15. Post message or reply to reservation (by user or admin)
  */
@@ -824,7 +835,6 @@ router.post(
         return;
       }
 
-      // Check session identity from bearer token
       const sessionIdentity = await extractSessionIdentity(req);
       let senderRole = bodyRole;
       let senderName = bodyName || null;
@@ -851,7 +861,6 @@ router.post(
         }
       }
 
-      // Fetch reservation record (expanded with contact + slot context for email dispatch)
       const resInfo = await db.execute(sql`
         SELECT
           r.user_id,
@@ -915,10 +924,8 @@ router.post(
 
       const createdMessage = (inserted as any).rows?.[0];
 
-      // Create notifications
       try {
         if (senderRole === "user") {
-          // Notify approved admins of user reply
           const adminList = await db.execute(
             sql`SELECT id FROM admins WHERE approval_status = 'approved'`,
           );
@@ -937,7 +944,6 @@ router.post(
           `);
           }
         } else {
-          // Notify user of admin message
           if (resRecord?.user_id) {
             await db.execute(sql`
             INSERT INTO notifications (user_id, type, message, is_read, reservation_id, created_at)
@@ -959,7 +965,6 @@ router.post(
         );
       }
 
-      // Web Push Notifications for Chat Messages
       try {
         const cleanContent = content.trim();
         const snippet =
@@ -972,7 +977,6 @@ router.post(
           "Reservation";
 
         if (senderRole === "user") {
-          // Member replied -> Push to all approved admins who haven't muted member messages
           const memberLabelAr = senderName || resRecord?.user_name || "عضو";
           const memberLabelEn =
             senderName || resRecord?.user_name || "A member";
@@ -992,7 +996,6 @@ router.post(
             console.warn("[Push chat member->admin error]:", e.message),
           );
         } else {
-          // Admin sent -> Push to reservation member
           if (resRecord?.user_id) {
             sendPushToUser(resRecord.user_id, {
               titleAr: "رسالة من إدارة الكنيسة",
@@ -1014,13 +1017,11 @@ router.post(
         );
       }
 
-      // Send email notification to the other party
       let emailSent = false;
       let emailError: string | null = null;
       let emailRecipientCount = 0;
       try {
         if (senderRole === "user") {
-          // Member replied → email all approved admins
           const { sendNewMessageToAdminsEmail } =
             await import("../lib/mailer.js");
           const result = await sendNewMessageToAdminsEmail({
@@ -1036,7 +1037,6 @@ router.post(
           emailError = result.error || null;
           emailRecipientCount = result.recipientCount || 0;
         } else {
-          // Admin sent → email the reservation's owning member (if any)
           if (resRecord?.user_id && resRecord?.user_email) {
             const { sendNewMessageToMemberEmail } =
               await import("../lib/mailer.js");
@@ -1104,7 +1104,6 @@ router.get(
         return;
       }
 
-      // Get user info
       const userRes = await db.execute(sql`
         SELECT id, name, phone_number, created_at, is_trusted
         FROM users WHERE id = ${targetUserId} LIMIT 1
@@ -1116,7 +1115,6 @@ router.get(
       }
       const user = userRows[0];
 
-      // Get all user reservations
       const reservationsRes = await db.execute(sql`
         SELECT 
           r.id,
@@ -1276,27 +1274,55 @@ router.get(
 
 /**
  * 15b. GET /quick-rebook-suggestion
- * Analyzes the user's routine service patterns and calculates the next upcoming routine slot
- * for 1-Tap Quick Re-Book.
+ * Analyzes the calling user's (or admin's) routine service patterns and
+ * returns the next upcoming routine slot for 1-Tap Quick Re-Book.
+ *
+ * Admins are musicians too — this endpoint resolves the caller's OWN
+ * identity whether they're a regular user or an admin, then looks at
+ * their own bookings on the appropriate column (r.user_id or r.admin_id).
  */
 router.get(
   "/quick-rebook-suggestion",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const sessionIdentity = await extractSessionIdentity(req);
-      const userId = sessionIdentity?.userId;
-      if (!userId) {
-        res.json({ success: true, hasSuggestion: false });
+      // Admins are musicians too — resolve their own identity as either
+      // a user (r.user_id) or an admin (r.admin_id). Both kinds can self-book.
+      const selfIdentity = await extractSelfBookingIdentity(req);
+      if (!selfIdentity) {
+        res.json({
+          success: true,
+          hasSuggestion: false,
+          reason: "no-session",
+        });
         return;
       }
+      const { id: actorId, kind: actorKind } = selfIdentity;
 
-      // 1. Get user name
-      const userRes = await db.execute(sql`
-        SELECT name FROM users WHERE id = ${userId} LIMIT 1
-      `);
-      const userName = (userRes as any).rows?.[0]?.name || "Musician";
+      // The predicate used to match the actor's own rows.
+      // Prefer the direct column, and as a safety net also match the
+      // "other" column in case legacy rows recorded the actor there.
+      const ownPredicate =
+        actorKind === "user"
+          ? sql`(r.user_id = ${actorId} OR (r.admin_id = ${actorId} AND r.booked_by_admin = false))`
+          : sql`(r.admin_id = ${actorId} OR r.user_id = ${actorId})`;
 
-      // 2. Fetch user's latest 25 reservations
+      // 1. Resolve display name (user or admin)
+      let userName = "Musician";
+      if (actorKind === "user") {
+        const userRes = await db.execute(sql`
+          SELECT name FROM users WHERE id = ${actorId} LIMIT 1
+        `);
+        userName = (userRes as any).rows?.[0]?.name || "Musician";
+      } else {
+        const adminRes = await db.execute(sql`
+          SELECT name FROM admins WHERE id = ${actorId} LIMIT 1
+        `);
+        userName = (adminRes as any).rows?.[0]?.name || "Administrator";
+      }
+
+      // 2. Fetch the actor's latest 25 self-bookings (both user_id and
+      //    admin_id rows are considered so admins who booked themselves
+      //    through either flow get suggestions).
       const pastRes = await db.execute(sql`
         SELECT 
           r.id,
@@ -1313,7 +1339,7 @@ router.get(
           i.type as instrument_type
         FROM reservations r
         JOIN instruments i ON r.instrument_id = i.id
-        WHERE r.user_id = ${userId}
+        WHERE ${ownPredicate}
           AND r.status IN ('approved', 'pending', 'completed')
           AND i.is_removed = false
         ORDER BY lower(r.time_range) DESC
@@ -1324,8 +1350,8 @@ router.get(
       const routineCandidates: any[] = [];
 
       if (rows.length > 0) {
-        // Group by pattern (instrumentId + dow + start_time_cairo)
-        const patternCounts: Record<string, { count: number; sample: any }> = {};
+        const patternCounts: Record<string, { count: number; sample: any }> =
+          {};
         for (const row of rows) {
           const key = `${row.instrument_id}__${row.dow}__${row.start_time_cairo}`;
           if (!patternCounts[key]) {
@@ -1335,79 +1361,35 @@ router.get(
         }
 
         const sortedPatterns = Object.values(patternCounts)
-          .filter((p) => p.sample.service_name && p.sample.service_name.trim().length > 1)
+          .filter(
+            (p) =>
+              p.sample.service_name && p.sample.service_name.trim().length > 1,
+          )
           .sort((a, b) => b.count - a.count);
 
-        // Include the single best past user pattern if valid
         if (sortedPatterns.length > 0) {
-          routineCandidates.push(sortedPatterns[0].sample);
-        } else if (rows[0] && rows[0].service_name && rows[0].service_name.trim().length > 1) {
+          // Offer up to 4 distinct routines so the member can pick between
+          // multiple equally-valid weekday patterns.
+          const top = sortedPatterns.slice(0, 4).map((p) => p.sample);
+          for (const candidate of top) routineCandidates.push(candidate);
+        } else if (
+          rows[0] &&
+          rows[0].service_name &&
+          rows[0].service_name.trim().length > 1
+        ) {
           routineCandidates.push(rows[0]);
         }
       }
 
-      // Always query available instruments to back standard services
-      const instRes = await db.execute(sql`
-        SELECT id, name, type FROM instruments WHERE is_removed = false ORDER BY name ASC LIMIT 4
-      `);
-      const instRows = (instRes as any).rows || [];
-
-      if (routineCandidates.length === 0 && instRows.length === 0) {
-        res.json({ success: true, hasSuggestion: false });
+      // No hardcoded fallbacks: only real booking history drives suggestions.
+      // If the caller has no past bookings, the card is not shown.
+      if (routineCandidates.length === 0) {
+        res.json({
+          success: true,
+          hasSuggestion: false,
+          reason: "no-history",
+        });
         return;
-      }
-
-      // Primary instrument to use for standard church services
-      const primaryInst = routineCandidates[0]
-        ? {
-            id: routineCandidates[0].instrument_id,
-            name: routineCandidates[0].instrument_name,
-            type: routineCandidates[0].instrument_type,
-          }
-        : instRows[0] || { id: "", name: "Instrument", type: "Instrument" };
-
-      // Standard church services to always offer as switchable options
-      const standardServices = [
-        {
-          service_name: "Youth Meeting",
-          dow: 5, // Friday
-          start_time_cairo: "18:00",
-          duration_hours: 2,
-        },
-        {
-          service_name: "Sunday Liturgy",
-          dow: 0, // Sunday
-          start_time_cairo: "08:30",
-          duration_hours: 2.5,
-        },
-        {
-          service_name: "Choir Rehearsal",
-          dow: 4, // Thursday
-          start_time_cairo: "19:00",
-          duration_hours: 2,
-        },
-      ];
-
-      for (const std of standardServices) {
-        // Only append if not already in routineCandidates with identical service name and dow
-        const exists = routineCandidates.some(
-          (c) =>
-            Number(c.dow) === std.dow &&
-            c.service_name.trim().toLowerCase() === std.service_name.toLowerCase(),
-        );
-        if (!exists && routineCandidates.length < 5) {
-          routineCandidates.push({
-            instrument_id: primaryInst.id,
-            instrument_name: primaryInst.name,
-            instrument_type: primaryInst.type,
-            service_name: std.service_name,
-            musician_name: userName,
-            dow: std.dow,
-            start_time_cairo: std.start_time_cairo,
-            duration_hours: std.duration_hours,
-            reservation_type: "in_church",
-          });
-        }
       }
 
       const dayNamesEn = [
@@ -1432,7 +1414,6 @@ router.get(
       const suggestionsList: any[] = [];
 
       for (const routine of routineCandidates) {
-        // Calculate next target date for this day of week (dow: 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat)
         const targetDow =
           routine.dow !== null && routine.dow !== undefined
             ? Number(routine.dow)
@@ -1472,29 +1453,30 @@ router.get(
           startLocal.getTime() + durationHours * 3600 * 1000,
         );
 
-        // Check if user already has an active booking for this slot
+        // Already-booked check uses the same ownPredicate so admins see
+        // "Already Booked" correctly against their own admin_id rows.
         const existingUserBooking = await db.execute(sql`
-          SELECT id, status FROM reservations
-          WHERE user_id = ${userId}
-            AND instrument_id = ${routine.instrument_id}
-            AND status IN ('approved', 'pending')
-            AND time_range && tstzrange(${startLocal.toISOString()}, ${endLocal.toISOString()}, '[)')
+          SELECT id, status FROM reservations r
+          WHERE ${ownPredicate}
+            AND r.instrument_id = ${routine.instrument_id}
+            AND r.status IN ('approved', 'pending')
+            AND r.time_range && tstzrange(${startLocal.toISOString()}, ${endLocal.toISOString()}, '[)')
           LIMIT 1
         `);
         const alreadyBookedRow = (existingUserBooking as any).rows?.[0];
 
-        // Check if another reservation conflicts
         const conflictCheck = await db.execute(sql`
-          SELECT id FROM reservations
-          WHERE instrument_id = ${routine.instrument_id}
-            AND status IN ('approved', 'pending')
-            AND time_range && tstzrange(${startLocal.toISOString()}, ${endLocal.toISOString()}, '[)')
-            ${alreadyBookedRow ? sql`AND id != ${alreadyBookedRow.id}` : sql``}
+          SELECT id FROM reservations r
+          WHERE r.instrument_id = ${routine.instrument_id}
+            AND r.status IN ('approved', 'pending')
+            AND r.time_range && tstzrange(${startLocal.toISOString()}, ${endLocal.toISOString()}, '[)')
+            ${alreadyBookedRow ? sql`AND r.id != ${alreadyBookedRow.id}` : sql``}
           LIMIT 1
         `);
         const isAvailable = (conflictCheck as any).rows?.length === 0;
 
-        const endTotalMinutes = startH * 60 + (startM || 0) + Math.round(durationHours * 60);
+        const endTotalMinutes =
+          startH * 60 + (startM || 0) + Math.round(durationHours * 60);
         const endH = Math.floor(endTotalMinutes / 60);
         const endM = endTotalMinutes % 60;
         const endTimeCairo = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
@@ -1539,7 +1521,6 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    // Ensure status transitions are up-to-date in serverless environment
     await ensureCurrentReservationStatuses().catch(() => {});
 
     const authHeader = req.headers.authorization;
@@ -1631,7 +1612,6 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
       Number(r.duration_hours) >= 13;
 
-    // Fetch sibling reservations in same Band Pack if applicable
     let bandPackItems: any[] = [];
     if (r.band_pack_id) {
       const packRes = await db.execute(sql`
@@ -1686,7 +1666,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, instrumentId, status, seriesId } = req.query;
 
-    // Ensure status transitions are up-to-date in serverless environment
     await ensureCurrentReservationStatuses().catch(() => {});
 
     const authHeader = req.headers.authorization;
@@ -1801,7 +1780,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       const maskedPhoto = r.instrument_photo_url;
 
       if (isOwn && userId && String(userId) === currentUserId) {
-        // User querying their own reservations (MyReservations view)
         return {
           ...r,
           instrument_name: maskedName,
@@ -1812,8 +1790,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
           isFullDay,
         };
       }
-      // For regular users querying instruments / general calendars:
-      // Redact reservant identity, phone, payment, and service name completely
       return {
         ...r,
         instrument_name: maskedName,
