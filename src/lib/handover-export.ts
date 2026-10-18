@@ -44,6 +44,47 @@ export const HANDOVER_HEADERS = [
 ] as const;
 
 /**
+ * Format an ISO date (YYYY-MM-DD) as "Fri 23-10-2026".
+ * Returns "—" if the input is empty/unparseable.
+ */
+export function formatHandoverDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const [yStr, mStr, dStr] = String(iso).split("-");
+  if (!yStr || !mStr || !dStr) return String(iso);
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10) - 1;
+  const day = parseInt(dStr, 10);
+  const d = new Date(year, month, day);
+  if (isNaN(d.getTime())) return String(iso);
+  const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
+  const dd = String(day).padStart(2, "0");
+  const mm = String(month + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${weekday} ${dd}-${mm}-${yyyy}`;
+}
+
+/**
+ * Format an ISO date for use inside a filename, e.g. "Fri_23-10-2026"
+ * (weekday prefix kept, spaces replaced with underscores so the name
+ * is safe to download across OSes).
+ */
+function formatFileNameDate(iso: string): string {
+  if (!iso) return iso;
+  const [yStr, mStr, dStr] = String(iso).split("-");
+  if (!yStr || !mStr || !dStr) return String(iso).replace(/\s+/g, "_");
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10) - 1;
+  const day = parseInt(dStr, 10);
+  const d = new Date(year, month, day);
+  if (isNaN(d.getTime())) return String(iso).replace(/\s+/g, "_");
+  const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
+  const dd = String(day).padStart(2, "0");
+  const mm = String(month + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${weekday}_${dd}-${mm}-${yyyy}`;
+}
+
+/**
  * Escape a CSV cell value according to RFC 4180
  */
 export function escapeCsvCell(val: any): string {
@@ -61,9 +102,10 @@ export function escapeCsvCell(val: any): string {
 }
 
 /**
- * Compute filename with .csv or .xlsx extension
- * e.g. reservations_2026-09-04.xlsx (Day)
- * e.g. reservations_2026-09-04_to_2026-09-10.xlsx (Week)
+ * Compute filename with .csv / .xlsx / .pdf extension.
+ *
+ * Day:  reservations_Fri_23-10-2026.xlsx
+ * Week: reservations_Fri_23-10-2026_to_Thu_29-10-2026.xlsx
  */
 export function getHandoverFileName(
   viewMode: "day" | "week",
@@ -72,10 +114,12 @@ export function getHandoverFileName(
   format: HandoverExportFormat = "xlsx",
 ): string {
   const ext = format === "csv" ? "csv" : format === "pdf" ? "pdf" : "xlsx";
+  const startLabel = formatFileNameDate(startDate);
   if (viewMode === "day") {
-    return `reservations_${startDate}.${ext}`;
+    return `reservations_${startLabel}.${ext}`;
   }
-  return `reservations_${startDate}_to_${endDate}.${ext}`;
+  const endLabel = formatFileNameDate(endDate);
+  return `reservations_${startLabel}_to_${endLabel}.${ext}`;
 }
 
 /**
@@ -107,7 +151,6 @@ export async function fetchHandoverReservations(
     throw new Error(data.error || "Failed to load handover reservations");
   }
 
-  // Ensure chronological order: date ascending, then start time ascending
   const items: HandoverReservationItem[] = data.reservations || [];
   return items.sort((a, b) => {
     const dateComp = (a.reservation_date || "").localeCompare(
@@ -120,16 +163,18 @@ export async function fetchHandoverReservations(
 
 /**
  * Build CSV string for key-holder handover sheet
- * Ordered 9 Columns:
- * 1. Date
+ * Ordered 11 Columns:
+ * 1. Date (formatted "Fri 23-10-2026")
  * 2. Start Time
  * 3. End Time
  * 4. Instrument
  * 5. Type/Category
  * 6. Service Name
- * 7. Reserved By
- * 8. Phone Number
- * 9. Usage Type
+ * 7. Musician Name
+ * 8. Reserved By
+ * 9. Phone Number
+ * 10. Usage Type
+ * 11. Notes
  */
 export function buildHandoverCsvContent(
   reservations: HandoverReservationItem[],
@@ -143,7 +188,7 @@ export function buildHandoverCsvContent(
       r.reservation_type === "outside_church" ? "Outside" : "In-church";
 
     return [
-      escapeCsvCell(r.reservation_date),
+      escapeCsvCell(formatHandoverDate(r.reservation_date)),
       escapeCsvCell(startTime12),
       escapeCsvCell(endTime12),
       escapeCsvCell(r.instrument_name),
@@ -193,6 +238,7 @@ export function downloadHandoverCsv(
  * - Header row: Bold white text, dark navy church-brand fill (FF1E293B), frozen view
  * - Column widths: Auto-sized to content with comfortable padding
  * - Row banding: Alternating light-gray (FFF8FAFC) / white (FFFFFFFF)
+ * - Date cell: formatted "Fri 23-10-2026"
  * - Usage Type: Color-coded cell (soft green FFDCFCE7 for "In-church", soft amber FFFEF3C7 for "Outside")
  * - Borders: Thin light-gray borders (FFE2E8F0) on all cells
  * - Alignment: Date & Time columns center-aligned; Usage Type center-aligned; rest left-aligned
@@ -262,7 +308,7 @@ export async function downloadHandoverXlsx(
     const usageText = isOutside ? "Outside" : "In-church";
 
     const row = worksheet.addRow([
-      r.reservation_date,
+      formatHandoverDate(r.reservation_date),
       startTime12,
       endTime12,
       r.instrument_name,
@@ -338,7 +384,7 @@ export async function downloadHandoverXlsx(
 
   // 3. Auto-size column widths based on content with comfortable padding & sensible minimums
   // Date, Start, End, Instrument, Type, Service Name, Musician Name, Reserved By, Phone, Usage Type, Notes
-  const minWidths = [14, 13, 13, 22, 16, 24, 22, 22, 16, 14, 26];
+  const minWidths = [22, 13, 13, 22, 16, 24, 22, 22, 16, 14, 26];
 
   worksheet.columns.forEach((col, idx) => {
     let maxLen = 0;

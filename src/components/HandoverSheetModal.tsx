@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import {
@@ -6,6 +12,7 @@ import {
   addDaysToDateString,
   formatDisplayDate,
   formatHhmmTo12Hour,
+  parseLocalDate,
 } from "../lib/date-utils";
 import {
   FileSpreadsheet,
@@ -95,10 +102,19 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Compute startDate and endDate based on viewMode and anchorDate
-  const startDate = anchorDate;
+  // Compute startDate and endDate based on viewMode and anchorDate.
+  // Week mode always starts on Friday: snap the anchor back to the
+  // most recent Friday (Fri=5 in getDay() 0=Sun..6=Sat order).
+  const startDate = useMemo(() => {
+    if (viewMode === "day") return anchorDate;
+    const d = parseLocalDate(anchorDate);
+    const dayOfWeek = d.getDay();
+    const daysSinceFriday = dayOfWeek >= 5 ? dayOfWeek - 5 : dayOfWeek + 2;
+    return addDaysToDateString(anchorDate, -daysSinceFriday);
+  }, [anchorDate, viewMode]);
+
   const endDate =
-    viewMode === "day" ? anchorDate : addDaysToDateString(anchorDate, 6);
+    viewMode === "day" ? anchorDate : addDaysToDateString(startDate, 6);
 
   // Compute current expected file name
   const expectedFileName = getHandoverFileName(
@@ -583,7 +599,21 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                             {idx + 1}
                           </td>
                           <td className="py-2.5 px-3 font-semibold text-stone-900 whitespace-nowrap text-center">
-                            {r.reservation_date}
+                            {(() => {
+                              if (!r.reservation_date) return "—";
+                              const d = parseLocalDate(r.reservation_date);
+                              const weekday = d.toLocaleDateString(
+                                isRTL ? "ar-u-nu-latn" : "en-US",
+                                { weekday: "short" },
+                              );
+                              const dd = String(d.getDate()).padStart(2, "0");
+                              const mm = String(d.getMonth() + 1).padStart(
+                                2,
+                                "0",
+                              );
+                              const yyyy = d.getFullYear();
+                              return `${weekday} ${dd}-${mm}-${yyyy}`;
+                            })()}
                           </td>
                           <td className="py-2.5 px-3 whitespace-nowrap text-center font-bold text-stone-800">
                             {startTime12}
@@ -619,7 +649,9 @@ export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = ({
                                 </span>
                               </span>
                             ) : (
-                              <span className="text-stone-400 italic text-[11px]">—</span>
+                              <span className="text-stone-400 italic text-[11px]">
+                                —
+                              </span>
                             )}
                           </td>
                           <td className="py-2.5 px-3 font-semibold text-stone-800 whitespace-nowrap">
