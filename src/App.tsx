@@ -627,6 +627,11 @@ const UserPortalMain: React.FC = () => {
               setReservationDetailFromUserProfile(false);
               setModalStackOrder("reservation_over_user");
             }}
+            onEditReservation={(res) => {
+              setEditingReservation(res);
+              setReservationDetailFromNotifications(false);
+              setReservationDetailFromUserProfile(false);
+            }}
             onInstrumentsChanged={() => {
               setRefreshTrigger((prev) => prev + 1);
             }}
@@ -768,6 +773,8 @@ const UserPortalMain: React.FC = () => {
         <EditReservationModal
           reservation={editingReservation}
           allInstruments={allInstruments}
+          initialScope={editingReservation._initialScope}
+          initialSelectedIds={editingReservation._selectedOccurrenceIds}
           onClose={() => setEditingReservation(null)}
           onSuccess={() => {
             setEditingReservation(null);

@@ -209,3 +209,17 @@ export function formatHhmmTo12Hour(hhmm: string, locale?: string): string {
   const ampm = isAr ? (isPM ? "م" : "ص") : isPM ? "PM" : "AM";
   return `${h}:${mStr} ${ampm}`;
 }
+
+/**
+ * Moves a YYYY-MM-DD date to the nearest target weekday on or after its current date.
+ * targetWeekday: 0 for Sunday, 1 for Monday, ..., 6 for Saturday.
+ * Pure UTC calendar arithmetic, DST-safe and Cairo-safe.
+ */
+export function shiftDateToWeekday(dateStr: string, targetWeekday: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const utcDate = new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+  const currentWeekday = utcDate.getUTCDay();
+  const diff = (targetWeekday - currentWeekday + 7) % 7;
+  if (diff === 0) return dateStr;
+  return addDaysToDateString(dateStr, diff);
+}

@@ -86,6 +86,8 @@ export interface SeriesBuilderModalProps {
   initialReservationType?: "in_church" | "outside_church";
   onClose: () => void;
   onSuccess: (seriesData: any) => void;
+  targetUser?: { id: string; name: string } | null;
+  isAdminBooking?: boolean;
 }
 
 interface ConflictDetail {
@@ -108,6 +110,8 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   initialReservationType = "in_church",
   onClose,
   onSuccess,
+  targetUser = null,
+  isAdminBooking = false,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -158,8 +162,15 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   const [newCustomDateInput, setNewCustomDateInput] = useState<string>("");
   const [skippedNotice, setSkippedNotice] = useState<number | null>(null);
 
+  const isAdminRole =
+    isAdminBooking ||
+    profile?.role === "admin" ||
+    profile?.role === "super_admin";
+
   // Runtime Hard Limits
-  const [maxSeriesLimit, setMaxSeriesLimit] = useState<number>(8);
+  const [maxSeriesLimit, setMaxSeriesLimit] = useState<number>(
+    isAdminRole ? 52 : 8,
+  );
   const [isLoadingLimits, setIsLoadingLimits] = useState<boolean>(true);
 
   // Existing Approved Reservations cache for conflict checking
@@ -212,7 +223,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
         const res = await fetch("/api/reservations/limits");
         const data = await res.json();
         if (isMounted && data.success && data.limits?.maxSeriesOccurrences) {
-          setMaxSeriesLimit(data.limits.maxSeriesOccurrences);
+          if (!isAdminRole) {
+            setMaxSeriesLimit(data.limits.maxSeriesOccurrences);
+          } else {
+            setMaxSeriesLimit(52);
+          }
         }
       } catch (err) {
         console.error("Failed to load runtime limits, defaulting to 8:", err);
@@ -477,32 +492,57 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     setSubmitError(null);
 
     try {
-      const isAdminRole =
-        profile.role === "admin" || profile.role === "super_admin";
-      const payload = {
-        userId: isAdminRole ? null : profile.id,
-        adminId: isAdminRole ? profile.id : null,
-        instrumentId: currentInstrument.id,
-        serviceName: serviceName.trim(),
-        serviceLocation: serviceLocation.trim() || undefined,
-        musicianName: musicianName.trim(),
-        note: note.trim() || undefined,
-        patternType,
-        reservationType,
-        feeAcknowledged:
-          reservationType === "outside_church" ? feeAcknowledged : false,
-        occurrences: generatedOccurrences.map((occ) => ({
-          date: occ.date,
-          startTime: occ.startTime,
-          duration: occ.duration,
-        })),
-      };
+      const token =
+        sessionToken ||
+        localStorage.getItem("admin_session_token") ||
+        localStorage.getItem("auth_token");
 
-      const res = await fetch("/api/reservations/series", {
+      let endpoint = "/api/reservations/series";
+      let payload: any;
+
+      if (isAdminBooking && targetUser?.id) {
+        endpoint = `/api/admin/users/${targetUser.id}/book-series-on-behalf`;
+        payload = {
+          instrumentId: currentInstrument.id,
+          serviceName: serviceName.trim(),
+          serviceLocation: serviceLocation.trim() || undefined,
+          musicianName: musicianName.trim(),
+          note: note.trim() || undefined,
+          patternType,
+          reservationType,
+          feeAcknowledged: true,
+          occurrences: generatedOccurrences.map((occ) => ({
+            date: occ.date,
+            startTime: occ.startTime,
+            duration: occ.duration,
+          })),
+        };
+      } else {
+        payload = {
+          userId: isAdminRole ? null : profile?.id,
+          adminId: isAdminRole ? profile?.id : null,
+          instrumentId: currentInstrument.id,
+          serviceName: serviceName.trim(),
+          serviceLocation: serviceLocation.trim() || undefined,
+          musicianName: musicianName.trim(),
+          note: note.trim() || undefined,
+          patternType,
+          reservationType,
+          feeAcknowledged:
+            reservationType === "outside_church" ? feeAcknowledged : false,
+          occurrences: generatedOccurrences.map((occ) => ({
+            date: occ.date,
+            startTime: occ.startTime,
+            duration: occ.duration,
+          })),
+        };
+      }
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -561,9 +601,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-stone-400 truncate mt-0.5">
-                {seriesResult
-                  ? t("seriesBuilder.confirmationSubtitle")
-                  : t("seriesBuilder.builderSubtitle")}
+                {targetUser ? (
+                  <span className="text-amber-300 font-bold">
+                    {isAr
+                      ? `حجز بالنيابة عن: ${targetUser.name}`
+                      : `Booking on behalf of: ${targetUser.name}`}
+                  </span>
+                ) : seriesResult ? (
+                  t("seriesBuilder.confirmationSubtitle")
+                ) : (
+                  t("seriesBuilder.builderSubtitle")
+                )}
               </p>
             </div>
           </div>

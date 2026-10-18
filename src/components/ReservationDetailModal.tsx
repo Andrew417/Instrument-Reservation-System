@@ -1019,7 +1019,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             >
               {statusLabel(reservation.status)}
             </span>
-            {!isPast && !isCancelled && (
+            {(!isPast || isAdminViewer) && (!isCancelled || isAdminViewer) && (
               <button
                 type="button"
                 onClick={() => {
@@ -1243,10 +1243,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     </div>
                   )}
                   {isAdminBooked && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 font-semibold mt-0.5">
-                      <Shield className="w-3 h-3" />
-                      {t("common.adminBooked")}
-                    </span>
+                    <div className="mt-1">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800">
+                        <img
+                          src="/logo.png"
+                          alt=""
+                          className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-800/30"
+                        />
+                        <span>
+                          {reservation.admin_name || "Admin"}
+                        </span>
+                      </span>
+                    </div>
                   )}
                   <span className="text-xs text-stone-600 block">
                     {t("reservationDetail.musicianName")}:{" "}
@@ -2015,7 +2023,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <div className="border border-stone-200 rounded-2xl divide-y divide-stone-100 max-h-48 overflow-y-auto bg-stone-50/50">
                   {seriesOccurrences.map((occ, idx) => {
                     const occStart = new Date(occ.start_time || occ.startTime);
+                    const occEnd = new Date(occ.end_time || occ.endTime);
                     const isCurrent = occ.id === reservation.id;
+                    const isPastOcc = occEnd < new Date();
+                    const isCancelledOcc =
+                      occ.status === "cancelled" || occ.status === "rejected";
+
                     return (
                       <div
                         key={occ.id}
@@ -2040,24 +2053,61 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             {getCairoTimeString(occStart)}
                           </span>
                         </div>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(occ.status)}`}
-                        >
-                          {statusLabel(occ.status)}
-                        </span>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap ${getStatusColor(occ.status)}`}
+                          >
+                            {statusLabel(occ.status)}
+                          </span>
+
+                          {(!isPastOcc || isAdminViewer) && (!isCancelledOcc || isAdminViewer) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onClose();
+                                onEdit({ ...occ, _initialScope: "single" });
+                              }}
+                              className="p-1 rounded-md hover:bg-stone-200 text-stone-600 hover:text-stone-900 transition cursor-pointer"
+                              title={t("myReservations.editSessionTooltip", {
+                                defaultValue: "Edit this session",
+                              })}
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-                {!isPast && !isCancelled && (
-                  <button
-                    type="button"
-                    onClick={() => setCancelPrompt("series")}
-                    className="inline-flex items-center gap-1.5 text-[11px] text-red-700 font-semibold cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {t("reservationDetail.cancelEntireSeries")}
-                  </button>
+                {(!isPast || isAdminViewer) && (!isCancelled || isAdminViewer) && (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onEdit({ ...reservation, _initialScope: "series" });
+                      }}
+                      className="inline-flex items-center gap-1.5 text-[11px] text-amber-800 font-bold hover:underline cursor-pointer"
+                    >
+                      <Repeat className="w-3.5 h-3.5" />
+                      <span>
+                        {t("myReservations.editEntireSeries", {
+                          defaultValue: "Edit Entire Series",
+                        })}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCancelPrompt("series")}
+                      className="inline-flex items-center gap-1.5 text-[11px] text-red-700 font-semibold hover:underline cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t("reservationDetail.cancelEntireSeries")}</span>
+                    </button>
+                  </div>
                 )}
               </div>
             )}

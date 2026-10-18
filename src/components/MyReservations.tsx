@@ -35,6 +35,8 @@ import {
   Sun,
   ShieldCheck,
   Church,
+  CheckSquare,
+  Eye,
 } from "lucide-react";
 import { getStatusColor } from "../lib/status-colors.ts";
 
@@ -98,8 +100,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
   const [cancellingItem, setCancellingItem] = useState<{
     id: string;
-    mode: "single" | "series";
+    mode: "single" | "series" | "batch";
     title: string;
+    batchIds?: string[];
+    seriesId?: string;
   } | null>(null);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -150,6 +154,48 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     return () => window.clearInterval(timer);
   }, []);
 
+  const [selectedOccurrencesBySeries, setSelectedOccurrencesBySeries] = useState<
+    Record<string, string[]>
+  >({});
+  const [seriesSelectMode, setSeriesSelectMode] = useState<
+    Record<string, boolean>
+  >({});
+
+  const toggleSeriesSelectMode = (seriesId: string) => {
+    setSeriesSelectMode((prev) => {
+      const nextVal = !prev[seriesId];
+      if (!nextVal) {
+        clearOccurrenceSelectionInSeries(seriesId);
+      }
+      return { ...prev, [seriesId]: nextVal };
+    });
+  };
+
+  const toggleOccurrenceSelection = (seriesId: string, occId: string) => {
+    setSelectedOccurrencesBySeries((prev) => {
+      const current = prev[seriesId] || [];
+      const next = current.includes(occId)
+        ? current.filter((id) => id !== occId)
+        : [...current, occId];
+      return { ...prev, [seriesId]: next };
+    });
+  };
+
+  const selectAllOccurrencesInSeries = (seriesId: string, occIds: string[]) => {
+    setSelectedOccurrencesBySeries((prev) => ({
+      ...prev,
+      [seriesId]: occIds,
+    }));
+  };
+
+  const clearOccurrenceSelectionInSeries = (seriesId: string) => {
+    setSelectedOccurrencesBySeries((prev) => {
+      const copy = { ...prev };
+      delete copy[seriesId];
+      return copy;
+    });
+  };
+
   const toggleSeriesExpansion = (seriesId: string) => {
     setExpandedSeries((prev) => ({
       ...prev,
@@ -162,6 +208,43 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     setIsCancelling(true);
     setCancelError(null);
     try {
+      if (cancellingItem.mode === "batch") {
+        const ids = cancellingItem.batchIds || [];
+        for (const singleId of ids) {
+          const res = await fetch(`/api/reservations/${singleId}/cancel`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionToken}`,
+            },
+            body: JSON.stringify({
+              userId:
+                profile.role === "admin" || profile.role === "super_admin"
+                  ? null
+                  : profile.id,
+              adminId:
+                profile.role === "admin" || profile.role === "super_admin"
+                  ? profile.id
+                  : null,
+              cancelMode: "single",
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            setCancelError(data.error || t("myReservations.cancelFailed"));
+            setIsCancelling(false);
+            return;
+          }
+        }
+        if (cancellingItem.seriesId) {
+          clearOccurrenceSelectionInSeries(cancellingItem.seriesId);
+        }
+        setIsCancelling(false);
+        setCancellingItem(null);
+        fetchMyReservations();
+        return;
+      }
+
       const res = await fetch(`/api/reservations/${cancellingItem.id}/cancel`, {
         method: "POST",
         headers: {
@@ -468,7 +551,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                 <h3 className="font-bold text-sm text-stone-900">
                   {cancellingItem.mode === "series"
                     ? t("myReservations.cancelSeriesTitle")
-                    : t("myReservations.cancelSingleTitle")}
+                    : cancellingItem.mode === "batch"
+                      ? t("myReservations.cancelSelectedTitle", {
+                          count: cancellingItem.batchIds?.length || 0,
+                        })
+                      : t("myReservations.cancelSingleTitle")}
                 </h3>
                 <p className="text-xs text-stone-500 break-words">
                   {cancellingItem.title}
@@ -485,7 +572,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
             <p className="text-xs text-stone-600 leading-relaxed">
               {cancellingItem.mode === "series"
                 ? t("myReservations.cancelSeriesDesc")
-                : t("myReservations.cancelSingleDesc")}
+                : cancellingItem.mode === "batch"
+                  ? t("myReservations.cancelSelectedDesc", {
+                      count: cancellingItem.batchIds?.length || 0,
+                    })
+                  : t("myReservations.cancelSingleDesc")}
             </p>
 
             <div className="flex items-center gap-3 pt-2">
@@ -724,10 +815,14 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         </div>
 
                         {isAdminBooked && (
-                          <div className="text-[11px] text-amber-800 font-semibold flex items-start gap-1 min-w-0">
-                            <Shield className="w-3 h-3 shrink-0 mt-0.5" />
-                            <span className="break-words min-w-0">
-                              {t("common.adminBooked")}
+                          <div className="text-[11px] text-amber-800 font-bold flex items-center gap-1.5 min-w-0">
+                            <img
+                              src="/logo.png"
+                              alt=""
+                              className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-800/30"
+                            />
+                            <span className="truncate">
+                              {res.admin_name || "Admin"}
                             </span>
                           </div>
                         )}
@@ -859,9 +954,24 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                               pattern: sg.patternType,
                             })}
                           </span>
+
+                          {sg.occurrences.some(
+                            (occ) => occ.booked_by_admin || occ.bookedByAdmin,
+                          ) && (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-800 shrink-0">
+                              <img
+                                src="/logo.png"
+                                alt=""
+                                className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-amber-800/30"
+                              />
+                              <span className="truncate">
+                                {sg.occurrences.find((occ) => occ.admin_name)?.admin_name || "Admin"}
+                              </span>
+                            </span>
+                          )}
                         </div>
 
-                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-3">
+                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-2 sm:gap-3">
                           <span className="font-semibold text-stone-800 truncate max-w-full">
                             {sg.instrumentName}
                           </span>
@@ -883,162 +993,363 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       </div>
                     </div>
 
-                    {/* Series Header Actions */}
-                    <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
+                    {/* Series Header Actions (Compact & Responsive on Mobile) */}
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
                       {sg.occurrences.some(
                         (occ) =>
                           !["cancelled", "rejected", "completed", "expired"].includes(
                             occ.status,
                           ),
                       ) && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCancellingItem({
-                              id: sg.occurrences[0].id,
-                              mode: "series",
-                              title: t("myReservations.cancelSeriesTitle", {
-                                service: sg.serviceName,
-                              }),
-                            })
-                          }
-                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation whitespace-nowrap"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>{t("myReservations.cancelEntireSeries")}</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onEditReservation({
+                                ...firstOcc,
+                                _initialScope: "series",
+                              })
+                            }
+                            className="h-8 px-2.5 sm:px-3 bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-xs font-bold rounded-xl transition flex items-center gap-1 cursor-pointer touch-manipulation whitespace-nowrap shadow-2xs"
+                            title={t("myReservations.editEntireSeries")}
+                          >
+                            <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            <span className="hidden sm:inline">{t("myReservations.editEntireSeries")}</span>
+                            <span className="sm:hidden">{t("common.edit", { defaultValue: "Edit" })}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCancellingItem({
+                                id: sg.occurrences[0].id,
+                                mode: "series",
+                                title: t("myReservations.cancelSeriesTitle", {
+                                  service: sg.serviceName,
+                                }),
+                              })
+                            }
+                            className="h-8 px-2.5 sm:px-3 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition flex items-center gap-1 cursor-pointer touch-manipulation whitespace-nowrap shadow-2xs"
+                            title={t("myReservations.cancelEntireSeries")}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                            <span className="hidden sm:inline">{t("myReservations.cancelEntireSeries")}</span>
+                            <span className="sm:hidden">{t("common.cancel", { defaultValue: "Cancel" })}</span>
+                          </button>
+                        </>
                       )}
                       <button
                         type="button"
                         onClick={() => toggleSeriesExpansion(sg.seriesId)}
-                        className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation"
+                        className="h-8 px-3 sm:px-3.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer touch-manipulation shadow-2xs"
                       >
-                        <span>
+                        <span className="hidden sm:inline">
                           {isExpanded
                             ? t("myReservations.collapse")
                             : t("myReservations.viewOccurrences")}
                         </span>
+                        <span className="sm:hidden">
+                          {isExpanded
+                            ? t("myReservations.collapse")
+                            : `${sg.occurrences.length} ${t("myReservations.individualSessionsTitle", { defaultValue: "Dates" })}`}
+                        </span>
                         {isExpanded ? (
-                          <ChevronUp className="w-3.5 h-3.5" />
+                          <ChevronUp className="w-3.5 h-3.5 shrink-0" />
                         ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
+                          <ChevronDown className="w-3.5 h-3.5 shrink-0" />
                         )}
                       </button>
                     </div>
                   </div>
 
                   {/* Expandable Individual Occurrences List */}
-                  {isExpanded && (
-                    <div className="border-t border-stone-200 bg-stone-50/50 p-4 space-y-2 animate-in fade-in duration-150">
-                      <div className="text-[11px] font-bold text-stone-600 px-1 flex items-center justify-between">
-                        <span>
-                          {t("myReservations.individualSessionsTitle")}
-                        </span>
-                        <span className="text-stone-400 hidden sm:inline">
-                          {t("myReservations.selectSessionNote")}
-                        </span>
-                      </div>
+                  {isExpanded && (() => {
+                    const selectedForSeries =
+                      selectedOccurrencesBySeries[sg.seriesId] || [];
+                    const hasSelected = selectedForSeries.length > 0;
+                    const isSeriesSelectActive = Boolean(
+                      seriesSelectMode[sg.seriesId] || hasSelected,
+                    );
+                    const actionableOccurrences = sg.occurrences.filter(
+                      (o) =>
+                        !["cancelled", "rejected", "completed", "expired"].includes(
+                          o.status,
+                        ) && new Date(o.end_time || o.endTime) >= new Date(),
+                    );
 
-                      <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 bg-white">
-                        {sg.occurrences.map((occ, occIdx) => {
-                          const occStart = new Date(
-                            occ.start_time || occ.startTime,
-                          );
-                          const occEnd = new Date(occ.end_time || occ.endTime);
-                          const occRawDate =
-                            occ.reservation_date ||
-                            (occ.start_time
-                              ? String(occ.start_time).substring(0, 10)
-                              : getCairoDateString(occStart));
-                          const occDateStr = formatDisplayDate(occRawDate);
-                          const occTimeStr =
-                            occ.start_hhmm && occ.end_hhmm
-                              ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
-                              : `${formatHhmmTo12Hour(getCairoTimeString(occStart))} – ${formatHhmmTo12Hour(getCairoTimeString(occEnd))}`;
-                          const isOccApproved =
-                            occ.status === "approved" ||
-                            occ.status === "ongoing";
-                          const isOccPast = occEnd < new Date();
-                          const isOccCancelled =
-                            occ.status === "cancelled" ||
-                            occ.status === "rejected";
-
-                          return (
-                            <div
-                              key={occ.id}
-                              className="p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-stone-50/80 transition"
-                            >
-                              <div
-                                onClick={() =>
-                                  onSelectReservationDetail(occ.id)
-                                }
-                                className="flex items-center gap-3 cursor-pointer flex-1 min-w-0 touch-manipulation"
-                              >
-                                <span className="w-6 h-6 rounded-lg bg-stone-100 text-stone-700 font-bold flex items-center justify-center text-[10px] shrink-0">
-                                  {occIdx + 1}
-                                </span>
-                                <div className="min-w-0">
-                                  <div className="font-bold text-stone-900 truncate">
-                                    {occDateStr}
-                                  </div>
-                                  <div className="text-[11px] text-stone-500 truncate">
-                                    {occTimeStr}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap shrink-0 ${getStatusColor(
-                                    occ.status,
-                                  )}`}
-                                >
-                                  {STATUS_LABEL_KEYS[occ.status]
-                                    ? String(
-                                        t(STATUS_LABEL_KEYS[occ.status] as any),
-                                      )
-                                    : occ.status}
-                                </span>
-
-                                {!isOccPast && !isOccCancelled && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setCancellingItem({
-                                        id: occ.id,
-                                        mode: "single",
-                                        title: t(
-                                          "myReservations.cancelOccurrenceTitle",
-                                          {
-                                            index: occIdx + 1,
-                                            date: occDateStr,
-                                          },
-                                        ),
-                                      })
-                                    }
-                                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-[11px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
-                                    title={t("myReservations.cancelSlot")}
-                                  >
-                                    {t("myReservations.cancelSlot")}
-                                  </button>
-                                )}
-
+                    return (
+                      <div className="border-t border-stone-200 bg-stone-50/50 p-4 space-y-3 animate-in fade-in duration-150">
+                        <div className="text-[11px] font-bold text-stone-600 px-1 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span>
+                              {t("myReservations.individualSessionsTitle")}
+                            </span>
+                            {actionableOccurrences.length > 0 && (
+                              <>
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    onSelectReservationDetail(occ.id)
+                                    toggleSeriesSelectMode(sg.seriesId)
                                   }
-                                  className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-800 text-[11px] font-bold rounded-lg transition cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                                    isSeriesSelectActive
+                                      ? "bg-amber-800 text-white shadow-2xs"
+                                      : "bg-stone-200/80 hover:bg-stone-300 text-stone-700"
+                                  }`}
                                 >
-                                  {t("common.details")}
+                                  <CheckSquare className="w-3 h-3" />
+                                  <span>
+                                    {isSeriesSelectActive
+                                      ? t("common.done", {
+                                          defaultValue: "Done",
+                                        })
+                                      : t("common.select", {
+                                          defaultValue: "Select",
+                                        })}
+                                  </span>
                                 </button>
-                              </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSeriesSelectMode((prev) => ({
+                                      ...prev,
+                                      [sg.seriesId]: true,
+                                    }));
+                                    if (
+                                      selectedForSeries.length ===
+                                      actionableOccurrences.length
+                                    ) {
+                                      clearOccurrenceSelectionInSeries(
+                                        sg.seriesId,
+                                      );
+                                    } else {
+                                      selectAllOccurrencesInSeries(
+                                        sg.seriesId,
+                                        actionableOccurrences.map((o) => o.id),
+                                      );
+                                    }
+                                  }}
+                                  className="text-[10px] text-amber-800 hover:underline font-semibold cursor-pointer"
+                                >
+                                  {selectedForSeries.length ===
+                                  actionableOccurrences.length
+                                    ? t("myReservations.deselectAll")
+                                    : t("myReservations.selectAll")}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                          <span className="text-stone-400 hidden sm:inline">
+                            {t("myReservations.selectSessionNote")}
+                          </span>
+                        </div>
+
+                        {/* Batch Action Bar if sessions selected */}
+                        {hasSelected && (
+                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl flex flex-wrap items-center justify-between gap-2 animate-in fade-in">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-amber-950">
+                                {t("myReservations.batchSelectedCount", {
+                                  count: selectedForSeries.length,
+                                })}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  clearOccurrenceSelectionInSeries(sg.seriesId)
+                                }
+                                className="text-[11px] text-stone-500 hover:text-stone-800 font-semibold hover:underline cursor-pointer"
+                              >
+                                {t("myReservations.deselectAll")}
+                              </button>
                             </div>
-                          );
-                        })}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onEditReservation({
+                                    ...firstOcc,
+                                    _initialScope: "series",
+                                    _selectedOccurrenceIds: selectedForSeries,
+                                  })
+                                }
+                                className="px-2.5 py-1 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer touch-manipulation"
+                              >
+                                <Edit className="w-3 h-3" />
+                                <span>{t("myReservations.editSelected")}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCancellingItem({
+                                    id: selectedForSeries[0],
+                                    mode: "batch",
+                                    batchIds: selectedForSeries,
+                                    seriesId: sg.seriesId,
+                                    title: t(
+                                      "myReservations.cancelSelectedTitle",
+                                      {
+                                        count: selectedForSeries.length,
+                                      },
+                                    ),
+                                  });
+                                }}
+                                className="px-2.5 py-1 bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-800 border border-red-300 text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer touch-manipulation"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>{t("myReservations.cancelSelected")}</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="border border-stone-200 rounded-2xl overflow-hidden divide-y divide-stone-100 bg-white">
+                          {sg.occurrences.map((occ, occIdx) => {
+                            const occStart = new Date(
+                              occ.start_time || occ.startTime,
+                            );
+                            const occEnd = new Date(
+                              occ.end_time || occ.endTime,
+                            );
+                            const occRawDate =
+                              occ.reservation_date ||
+                              (occ.start_time
+                                ? String(occ.start_time).substring(0, 10)
+                                : getCairoDateString(occStart));
+                            const occDateStr = formatDisplayDate(occRawDate);
+                            const occTimeStr =
+                              occ.start_hhmm && occ.end_hhmm
+                                ? `${formatHhmmTo12Hour(occ.start_hhmm)} – ${formatHhmmTo12Hour(occ.end_hhmm)}`
+                                : `${formatHhmmTo12Hour(getCairoTimeString(occStart))} – ${formatHhmmTo12Hour(getCairoTimeString(occEnd))}`;
+                            const isOccApproved =
+                              occ.status === "approved" ||
+                              occ.status === "ongoing";
+                            const isOccPast = occEnd < new Date();
+                            const isOccCancelled =
+                              occ.status === "cancelled" ||
+                              occ.status === "rejected";
+
+                            return (
+                              <div
+                                key={occ.id}
+                                className="p-2 sm:p-2.5 text-xs flex items-center justify-between gap-1.5 sm:gap-2 hover:bg-stone-50/80 transition"
+                              >
+                                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                                  {!isOccPast && !isOccCancelled && isSeriesSelectActive && (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedForSeries.includes(
+                                        occ.id,
+                                      )}
+                                      onChange={() =>
+                                        toggleOccurrenceSelection(
+                                          sg.seriesId,
+                                          occ.id,
+                                        )
+                                      }
+                                      aria-label={`Select session ${occIdx + 1}`}
+                                      className="w-4 h-4 rounded text-amber-800 border-stone-300 focus:ring-amber-800 cursor-pointer shrink-0"
+                                    />
+                                  )}
+
+                                  <div
+                                    onClick={() =>
+                                      onSelectReservationDetail(occ.id)
+                                    }
+                                    className="flex items-center gap-1.5 sm:gap-2 cursor-pointer flex-1 min-w-0 touch-manipulation group"
+                                  >
+                                    <span className="w-5 h-5 rounded-md bg-stone-100 text-stone-700 font-bold flex items-center justify-center text-[10px] shrink-0">
+                                      #{occIdx + 1}
+                                    </span>
+                                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 flex-1 truncate">
+                                      <span className="font-bold text-stone-900 group-hover:text-amber-900 truncate">
+                                        {occDateStr}
+                                      </span>
+                                      <span className="text-[11px] text-stone-400 hidden xs:inline">·</span>
+                                      <span className="text-[11px] text-stone-500 truncate hidden xs:inline">
+                                        {occTimeStr}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <span
+                                    className={`px-1.5 py-0.2 rounded-md text-[9px] sm:text-[10px] font-bold uppercase whitespace-nowrap shrink-0 ${getStatusColor(
+                                      occ.status,
+                                    )}`}
+                                  >
+                                    {STATUS_LABEL_KEYS[occ.status]
+                                      ? String(
+                                          t(
+                                            STATUS_LABEL_KEYS[
+                                              occ.status
+                                            ] as any,
+                                          ),
+                                        )
+                                      : occ.status}
+                                  </span>
+                                </div>
+
+                                {/* Inline Actions */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {!isOccPast && !isOccCancelled && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        onEditReservation({
+                                          ...occ,
+                                          _initialScope: "single",
+                                        })
+                                      }
+                                      className="h-7 px-2 sm:px-2.5 rounded-lg bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-200 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap touch-manipulation shadow-2xs"
+                                      title={t("myReservations.editSessionTooltip")}
+                                    >
+                                      <Edit className="w-3 h-3 text-stone-500 shrink-0" />
+                                      <span className="hidden sm:inline">{t("myReservations.editSession")}</span>
+                                    </button>
+                                  )}
+
+                                  {!isOccPast && !isOccCancelled && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setCancellingItem({
+                                          id: occ.id,
+                                          mode: "single",
+                                          title: t(
+                                            "myReservations.cancelOccurrenceTitle",
+                                            {
+                                              index: occIdx + 1,
+                                              date: occDateStr,
+                                            },
+                                          ),
+                                        })
+                                      }
+                                      className="h-7 px-2 sm:px-2.5 rounded-lg bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-700 border border-red-200 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap touch-manipulation shadow-2xs"
+                                      title={t("myReservations.cancelSlot")}
+                                    >
+                                      <Trash2 className="w-3 h-3 shrink-0" />
+                                      <span className="hidden sm:inline">{t("myReservations.cancelSlot")}</span>
+                                    </button>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onSelectReservationDetail(occ.id)
+                                    }
+                                    className="h-7 px-2 sm:px-2.5 rounded-lg bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer whitespace-nowrap touch-manipulation shadow-2xs"
+                                    title={t("common.details")}
+                                  >
+                                    <Eye className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="hidden md:inline">{t("common.details")}</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             }

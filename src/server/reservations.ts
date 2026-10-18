@@ -3,6 +3,7 @@ import {
   createReservation,
   createReservationSeries,
   editReservation,
+  editReservationSeries,
   cancelReservation,
   runStatusTransitions,
   ensureCurrentReservationStatuses,
@@ -245,6 +246,57 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       success: false,
       error: msg,
       cause: err.cause?.message,
+    });
+  }
+});
+
+/**
+ * Bulk edit upcoming occurrences of a recurring series (owner or admin)
+ */
+router.patch("/series/:seriesId", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { seriesId } = req.params;
+    const sessionIdentity = await extractSessionIdentity(req);
+    const rawBody = (req.body ?? {}) as Record<string, unknown>;
+
+    const actor = sessionIdentity
+      ? {
+          userId: sessionIdentity.userId,
+          adminId: sessionIdentity.adminId,
+          isSuperAdmin: await resolveIsSuperAdmin(req),
+        }
+      : {
+          userId: (rawBody.userId as string | undefined) ?? null,
+          adminId: null,
+          isSuperAdmin: false,
+        };
+
+    const result = await editReservationSeries(
+      seriesId,
+      req.body,
+      actor,
+    );
+
+    res.json({
+      success: true,
+      updatedCount: result.updatedCount,
+      statusSummary: result.statusSummary,
+      ...(result.message ? { message: result.message } : {}),
+    });
+  } catch (err: any) {
+    console.error("Series edit error:", err);
+    const msg: string = err.message || "Failed to edit recurring series.";
+    const status = /not authorized/i.test(msg)
+      ? 403
+      : /not found/i.test(msg)
+        ? 404
+        : /conflict|working hours|past/i.test(msg)
+          ? 400
+          : 500;
+    res.status(status).json({
+      success: false,
+      error: msg,
+      conflicts: err.conflicts || undefined,
     });
   }
 });
@@ -1557,11 +1609,13 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         s.pattern_type as series_pattern_type,
         u.name as user_name,
         u.phone_number as user_phone,
-        u.is_trusted as user_is_trusted
+        u.is_trusted as user_is_trusted,
+        a.name as admin_name
       FROM reservations r
       JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.id = ${id}
       LIMIT 1
     `);
@@ -1704,7 +1758,8 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         s.pattern_type as series_pattern_type,
         COALESCE(u.name, a.name, 'Administrator') as user_name,
         u.phone_number as user_phone,
-        u.is_trusted as user_is_trusted
+        u.is_trusted as user_is_trusted,
+        a.name as admin_name
       FROM reservations r
       JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id

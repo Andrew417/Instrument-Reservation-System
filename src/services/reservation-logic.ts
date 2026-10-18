@@ -17,10 +17,12 @@ import {
 } from "../db/schema.js";
 import { eq, and, sql, inArray, gte, lte, desc } from "drizzle-orm";
 import {
+  addDaysToDateString,
   cairoDateTimeToDate,
   getCairoDateString,
   getCairoParts,
   getCairoTimeString,
+  shiftDateToWeekday,
 } from "../lib/date-utils.js";
 import { sendPushToUser, sendPushToAdmins } from "../lib/push-service.js";
 
@@ -361,8 +363,8 @@ export async function evaluateReservationSubmission(
 
   const limits = options?.preloadedLimits || (await getHardLimits());
 
-  // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled)
-  if (!options?.skipRateLimitCheck && cleanUserId && !limits.bypassHardLimits) {
+  // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled, or admin booking)
+  if (!options?.skipRateLimitCheck && cleanUserId && !cleanAdminId && !isAdmin && !limits.bypassHardLimits) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentSubmissions = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -406,7 +408,7 @@ export async function evaluateReservationSubmission(
   // 5. Outside church fee requirement check
   let outsideFeeSnapshot: string | null = null;
   if (reservationType === "outside_church") {
-    if (!feeAcknowledged) {
+    if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
       throw new Error(
         `Outside church reservation requires fee acknowledgment (fee: ${instrument.outsideFeePerDay} EGP/day).`,
       );
@@ -420,11 +422,18 @@ export async function evaluateReservationSubmission(
   const reasons: string[] = [];
 
   if (reservationType === "outside_church") {
-    // Outside-church ALWAYS sets status to Pending on submission (manual review), never Instant — regardless of instrument mode
-    calculatedStatus = "pending";
-    reasons.push(
-      "Outside-church reservation requires administrator review and payment arrangement.",
-    );
+    if (isAdmin || cleanAdminId) {
+      calculatedStatus = "approved";
+      reasons.push(
+        "Auto-approved via Administrator Privilege (Outside-church fee snapshotted)",
+      );
+    } else {
+      // Outside-church ALWAYS sets status to Pending on submission (manual review), never Instant — regardless of instrument mode
+      calculatedStatus = "pending";
+      reasons.push(
+        "Outside-church reservation requires administrator review and payment arrangement.",
+      );
+    }
   } else if (isTrustedOrAdmin) {
     // Auto-approve immediately for Trusted Users and Admins (in-church reservations)
     calculatedStatus = "approved";
@@ -1003,8 +1012,8 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     throw error;
   }
 
-  // 5. Rate limit check for the series submission
-  if (cleanUserId && !limits.bypassHardLimits) {
+  // 5. Rate limit check for the series submission (bypassed for admin)
+  if (cleanUserId && !cleanAdminId && !isAdmin && !limits.bypassHardLimits) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentSubmissions = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -1025,121 +1034,163 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   }
 
   const cleanNote = toNullableString(input.note);
+  const isBookedByAdminOnBehalf = Boolean(cleanAdminId && cleanUserId);
 
-  // 6. Create series row in database
-  const [newSeries] = await db
-    .insert(reservationSeries)
-    .values({
-      userId: cleanUserId,
-      adminId: cleanAdminId,
-      instrumentId,
-      patternType,
-      serviceLocation: toNullableString(input.serviceLocation),
-      note: cleanNote,
-    })
-    .returning();
-
-  // 7. Process each occurrence through single evaluation (steps 4-8)
-  const createdOccurrences: any[] = [];
-
-  for (const occ of parsedOccurrences) {
-    const evalResult = await evaluateReservationSubmission(
-      {
-        userId: cleanUserId || undefined,
-        adminId: cleanAdminId || undefined,
+  // 6 & 7: Atomic Transaction for Series and all Occurrences
+  const { newSeries, createdOccurrences } = await db.transaction(async (tx) => {
+    // 6. Create series row in database
+    const [seriesRow] = await tx
+      .insert(reservationSeries)
+      .values({
+        userId: cleanUserId,
+        adminId: cleanAdminId,
         instrumentId,
-        serviceName: input.serviceName,
-        serviceLocation: input.serviceLocation,
-        musicianName: input.musicianName,
-        date: occ.date,
-        startTime: occ.startTime,
-        duration: occ.duration,
-        reservationType,
-        feeAcknowledged,
-      },
-      { skipRateLimitCheck: true, preloadedLimits: limits },
-    );
-
-    const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
-
-    const occurrenceParams = {
-      seriesId: newSeries.id,
-      userId: cleanUserId,
-      adminId: cleanAdminId,
-      instrumentId,
-      serviceName: (input.serviceName || "").trim() || "Not specified",
-      serviceLocation: toNullableString(input.serviceLocation),
-      musicianName: (input.musicianName || "").trim(),
-      note: cleanNote,
-      timeRange:
-        sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
-      reservationType,
-      feeSnapshot: cleanFeeSnapshot,
-      status: evalResult.status,
-      rejectionReason: null,
-      paymentScreenshotUrl: null,
-      bookedByAdmin: Boolean(cleanAdminId),
-    };
-
-    const [resRow] = await db
-      .insert(reservations)
-      .values(occurrenceParams)
+        patternType,
+        serviceLocation: toNullableString(input.serviceLocation),
+        note: cleanNote,
+      })
       .returning();
 
-    // If requester provided a note, also record it as the initial message in this occurrence's thread
-    if (cleanNote) {
-      try {
-        const senderRole = cleanAdminId ? "admin" : "user";
-        let senderName = null;
-        if (cleanAdminId) {
-          const [adm] = await db
-            .select({ name: admins.name })
-            .from(admins)
-            .where(eq(admins.id, cleanAdminId))
-            .limit(1);
-          senderName = adm?.name || "Administrator";
-        } else if (cleanUserId) {
-          const [usr] = await db
-            .select({ name: users.name })
-            .from(users)
-            .where(eq(users.id, cleanUserId))
-            .limit(1);
-          senderName = usr?.name || "Member";
+    // 7. Process each occurrence through evaluation and insertion
+    const occurrencesList: any[] = [];
+
+    for (const occ of parsedOccurrences) {
+      const evalResult = await evaluateReservationSubmission(
+        {
+          userId: cleanUserId || undefined,
+          adminId: cleanAdminId || undefined,
+          instrumentId,
+          serviceName: input.serviceName,
+          serviceLocation: input.serviceLocation,
+          musicianName: input.musicianName,
+          date: occ.date,
+          startTime: occ.startTime,
+          duration: occ.duration,
+          reservationType,
+          feeAcknowledged: cleanAdminId ? true : feeAcknowledged,
+        },
+        { skipRateLimitCheck: true, preloadedLimits: limits },
+      );
+
+      const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
+      const occurrenceStatus =
+        isBookedByAdminOnBehalf || isAdmin ? "approved" : evalResult.status;
+
+      const occurrenceParams = {
+        seriesId: seriesRow.id,
+        userId: cleanUserId,
+        adminId: cleanAdminId,
+        instrumentId,
+        serviceName: (input.serviceName || "").trim() || "Not specified",
+        serviceLocation: toNullableString(input.serviceLocation),
+        musicianName: (input.musicianName || "").trim(),
+        note: cleanNote,
+        timeRange:
+          sql`tstzrange(${evalResult.startTimeUtc.toISOString()}, ${evalResult.endTimeUtc.toISOString()}, '[)')` as any,
+        reservationType,
+        feeSnapshot: cleanFeeSnapshot,
+        status: occurrenceStatus,
+        rejectionReason: null,
+        paymentScreenshotUrl: null,
+        bookedByAdmin: Boolean(cleanAdminId),
+      };
+
+      const [resRow] = await tx
+        .insert(reservations)
+        .values(occurrenceParams)
+        .returning();
+
+      // If requester provided a note, also record it as the initial message in this occurrence's thread
+      if (cleanNote) {
+        try {
+          const senderRole = cleanAdminId ? "admin" : "user";
+          let senderName = null;
+          if (cleanAdminId) {
+            const [adm] = await tx
+              .select({ name: admins.name })
+              .from(admins)
+              .where(eq(admins.id, cleanAdminId))
+              .limit(1);
+            senderName = adm?.name || "Administrator";
+          } else if (cleanUserId) {
+            const [usr] = await tx
+              .select({ name: users.name })
+              .from(users)
+              .where(eq(users.id, cleanUserId))
+              .limit(1);
+            senderName = usr?.name || "Member";
+          }
+          await tx.insert(messages).values({
+            reservationId: resRow.id,
+            adminId: cleanAdminId || null,
+            userId: cleanUserId || null,
+            senderRole,
+            senderName,
+            content: cleanNote,
+            isRead: false,
+          });
+        } catch (msgErr) {
+          console.error(
+            "Non-fatal: failed to record initial series note in messages:",
+            msgErr,
+          );
         }
-        await db.insert(messages).values({
-          reservationId: resRow.id,
-          adminId: cleanAdminId || null,
-          userId: cleanUserId || null,
-          senderRole,
-          senderName,
-          content: cleanNote,
-          isRead: false,
-        });
-      } catch (msgErr) {
-        console.error(
-          "Non-fatal: failed to record initial series note in messages:",
-          msgErr,
-        );
       }
+
+      occurrencesList.push({
+        reservation: resRow,
+        evaluation: { ...evalResult, status: occurrenceStatus },
+      });
     }
 
-    if (evalResult.status === "approved") {
+    return { newSeries: seriesRow, createdOccurrences: occurrencesList };
+  });
+
+  // Post-transaction: auto-reject other overlapping pending reservations
+  for (const occ of createdOccurrences) {
+    if (occ.reservation.status === "approved") {
       await autoRejectOverlappingPending(
         instrumentId,
-        evalResult.startTimeUtc,
-        evalResult.endTimeUtc,
-        resRow.id,
-      );
+        occ.evaluation.startTimeUtc,
+        occ.evaluation.endTimeUtc,
+        occ.reservation.id,
+      ).catch(() => {});
     }
-
-    createdOccurrences.push({
-      reservation: resRow,
-      evaluation: evalResult,
-    });
   }
 
   // User notification for series creation
-  if (cleanUserId) {
+  if (isBookedByAdminOnBehalf) {
+    // Admin booked on behalf of user: Send ONE summary bell notification to target user
+    const [instRow] = await db
+      .select({ name: instruments.name })
+      .from(instruments)
+      .where(eq(instruments.id, instrumentId))
+      .limit(1);
+    const instrumentName = instRow?.name || "the instrument";
+    const firstDate = occurrences[0]?.date || "";
+
+    await db
+      .insert(notifications)
+      .values({
+        userId: cleanUserId!,
+        reservationId: createdOccurrences[0]?.reservation?.id,
+        type: "reservation_approved",
+        message: `An admin booked a recurring series (${createdOccurrences.length} occurrences) for you on ${instrumentName} starting ${firstDate}.`,
+      })
+      .catch(() => {});
+
+    sendPushToUser(cleanUserId!, {
+      titleAr: "تم حجز سلسلة مواعيد واعتمادها لك",
+      titleEn: "Recurring Series Created & Approved",
+      bodyAr: `قامت إدارة الكنيسة بحجز واعتماد سلسلة (${createdOccurrences.length} مواعيد) لك لخدمة "${input.serviceName}".`,
+      bodyEn: `Church administration has reserved and approved ${createdOccurrences.length} sessions for you for "${input.serviceName}".`,
+      url: `/?reservationId=${createdOccurrences[0]?.reservation?.id}`,
+      data: {
+        seriesId: newSeries.id,
+        type: "series_approved",
+      },
+    }).catch((e) => console.warn("[Push series error]:", e.message));
+  } else if (cleanUserId) {
     const approvedCount = createdOccurrences.filter(
       (c) => c.reservation.status === "approved",
     ).length;
@@ -1542,6 +1593,457 @@ export async function editReservation(
   }
 
   return updated;
+}
+
+export interface EditSeriesDateShift {
+  type: "none" | "days" | "weekday";
+  value?: number;
+}
+
+export interface EditSeriesChanges {
+  instrumentId?: string;
+  startTime?: string;
+  duration?: number;
+  serviceName?: string;
+  serviceLocation?: string;
+  musicianName?: string;
+  note?: string;
+  reservationType?: "in_church" | "outside_church";
+  feeAcknowledged?: boolean;
+}
+
+export interface EditSeriesOptions {
+  changes?: EditSeriesChanges;
+  dateShift?: EditSeriesDateShift;
+  scope?: "future";
+  occurrenceIds?: string[];
+}
+
+/**
+ * Bulk edits upcoming occurrences of a recurring series (Pending or Approved)
+ */
+export async function editReservationSeries(
+  seriesId: string,
+  options: EditSeriesOptions,
+  caller: { userId?: string | null; adminId?: string | null; isSuperAdmin?: boolean },
+) {
+  const [series] = await db
+    .select()
+    .from(reservationSeries)
+    .where(eq(reservationSeries.id, seriesId))
+    .limit(1);
+
+  if (!series) {
+    throw new Error("Reservation series not found.");
+  }
+
+  const cleanCallerAdminId = toNullableString(caller.adminId);
+  const cleanCallerUserId = toNullableString(caller.userId);
+
+  // Authorization check
+  if (
+    !cleanCallerAdminId &&
+    (!cleanCallerUserId || series.userId !== cleanCallerUserId)
+  ) {
+    throw new Error("You are not authorized to edit this reservation series.");
+  }
+
+  const isAdmin = Boolean(cleanCallerAdminId);
+
+  // Check if owner is trusted
+  let isOwnerTrusted = false;
+  if (series.userId) {
+    const [ownerUser] = await db
+      .select({ isTrusted: users.isTrusted })
+      .from(users)
+      .where(eq(users.id, series.userId))
+      .limit(1);
+    if (ownerUser?.isTrusted) isOwnerTrusted = true;
+  }
+
+  // Fetch affected future occurrences with status Pending or Approved
+  const queryResult: any = await db.execute(sql`
+    SELECT id, series_id, user_id, admin_id, instrument_id, service_name, service_location,
+           musician_name, reservation_type, fee_snapshot, status, note, booked_by_admin,
+           lower(time_range) as start_time,
+           upper(time_range) as end_time,
+           to_char(lower(time_range) AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') as occurrence_date,
+           to_char(lower(time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as occurrence_start_time,
+           ROUND(EXTRACT(EPOCH FROM (upper(time_range) - lower(time_range))) / 3600.0, 2) as occurrence_duration
+    FROM reservations
+    WHERE series_id = ${seriesId}
+      AND status IN ('pending', 'approved')
+      AND lower(time_range) > NOW()
+    ORDER BY lower(time_range) ASC
+  `);
+
+  const rawUpcomingRows = queryResult.rows || [];
+  let affectedRows = rawUpcomingRows;
+  if (Array.isArray(options.occurrenceIds) && options.occurrenceIds.length > 0) {
+    const filterSet = new Set(options.occurrenceIds.map(String));
+    affectedRows = rawUpcomingRows.filter((r: any) => filterSet.has(String(r.id)));
+  }
+
+  if (affectedRows.length === 0) {
+    return {
+      success: true,
+      updatedCount: 0,
+      statusSummary: { approved: 0, pending: 0 },
+      message: "No matching upcoming occurrences to update.",
+    };
+  }
+
+  const changes = options.changes || {};
+  const dateShift = options.dateShift || { type: "none" };
+
+  const targetInstrumentId = changes.instrumentId || series.instrumentId;
+  const [targetInstrument] = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(
+        eq(instruments.id, targetInstrumentId),
+        eq(instruments.isRemoved, false),
+      ),
+    )
+    .limit(1);
+
+  if (!targetInstrument) {
+    throw new Error("Target instrument not found or has been removed.");
+  }
+
+  const now = new Date();
+  const graceThreshold = new Date(now.getTime() - 2 * 60 * 1000);
+
+  // Step 1: Compute updated dates/times and validate working hours & past dates
+  const plannedOccurrences = affectedRows.map((occ: any, idx: number) => {
+    let newDate = occ.occurrence_date;
+    if (dateShift.type === "days" && typeof dateShift.value === "number") {
+      newDate = addDaysToDateString(occ.occurrence_date, dateShift.value);
+    } else if (dateShift.type === "weekday" && typeof dateShift.value === "number") {
+      newDate = shiftDateToWeekday(occ.occurrence_date, dateShift.value);
+    }
+
+    const newStartTime =
+      changes.startTime !== undefined
+        ? changes.startTime
+        : occ.occurrence_start_time;
+    const newDuration =
+      changes.duration !== undefined
+        ? Number(changes.duration)
+        : Number(occ.occurrence_duration);
+    const newInstrumentId = changes.instrumentId || occ.instrument_id;
+    const newServiceName =
+      changes.serviceName !== undefined
+        ? changes.serviceName.trim()
+        : occ.service_name;
+    const newMusicianName =
+      changes.musicianName !== undefined
+        ? changes.musicianName.trim()
+        : occ.musician_name;
+    const newServiceLocation =
+      changes.serviceLocation !== undefined
+        ? toNullableString(changes.serviceLocation)
+        : occ.service_location;
+    const newNote =
+      changes.note !== undefined
+        ? toNullableString(changes.note)
+        : occ.note;
+    const newReservationType =
+      changes.reservationType || occ.reservation_type;
+
+    if (!newMusicianName) {
+      throw new Error("Musician name is required.");
+    }
+    if (!newServiceName) {
+      throw new Error("Service name is required.");
+    }
+
+    const { start, end, timeRangeSqlString } = buildTimeRange(
+      newDate,
+      newStartTime,
+      newDuration,
+    );
+
+    if (start < graceThreshold) {
+      throw new Error(
+        `Shifted date (${newDate} ${newStartTime}) cannot be in the past.`,
+      );
+    }
+
+    try {
+      validateWorkingHours(start, end);
+    } catch (err: any) {
+      throw new Error(
+        `Occurrence #${idx + 1} (${newDate} ${newStartTime}): ${err.message}`,
+      );
+    }
+
+    return {
+      id: occ.id,
+      oldDate: occ.occurrence_date,
+      oldStartTime: occ.occurrence_start_time,
+      oldDuration: Number(occ.occurrence_duration),
+      currentStatus: occ.status,
+      currentFeeSnapshot: occ.fee_snapshot,
+      currentInstrumentId: occ.instrument_id,
+      newDate,
+      newStartTime,
+      newDuration,
+      newInstrumentId,
+      newServiceName,
+      newMusicianName,
+      newServiceLocation,
+      newNote,
+      newReservationType,
+      start,
+      end,
+      timeRangeSqlString,
+      index: idx + 1,
+    };
+  });
+
+  // Step 2: Self-overlap check between occurrences in the series
+  for (let i = 0; i < plannedOccurrences.length; i++) {
+    for (let j = i + 1; j < plannedOccurrences.length; j++) {
+      const a = plannedOccurrences[i];
+      const b = plannedOccurrences[j];
+      if (
+        a.newInstrumentId === b.newInstrumentId &&
+        a.start < b.end &&
+        b.start < a.end
+      ) {
+        throw new Error(
+          `Self-overlap detected: Occurrence #${a.index} (${a.newDate} ${a.newStartTime}) overlaps with Occurrence #${b.index} (${b.newDate} ${b.newStartTime}).`,
+        );
+      }
+    }
+  }
+
+  // Step 3: Conflict check against existing approved reservations on target instrument(s)
+  // excluding all occurrences of this series!
+  const allAffectedIds = plannedOccurrences.map((p) => p.id);
+  const conflictingOccurrences: any[] = [];
+
+  for (const p of plannedOccurrences) {
+    const conflicts = await db
+      .select({ id: reservations.id, timeRange: reservations.timeRange })
+      .from(reservations)
+      .where(
+        sql`${reservations.instrumentId} = ${p.newInstrumentId}
+          AND ${reservations.status} = 'approved'
+          AND ${reservations.id} NOT IN (${sql.join(allAffectedIds.map((id) => sql`${id}`), sql`, `)})
+          AND ${reservations.timeRange} && tstzrange(${p.start.toISOString()}, ${p.end.toISOString()}, '[)')`,
+      );
+
+    if (conflicts.length > 0) {
+      conflictingOccurrences.push({
+        occurrenceIndex: p.index,
+        occurrenceDate: p.newDate,
+        occurrenceTime: p.newStartTime,
+        duration: p.newDuration,
+        conflictingReservationId: conflicts[0].id,
+      });
+    }
+  }
+
+  if (conflictingOccurrences.length > 0) {
+    const conflictDescriptions = conflictingOccurrences.map(
+      (c) => `${c.occurrenceDate} at ${c.occurrenceTime}`,
+    );
+    const error: any = new Error(
+      `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations: ${conflictDescriptions.join(", ")}.`,
+    );
+    error.conflicts = conflictingOccurrences;
+    throw error;
+  }
+
+  // Step 4: Evaluate status and fees per occurrence
+  const limits = await getHardLimits();
+  let approvedCount = 0;
+  let pendingCount = 0;
+
+  const evaluatedOccurrences = plannedOccurrences.map((p) => {
+    const instrumentChanged = p.newInstrumentId !== p.currentInstrumentId;
+    let feeSnapshot = p.currentFeeSnapshot;
+
+    if (p.newReservationType === "outside_church") {
+      if (instrumentChanged || !p.currentFeeSnapshot) {
+        feeSnapshot = targetInstrument.outsideFeePerDay
+          ? String(targetInstrument.outsideFeePerDay)
+          : "0.00";
+      }
+    } else {
+      feeSnapshot = null;
+    }
+
+    let newStatus: "approved" | "pending" = "pending";
+
+    if (isAdmin) {
+      // Admin editor:
+      // Occurrences that were Approved remain Approved; occurrences that were Pending remain Pending.
+      newStatus = p.currentStatus === "approved" ? "approved" : "pending";
+    } else if (isOwnerTrusted) {
+      newStatus = "approved";
+    } else if (p.currentStatus === "pending") {
+      newStatus = "pending";
+    } else {
+      // Regular user, currentStatus was 'approved':
+      if (p.newReservationType === "outside_church") {
+        newStatus = "pending";
+      } else if (
+        targetInstrument.bookingMode === "manual" ||
+        (instrumentChanged && targetInstrument.bookingMode === "manual")
+      ) {
+        newStatus = "pending";
+      } else if (p.newDuration > limits.maxDurationHours) {
+        newStatus = "pending";
+      } else {
+        newStatus = "approved";
+      }
+    }
+
+    if (newStatus === "approved") {
+      approvedCount++;
+    } else {
+      pendingCount++;
+    }
+
+    return {
+      ...p,
+      newStatus,
+      feeSnapshot,
+    };
+  });
+
+  // Step 5: Execute atomic transaction
+  try {
+    await db.transaction(async (tx) => {
+      // Update parent reservation_series row if needed (when editing all upcoming occurrences)
+      if (!options.occurrenceIds || options.occurrenceIds.length >= rawUpcomingRows.length) {
+        await tx
+          .update(reservationSeries)
+          .set({
+            instrumentId: targetInstrumentId,
+            serviceLocation:
+              changes.serviceLocation !== undefined
+                ? toNullableString(changes.serviceLocation)
+                : series.serviceLocation,
+            note:
+              changes.note !== undefined
+                ? toNullableString(changes.note)
+                : series.note,
+          })
+          .where(eq(reservationSeries.id, seriesId));
+      }
+
+      // Update each occurrence
+      for (const occ of evaluatedOccurrences) {
+        await tx
+          .update(reservations)
+          .set({
+            instrumentId: occ.newInstrumentId,
+            serviceName: occ.newServiceName,
+            serviceLocation: occ.newServiceLocation,
+            musicianName: occ.newMusicianName,
+            note: occ.newNote,
+            timeRange:
+              sql`tstzrange(${occ.start.toISOString()}, ${occ.end.toISOString()}, '[)')` as any,
+            reservationType: occ.newReservationType,
+            feeSnapshot: occ.feeSnapshot,
+            status: occ.newStatus,
+            rejectionReason: null,
+          })
+          .where(eq(reservations.id, occ.id));
+      }
+    });
+  } catch (err: any) {
+    if (
+      String(err.message).includes("exclusion") ||
+      String(err.message).includes("conflict") ||
+      String(err.code) === "23P01"
+    ) {
+      const conflictErr: any = new Error(
+        "One or more time slots conflict with an existing approved reservation.",
+      );
+      conflictErr.conflicts = [
+        { message: "Database exclusion constraint violation" },
+      ];
+      throw conflictErr;
+    }
+    throw err;
+  }
+
+  // Step 6: Post-transaction cleanup: auto-reject overlapping pending reservations for re-approved slots
+  for (const occ of evaluatedOccurrences) {
+    if (occ.newStatus === "approved") {
+      await autoRejectOverlappingPending(
+        occ.newInstrumentId,
+        occ.start,
+        occ.end,
+        occ.id,
+      ).catch(() => {});
+    }
+  }
+
+  // Step 7: Notifications
+  if (isAdmin && series.userId) {
+    // Notify owner user of admin edit
+    const summaryMsg = `Church Administration updated your recurring series (${evaluatedOccurrences.length} upcoming occurrences updated).`;
+    await db
+      .insert(notifications)
+      .values({
+        userId: series.userId,
+        reservationId: evaluatedOccurrences[0]?.id,
+        type: "series_updated",
+        message: summaryMsg,
+      })
+      .catch(() => {});
+
+    sendPushToUser(series.userId, {
+      titleAr: "تم تعديل سلسلتك المتكررة بواسطة الإدارة",
+      titleEn: "Recurring Series Updated by Administration",
+      bodyAr: `تم تحديث ${evaluatedOccurrences.length} مواعيد قادمة في سلسلة "${changes.serviceName || series.note || "الخدمة"}".`,
+      bodyEn: `Administration updated ${evaluatedOccurrences.length} upcoming dates in your series.`,
+      url: `/?reservationId=${evaluatedOccurrences[0]?.id}`,
+      data: { seriesId, type: "series_updated" },
+    }).catch(() => {});
+  } else if (!isAdmin && pendingCount > 0) {
+    // Notify admins of re-pended occurrences (ONE summary notification)
+    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    const summaryMsg = `Member updated a recurring series (${evaluatedOccurrences.length} occurrences, ${pendingCount} returned to pending review).`;
+    for (const adm of allAdmins) {
+      await db
+        .insert(notifications)
+        .values({
+          adminId: adm.id,
+          reservationId: evaluatedOccurrences[0]?.id,
+          type: "series_updated",
+          message: summaryMsg,
+        })
+        .catch(() => {});
+    }
+    sendPushToAdmins(
+      {
+        titleAr: "تحديث سلسلة حجوزات تتطلب مراجعة",
+        titleEn: "Recurring Series Updated",
+        bodyAr: `قام عضو بتعديل سلسلة: ${pendingCount} مواعيد عادت بانتظار الاعتماد.`,
+        bodyEn: `A member updated a series: ${pendingCount} dates returned to pending review.`,
+        url: `/?reservationId=${evaluatedOccurrences[0]?.id}`,
+        data: { seriesId, type: "series_updated" },
+      },
+      "new_requests",
+    ).catch(() => {});
+  }
+
+  return {
+    success: true,
+    updatedCount: evaluatedOccurrences.length,
+    statusSummary: {
+      approved: approvedCount,
+      pending: pendingCount,
+    },
+  };
 }
 
 /**

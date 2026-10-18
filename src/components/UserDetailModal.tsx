@@ -21,6 +21,7 @@ import {
   UserCheck,
   Trash2,
   ArrowUpCircle,
+  Plus,
 } from "lucide-react";
 import {
   formatDisplayDate,
@@ -42,6 +43,7 @@ export interface UserDetailModalProps {
   zIndexClass?: string;
   onPromoteUser?: (userId: string, name: string) => void;
   onDeleteUser?: (userId: string, name: string) => void;
+  onBookOnBehalf?: (user: any) => void;
 }
 
 type StatTone = "default" | "danger" | "ok";
@@ -97,6 +99,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   zIndexClass = "z-50",
   onPromoteUser,
   onDeleteUser,
+  onBookOnBehalf,
 }) => {
   const { t } = useTranslation();
 
@@ -431,6 +434,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
 
   // Count of visible action buttons for the compact row grid
   const actionCount = [
+    Boolean(onBookOnBehalf),
     isSuperAdmin,
     true, // Active toggle is always shown for users
     isSuperAdmin && !!onPromoteUser,
@@ -567,6 +571,23 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                         gridTemplateColumns: `repeat(${Math.max(actionCount, 1)}, minmax(0, 1fr))`,
                       }}
                     >
+                      {/* Book for user */}
+                      {onBookOnBehalf && (
+                        <button
+                          type="button"
+                          onClick={() => onBookOnBehalf(userData)}
+                          title={t("admin.users.bookForTooltip", {
+                            defaultValue: "Book reservation on behalf of this user",
+                          })}
+                          className="flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100 transition cursor-pointer active:scale-95 touch-manipulation"
+                        >
+                          <Plus className="w-5 h-5 shrink-0 text-amber-800" />
+                          <span className="text-[11px] font-bold leading-none">
+                            {t("admin.users.bookFor", { defaultValue: "Book" })}
+                          </span>
+                        </button>
+                      )}
+
                       {/* Trusted */}
                       {isSuperAdmin &&
                         (!confirmToggleTrust ? (

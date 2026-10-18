@@ -37,6 +37,8 @@ import {
   adminBulkCancel,
   removeInstrumentWithConfirmation,
   createReservation,
+  createReservationSeries,
+  editReservationSeries,
   getHardLimits,
   cancelReservation,
   ensureCurrentReservationStatuses,
@@ -751,8 +753,8 @@ router.get(
           to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
           i.name as instrument_name,
           i.type as instrument_type,
-           -- ✅ FIX: Get user name from users table, fallback to admin name, then 'Unknown Member'
-          COALESCE(u.name, a.name, 'Unknown Member') as user_name,
+           -- ✅ FIX: Get user name from users table, fallback to admin name, then 'Church Member'
+          COALESCE(u.name, a.name, 'Church Member') as user_name,
           -- ✅ FIX: Get user phone from users table, fallback to admin phone, then 'N/A'
           COALESCE(u.phone_number, a.phone_number, 'N/A') as user_phone
         FROM reservations r
@@ -2627,6 +2629,121 @@ router.post(
       });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Make a RECURRING SERIES on behalf of a user (Always Auto-Approved via Admin Privilege)
+ */
+router.post(
+  "/users/:userId/book-series-on-behalf",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+      const {
+        instrumentId,
+        serviceName,
+        serviceLocation,
+        musicianName,
+        patternType,
+        occurrences,
+        reservationType,
+        note,
+      } = req.body;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+
+      if (!serviceName || !serviceName.trim()) {
+        res
+          .status(400)
+          .json({ success: false, error: "Service/Event name is required." });
+        return;
+      }
+      if (!musicianName || !musicianName.trim()) {
+        res
+          .status(400)
+          .json({ success: false, error: "Musician name is required." });
+        return;
+      }
+      if (!occurrences || occurrences.length === 0) {
+        res
+          .status(400)
+          .json({ success: false, error: "Series must have at least one occurrence." });
+        return;
+      }
+
+      const result = await createReservationSeries({
+        userId,
+        adminId,
+        instrumentId,
+        serviceName: serviceName.trim(),
+        serviceLocation: serviceLocation ? String(serviceLocation).trim() : undefined,
+        musicianName: musicianName.trim(),
+        patternType: patternType || "weekly",
+        occurrences,
+        reservationType:
+          reservationType === "outside_church" ? "outside_church" : "in_church",
+        feeAcknowledged: true,
+        note: note ? String(note).trim() : undefined,
+      });
+
+      res.status(201).json({
+        success: true,
+        series: result.series,
+        occurrences: result.occurrences,
+        message: "Recurring series created and auto-approved on behalf of user.",
+      });
+    } catch (err: any) {
+      console.error("Admin book-series-on-behalf error:", err);
+      res.status(400).json({
+        success: false,
+        error: err.message,
+        conflicts: err.conflicts || undefined,
+      });
+    }
+  },
+);
+
+/**
+ * Admin bulk edits upcoming occurrences of a recurring series
+ */
+router.patch(
+  "/reservations/series/:seriesId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { seriesId } = req.params;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+
+      const result = await editReservationSeries(
+        seriesId,
+        req.body,
+        {
+          adminId,
+          isSuperAdmin: (req as any).adminSession?.role === "super_admin",
+        },
+      );
+
+      res.json({
+        success: true,
+        updatedCount: result.updatedCount,
+        statusSummary: result.statusSummary,
+        ...(result.message ? { message: result.message } : {}),
+      });
+    } catch (err: any) {
+      console.error("Admin series edit error:", err);
+      const msg = err.message || "Failed to edit recurring series.";
+      const status = /not found/i.test(msg)
+        ? 404
+        : /conflict|working hours|past/i.test(msg)
+          ? 400
+          : 500;
+      res.status(status).json({
+        success: false,
+        error: msg,
+        conflicts: err.conflicts || undefined,
+      });
     }
   },
 );
