@@ -1298,13 +1298,25 @@ router.get(
       }
       const { id: actorId, kind: actorKind } = selfIdentity;
 
-      // The predicate used to match the actor's own rows.
-      // Prefer the direct column, and as a safety net also match the
-      // "other" column in case legacy rows recorded the actor there.
+      // A row counts as the caller's own booking when:
+      //
+      //   - Admin caller:  admin_id = caller  AND  user_id IS NULL
+      //   - Member caller: user_id = caller
+      //
+      // `booked_by_admin` is IGNORED because in this system it is set to
+      // `true` on every admin-created row (self or on-behalf), so it cannot
+      // distinguish the two. `musician_name` is IGNORED because the spelling
+      // varies between reservations.
+      //
+      // Rows where a member UUID is set in `user_id` are "Book For" bookings
+      // made on behalf of someone else and are excluded.
       const ownPredicate =
         actorKind === "user"
-          ? sql`(r.user_id = ${actorId} OR (r.admin_id = ${actorId} AND r.booked_by_admin = false))`
-          : sql`(r.admin_id = ${actorId} OR r.user_id = ${actorId})`;
+          ? sql`r.user_id = ${actorId}`
+          : sql`(
+              r.admin_id = ${actorId}
+              AND r.user_id IS NULL
+            )`;
 
       // 1. Resolve display name (user or admin)
       let userName = "Musician";
@@ -1320,9 +1332,9 @@ router.get(
         userName = (adminRes as any).rows?.[0]?.name || "Administrator";
       }
 
-      // 2. Fetch the actor's latest 25 self-bookings (both user_id and
-      //    admin_id rows are considered so admins who booked themselves
-      //    through either flow get suggestions).
+      // 2. Fetch the actor's latest 25 own bookings. The predicate above
+      //    selects admin self-bookings (user_id IS NULL) and member
+      //    self-bookings (user_id = caller).
       const pastRes = await db.execute(sql`
         SELECT 
           r.id,
@@ -1350,10 +1362,20 @@ router.get(
       const routineCandidates: any[] = [];
 
       if (rows.length > 0) {
+        // Group by (normalized service name + weekday + start time), NOT by
+        // instrument. This collapses the same routine booked on two different
+        // instruments (e.g. Roland E-09 and Yamaha E-443 on Sunday 17:00)
+        // into ONE suggestion. Rows are ordered DESC by start time, so the
+        // first sample we keep is always the member's most recent — that
+        // instrument is the one offered on the card.
         const patternCounts: Record<string, { count: number; sample: any }> =
           {};
         for (const row of rows) {
-          const key = `${row.instrument_id}__${row.dow}__${row.start_time_cairo}`;
+          const svc = String(row.service_name || "")
+            .trim()
+            .toLowerCase();
+          if (!svc) continue; // skip rows without a service name
+          const key = `${svc}__${row.dow}__${row.start_time_cairo}`;
           if (!patternCounts[key]) {
             patternCounts[key] = { count: 0, sample: row };
           }
@@ -1382,7 +1404,7 @@ router.get(
       }
 
       // No hardcoded fallbacks: only real booking history drives suggestions.
-      // If the caller has no past bookings, the card is not shown.
+      // If the caller has no past self-bookings, the card is not shown.
       if (routineCandidates.length === 0) {
         res.json({
           success: true,
@@ -1414,6 +1436,12 @@ router.get(
       const suggestionsList: any[] = [];
 
       for (const routine of routineCandidates) {
+        // Skip candidates with no meaningful service name — they'd render
+        // as blank cards and confuse the member.
+        if (!routine.service_name || !routine.service_name.trim()) {
+          continue;
+        }
+
         const targetDow =
           routine.dow !== null && routine.dow !== undefined
             ? Number(routine.dow)
@@ -1454,7 +1482,8 @@ router.get(
         );
 
         // Already-booked check uses the same ownPredicate so admins see
-        // "Already Booked" correctly against their own admin_id rows.
+        // "Already Booked" correctly against their own self-bookings
+        // (rows where user_id IS NULL).
         const existingUserBooking = await db.execute(sql`
           SELECT id, status FROM reservations r
           WHERE ${ownPredicate}
@@ -1485,7 +1514,7 @@ router.get(
           instrumentId: routine.instrument_id,
           instrumentName: routine.instrument_name,
           instrumentType: routine.instrument_type,
-          serviceName: routine.service_name || "Youth Meeting",
+          serviceName: routine.service_name || "",
           musicianName: routine.musician_name || userName,
           date: targetDateStr,
           dayNameEn: dayNamesEn[targetDow],
@@ -1501,11 +1530,39 @@ router.get(
         });
       }
 
+      // Final safety net: dedupe by (serviceName + day + startTime) so the
+      // same routine can never appear twice in the dropdown, and drop any
+      // entry that ended up with an empty service name.
+      const seen = new Set<string>();
+      const dedupedSuggestions = suggestionsList.filter((s) => {
+        if (!s.serviceName || !String(s.serviceName).trim()) return false;
+        const key = `${String(s.serviceName).trim().toLowerCase()}__${s.dayNameEn}__${s.startTime}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      if (
+        typeof process !== "undefined" &&
+        process.env?.NODE_ENV !== "production"
+      ) {
+        console.info(
+          "[QuickRebook] actor=",
+          actorId,
+          "kind=",
+          actorKind,
+          "historyRows=",
+          rows.length,
+          "deduped=",
+          dedupedSuggestions.length,
+        );
+      }
+
       res.json({
         success: true,
-        hasSuggestion: suggestionsList.length > 0,
-        suggestion: suggestionsList[0] || null,
-        allSuggestions: suggestionsList,
+        hasSuggestion: dedupedSuggestions.length > 0,
+        suggestion: dedupedSuggestions[0] || null,
+        allSuggestions: dedupedSuggestions,
       });
     } catch (err: any) {
       console.error("Quick rebook suggestion error:", err);
