@@ -178,11 +178,11 @@ router.get(
         (pendingCountRes as any).rows?.[0]?.count || 0,
       );
 
-      // 3. Today's reservations count (Approved or Ongoing)
+      // 3. Today's reservations count (Approved, Ongoing, or Completed)
       const todayCountRes = await db.execute(sql`
       SELECT COUNT(*)::int as count 
       FROM reservations 
-      WHERE status IN ('approved', 'ongoing')
+      WHERE status IN ('approved', 'ongoing', 'completed')
         AND (lower(time_range) AT TIME ZONE 'Africa/Cairo')::date = ${todayStr}::date
     `);
       const todayReservations = Number(
@@ -243,47 +243,45 @@ router.get(
 /**
  * 1b. Usage Analytics (Instruments, Days, Hours, Heatmap, Trends, Top Users, Summary)
  */
-router.get(
-  "/analytics",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      // Ensure reservation statuses are up-to-date
-      await ensureCurrentReservationStatuses().catch(() => {});
+router.get("/analytics", async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Ensure reservation statuses are up-to-date
+    await ensureCurrentReservationStatuses().catch(() => {});
 
-      const rawTo = typeof req.query.to === "string" ? req.query.to.trim() : "";
-      const rawFrom =
-        typeof req.query.from === "string" ? req.query.from.trim() : "";
+    const rawTo = typeof req.query.to === "string" ? req.query.to.trim() : "";
+    const rawFrom =
+      typeof req.query.from === "string" ? req.query.from.trim() : "";
 
-      const todayCairo = getCairoDateString();
-      let toDate = /^\d{4}-\d{2}-\d{2}$/.test(rawTo) ? rawTo : todayCairo;
+    const todayCairo = getCairoDateString();
+    let toDate = /^\d{4}-\d{2}-\d{2}$/.test(rawTo) ? rawTo : todayCairo;
 
-      let fromDate = /^\d{4}-\d{2}-\d{2}$/.test(rawFrom) ? rawFrom : "";
-      if (!fromDate) {
-        // Default to last 30 days
-        const d = new Date();
-        d.setDate(d.getDate() - 30);
-        fromDate = getCairoDateString(d);
-      }
+    let fromDate = /^\d{4}-\d{2}-\d{2}$/.test(rawFrom) ? rawFrom : "";
+    if (!fromDate) {
+      // Default to last 30 days
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      fromDate = getCairoDateString(d);
+    }
 
-      // If from is after to, swap to keep valid range
-      if (fromDate > toDate) {
-        const tmp = fromDate;
-        fromDate = toDate;
-        toDate = tmp;
-      }
+    // If from is after to, swap to keep valid range
+    if (fromDate > toDate) {
+      const tmp = fromDate;
+      fromDate = toDate;
+      toDate = tmp;
+    }
 
-      const [
-        instrumentsRes,
-        typesRes,
-        weekdaysRes,
-        hoursRes,
-        heatmapRes,
-        dailyRes,
-        topUsersRes,
-        summaryRes,
-      ] = await Promise.all([
-        // 1. instrumentsByUsage: instrument name, type, reservation count, total hours (top 10)
-        db.execute(sql`
+    const [
+      instrumentsRes,
+      typesRes,
+      weekdaysRes,
+      hoursRes,
+      heatmapRes,
+      dailyRes,
+      topUsersRes,
+      summaryRes,
+    ] = await Promise.all([
+      // 1. instrumentsByUsage: instrument name, type, reservation count, total hours (top 10)
+      db.execute(sql`
           SELECT 
             i.name as name,
             i.type as type,
@@ -299,8 +297,8 @@ router.get(
           LIMIT 10
         `),
 
-        // 2. typesByUsage: instrument type, reservation count, total hours
-        db.execute(sql`
+      // 2. typesByUsage: instrument type, reservation count, total hours
+      db.execute(sql`
           SELECT 
             i.type as type,
             COUNT(r.id)::int as "reservationCount",
@@ -314,8 +312,8 @@ router.get(
           ORDER BY "reservationCount" DESC, "totalHours" DESC
         `),
 
-        // 3. reservationsByWeekday: Sunday–Saturday, count
-        db.execute(sql`
+      // 3. reservationsByWeekday: Sunday–Saturday, count
+      db.execute(sql`
           SELECT 
             EXTRACT(DOW FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as "dayIndex",
             COUNT(r.id)::int as count
@@ -327,8 +325,8 @@ router.get(
           ORDER BY "dayIndex" ASC
         `),
 
-        // 4. reservationsByHour: 9:00–22:00, count
-        db.execute(sql`
+      // 4. reservationsByHour: 9:00–22:00, count
+      db.execute(sql`
           SELECT 
             EXTRACT(HOUR FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as hour,
             COUNT(r.id)::int as count
@@ -341,8 +339,8 @@ router.get(
           ORDER BY hour ASC
         `),
 
-        // 5. weekdayHourHeatmap: weekday x hour, count
-        db.execute(sql`
+      // 5. weekdayHourHeatmap: weekday x hour, count
+      db.execute(sql`
           SELECT 
             EXTRACT(DOW FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as "weekday",
             EXTRACT(HOUR FROM lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::int as hour,
@@ -356,8 +354,8 @@ router.get(
           ORDER BY "weekday" ASC, hour ASC
         `),
 
-        // 6. dailyTrend: date, count
-        db.execute(sql`
+      // 6. dailyTrend: date, count
+      db.execute(sql`
           SELECT 
             TO_CHAR((lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date, 'YYYY-MM-DD') as date,
             COUNT(r.id)::int as count,
@@ -370,8 +368,8 @@ router.get(
           ORDER BY (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date ASC
         `),
 
-        // 7. topUsers: name, reservation count, total hours, no-show count (top 10)
-        db.execute(sql`
+      // 7. topUsers: name, reservation count, total hours, no-show count (top 10)
+      db.execute(sql`
           SELECT 
             COALESCE(u.name, a.name, 'Unknown') as name,
             COUNT(r.id)::int as "reservationCount",
@@ -388,8 +386,8 @@ router.get(
           LIMIT 10
         `),
 
-        // 8. summary: total reservations, total hours, unique users, in-church vs outside-church count
-        db.execute(sql`
+      // 8. summary: total reservations, total hours, unique users, in-church vs outside-church count
+      db.execute(sql`
           SELECT 
             COUNT(r.id)::int as "totalReservations",
             ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0), 0)::numeric, 1)::float as "totalHours",
@@ -403,156 +401,155 @@ router.get(
             AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date >= ${fromDate}::date
             AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date <= ${toDate}::date
         `),
-      ]);
+    ]);
 
-      // Normalize instruments by usage
-      const instrumentsByUsage = (
-        (instrumentsRes as any).rows || []
-      ).map((row: any) => ({
+    // Normalize instruments by usage
+    const instrumentsByUsage = ((instrumentsRes as any).rows || []).map(
+      (row: any) => ({
         name: String(row.name || ""),
         type: String(row.type || ""),
         reservationCount: Number(row.reservationCount || 0),
         totalHours: Number(row.totalHours || 0),
-      }));
+      }),
+    );
 
-      // Normalize types by usage
-      const typesByUsage = ((typesRes as any).rows || []).map((row: any) => ({
-        type: String(row.type || ""),
-        reservationCount: Number(row.reservationCount || 0),
-        totalHours: Number(row.totalHours || 0),
-      }));
+    // Normalize types by usage
+    const typesByUsage = ((typesRes as any).rows || []).map((row: any) => ({
+      type: String(row.type || ""),
+      reservationCount: Number(row.reservationCount || 0),
+      totalHours: Number(row.totalHours || 0),
+    }));
 
-      // Normalize reservations by weekday (ensure all 7 days exist: Sun 0 to Sat 6)
-      const weekdayNames = [
-        "Sunday",
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-      ];
-      const weekdayKeys = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-      ];
-      const weekdayCountsMap = new Map<number, number>();
-      for (const row of (weekdaysRes as any).rows || []) {
-        weekdayCountsMap.set(Number(row.dayIndex), Number(row.count));
-      }
-      const reservationsByWeekday = weekdayNames.map((name, idx) => ({
-        dayIndex: idx,
-        dayName: name,
-        dayKey: weekdayKeys[idx],
-        count: weekdayCountsMap.get(idx) || 0,
-      }));
+    // Normalize reservations by weekday (ensure all 7 days exist: Sun 0 to Sat 6)
+    const weekdayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const weekdayKeys = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+    const weekdayCountsMap = new Map<number, number>();
+    for (const row of (weekdaysRes as any).rows || []) {
+      weekdayCountsMap.set(Number(row.dayIndex), Number(row.count));
+    }
+    const reservationsByWeekday = weekdayNames.map((name, idx) => ({
+      dayIndex: idx,
+      dayName: name,
+      dayKey: weekdayKeys[idx],
+      count: weekdayCountsMap.get(idx) || 0,
+    }));
 
-      // Normalize reservations by hour (ensure hours 9 through 22 exist)
-      const hourCountsMap = new Map<number, number>();
-      for (const row of (hoursRes as any).rows || []) {
-        hourCountsMap.set(Number(row.hour), Number(row.count));
-      }
-      const reservationsByHour = [];
-      for (let h = 9; h <= 22; h++) {
-        reservationsByHour.push({
-          hour: h,
-          hourLabel: `${String(h).padStart(2, "0")}:00`,
-          count: hourCountsMap.get(h) || 0,
-        });
-      }
-
-      // Normalize weekdayHourHeatmap (all 7 days x 14 hours)
-      const heatmapMap = new Map<string, number>();
-      for (const row of (heatmapRes as any).rows || []) {
-        heatmapMap.set(`${row.weekday}-${row.hour}`, Number(row.count));
-      }
-      const weekdayHourHeatmap = [];
-      for (let d = 0; d < 7; d++) {
-        for (let h = 9; h <= 22; h++) {
-          weekdayHourHeatmap.push({
-            weekday: d,
-            dayName: weekdayNames[d],
-            dayKey: weekdayKeys[d],
-            hour: h,
-            hourLabel: `${String(h).padStart(2, "0")}:00`,
-            count: heatmapMap.get(`${d}-${h}`) || 0,
-          });
-        }
-      }
-
-      // Normalize dailyTrend with gap filling
-      const trendMap = new Map<string, { count: number; totalHours: number }>();
-      for (const row of (dailyRes as any).rows || []) {
-        trendMap.set(row.date, {
-          count: Number(row.count || 0),
-          totalHours: Number(row.totalHours || 0),
-        });
-      }
-      const dailyTrend = [];
-      const curDate = new Date(fromDate + "T00:00:00Z");
-      const endDate = new Date(toDate + "T00:00:00Z");
-      let safetyCounter = 0;
-      while (curDate <= endDate && safetyCounter < 370) {
-        safetyCounter++;
-        const dStr = curDate.toISOString().split("T")[0];
-        const item = trendMap.get(dStr) || { count: 0, totalHours: 0 };
-        dailyTrend.push({
-          date: dStr,
-          count: item.count,
-          totalHours: item.totalHours,
-        });
-        curDate.setUTCDate(curDate.getUTCDate() + 1);
-      }
-
-      // Normalize topUsers
-      const topUsers = ((topUsersRes as any).rows || []).map((row: any) => ({
-        name: String(row.name || "Unknown"),
-        reservationCount: Number(row.reservationCount || 0),
-        totalHours: Number(row.totalHours || 0),
-        noShowCount: Number(row.noShowCount || 0),
-      }));
-
-      // Normalize summary
-      const sumRow = (summaryRes as any).rows?.[0] || {};
-      const summary = {
-        totalReservations: Number(sumRow.totalReservations || 0),
-        totalHours: Number(sumRow.totalHours || 0),
-        uniqueUsers: Number(sumRow.uniqueUsers || 0),
-        inChurchCount: Number(sumRow.inChurchCount || 0),
-        outsideChurchCount: Number(sumRow.outsideChurchCount || 0),
-      };
-
-      res.json({
-        success: true,
-        data: {
-          dateRange: {
-            from: fromDate,
-            to: toDate,
-          },
-          summary,
-          instrumentsByUsage,
-          typesByUsage,
-          reservationsByWeekday,
-          reservationsByHour,
-          weekdayHourHeatmap,
-          dailyTrend,
-          topUsers,
-        },
-      });
-    } catch (err: any) {
-      console.error("Admin analytics error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message || "Failed to load analytics data",
+    // Normalize reservations by hour (ensure hours 9 through 22 exist)
+    const hourCountsMap = new Map<number, number>();
+    for (const row of (hoursRes as any).rows || []) {
+      hourCountsMap.set(Number(row.hour), Number(row.count));
+    }
+    const reservationsByHour = [];
+    for (let h = 9; h <= 22; h++) {
+      reservationsByHour.push({
+        hour: h,
+        hourLabel: `${String(h).padStart(2, "0")}:00`,
+        count: hourCountsMap.get(h) || 0,
       });
     }
-  },
-);
+
+    // Normalize weekdayHourHeatmap (all 7 days x 14 hours)
+    const heatmapMap = new Map<string, number>();
+    for (const row of (heatmapRes as any).rows || []) {
+      heatmapMap.set(`${row.weekday}-${row.hour}`, Number(row.count));
+    }
+    const weekdayHourHeatmap = [];
+    for (let d = 0; d < 7; d++) {
+      for (let h = 9; h <= 22; h++) {
+        weekdayHourHeatmap.push({
+          weekday: d,
+          dayName: weekdayNames[d],
+          dayKey: weekdayKeys[d],
+          hour: h,
+          hourLabel: `${String(h).padStart(2, "0")}:00`,
+          count: heatmapMap.get(`${d}-${h}`) || 0,
+        });
+      }
+    }
+
+    // Normalize dailyTrend with gap filling
+    const trendMap = new Map<string, { count: number; totalHours: number }>();
+    for (const row of (dailyRes as any).rows || []) {
+      trendMap.set(row.date, {
+        count: Number(row.count || 0),
+        totalHours: Number(row.totalHours || 0),
+      });
+    }
+    const dailyTrend = [];
+    const curDate = new Date(fromDate + "T00:00:00Z");
+    const endDate = new Date(toDate + "T00:00:00Z");
+    let safetyCounter = 0;
+    while (curDate <= endDate && safetyCounter < 370) {
+      safetyCounter++;
+      const dStr = curDate.toISOString().split("T")[0];
+      const item = trendMap.get(dStr) || { count: 0, totalHours: 0 };
+      dailyTrend.push({
+        date: dStr,
+        count: item.count,
+        totalHours: item.totalHours,
+      });
+      curDate.setUTCDate(curDate.getUTCDate() + 1);
+    }
+
+    // Normalize topUsers
+    const topUsers = ((topUsersRes as any).rows || []).map((row: any) => ({
+      name: String(row.name || "Unknown"),
+      reservationCount: Number(row.reservationCount || 0),
+      totalHours: Number(row.totalHours || 0),
+      noShowCount: Number(row.noShowCount || 0),
+    }));
+
+    // Normalize summary
+    const sumRow = (summaryRes as any).rows?.[0] || {};
+    const summary = {
+      totalReservations: Number(sumRow.totalReservations || 0),
+      totalHours: Number(sumRow.totalHours || 0),
+      uniqueUsers: Number(sumRow.uniqueUsers || 0),
+      inChurchCount: Number(sumRow.inChurchCount || 0),
+      outsideChurchCount: Number(sumRow.outsideChurchCount || 0),
+    };
+
+    res.json({
+      success: true,
+      data: {
+        dateRange: {
+          from: fromDate,
+          to: toDate,
+        },
+        summary,
+        instrumentsByUsage,
+        typesByUsage,
+        reservationsByWeekday,
+        reservationsByHour,
+        weekdayHourHeatmap,
+        dailyTrend,
+        topUsers,
+      },
+    });
+  } catch (err: any) {
+    console.error("Admin analytics error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Failed to load analytics data",
+    });
+  }
+});
 
 /* =========================================================================
    2. RESERVATIONS MANAGEMENT & REVIEW (Shared)
@@ -631,7 +628,7 @@ router.get(
       // Filter by quick tab
       const today = getCairoDateString();
       if (quickTab === "today") {
-        querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${today}::date`;
+        querySql = sql`${querySql} AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${today}::date AND r.status IN ('approved', 'ongoing', 'completed')`;
       } else if (quickTab === "pending") {
         querySql = sql`${querySql} AND r.status = 'pending'`;
       }
@@ -947,7 +944,9 @@ router.get(
 
       const resRows = (resInfo as any).rows || [];
       if (resRows.length === 0) {
-        res.status(404).json({ success: false, error: "Reservation not found." });
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found." });
         return;
       }
       const reservation = resRows[0];
@@ -1022,9 +1021,7 @@ router.get(
           conflictDetails: conflict
             ? `Booked for "${conflict.service_name}" (${conflict.start_hhmm} - ${conflict.end_hhmm}) by ${conflict.booked_by}`
             : null,
-          categoryBadge: inst.is_removed
-            ? "Inactive"
-            : "Active Standard",
+          categoryBadge: inst.is_removed ? "Inactive" : "Active Standard",
         };
       });
 
@@ -1475,7 +1472,10 @@ router.post(
 
       const result = await cancelReservation(
         firstOccurrence[0].id,
-        { cancelMode: "series", cancellationReason: "Cancelled by administrator." },
+        {
+          cancelMode: "series",
+          cancellationReason: "Cancelled by administrator.",
+        },
         { adminId },
       );
       res.json({
@@ -2245,7 +2245,11 @@ router.post(
             .where(
               and(
                 eq(reservations.userId, id),
-                inArray(reservations.status, ["pending", "approved", "ongoing"]),
+                inArray(reservations.status, [
+                  "pending",
+                  "approved",
+                  "ongoing",
+                ]),
                 sql`upper(${reservations.timeRange}) > NOW()`,
               ),
             )
@@ -2308,7 +2312,10 @@ router.post(
  */
 router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
   try {
-    const rawStatus = typeof req.query.status === "string" ? req.query.status.toLowerCase().trim() : "pending";
+    const rawStatus =
+      typeof req.query.status === "string"
+        ? req.query.status.toLowerCase().trim()
+        : "pending";
     const status = rawStatus || "pending";
     const search = req.query.search;
 
@@ -2669,7 +2676,10 @@ router.post(
       if (!occurrences || occurrences.length === 0) {
         res
           .status(400)
-          .json({ success: false, error: "Series must have at least one occurrence." });
+          .json({
+            success: false,
+            error: "Series must have at least one occurrence.",
+          });
         return;
       }
 
@@ -2678,7 +2688,9 @@ router.post(
         adminId,
         instrumentId,
         serviceName: serviceName.trim(),
-        serviceLocation: serviceLocation ? String(serviceLocation).trim() : undefined,
+        serviceLocation: serviceLocation
+          ? String(serviceLocation).trim()
+          : undefined,
         musicianName: musicianName.trim(),
         patternType: patternType || "weekly",
         occurrences,
@@ -2692,7 +2704,8 @@ router.post(
         success: true,
         series: result.series,
         occurrences: result.occurrences,
-        message: "Recurring series created and auto-approved on behalf of user.",
+        message:
+          "Recurring series created and auto-approved on behalf of user.",
       });
     } catch (err: any) {
       console.error("Admin book-series-on-behalf error:", err);
@@ -2716,14 +2729,10 @@ router.patch(
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
 
-      const result = await editReservationSeries(
-        seriesId,
-        req.body,
-        {
-          adminId,
-          isSuperAdmin: (req as any).adminSession?.role === "super_admin",
-        },
-      );
+      const result = await editReservationSeries(seriesId, req.body, {
+        adminId,
+        isSuperAdmin: (req as any).adminSession?.role === "super_admin",
+      });
 
       res.json({
         success: true,
