@@ -1012,22 +1012,20 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               {statusLabel(reservation.status)}
             </span>
 
-            {/* 🚫 Edit button — hidden for completed reservations */}
-            {(!isPast || isAdminViewer) &&
-              (!isCancelled || isAdminViewer) &&
-              !isCompleted && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onEdit(reservation);
-                  }}
-                  aria-label={t("reservationDetail.editSlot")}
-                  className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
-                >
-                  <Edit className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-                </button>
-              )}
+            {/* 🚫 Edit button — hidden for completed OR cancelled/rejected reservations */}
+            {(!isPast || isAdminViewer) && !isCancelled && !isCompleted && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(reservation);
+                }}
+                aria-label={t("reservationDetail.editSlot")}
+                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
+              >
+                <Edit className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+              </button>
+            )}
 
             <button
               type="button"
@@ -2056,9 +2054,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             {statusLabel(occ.status)}
                           </span>
 
-                          {/* 🚫 Edit pencil — hidden for completed occurrence */}
+                          {/* 🚫 Edit pencil — hidden for completed OR cancelled occurrence */}
                           {(!isPastOcc || isAdminViewer) &&
-                            (!isCancelledOcc || isAdminViewer) &&
+                            !isCancelledOcc &&
                             !isOccCompleted && (
                               <button
                                 type="button"
@@ -2084,39 +2082,37 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   })}
                 </div>
 
-                {/* 🚫 Edit Entire Series — hidden when current reservation is completed */}
-                {(!isPast || isAdminViewer) &&
-                  (!isCancelled || isAdminViewer) &&
-                  !isCompleted && (
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onClose();
-                          onEdit({
-                            ...reservation,
-                            _initialScope: "series",
-                          });
-                        }}
-                        className="inline-flex items-center gap-1.5 text-[11px] text-amber-800 font-bold hover:underline cursor-pointer"
-                      >
-                        <Repeat className="w-3.5 h-3.5" />
-                        <span>
-                          {t("myReservations.editEntireSeries", {
-                            defaultValue: "Edit Entire Series",
-                          })}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCancelPrompt("series")}
-                        className="inline-flex items-center gap-1.5 text-[11px] text-red-700 font-semibold hover:underline cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>{t("reservationDetail.cancelEntireSeries")}</span>
-                      </button>
-                    </div>
-                  )}
+                {/* 🚫 Edit Entire Series — hidden when reservation is completed OR cancelled/rejected */}
+                {(!isPast || isAdminViewer) && !isCancelled && !isCompleted && (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onEdit({
+                          ...reservation,
+                          _initialScope: "series",
+                        });
+                      }}
+                      className="inline-flex items-center gap-1.5 text-[11px] text-amber-800 font-bold hover:underline cursor-pointer"
+                    >
+                      <Repeat className="w-3.5 h-3.5" />
+                      <span>
+                        {t("myReservations.editEntireSeries", {
+                          defaultValue: "Edit Entire Series",
+                        })}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCancelPrompt("series")}
+                      className="inline-flex items-center gap-1.5 text-[11px] text-red-700 font-semibold hover:underline cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t("reservationDetail.cancelEntireSeries")}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1009,6 +1009,19 @@
       "seriesBadge": "Series",
       "approveBtn": "Approve",
       "rejectBtn": "Reject",
+      "approveSuccess": "Reservation approved successfully.",
+      "approveError": "Failed to approve reservation.",
+      "rejectSuccess": "Reservation rejected.",
+      "rejectError": "Failed to reject reservation.",
+      "noShowMarked": "Marked as no-show successfully.",
+      "noShowUnmarked": "Unmarked no-show successfully.",
+      "bulkCancelSuccess": "{{count}} reservation(s) cancelled.",
+      "bulkCancelError": "Failed to cancel reservations.",
+      "bulkDeleteTitle": "Delete Reservations Permanently",
+      "bulkDeleteConfirm": "Permanently delete {{count}} reservation(s)? This cannot be undone.",
+      "bulkDeleteButton": "Delete Permanently",
+      "bulkDeleteSuccess": "{{count}} reservation(s) deleted.",
+      "bulkDeleteError": "Failed to delete reservations.",
       "approveOccurrenceBtn": "Approve",
       "rejectOccurrenceBtn": "Reject",
       "approveSeriesBtn": "Approve All",
@@ -1068,7 +1081,16 @@
       "approveBtn": "Approve",
       "rejectBtn": "Reject",
       "reApproveBtn": "Re-Approve",
-      "viewInDirectoryBtn": "View in Directory"
+      "viewInDirectoryBtn": "View in Directory",
+      "approveSuccess": "{{name}} approved successfully.",
+      "rejectTitle": "Reject Registration",
+      "rejectConfirm": "Reject registration for {{name}}? The account will be preserved in the audit log.",
+      "rejectButton": "Reject",
+      "rejectSuccess": "{{name}} rejected.",
+      "deletePermanentlyTitle": "Delete User Permanently",
+      "deletePermanentlyConfirm": "Permanently delete {{name}}? This cannot be undone.",
+      "deletePermanentlyButton": "Delete Permanently",
+      "deletePermanentlySuccess": "{{name}} deleted permanently."
     },
     "instruments": {
       "title": "Church Instruments Inventory",
@@ -1090,7 +1112,8 @@
       "deleteTooltip": "Delete mistaken entry permanently from database",
       "restore": "Restore",
       "restoreTooltip": "Restore instrument to available status",
-      "footerNote": "Retire = temporarily hide (reversible) · Delete = permanent, for mistaken entries only"
+      "footerNote": "Retire = temporarily hide (reversible) · Delete = permanent, for mistaken entries only",
+      "restoreSuccess": "{{name}} restored successfully."
     },
     "users": {
       "deactivateAccount": "Deactivate Account",
@@ -1276,6 +1299,8 @@
         "dropzoneProcessing": "Processing photo...",
         "dropzoneClick": "Click to choose file or drag & drop here",
         "dropzoneSupports": "Supports PNG, JPG, WEBP or GIF (automatically optimized)",
+        "invalidImageTypeError": "Please select a valid image file (PNG, JPG, WebP).",
+        "imageTooLargeError": "Image must be smaller than 10MB.",
         "cancel": "Cancel",
         "update": "Update Instrument",
         "create": "Create Instrument"
@@ -1304,7 +1329,8 @@
         "confirmCheckbox": "I confirm this is an accidental or mistaken entry and want to permanently remove this row from the database.",
         "cancel": "Cancel",
         "deleting": "Deleting Row...",
-        "confirmButton": "Permanently Remove from Database"
+        "confirmButton": "Permanently Remove from Database",
+        "deleteSuccess": "{{name}} removed from the database."
       },
       "bookOnBehalf": {
         "title": "Book on Behalf of {{name}}",
@@ -1594,6 +1620,9 @@
     "deviceSubscribeFailed": "Failed to subscribe device",
     "testDelivered": "Test notification delivered to your device screen! 📲",
     "testFailed": "Failed to send test push",
-    "autoSaved": "Settings auto-save instantly"
+    "autoSaved": "Settings auto-save instantly",
+    "subscribedSuccess": "Device subscribed successfully!",
+    "subscribeFailed": "Failed to subscribe device.",
+    "prefSaveFailed": "Failed to save push preferences."
   }
 }

@@ -1008,6 +1008,19 @@
       "seriesBadge": "سلسلة",
       "approveBtn": "قبول",
       "rejectBtn": "رفض",
+      "approveSuccess": "تم اعتماد الحجز بنجاح.",
+      "approveError": "فشل اعتماد الحجز.",
+      "rejectSuccess": "تم رفض الحجز.",
+      "rejectError": "فشل رفض الحجز.",
+      "noShowMarked": "تم تسجيل عدم الحضور بنجاح.",
+      "noShowUnmarked": "تم إلغاء تسجيل عدم الحضور بنجاح.",
+      "bulkCancelSuccess": "تم إلغاء {{count}} حجز بنجاح.",
+      "bulkCancelError": "فشل إلغاء الحجوزات.",
+      "bulkDeleteTitle": "حذف الحجوزات نهائياً",
+      "bulkDeleteConfirm": "هل تريد حذف {{count}} حجز نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
+      "bulkDeleteButton": "حذف نهائي",
+      "bulkDeleteSuccess": "تم حذف {{count}} حجز بنجاح.",
+      "bulkDeleteError": "فشل حذف الحجوزات.",
       "approveOccurrenceBtn": "قبول",
       "rejectOccurrenceBtn": "رفض",
       "approveSeriesBtn": "الموافقة على السلسلة بأكملها",
@@ -1067,7 +1080,16 @@
       "approveBtn": "قبول",
       "rejectBtn": "رفض",
       "reApproveBtn": "إعادة القبول",
-      "viewInDirectoryBtn": "عرض في الدليل"
+      "viewInDirectoryBtn": "عرض في الدليل",
+      "approveSuccess": "تم قبول {{name}} بنجاح.",
+      "rejectTitle": "رفض طلب التسجيل",
+      "rejectConfirm": "هل تريد رفض تسجيل {{name}}؟ سيبقى الحساب محفوظاً في سجل التدقيق.",
+      "rejectButton": "رفض",
+      "rejectSuccess": "تم رفض {{name}}.",
+      "deletePermanentlyTitle": "حذف المستخدم نهائياً",
+      "deletePermanentlyConfirm": "هل تريد حذف {{name}} نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
+      "deletePermanentlyButton": "حذف نهائي",
+      "deletePermanentlySuccess": "تم حذف {{name}} نهائياً."
     },
     "instruments": {
       "title": "مخزون آلات الكنيسة",
@@ -1089,7 +1111,8 @@
       "deleteTooltip": "حذف إدخال خاطئ نهائياً من قاعدة البيانات",
       "restore": "استعادة",
       "restoreTooltip": "استعادة الآلة إلى حالة متاحة",
-      "footerNote": "تقاعد = إخفاء مؤقت (قابل للتراجع) · حذف = نهائي، للإدخالات الخاطئة فقط"
+      "footerNote": "تقاعد = إخفاء مؤقت (قابل للتراجع) · حذف = نهائي، للإدخالات الخاطئة فقط",
+      "restoreSuccess": "تم استعادة {{name}} بنجاح."
     },
     "users": {
       "deactivateAccount": "تعطيل الحساب",
@@ -1275,6 +1298,8 @@
         "dropzoneProcessing": "جارٍ معالجة الصورة...",
         "dropzoneClick": "انقر لاختيار ملف أو اسحب وأفلت هنا",
         "dropzoneSupports": "يدعم PNG وJPG وWEBP أو GIF (تحسين تلقائي)",
+        "invalidImageTypeError": "يرجى اختيار ملف صورة صالح (PNG، JPG، WebP).",
+        "imageTooLargeError": "يجب أن تكون الصورة أصغر من 10 ميجابايت.",
         "cancel": "إلغاء",
         "update": "تحديث الآلة",
         "create": "إنشاء الآلة"
@@ -1286,7 +1311,8 @@
         "deleteHint": "هل تحتاج لإزالة إدخال خاطئ بدلاً من ذلك؟ أغلق هذه النافذة وانقر على حذف لمسح الصف بالكامل من قاعدة البيانات.",
         "confirmCheckbox": "أفهم وأؤكد وضع علامة على هذه الآلة كغير متاحة.",
         "cancel": "إلغاء",
-        "confirm": "تأكيد وضع علامة كغير متاحة"
+        "confirm": "تأكيد وضع علامة كغير متاحة",
+        "retireSuccess": "تم وضع علامة على {{name}} كغير متاحة."
       },
       "deleteInstrument": {
         "title": "حذف الآلة من قاعدة البيانات",
@@ -1303,7 +1329,8 @@
         "confirmCheckbox": "أؤكد أن هذا إدخال خاطئ أو عرضي وأريد إزالته نهائياً من قاعدة البيانات.",
         "cancel": "إلغاء",
         "deleting": "جارٍ حذف الصف...",
-        "confirmButton": "إزالة نهائياً من قاعدة البيانات"
+        "confirmButton": "إزالة نهائياً من قاعدة البيانات",
+        "deleteSuccess": "تمت إزالة {{name}} من قاعدة البيانات."
       },
       "bookOnBehalf": {
         "title": "حجز نيابة عن {{name}}",
@@ -1376,7 +1403,8 @@
         "superAdminTitle": "مسؤول عام",
         "superAdminDesc": "صلاحيات الادمن الكاملة، بالإضافة لإدارة الادمنين الآخرين، صفة الموثوق، الحدود القصوى للنظام، وإعدادات الدفع.",
         "cancel": "إلغاء",
-        "confirm": "تأكيد"
+        "confirm": "تأكيد",
+        "confirmButton": "تأكيد"
       }
     }
   },
@@ -1591,6 +1619,9 @@
     "deviceSubscribeFailed": "تعذر تفعيل الإشعارات",
     "testDelivered": "تم إرسال الإشعار التجريبي! تفقّد شاشة هاتفك أو جهازك. 📲",
     "testFailed": "تعذر إرسال الإشعار",
-    "autoSaved": "تُحفظ الإعدادات فورياً تلقائياً"
+    "autoSaved": "تُحفظ الإعدادات فورياً تلقائياً",
+    "subscribedSuccess": "تم تفعيل الجهاز بنجاح!",
+    "subscribeFailed": "تعذر تفعيل الجهاز.",
+    "prefSaveFailed": "فشل حفظ تفضيلات الإشعارات."
   }
 }
