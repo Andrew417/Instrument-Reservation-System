@@ -1190,9 +1190,11 @@
       "colTargetMember": "العضو المستهدف",
       "colAuthorizedBy": "الادمن المسؤول",
       "colNote": "ملاحظة / سبب",
+      "sortBy": "ترتيب حسب {{column}}",
       "granted": "تم المنح",
       "revoked": "تم الإلغاء",
-      "defaultReason": "إجراء يدوي من المسؤول العام"
+      "grantedReason": "منح المسؤول حالة العضو الموثوق",
+      "revokedReason": "ألغى المسؤول حالة العضو الموثوق"
     },
     "hardLimits": {
       "title": "حدود النظام العامة ومنع إساءة الاستخدام",

@@ -639,33 +639,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               className="flex flex-col flex-1 min-h-0"
             >
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-3 sm:space-y-3.5">
-                {/* Error banner */}
-                {errorMsg && (
-                  <div
-                    id="reservation-form-error-banner"
-                    className="bg-red-50 border border-red-200 rounded-2xl p-3 text-red-900 flex items-start gap-2.5 animate-in fade-in shadow-2xs"
-                  >
-                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                    <div className="space-y-0.5 text-[11px] sm:text-xs flex-1">
-                      <div className="font-bold text-red-950">
-                        {getLimitMessage(errorMsg)?.title ||
-                          t("reservationForm.submissionBlocked")}
-                      </div>
-                      <div className="text-red-800 leading-relaxed">
-                        {getLimitMessage(errorMsg)?.description || errorMsg}
-                      </div>
-                      {getLimitMessage(errorMsg) && (
-                        <div className="text-red-700 leading-relaxed pt-1 border-t border-red-200/80">
-                          <span className="font-semibold">
-                            {t("policyExplainer.step2Title", "What to do:")}
-                          </span>{" "}
-                          {getLimitMessage(errorMsg)?.nextStep}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
+                {/* Errors are shown in the fixed alert overlay below. */}
                 {/* Section 1: Instrument & Mode Hero Card */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
                   <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-1.5">
@@ -1082,6 +1056,52 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           )}
         </div>
       </div>
+
+      {errorMsg && (
+        <div
+          id="reservation-form-error-alert"
+          role="alert"
+          aria-live="assertive"
+          dir={isAr ? "rtl" : "ltr"}
+          className={`fixed inset-x-3 top-4 z-[220] sm:max-w-md animate-in fade-in slide-in-from-top-2 duration-200 ${
+            isAr
+              ? "sm:left-5 sm:right-auto"
+              : "sm:right-5 sm:left-auto"
+          }`}
+        >
+          <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 text-red-950 flex items-start gap-3 shadow-2xl">
+            <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-700" />
+            </div>
+            <div className="space-y-1 text-xs flex-1 min-w-0">
+              <div className="font-bold text-sm">
+                {getLimitMessage(errorMsg)?.title ||
+                  t("reservationForm.submissionBlocked")}
+              </div>
+              <div className="text-red-800 leading-relaxed break-words">
+                {getLimitMessage(errorMsg)?.description || errorMsg}
+              </div>
+              {getLimitMessage(errorMsg) && (
+                <div className="text-red-700 leading-relaxed pt-1.5 border-t border-red-200/80">
+                  <span className="font-semibold">
+                    {t("policyExplainer.step2Title", "What to do:")}
+                  </span>{" "}
+                  {getLimitMessage(errorMsg)?.nextStep}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMsg(null)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-red-700 hover:bg-red-100 transition shrink-0 cursor-pointer"
+              aria-label={t("common.dismiss", "Dismiss")}
+              title={t("common.dismiss", "Dismiss")}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {showPolicyExplainer && (
         <PolicyExplainerModal

@@ -3284,9 +3284,9 @@ router.get(
         l.id,
         l.action,
         l.created_at,
-        u.name as user_name,
+        u.name as target_user_name,
         u.phone_number as user_phone,
-        a.name as admin_name
+        a.name as granted_by_admin_name
       FROM trusted_status_audit_log l
       JOIN users u ON l.target_user_id = u.id
       JOIN admins a ON l.granted_by_admin_id = a.id

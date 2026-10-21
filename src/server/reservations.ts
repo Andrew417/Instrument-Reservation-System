@@ -1562,16 +1562,16 @@ router.get(
         typeof process !== "undefined" &&
         process.env?.NODE_ENV !== "production"
       ) {
-        console.info(
-          "[QuickRebook] actor=",
-          actorId,
-          "kind=",
-          actorKind,
-          "historyRows=",
-          rows.length,
-          "deduped=",
-          dedupedSuggestions.length,
-        );
+        // console.info(
+        //   "[QuickRebook] actor=",
+        //   actorId,
+        //   "kind=",
+        //   actorKind,
+        //   "historyRows=",
+        //   rows.length,
+        //   "deduped=",
+        //   dedupedSuggestions.length,
+        // );
       }
 
       res.json({

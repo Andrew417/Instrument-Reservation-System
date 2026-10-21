@@ -1191,9 +1191,11 @@
       "colTargetMember": "Target Member",
       "colAuthorizedBy": "Authorized By Admin",
       "colNote": "Note / Reason",
+      "sortBy": "Sort by {{column}}",
       "granted": "GRANTED",
       "revoked": "REVOKED",
-      "defaultReason": "Manual Super Admin Action"
+      "grantedReason": "Administrator granted Trusted Member status",
+      "revokedReason": "Administrator revoked Trusted Member status"
     },
     "hardLimits": {
       "title": "System Hard Limits & Abuse Prevention",
