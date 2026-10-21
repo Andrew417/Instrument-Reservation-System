@@ -198,14 +198,14 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
         dir={isAr ? "rtl" : "ltr"}
       >
         {/* Top Header - Consistent with ReservationFormModal & EditReservationModal */}
-        <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between border-b border-stone-800">
+        <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between border-b border-stone-800">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-800 text-emerald-100 flex items-center justify-center font-bold shadow-xs shrink-0">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-emerald-800 text-emerald-100 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <ShieldCheck className="w-4.5 h-4.5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
+                <h2 className="text-[13px] sm:text-sm font-bold text-white leading-tight truncate">
                   {isAr
                     ? "توثيق وفحص حالة الآلة عند الاستلام"
                     : "Instrument Condition Check"}
@@ -214,7 +214,7 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
                   {isAr ? "حماية وسلامة العازف" : "Musician Protection"}
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-stone-400 truncate mt-0.5">
+              <p className="text-[10px] sm:text-[11px] text-stone-400 truncate mt-0.5">
                 {isAr
                   ? "خطوة بسيطة لإثبات أي عيوب سابقة وحمايتك من أي مسؤولية"
                   : "Document pre-existing condition for your peace of mind and protection"}
@@ -227,9 +227,9 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70 shrink-0 touch-manipulation"
           >
-            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <X className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
           </button>
         </div>
 
@@ -251,7 +251,7 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
           onSubmit={handleSubmit}
           className="flex flex-col flex-1 min-h-0"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4 sm:space-y-5">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-3 sm:space-y-3.5">
             {/* Error Notification Banner */}
             {errorMsg && (
               <div
@@ -270,8 +270,27 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
               </div>
             )}
 
+            {/* Section 1: Verified By Name */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2">
+              <label className="block text-xs font-bold text-stone-800">
+                {isAr
+                  ? "1. اسم الخادم أو العازف الفاحص *"
+                  : "1. Verified By (Musician Name) *"}
+              </label>
+              <div className="relative">
+                <User className="w-3.5 h-3.5 text-stone-400 absolute start-3 top-3 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  value={checkedBy}
+                  onChange={(e) => setCheckedBy(e.target.value)}
+                  className="w-full ps-9 pe-3 py-2 bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-800/40 focus:border-emerald-800 transition"
+                />
+              </div>
+            </div>
+
             {/* Instrument Info Summary Card */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2">
+            <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2">
               <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-2">
                 <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
                   <Music2 className="w-4 h-4 text-emerald-800" />
@@ -308,12 +327,12 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
               </div>
             </div>
 
-            {/* Section 1: Two-Choice Status Selector */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3">
+            {/* Section 2: Two-Choice Status Selector */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-3">
               <label className="block text-xs font-bold text-stone-800">
                 {isAr
                   ? "1. كيف ترى حالة الآلة عند الاستلام؟ *"
-                  : "1. Instrument Overall Condition *"}
+                  : "2. Instrument Overall Condition *"}
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -379,12 +398,12 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
               </div>
             </div>
 
-            {/* Section 2: Quick Tag Chips */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+            {/* Section 3: Quick Tag Chips */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
               <label className="block text-xs font-bold text-stone-800">
                 {isAr
                   ? "2. اختيارات سريعة للملحقات والحالة (انقر للاختيار):"
-                  : "2. Quick Condition Tags (Tap to toggle):"}
+                  : "3. Quick Condition Tags (Tap to toggle):"}
               </label>
 
               <div className="flex flex-wrap gap-1.5 pt-1">
@@ -408,12 +427,12 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
               </div>
             </div>
 
-            {/* Section 3: Notes */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2">
+            {/* Section 4: Notes */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2">
               <label className="block text-xs font-bold text-stone-800">
                 {isAr
                   ? "3. ملاحظات إضافية بالكلمات (اختياري)"
-                  : "3. Specific Notes or Remarks (Optional)"}
+                  : "4. Specific Notes or Remarks (Optional)"}
               </label>
               <textarea
                 rows={2}
@@ -428,12 +447,12 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
               />
             </div>
 
-            {/* Section 4: Photo Capture / Upload */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+            {/* Section 5: Photo Capture / Upload */}
+            <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
               <label className="block text-xs font-bold text-stone-800">
                 {isAr
                   ? "4. صورة توثيقية للآلة أو التلف السابق (اختياري)"
-                  : "4. Photo Evidence (Optional)"}
+                  : "5. Photo Evidence (Optional)"}
               </label>
 
               {photoUrl ? (
@@ -484,32 +503,14 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
               )}
             </div>
 
-            {/* Section 5: Verified By Name */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2">
-              <label className="block text-xs font-bold text-stone-800">
-                {isAr
-                  ? "5. اسم الخادم أو العازف الفاحص *"
-                  : "5. Verified By (Musician Name) *"}
-              </label>
-              <div className="relative">
-                <User className="w-3.5 h-3.5 text-stone-400 absolute start-3 top-3 pointer-events-none" />
-                <input
-                  type="text"
-                  required
-                  value={checkedBy}
-                  onChange={(e) => setCheckedBy(e.target.value)}
-                  className="w-full ps-9 pe-3 py-2 bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl text-xs sm:text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-800/40 focus:border-emerald-800 transition"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Sticky Bottom Footer - Matching ReservationFormModal */}
-          <div className="shrink-0 p-4 sm:px-6 sm:pb-5 border-t border-stone-200 bg-white flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
+          <div className="shrink-0 flex items-center gap-2 sm:gap-2.5 p-3 sm:px-5 sm:pb-4 border-t border-stone-200 bg-white shadow-xs">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-3 rounded-2xl border border-stone-200 text-stone-700 hover:bg-stone-100 active:bg-stone-200 text-xs sm:text-sm font-bold transition cursor-pointer touch-manipulation"
+              className="py-2 sm:py-2.5 px-3.5 sm:px-4 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-[11px] sm:text-xs font-bold rounded-2xl transition cursor-pointer touch-manipulation"
             >
               {isAr ? "إلغاء وتراجع" : "Cancel"}
             </button>
@@ -517,7 +518,7 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white text-xs sm:text-sm font-bold transition cursor-pointer shadow-md shadow-emerald-900/20 disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2"
+              className="flex-1 py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-[11px] sm:text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 disabled:opacity-50"
             >
               {submitting ? (
                 <span>{isAr ? "جاري الحفظ..." : "Saving..."}</span>
@@ -526,8 +527,8 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
                   <ShieldCheck className="w-4 h-4 text-emerald-200" />
                   <span>
                     {isAr
-                      ? "حفظ وتوثيق الفحص رسمياً ✅"
-                      : "Save & Verify Condition ✅"}
+                      ? "حفظ وتوثيق الفحص رسمياً"
+                      : "Save & Verify Condition"}
                   </span>
                 </>
               )}
