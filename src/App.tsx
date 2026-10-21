@@ -1340,7 +1340,7 @@ const UserPortalMain: React.FC = () => {
               })()}
 
               {/* Super Admin section */}
-              {profile?.role === "super_admin" &&
+              {(profile?.role === "super_admin" || profile?.isSuperAdmin) &&
                 (() => {
                   const filteredSuper = adminTabs
                     .filter((tab) => tab.section === "super_admin")

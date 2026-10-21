@@ -95,6 +95,18 @@ export function useAdminPortalData({
     }
   }, [initialTab]);
 
+  useEffect(() => {
+    const superAdminOnlyTabs: AdminTab[] = [
+      "admin_accounts",
+      "trusted_status",
+      "hard_limits",
+      "payment_settings",
+    ];
+    if (!isSuperAdmin && superAdminOnlyTabs.includes(activeTab)) {
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, isSuperAdmin]);
+
   const [stats, setStats] = useState<{
     totalInstruments: number;
     pendingRequests: number;
@@ -322,12 +334,18 @@ export function useAdminPortalData({
   const [sendingMessage, setSendingMessage] = useState(false);
   const [msgReservationSearch, setMsgReservationSearch] = useState("");
 
-  const [hardLimitsState, setHardLimitsState] = useState<any>(null);
+  const [hardLimitsState, setHardLimitsState] = useState(() =>
+    normalizeHardLimitsState(null),
+  );
   const [loadingLimits, setLoadingLimits] = useState<boolean>(false);
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
 
-  const [notificationSettingsState, setNotificationSettingsState] =
-    useState<any>(null);
+  const [notificationSettingsState, setNotificationSettingsState] = useState(
+    {
+      muteAccountApprovalEmails: false,
+      muteReservationRequestEmails: false,
+    },
+  );
   const [savingNotificationSettings, setSavingNotificationSettings] =
     useState<boolean>(false);
 
@@ -585,7 +603,7 @@ export function useAdminPortalData({
       const res = await adminFetch("/trusted-audit-logs");
       const data = await res.json();
       if (data.success) {
-        setTrustedAuditLogs(data.logs || []);
+        setTrustedAuditLogs(data.auditLogs || data.logs || []);
       }
     } catch {
       showNotice("Failed to load trusted audit logs", "error");
@@ -599,8 +617,10 @@ export function useAdminPortalData({
     try {
       const res = await adminFetch("/hard-limits");
       const data = await res.json();
-      if (data.success && data.hardLimits) {
-        setHardLimitsState(normalizeHardLimitsState(data.hardLimits));
+      if (data.success && (data.limits || data.hardLimits)) {
+        setHardLimitsState(
+          normalizeHardLimitsState(data.limits || data.hardLimits),
+        );
       }
     } catch {
       showNotice("Failed to load reservation limits", "error");
@@ -625,10 +645,12 @@ export function useAdminPortalData({
     try {
       const res = await adminFetch("/payment-settings");
       const data = await res.json();
-      if (data.success && data.paymentSettings) {
+      const settings = data.settings || data.paymentSettings;
+      if (data.success && settings) {
         setPaymentSettingsState({
-          instapayNumber: data.paymentSettings.instapayNumber || "",
-          instapayLink: data.paymentSettings.instapayLink || "",
+          instapayNumber:
+            settings.instapayNumber || settings.instapay_number || "",
+          instapayLink: settings.instapayLink || settings.instapay_link || "",
         });
       }
     } catch {
@@ -1280,7 +1302,9 @@ export function useAdminPortalData({
       const data = await res.json();
       if (data.success) {
         showNotice("Fair usage limits updated successfully!");
-        setHardLimitsState(normalizeHardLimitsState(data.hardLimits));
+        setHardLimitsState(
+          normalizeHardLimitsState(data.limits || data.hardLimits),
+        );
       } else {
         showNotice(data.error || "Failed to save limits", "error");
       }
