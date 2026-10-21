@@ -66,10 +66,17 @@ export function useAdminPortalData({
   const isRTL = isAr;
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
 
-  const [internalSelectedUserId, setInternalSelectedUserId] = useState<string | null>(null);
-  const [internalSelectedEntityType, setInternalSelectedEntityType] = useState<"user" | "admin">("user");
+  const [internalSelectedUserId, setInternalSelectedUserId] = useState<
+    string | null
+  >(null);
+  const [internalSelectedEntityType, setInternalSelectedEntityType] = useState<
+    "user" | "admin"
+  >("user");
 
-  const openUserProfile = (userId: string, entityType: "user" | "admin" = "user") => {
+  const openUserProfile = (
+    userId: string,
+    entityType: "user" | "admin" = "user",
+  ) => {
     if (onOpenUserProfile) {
       onOpenUserProfile(userId);
     } else {
@@ -78,7 +85,9 @@ export function useAdminPortalData({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab || "dashboard");
+  const [activeTab, setActiveTab] = useState<AdminTab>(
+    initialTab || "dashboard",
+  );
 
   useEffect(() => {
     if (initialTab) {
@@ -103,30 +112,43 @@ export function useAdminPortalData({
   });
 
   const [reservations, setReservations] = useState<any[]>([]);
-  const [loadingReservations, setLoadingReservations] = useState<boolean>(false);
+  const [loadingReservations, setLoadingReservations] =
+    useState<boolean>(false);
   const [noShowWindowNow, setNoShowWindowNow] = useState(() => Date.now());
   const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
-  const [loadingTodaysReservations, setLoadingTodaysReservations] = useState<boolean>(false);
-  const [dashboardSubTab, setDashboardSubTab] = useState<"today" | "upcoming">("today");
+  const [loadingTodaysReservations, setLoadingTodaysReservations] =
+    useState<boolean>(false);
+  const [dashboardSubTab, setDashboardSubTab] = useState<"today" | "upcoming">(
+    "today",
+  );
   const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
-  const [loadingUpcomingReservations, setLoadingUpcomingReservations] = useState<boolean>(false);
-  const [showDashboardFilters, setShowDashboardFilters] = useState<boolean>(false);
+  const [loadingUpcomingReservations, setLoadingUpcomingReservations] =
+    useState<boolean>(false);
+  const [showDashboardFilters, setShowDashboardFilters] =
+    useState<boolean>(false);
   const [showReviewFilters, setShowReviewFilters] = useState<boolean>(false);
 
-  const [dashboardFilters, setDashboardFilters] = useState<ReservationFilterState>({
-    ...EMPTY_FILTER_STATE,
-  });
+  const [dashboardFilters, setDashboardFilters] =
+    useState<ReservationFilterState>({
+      ...EMPTY_FILTER_STATE,
+    });
   const [reviewFilters, setReviewFilters] = useState<ReservationFilterState>({
     ...EMPTY_FILTER_STATE,
   });
 
-  const [filterQuickTab, setFilterQuickTab] = useState<"all" | "today" | "pending">("all");
+  const [filterQuickTab, setFilterQuickTab] = useState<
+    "all" | "today" | "pending"
+  >("all");
 
   const [adminAccountsList, setAdminAccountsList] = useState<any[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState<boolean>(false);
 
   const getAdminDisplayName = (r: any): string => {
-    if (r?.admin_name && typeof r.admin_name === "string" && r.admin_name.trim()) {
+    if (
+      r?.admin_name &&
+      typeof r.admin_name === "string" &&
+      r.admin_name.trim()
+    ) {
       return r.admin_name.trim();
     }
     if (r?.admin_id) {
@@ -142,7 +164,8 @@ export function useAdminPortalData({
     if (r.booked_by_admin || r.bookedByAdmin) return true;
     if (!r.user_id) return true;
     if (!r.user_name) return true;
-    const lowerName = typeof r.user_name === "string" ? r.user_name.trim().toLowerCase() : "";
+    const lowerName =
+      typeof r.user_name === "string" ? r.user_name.trim().toLowerCase() : "";
     if (lowerName === "unknown" || lowerName === "member") {
       return true;
     }
@@ -211,21 +234,30 @@ export function useAdminPortalData({
     rows.filter((r) => matchesFilters(r, dashboardFilters, getRowOwnerName));
 
   const filteredReviewReservations = useMemo(
-    () => reservations.filter((r) => matchesFilters(r, reviewFilters, getRowOwnerName)),
+    () =>
+      reservations.filter((r) =>
+        matchesFilters(r, reviewFilters, getRowOwnerName),
+      ),
     [reservations, reviewFilters, getRowOwnerName],
   );
 
-  const clearDashboardFilters = () => setDashboardFilters({ ...EMPTY_FILTER_STATE });
+  const clearDashboardFilters = () =>
+    setDashboardFilters({ ...EMPTY_FILTER_STATE });
   const clearReviewFilters = () => setReviewFilters({ ...EMPTY_FILTER_STATE });
 
   const [showHandoverModal, setShowHandoverModal] = useState<boolean>(false);
-  const [handoverDefaultDate, setHandoverDefaultDate] = useState<string>(getTodayDateString());
-  const [handoverDefaultMode, setHandoverDefaultMode] = useState<"day" | "week">("day");
-  const [handoverDefaultFormat, setHandoverDefaultFormat] = useState<HandoverExportFormat>("xlsx");
+  const [handoverDefaultDate, setHandoverDefaultDate] =
+    useState<string>(getTodayDateString());
+  const [handoverDefaultMode, setHandoverDefaultMode] = useState<
+    "day" | "week"
+  >("day");
+  const [handoverDefaultFormat, setHandoverDefaultFormat] =
+    useState<HandoverExportFormat>("xlsx");
 
   const [instrumentsList, setInstrumentsList] = useState<any[]>([]);
   const [loadingInstruments, setLoadingInstruments] = useState<boolean>(false);
-  const [showInstrumentModal, setShowInstrumentModal] = useState<boolean>(false);
+  const [showInstrumentModal, setShowInstrumentModal] =
+    useState<boolean>(false);
   const [editingInstrument, setEditingInstrument] = useState<any | null>(null);
   const [instrumentForm, setInstrumentForm] = useState({
     name: "",
@@ -235,22 +267,32 @@ export function useAdminPortalData({
     outsideFeePerDay: "0.00",
     bookingMode: "instant" as "instant" | "manual",
   });
-  const [removingInstrument, setRemovingInstrument] = useState<any | null>(null);
+  const [removingInstrument, setRemovingInstrument] = useState<any | null>(
+    null,
+  );
   const [removeConfirmForce, setRemoveConfirmForce] = useState<boolean>(false);
-  const [deletingInstrument, setDeletingInstrument] = useState<any | null>(null);
-  const [deleteConfirmChecked, setDeleteConfirmChecked] = useState<boolean>(false);
-  const [isDeletingInstrument, setIsDeletingInstrument] = useState<boolean>(false);
+  const [deletingInstrument, setDeletingInstrument] = useState<any | null>(
+    null,
+  );
+  const [deleteConfirmChecked, setDeleteConfirmChecked] =
+    useState<boolean>(false);
+  const [isDeletingInstrument, setIsDeletingInstrument] =
+    useState<boolean>(false);
 
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
   const [userSearch, setUserSearch] = useState<string>("");
-  const [userFilterStatus, setUserFilterStatus] = useState<"all" | "active" | "deactivated">("all");
+  const [userFilterStatus, setUserFilterStatus] = useState<
+    "all" | "active" | "deactivated"
+  >("all");
   const [bookOnBehalfUser, setBookOnBehalfUser] = useState<any | null>(null);
 
   const [approvalsList, setApprovalsList] = useState<any[]>([]);
   const [loadingApprovals, setLoadingApprovals] = useState<boolean>(false);
   const [approvalSearch, setApprovalSearch] = useState<string>("");
-  const [approvalFilterStatus, setApprovalFilterStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [approvalFilterStatus, setApprovalFilterStatus] = useState<
+    "pending" | "approved" | "rejected" | "all"
+  >("pending");
   const [approvalActionId, setApprovalActionId] = useState<string | null>(null);
 
   const approvalCounts = useMemo(() => {
@@ -258,7 +300,8 @@ export function useAdminPortalData({
     let approved = 0;
     let rejected = 0;
     approvalsList.forEach((user) => {
-      const status = user.approvalStatus || (user.isActive ? "approved" : "pending");
+      const status =
+        user.approvalStatus || (user.isActive ? "approved" : "pending");
       if (status === "pending") pending++;
       else if (status === "approved") approved++;
       else if (status === "rejected") rejected++;
@@ -270,8 +313,11 @@ export function useAdminPortalData({
   const [loadingAuditLogs, setLoadingAuditLogs] = useState<boolean>(false);
 
   const [messagingReservations, setMessagingReservations] = useState<any[]>([]);
-  const [loadingMessagingReservations, setLoadingMessagingReservations] = useState<boolean>(false);
-  const [selectedMsgReservation, setSelectedMsgReservation] = useState<any | null>(null);
+  const [loadingMessagingReservations, setLoadingMessagingReservations] =
+    useState<boolean>(false);
+  const [selectedMsgReservation, setSelectedMsgReservation] = useState<
+    any | null
+  >(null);
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [msgReservationSearch, setMsgReservationSearch] = useState("");
@@ -280,8 +326,10 @@ export function useAdminPortalData({
   const [loadingLimits, setLoadingLimits] = useState<boolean>(false);
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
 
-  const [notificationSettingsState, setNotificationSettingsState] = useState<any>(null);
-  const [savingNotificationSettings, setSavingNotificationSettings] = useState<boolean>(false);
+  const [notificationSettingsState, setNotificationSettingsState] =
+    useState<any>(null);
+  const [savingNotificationSettings, setSavingNotificationSettings] =
+    useState<boolean>(false);
 
   const [paymentSettingsState, setPaymentSettingsState] = useState({
     instapayNumber: "",
@@ -296,7 +344,8 @@ export function useAdminPortalData({
   });
   const [loadingPushPrefs, setLoadingPushPrefs] = useState<boolean>(false);
   const [savingPushPrefs, setSavingPushPrefs] = useState<boolean>(false);
-  const [adminDeviceSubscribed, setAdminDeviceSubscribed] = useState<boolean>(false);
+  const [adminDeviceSubscribed, setAdminDeviceSubscribed] =
+    useState<boolean>(false);
   const [testPushSending, setTestPushSending] = useState<boolean>(false);
   const [testPushStatus, setTestPushStatus] = useState<string | null>(null);
 
@@ -355,7 +404,9 @@ export function useAdminPortalData({
   } | null>(null);
 
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
-  const [selectedReservationIds, setSelectedReservationIds] = useState<string[]>([]);
+  const [selectedReservationIds, setSelectedReservationIds] = useState<
+    string[]
+  >([]);
   const [expandedSeriesIds, setExpandedSeriesIds] = useState<string[]>([]);
 
   const firstLoadRef = useRef(true);
@@ -395,6 +446,7 @@ export function useAdminPortalData({
     setLoadingReservations(true);
     try {
       const params = new URLSearchParams();
+      params.append("sort", "created");
       if (filterQuickTab !== "all") params.append("quickTab", filterQuickTab);
       if (reviewFilters.statuses.length === 1) {
         params.append("status", reviewFilters.statuses[0]);
@@ -430,7 +482,9 @@ export function useAdminPortalData({
   const fetchUpcomingReservations = async () => {
     setLoadingUpcomingReservations(true);
     try {
-      const res = await adminFetch("/reservations?status=approved&upcoming=true");
+      const res = await adminFetch(
+        "/reservations?status=approved&upcoming=true",
+      );
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to load upcoming schedule");
@@ -489,14 +543,18 @@ export function useAdminPortalData({
     setLoadingApprovals(true);
     try {
       const params = new URLSearchParams();
-      if (approvalFilterStatus !== "all") params.append("filter", approvalFilterStatus);
+      if (approvalFilterStatus !== "all")
+        params.append("filter", approvalFilterStatus);
       if (approvalSearch.trim()) params.append("search", approvalSearch.trim());
       const res = await adminFetch(`/approvals?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setApprovalsList(data.approvals || []);
         if (data.pendingCount !== undefined) {
-          setStats((prev) => ({ ...prev, pendingUserApprovals: data.pendingCount }));
+          setStats((prev) => ({
+            ...prev,
+            pendingUserApprovals: data.pendingCount,
+          }));
         }
       }
     } catch {
@@ -617,14 +675,17 @@ export function useAdminPortalData({
     if (!messageText.trim() || !selectedMsgReservation) return;
     setSendingMessage(true);
     try {
-      const res = await fetch(`/api/reservations/${selectedMsgReservation.id}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken || ""}`,
+      const res = await fetch(
+        `/api/reservations/${selectedMsgReservation.id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken || ""}`,
+          },
+          body: JSON.stringify({ content: messageText.trim() }),
         },
-        body: JSON.stringify({ content: messageText.trim() }),
-      });
+      );
       const data = await res.json();
       if (data.success) {
         setMessageText("");
@@ -657,13 +718,36 @@ export function useAdminPortalData({
     }
   };
 
-  const openRejectModal = (res: any) => {
+  const handleApproveSeries = async (seriesId: string) => {
+    try {
+      const res = await adminFetch(`/series/${seriesId}/approve`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotice(t("admin.review.approveSuccess"));
+        fetchReservations();
+        refreshAllStats();
+      } else {
+        showNotice(data.error || t("admin.review.approveError"), "error");
+      }
+    } catch {
+      showNotice(t("admin.review.approveError"), "error");
+    }
+  };
+
+  const openRejectModal = (
+    res: any,
+    wholeSeries: boolean = true,
+    _occurrenceCount?: number,
+  ) => {
+    const hasSeries = Boolean(res.series_id || res.seriesId);
     setRejectModal({
       isOpen: true,
       reservationId: res.id,
       seriesId: res.series_id || res.seriesId,
-      isSeries: Boolean(res.series_id || res.seriesId),
-      rejectScope: res.series_id || res.seriesId ? "series" : "single",
+      isSeries: hasSeries,
+      rejectScope: hasSeries && wholeSeries ? "series" : "single",
       preset: REJECTION_REASON_PRESETS[0],
       customText: "",
       submitting: false,
@@ -677,15 +761,18 @@ export function useAdminPortalData({
     try {
       let res;
       if (rejectModal.rejectScope === "series" && rejectModal.seriesId) {
-        res = await adminFetch(`/reservation-series/${rejectModal.seriesId}/reject`, {
+        res = await adminFetch(`/series/${rejectModal.seriesId}/reject`, {
           method: "POST",
           body: JSON.stringify({ reason }),
         });
       } else {
-        res = await adminFetch(`/reservations/${rejectModal.reservationId}/reject`, {
-          method: "POST",
-          body: JSON.stringify({ reason }),
-        });
+        res = await adminFetch(
+          `/reservations/${rejectModal.reservationId}/reject`,
+          {
+            method: "POST",
+            body: JSON.stringify({ reason }),
+          },
+        );
       }
       const data = await res.json();
       if (data.success) {
@@ -695,7 +782,9 @@ export function useAdminPortalData({
         refreshAllStats();
       } else {
         showNotice(data.error || t("admin.review.rejectError"), "error");
-        setRejectModal((prev) => (prev ? { ...prev, submitting: false } : null));
+        setRejectModal((prev) =>
+          prev ? { ...prev, submitting: false } : null,
+        );
       }
     } catch {
       showNotice(t("admin.review.rejectError"), "error");
@@ -705,9 +794,12 @@ export function useAdminPortalData({
 
   const handleMarkNoShow = async (reservationId: string) => {
     try {
-      const res = await adminFetch(`/reservations/${reservationId}/no-show`, {
-        method: "POST",
-      });
+      const res = await adminFetch(
+        `/reservations/${reservationId}/mark-no-show`,
+        {
+          method: "POST",
+        },
+      );
       const data = await res.json();
       if (data.success) {
         showNotice(t("admin.review.noShowMarked"));
@@ -722,9 +814,12 @@ export function useAdminPortalData({
 
   const handleUnmarkNoShow = async (reservationId: string) => {
     try {
-      const res = await adminFetch(`/reservations/${reservationId}/no-show`, {
-        method: "DELETE",
-      });
+      const res = await adminFetch(
+        `/reservations/${reservationId}/unmark-no-show`,
+        {
+          method: "POST",
+        },
+      );
       const data = await res.json();
       if (data.success) {
         showNotice(t("admin.review.noShowUnmarked"));
@@ -750,19 +845,26 @@ export function useAdminPortalData({
 
   const handleConfirmBulkCancel = async () => {
     if (!cancelReasonModal) return;
-    setCancelReasonModal((prev) => (prev ? { ...prev, submitting: true } : null));
-    const reason = cancelReasonModal.customText.trim() || cancelReasonModal.preset;
+    setCancelReasonModal((prev) =>
+      prev ? { ...prev, submitting: true } : null,
+    );
+    const reason =
+      cancelReasonModal.customText.trim() || cancelReasonModal.preset;
     try {
       const res = await adminFetch("/reservations/bulk-cancel", {
         method: "POST",
         body: JSON.stringify({
-          reservationIds: cancelReasonModal.ids,
-          reason,
+          ids: cancelReasonModal.ids,
+          cancellationReason: reason,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        showNotice(t("admin.review.bulkCancelSuccess", { count: data.cancelledCount || cancelReasonModal.ids.length }));
+        showNotice(
+          t("admin.review.bulkCancelSuccess", {
+            count: data.cancelledCount || cancelReasonModal.ids.length,
+          }),
+        );
         setCancelReasonModal(null);
         setSelectedReservationIds([]);
         setIsSelectionMode(false);
@@ -770,11 +872,15 @@ export function useAdminPortalData({
         refreshAllStats();
       } else {
         showNotice(data.error || t("admin.review.bulkCancelError"), "error");
-        setCancelReasonModal((prev) => (prev ? { ...prev, submitting: false } : null));
+        setCancelReasonModal((prev) =>
+          prev ? { ...prev, submitting: false } : null,
+        );
       }
     } catch {
       showNotice(t("admin.review.bulkCancelError"), "error");
-      setCancelReasonModal((prev) => (prev ? { ...prev, submitting: false } : null));
+      setCancelReasonModal((prev) =>
+        prev ? { ...prev, submitting: false } : null,
+      );
     }
   };
 
@@ -783,25 +889,34 @@ export function useAdminPortalData({
     setConfirmModal({
       isOpen: true,
       title: t("admin.review.bulkDeleteTitle"),
-      description: t("admin.review.bulkDeleteConfirm", { count: selectedReservationIds.length }),
+      description: t("admin.review.bulkDeleteConfirm", {
+        count: selectedReservationIds.length,
+      }),
       confirmLabel: t("admin.review.bulkDeleteButton"),
       isDestructive: true,
       onConfirm: async () => {
         try {
           const res = await adminFetch("/reservations/bulk-delete", {
             method: "POST",
-            body: JSON.stringify({ reservationIds: selectedReservationIds }),
+            body: JSON.stringify({ ids: selectedReservationIds }),
           });
           const data = await res.json();
           if (data.success) {
-            showNotice(t("admin.review.bulkDeleteSuccess", { count: data.deletedCount || selectedReservationIds.length }));
+            showNotice(
+              t("admin.review.bulkDeleteSuccess", {
+                count: data.deletedCount || selectedReservationIds.length,
+              }),
+            );
             setConfirmModal(null);
             setSelectedReservationIds([]);
             setIsSelectionMode(false);
             fetchReservations();
             refreshAllStats();
           } else {
-            showNotice(data.error || t("admin.review.bulkDeleteError"), "error");
+            showNotice(
+              data.error || t("admin.review.bulkDeleteError"),
+              "error",
+            );
           }
         } catch {
           showNotice(t("admin.review.bulkDeleteError"), "error");
@@ -854,7 +969,11 @@ export function useAdminPortalData({
       }
       const data = await res.json();
       if (data.success) {
-        showNotice(editingInstrument ? "Instrument updated successfully" : "Instrument created successfully");
+        showNotice(
+          editingInstrument
+            ? "Instrument updated successfully"
+            : "Instrument created successfully",
+        );
         setShowInstrumentModal(false);
         setEditingInstrument(null);
         fetchInstruments();
@@ -876,7 +995,9 @@ export function useAdminPortalData({
       });
       const data = await res.json();
       if (data.success) {
-        showNotice(t("admin.modals.retireInstrument.retireSuccess", { name: inst.name }));
+        showNotice(
+          t("admin.modals.retireInstrument.retireSuccess", { name: inst.name }),
+        );
         setRemovingInstrument(null);
         fetchInstruments();
         refreshAllStats();
@@ -897,7 +1018,9 @@ export function useAdminPortalData({
       });
       const data = await res.json();
       if (data.success) {
-        showNotice(t("admin.modals.deleteInstrument.deleteSuccess", { name: inst.name }));
+        showNotice(
+          t("admin.modals.deleteInstrument.deleteSuccess", { name: inst.name }),
+        );
         setDeletingInstrument(null);
         fetchInstruments();
         refreshAllStats();
@@ -931,7 +1054,10 @@ export function useAdminPortalData({
     }
   };
 
-  const handleApproveRegistration = async (userId: string, userName: string) => {
+  const handleApproveRegistration = async (
+    userId: string,
+    userName: string,
+  ) => {
     setApprovalActionId(userId);
     try {
       const res = await adminFetch(`/approvals/${userId}/approve`, {
@@ -986,7 +1112,9 @@ export function useAdminPortalData({
     setConfirmModal({
       isOpen: true,
       title: t("admin.approvals.deletePermanentlyTitle"),
-      description: t("admin.approvals.deletePermanentlyConfirm", { name: user.name }),
+      description: t("admin.approvals.deletePermanentlyConfirm", {
+        name: user.name,
+      }),
       confirmLabel: t("admin.approvals.deletePermanentlyButton"),
       isDestructive: true,
       onConfirm: async () => {
@@ -996,7 +1124,11 @@ export function useAdminPortalData({
           });
           const data = await res.json();
           if (data.success) {
-            showNotice(t("admin.approvals.deletePermanentlySuccess", { name: user.name }));
+            showNotice(
+              t("admin.approvals.deletePermanentlySuccess", {
+                name: user.name,
+              }),
+            );
             setConfirmModal(null);
             fetchApprovals();
             fetchUsers();
@@ -1101,7 +1233,9 @@ export function useAdminPortalData({
       });
       const data = await res.json();
       if (data.success) {
-        showNotice(`Promoted ${promoteModal.userName} to ${targetRole === "super_admin" ? "Super Admin" : "Admin"}`);
+        showNotice(
+          `Promoted ${promoteModal.userName} to ${targetRole === "super_admin" ? "Super Admin" : "Admin"}`,
+        );
         setPromoteModal(null);
         fetchUsers();
         fetchAdmins();
@@ -1204,10 +1338,14 @@ export function useAdminPortalData({
   };
 
   const handleTogglePushPref = async (
-    key: "notifyNewRequests" | "notifyNewRegistrations" | "notifyMemberMessages",
+    key:
+      | "notifyNewRequests"
+      | "notifyNewRegistrations"
+      | "notifyMemberMessages",
     explicitValue?: boolean,
   ) => {
-    const value = explicitValue !== undefined ? explicitValue : !adminPushPrefs[key];
+    const value =
+      explicitValue !== undefined ? explicitValue : !adminPushPrefs[key];
     const updated: AdminPushPreferences = { ...adminPushPrefs, [key]: value };
     setAdminPushPrefs(updated);
     setSavingPushPrefs(true);
@@ -1259,8 +1397,12 @@ export function useAdminPortalData({
     try {
       const targetUserId = bookOnBehalfUser?.id || payload?.userId;
       const endpoint = payload?.occurrences
-        ? (targetUserId ? `/users/${targetUserId}/book-series-on-behalf` : "/reservations/book-series-on-behalf")
-        : (targetUserId ? `/users/${targetUserId}/book-on-behalf` : "/reservations/book-on-behalf");
+        ? targetUserId
+          ? `/users/${targetUserId}/book-series-on-behalf`
+          : "/reservations/book-series-on-behalf"
+        : targetUserId
+          ? `/users/${targetUserId}/book-on-behalf`
+          : "/reservations/book-on-behalf";
       const res = await adminFetch(endpoint, {
         method: "POST",
         body: JSON.stringify({ ...payload, userId: targetUserId }),
@@ -1424,23 +1566,55 @@ export function useAdminPortalData({
   const operationsTabs = useMemo(
     () => [
       { id: "dashboard" as const, label: t("admin.tabDashboard"), count: 0 },
-      { id: "review" as const, label: t("admin.tabReview"), count: stats.pendingRequests },
-      { id: "approvals" as const, label: t("admin.tabApprovals"), count: stats.pendingUserApprovals || 0 },
-      { id: "instruments" as const, label: t("admin.tabInstruments"), count: stats.totalInstruments },
-      { id: "users" as const, label: t("admin.tabUsers"), count: stats.activeUsers },
+      {
+        id: "review" as const,
+        label: t("admin.tabReview"),
+        count: stats.pendingRequests,
+      },
+      {
+        id: "approvals" as const,
+        label: t("admin.tabApprovals"),
+        count: stats.pendingUserApprovals || 0,
+      },
+      {
+        id: "instruments" as const,
+        label: t("admin.tabInstruments"),
+        count: stats.totalInstruments,
+      },
+      {
+        id: "users" as const,
+        label: t("admin.tabUsers"),
+        count: stats.activeUsers,
+      },
       { id: "analytics" as const, label: t("admin.tabAnalytics"), count: 0 },
       { id: "messaging" as const, label: t("admin.tabMessaging"), count: 0 },
-      { id: "notification_settings" as const, label: t("admin.tabNotificationSettings"), count: 0 },
+      {
+        id: "notification_settings" as const,
+        label: t("admin.tabNotificationSettings"),
+        count: 0,
+      },
     ],
     [t, stats],
   );
 
   const superAdminTabs = useMemo(
     () => [
-      { id: "admin_accounts" as const, label: t("admin.tabAdminAccounts"), count: adminAccountsList.length },
-      { id: "trusted_status" as const, label: t("admin.tabTrustedStatus"), count: 0 },
+      {
+        id: "admin_accounts" as const,
+        label: t("admin.tabAdminAccounts"),
+        count: adminAccountsList.length,
+      },
+      {
+        id: "trusted_status" as const,
+        label: t("admin.tabTrustedStatus"),
+        count: 0,
+      },
       { id: "hard_limits" as const, label: t("admin.tabHardLimits"), count: 0 },
-      { id: "payment_settings" as const, label: t("admin.tabPaymentSettings"), count: 0 },
+      {
+        id: "payment_settings" as const,
+        label: t("admin.tabPaymentSettings"),
+        count: 0,
+      },
     ],
     [t, adminAccountsList.length],
   );
@@ -1473,7 +1647,8 @@ export function useAdminPortalData({
       if (detail?.id) setActiveTab(detail.id as AdminTab);
     };
     window.addEventListener(ADMIN_TABS_EVENT + ":select", handler);
-    return () => window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
+    return () =>
+      window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
   }, []);
 
   const activeTabTitle = useMemo(() => {
@@ -1639,6 +1814,7 @@ export function useAdminPortalData({
     fetchMessagingReservations,
     handleSendMessage,
     handleApprove,
+    handleApproveSeries,
     openRejectModal,
     handleConfirmReject,
     handleMarkNoShow,

@@ -2651,7 +2651,10 @@ router.post(
  * Make a RECURRING SERIES on behalf of a user (Always Auto-Approved via Admin Privilege)
  */
 router.post(
-  ["/users/:userId/book-series-on-behalf", "/reservations/book-series-on-behalf"],
+  [
+    "/users/:userId/book-series-on-behalf",
+    "/reservations/book-series-on-behalf",
+  ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const userId =
@@ -2688,12 +2691,10 @@ router.post(
         return;
       }
       if (!occurrences || occurrences.length === 0) {
-        res
-          .status(400)
-          .json({
-            success: false,
-            error: "Series must have at least one occurrence.",
-          });
+        res.status(400).json({
+          success: false,
+          error: "Series must have at least one occurrence.",
+        });
         return;
       }
 

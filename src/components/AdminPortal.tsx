@@ -92,7 +92,9 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
               <LayoutDashboard className="w-4 h-4" />
             </div>
             <h1 className="text-sm sm:text-base font-bold text-stone-900 leading-tight whitespace-nowrap">
-              {admin.isSuperAdmin ? t("admin.consoleTitle") : t("admin.adminTitle")}
+              {admin.isSuperAdmin
+                ? t("admin.consoleTitle")
+                : t("admin.adminTitle")}
             </h1>
             <span
               className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
@@ -136,7 +138,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           onFilterPendingReview={() => {
             admin.setActiveTab("review");
             admin.setFilterQuickTab("pending");
-            admin.setReviewFilters((prev) => ({ ...prev, statuses: ["pending"] }));
+            admin.setReviewFilters((prev) => ({
+              ...prev,
+              statuses: ["pending"],
+            }));
           }}
         />
       </div>
@@ -206,6 +211,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
             openUserProfile={admin.openUserProfile}
             onOpenReservationDetail={props.onOpenReservationDetail}
             handleApprove={admin.handleApprove}
+            handleApproveSeries={admin.handleApproveSeries}
             openRejectModal={admin.openRejectModal}
             handleMarkNoShow={admin.handleMarkNoShow}
             handleUnmarkNoShow={admin.handleUnmarkNoShow}
@@ -274,7 +280,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
                 outsideFeePerDay: String(
                   inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? "0",
                 ),
-                bookingMode: (inst.bookingMode ?? inst.booking_mode) || "manual",
+                bookingMode:
+                  (inst.bookingMode ?? inst.booking_mode) || "manual",
               });
               admin.setShowInstrumentModal(true);
             }}
