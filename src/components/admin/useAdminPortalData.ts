@@ -1257,21 +1257,32 @@ export function useAdminPortalData({
 
   const handleBookOnBehalf = async (payload: any) => {
     try {
-      const res = await adminFetch("/reservations/book-on-behalf", {
+      const targetUserId = bookOnBehalfUser?.id || payload?.userId;
+      const endpoint = payload?.occurrences
+        ? (targetUserId ? `/users/${targetUserId}/book-series-on-behalf` : "/reservations/book-series-on-behalf")
+        : (targetUserId ? `/users/${targetUserId}/book-on-behalf` : "/reservations/book-on-behalf");
+      const res = await adminFetch(endpoint, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, userId: targetUserId }),
       });
       const data = await res.json();
       if (data.success) {
-        showNotice("Reservation booked and approved on behalf of member!");
+        showNotice(
+          payload?.occurrences
+            ? "Recurring series booked and approved on behalf of member!"
+            : "Reservation booked and approved on behalf of member!",
+        );
         setBookOnBehalfUser(null);
         fetchReservations();
         refreshAllStats();
+        return data;
       } else {
         showNotice(data.error || "Failed to book on behalf", "error");
+        return null;
       }
-    } catch {
-      showNotice("Failed to book on behalf", "error");
+    } catch (err: any) {
+      showNotice(err?.message || "Failed to book on behalf", "error");
+      return null;
     }
   };
 

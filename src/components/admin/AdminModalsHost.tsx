@@ -52,6 +52,10 @@ export const AdminModalsHost: React.FC<AdminModalsHostProps> = ({
         instrumentsList={admin.instrumentsList}
         onClose={() => admin.setBookOnBehalfUser(null)}
         onSubmit={admin.handleBookOnBehalf}
+        onSuccess={() => {
+          admin.fetchReservations?.();
+          admin.refreshAllStats?.();
+        }}
       />
       {admin.isSuperAdmin && (
         <NewAdminModal
@@ -113,6 +117,10 @@ export const AdminModalsHost: React.FC<AdminModalsHostProps> = ({
           }}
           onPromoteUser={admin.handleOpenPromoteModal}
           onDeleteUser={admin.handleDeleteUser}
+          onBookOnBehalf={(userData) => {
+            admin.setInternalSelectedUserId(null);
+            admin.setBookOnBehalfUser(userData);
+          }}
         />
       )}
       {admin.assignModal?.isOpen && admin.assignModal.reservation && (

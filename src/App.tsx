@@ -79,10 +79,43 @@ const ADMIN_TABS_EVENT = "admin-tabs:update";
 interface AdminTabInfo {
   id: string;
   label: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon?: React.ComponentType<{ className?: string }>;
   count?: number;
   section: "operations" | "super_admin";
 }
+
+const getAdminTabIcon = (
+  tabId: string,
+): React.ComponentType<{ className?: string }> => {
+  switch (tabId) {
+    case "dashboard":
+      return LayoutDashboard;
+    case "review":
+      return CalendarCheck;
+    case "approvals":
+      return UserCheck;
+    case "instruments":
+      return Church;
+    case "users":
+      return UsersIcon;
+    case "analytics":
+      return Sliders;
+    case "messaging":
+      return MessageSquareIcon;
+    case "notification_settings":
+      return Bell;
+    case "admin_accounts":
+      return ShieldCheck;
+    case "trusted_status":
+      return Sparkles;
+    case "hard_limits":
+      return Clock;
+    case "payment_settings":
+      return CreditCard;
+    default:
+      return LayoutDashboard;
+  }
+};
 
 const UserPortalMain: React.FC = () => {
   // Admin tab list (published by AdminPortal via event bus)
@@ -1264,13 +1297,19 @@ const UserPortalMain: React.FC = () => {
                                 isSidebarCollapsed ? "lg:justify-center" : ""
                               }`}
                             >
-                              <tab.Icon
-                                className={`w-4 h-4 shrink-0 transition-colors ${
-                                  isActive
-                                    ? "text-amber-800"
-                                    : "text-stone-500 group-hover:text-amber-800"
-                                }`}
-                              />
+                              {(() => {
+                                const TabIcon =
+                                  tab.Icon || getAdminTabIcon(tab.id);
+                                return (
+                                  <TabIcon
+                                    className={`w-4 h-4 shrink-0 transition-colors ${
+                                      isActive
+                                        ? "text-amber-800"
+                                        : "text-stone-500 group-hover:text-amber-800"
+                                    }`}
+                                  />
+                                );
+                              })()}
                               <span
                                 className={`truncate ${
                                   isSidebarCollapsed ? "lg:hidden" : ""
@@ -1373,13 +1412,19 @@ const UserPortalMain: React.FC = () => {
                                   isSidebarCollapsed ? "lg:justify-center" : ""
                                 }`}
                               >
-                                <tab.Icon
-                                  className={`w-4 h-4 shrink-0 transition-colors ${
-                                    isActive
-                                      ? "text-amber-800"
-                                      : "text-stone-500 group-hover:text-amber-800"
-                                  }`}
-                                />
+                                {(() => {
+                                  const TabIcon =
+                                    tab.Icon || getAdminTabIcon(tab.id);
+                                  return (
+                                    <TabIcon
+                                      className={`w-4 h-4 shrink-0 transition-colors ${
+                                        isActive
+                                          ? "text-amber-800"
+                                          : "text-stone-500 group-hover:text-amber-800"
+                                      }`}
+                                    />
+                                  );
+                                })()}
                                 <span
                                   className={`truncate ${
                                     isSidebarCollapsed ? "lg:hidden" : ""

@@ -1317,7 +1317,12 @@
         "inChurch": "In Church",
         "outsideChurch": "Outside Church",
         "cancel": "Cancel",
-        "submit": "Create & Auto-Approve"
+        "submit": "Create & Auto-Approve",
+        "bookedSuccess": "Reservation Booked & Auto-Approved!",
+        "bookedSuccessDesc": "The reservation was created with administrator privilege and immediately approved.",
+        "bookedForUser": "Member:",
+        "bannerNotice": "This reservation will be booked and auto-approved on behalf of this member.",
+        "backToForm": "Back to Single Booking"
       },
       "provisionAdmin": {
         "title": "Provision Administrator Account",

@@ -2511,10 +2511,11 @@ router.delete(
  * Make a reservation ON BEHALF of a user (Always Auto-Approved via Admin Privilege)
  */
 router.post(
-  "/users/:userId/book-on-behalf",
+  ["/users/:userId/book-on-behalf", "/reservations/book-on-behalf"],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { userId } = req.params;
+      const userId =
+        req.params.userId || req.body.userId || req.body.targetUserId;
       const {
         instrumentId,
         serviceName,
@@ -2528,6 +2529,12 @@ router.post(
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
 
+      if (!userId) {
+        res
+          .status(400)
+          .json({ success: false, error: "Target user ID is required." });
+        return;
+      }
       if (!serviceName || !serviceName.trim()) {
         res
           .status(400)
@@ -2644,10 +2651,11 @@ router.post(
  * Make a RECURRING SERIES on behalf of a user (Always Auto-Approved via Admin Privilege)
  */
 router.post(
-  "/users/:userId/book-series-on-behalf",
+  ["/users/:userId/book-series-on-behalf", "/reservations/book-series-on-behalf"],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { userId } = req.params;
+      const userId =
+        req.params.userId || req.body.userId || req.body.targetUserId;
       const {
         instrumentId,
         serviceName,
@@ -2661,6 +2669,12 @@ router.post(
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
 
+      if (!userId) {
+        res
+          .status(400)
+          .json({ success: false, error: "Target user ID is required." });
+        return;
+      }
       if (!serviceName || !serviceName.trim()) {
         res
           .status(400)

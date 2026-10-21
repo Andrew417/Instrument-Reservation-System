@@ -12,6 +12,7 @@ import {
   getTodayDateString,
   formatHhmmTo12Hour,
 } from "../lib/date-utils";
+import { getAuthSessionToken } from "../lib/auth-helpers";
 
 import {
   Calendar,
@@ -60,6 +61,7 @@ export interface SeriesBuilderModalProps {
   initialReservationType?: "in_church" | "outside_church";
   onClose: () => void;
   onSuccess: (seriesData: any) => void;
+  onBack?: () => void;
   targetUser?: { id: string; name: string } | null;
   isAdminBooking?: boolean;
 }
@@ -84,6 +86,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   initialReservationType = "in_church",
   onClose,
   onSuccess,
+  onBack,
   targetUser = null,
   isAdminBooking = false,
 }) => {
@@ -432,10 +435,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     setSubmitError(null);
 
     try {
-      const token =
-        sessionToken ||
-        localStorage.getItem("admin_session_token") ||
-        localStorage.getItem("auth_token");
+      const token = getAuthSessionToken(sessionToken);
 
       let endpoint = "/api/reservations/series";
       let payload: any;
@@ -555,6 +555,20 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {onBack && !seriesResult && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 transition cursor-pointer border border-stone-700/70"
+                title={t("common.back", { defaultValue: "Back to Single Booking" })}
+                aria-label={t("common.back", { defaultValue: "Back" })}
+              >
+                <ArrowRight
+                  className={`w-4 h-4 ${isAr ? "" : "rotate-180"}`}
+                />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setShowPolicyExplainer(true)}
