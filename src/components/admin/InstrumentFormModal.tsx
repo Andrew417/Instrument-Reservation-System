@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   X,
@@ -45,6 +45,18 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [isDraggingPhoto, setIsDraggingPhoto] = useState<boolean>(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setForm(initialForm);
+    setShowUrlInput(false);
+    setPhotoUploadError(null);
+    setIsDraggingPhoto(false);
+    setIsProcessingPhoto(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [isOpen, initialForm, editingInstrument?.id]);
 
   if (!isOpen) return null;
 

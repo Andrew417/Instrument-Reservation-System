@@ -1036,6 +1036,17 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                         </>
                       )}
                     </div>
+                    {currentInstrument.description?.trim() && (
+                      <div
+                        className="mt-1 flex items-start gap-1 text-[10px] leading-snug text-stone-500"
+                        title={currentInstrument.description}
+                      >
+                        <Info className="w-3 h-3 mt-0.5 shrink-0 text-stone-400" />
+                        <p className="line-clamp-2">
+                          {currentInstrument.description.trim()}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

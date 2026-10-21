@@ -626,17 +626,6 @@ const UserPortalMain: React.FC = () => {
                 duration: 2,
               });
             }}
-            onOpenSeriesBuilder={() => {
-              setSeriesPrefill({
-                instrument: allInstruments[0],
-                serviceName: "",
-                musicianName: "",
-                date: getTodayDateString(),
-                startTime: "10:00",
-                duration: 2,
-                reservationType: "in_church",
-              });
-            }}
             onSelectReservationDetail={(id) => {
               setSelectedReservationDetailId(id);
               setReservationDetailFromNotifications(false);

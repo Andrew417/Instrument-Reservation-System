@@ -186,7 +186,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
 
         {admin.activeTab === "review" && (
           <ReviewTab
-            reservations={admin.reservations}
+            reservations={admin.filteredReviewReservations}
             loadingReservations={admin.loadingReservations}
             filterQuickTab={admin.filterQuickTab}
             setFilterQuickTab={admin.setFilterQuickTab}

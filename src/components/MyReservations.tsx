@@ -31,7 +31,6 @@ import {
   ChevronUp,
   Edit,
   Trash2,
-  RefreshCw,
   Plus,
   Sun,
   ShieldCheck,
@@ -54,7 +53,6 @@ const STATUS_LABEL_KEYS: Record<string, string> = {
 export interface MyReservationsProps {
   allInstruments: Instrument[];
   onOpenNewReservation: () => void;
-  onOpenSeriesBuilder: () => void;
   onOpenMinistryProfile?: () => void;
   onOpenConditionCheck?: (reservation: any) => void;
   onSelectReservationDetail: (reservationId: string) => void;
@@ -80,7 +78,6 @@ interface GroupedSeries {
 export const MyReservations: React.FC<MyReservationsProps> = ({
   allInstruments,
   onOpenNewReservation,
-  onOpenSeriesBuilder,
   onOpenMinistryProfile,
   onOpenConditionCheck,
   onSelectReservationDetail,
@@ -384,7 +381,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     >
       {/* Top Banner / Header */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-2xs space-y-4">
-        <div className="flex items-start justify-between gap-2.5">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <Calendar className="w-5 h-5" />
@@ -401,35 +398,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
           <button
             type="button"
-            onClick={fetchMyReservations}
-            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50 active:bg-stone-100 transition cursor-pointer touch-manipulation"
-            title={t("common.refresh")}
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
-            />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenSeriesBuilder}
-            className="flex-1 h-9 rounded-lg border border-amber-800/30 bg-amber-50 hover:bg-amber-100/80 text-amber-950 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:bg-amber-200/60 touch-manipulation"
-          >
-            <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-            <span className="truncate">
-              {t("myReservations.recurringSeries")}
-            </span>
-          </button>
-
-          <button
-            type="button"
             onClick={onOpenNewReservation}
-            className="flex-1 h-9 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
+            className="shrink-0 h-9 px-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
           >
             <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">
+            <span className="hidden sm:inline">
               {t("myReservations.newReservation")}
             </span>
           </button>

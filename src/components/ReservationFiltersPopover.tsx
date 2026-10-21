@@ -587,8 +587,12 @@ export const ReservationFiltersPopover: React.FC<
 
       {open && (
         <>
-          {/* Mobile: full-width fixed panel — never overflows, no clipping */}
-          <div className="sm:hidden fixed inset-x-2 top-16 bottom-2 z-[120] rounded-2xl border border-stone-200 bg-white shadow-2xl flex flex-col overflow-hidden">
+          {/* Mobile: compact anchored panel that leaves the rest of the screen visible */}
+          <div
+            className={`sm:hidden absolute top-full mt-2 z-[120] w-[min(92vw,360px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xl ${
+              isAr ? "left-0" : "right-0"
+            }`}
+          >
             <div className="flex items-center justify-between gap-2 px-3.5 py-3 border-b border-stone-100 shrink-0">
               <h3 className="text-sm font-extrabold text-stone-900">
                 {t("admin.dashboard.filters.title", {
@@ -616,24 +620,22 @@ export const ReservationFiltersPopover: React.FC<
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3.5">
-              <PopoverBody
-                isAr={isAr}
-                filters={filters}
-                onChange={onChange}
-                options={options}
-                userQuery={userQuery}
-                setUserQuery={setUserQuery}
-                musicianDraft={musicianDraft}
-                setMusicianDraft={setMusicianDraft}
-                toggleValue={toggleValue}
-                filterList={filterList}
-                Chip={Chip}
-                SectionLabel={SectionLabel}
-                SmallSearch={SmallSearch}
-                MultiSelectDropdown={MultiSelectDropdown}
-              />
-            </div>
+            <PopoverBody
+              isAr={isAr}
+              filters={filters}
+              onChange={onChange}
+              options={options}
+              userQuery={userQuery}
+              setUserQuery={setUserQuery}
+              musicianDraft={musicianDraft}
+              setMusicianDraft={setMusicianDraft}
+              toggleValue={toggleValue}
+              filterList={filterList}
+              Chip={Chip}
+              SectionLabel={SectionLabel}
+              SmallSearch={SmallSearch}
+              MultiSelectDropdown={MultiSelectDropdown}
+            />
           </div>
 
           {/* Desktop: anchored popover (unchanged behaviour) */}
