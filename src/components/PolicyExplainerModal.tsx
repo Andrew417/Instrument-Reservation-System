@@ -279,17 +279,17 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
         </div>
 
         {/* Footer - Fixed at bottom of modal */}
-        <div className="p-4 sm:p-5 bg-stone-100 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+        <div className="p-3 sm:p-4 bg-stone-100 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
           <div className="text-xs text-stone-500 text-center sm:text-right hidden sm:block">
-            يمكنك فتح هذا الدليل في أي وقت من زر "دليل الحجز (كيف تحجز؟)" أعلى الصفحة.
+            يمكنك فتح الدليل لاحقًا من زر "دليل الحجز".
           </div>
           <button
             type="button"
             id="policy-explainer-dismiss-btn"
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-2.5 sm:py-3 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:bg-stone-950"
+            className="w-full sm:w-auto px-5 py-2 sm:py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:bg-stone-950"
           >
-            <span>فهمت، والبدء في الاستخدام</span>
+            <span>فهمت، ابدأ الاستخدام</span>
             <ArrowRight className="w-4 h-4 rotate-180" />
           </button>
         </div>
