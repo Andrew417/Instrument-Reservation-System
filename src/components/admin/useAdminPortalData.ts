@@ -374,12 +374,14 @@ export function useAdminPortalData({
 
   const [rejectModal, setRejectModal] = useState<{
     isOpen: boolean;
-    reservationId: string;
+    reservationId?: string;
     seriesId?: string | null;
-    isSeries: boolean;
-    rejectScope: "single" | "series";
-    preset: string;
-    customText: string;
+    instrumentName: string;
+    memberName: string;
+    dateFormatted: string;
+    timeFormatted: string;
+    isSeriesReject: boolean;
+    reason: string;
     submitting: boolean;
   } | null>(null);
 
@@ -557,12 +559,13 @@ export function useAdminPortalData({
     }
   };
 
-  const fetchApprovals = async () => {
+  const fetchApprovals = async (
+    filter: "pending" | "approved" | "rejected" | "all" = approvalFilterStatus,
+  ) => {
     setLoadingApprovals(true);
     try {
       const params = new URLSearchParams();
-      if (approvalFilterStatus !== "all")
-        params.append("filter", approvalFilterStatus);
+      if (filter !== "all") params.append("status", filter);
       if (approvalSearch.trim()) params.append("search", approvalSearch.trim());
       const res = await adminFetch(`/approvals?${params.toString()}`);
       const data = await res.json();
@@ -764,14 +767,30 @@ export function useAdminPortalData({
     _occurrenceCount?: number,
   ) => {
     const hasSeries = Boolean(res.series_id || res.seriesId);
+    const reservationDate =
+      res.reservation_date ||
+      res.reservationDate ||
+      (res.start_time || res.startTime
+        ? new Date(res.start_time || res.startTime).toISOString().slice(0, 10)
+        : "");
+    const startTime = res.start_hhmm || res.startHhmm || "";
+    const endTime = res.end_hhmm || res.endHhmm || "";
+
     setRejectModal({
       isOpen: true,
       reservationId: res.id,
       seriesId: res.series_id || res.seriesId,
-      isSeries: hasSeries,
-      rejectScope: hasSeries && wholeSeries ? "series" : "single",
-      preset: REJECTION_REASON_PRESETS[0],
-      customText: "",
+      instrumentName:
+        res.instrument_name || res.instrumentName || "Instrument",
+      memberName:
+        res.user_name || res.userName || res.musician_name || "Member",
+      dateFormatted: formatDisplayDate(reservationDate),
+      timeFormatted:
+        startTime && endTime
+          ? `${formatHhmmTo12Hour(startTime)} - ${formatHhmmTo12Hour(endTime)}`
+          : "",
+      isSeriesReject: hasSeries && wholeSeries,
+      reason: REJECTION_REASON_PRESETS[0],
       submitting: false,
     });
   };
@@ -779,10 +798,10 @@ export function useAdminPortalData({
   const handleConfirmReject = async () => {
     if (!rejectModal) return;
     setRejectModal((prev) => (prev ? { ...prev, submitting: true } : null));
-    const reason = rejectModal.customText.trim() || rejectModal.preset;
+    const reason = rejectModal.reason.trim();
     try {
       let res;
-      if (rejectModal.rejectScope === "series" && rejectModal.seriesId) {
+      if (rejectModal.isSeriesReject && rejectModal.seriesId) {
         res = await adminFetch(`/series/${rejectModal.seriesId}/reject`, {
           method: "POST",
           body: JSON.stringify({ reason }),

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { db } from "../db/index.js";
+import { db, withRetry } from "../db/index.js";
 import {
   admins,
   users,
@@ -2381,6 +2381,7 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
 
     res.json({
       success: true,
+      approvals: transformedUsers,
       users: transformedUsers,
       counts: {
         pending: Number(counts.pending || 0),
@@ -2388,6 +2389,7 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
         rejected: Number(counts.rejected || 0),
         total: Number(counts.total || 0),
       },
+      pendingCount: Number(counts.pending || 0),
     });
   } catch (err: any) {
     console.error("Reservations list error:", err);
@@ -2406,14 +2408,18 @@ router.post(
     try {
       const { id } = req.params;
 
-      const [updated] = await db
-        .update(users)
-        .set({
-          approvalStatus: "approved",
-          isActive: true,
-        })
-        .where(eq(users.id, id))
-        .returning();
+      const [updated] = await withRetry(
+        () =>
+          db
+            .update(users)
+            .set({
+              approvalStatus: "approved",
+              isActive: true,
+            })
+            .where(eq(users.id, id))
+            .returning(),
+        { label: "Approve user account" },
+      );
 
       if (!updated) {
         res.status(404).json({ success: false, error: "User not found." });
@@ -2450,14 +2456,18 @@ router.post(
     try {
       const { id } = req.params;
 
-      const [updated] = await db
-        .update(users)
-        .set({
-          approvalStatus: "rejected",
-          isActive: false,
-        })
-        .where(eq(users.id, id))
-        .returning();
+      const [updated] = await withRetry(
+        () =>
+          db
+            .update(users)
+            .set({
+              approvalStatus: "rejected",
+              isActive: false,
+            })
+            .where(eq(users.id, id))
+            .returning(),
+        { label: "Reject user account" },
+      );
 
       if (!updated) {
         res.status(404).json({ success: false, error: "User not found." });
@@ -2465,7 +2475,10 @@ router.post(
       }
 
       // Terminate any active sessions for this user
-      await db.delete(sessions).where(eq(sessions.userId, id));
+      await withRetry(
+        () => db.delete(sessions).where(eq(sessions.userId, id)),
+        { label: "Terminate rejected user sessions" },
+      );
 
       res.json({
         success: true,
