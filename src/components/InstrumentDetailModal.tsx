@@ -44,14 +44,7 @@ export interface InstrumentDetailModalProps {
   onInstrumentUpdated?: (updated: Instrument) => void;
 }
 
-// 30-min intervals 09:00 to 22:00
-const TIME_SLOTS: string[] = [];
-for (let hour = 9; hour <= 21; hour++) {
-  const hStr = hour < 10 ? `0${hour}` : `${hour}`;
-  TIME_SLOTS.push(`${hStr}:00`);
-  TIME_SLOTS.push(`${hStr}:30`);
-}
-TIME_SLOTS.push("22:00");
+import { TIME_SLOTS } from "../constants/reservationTimes";
 
 function hhmmToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);

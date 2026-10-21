@@ -223,3 +223,59 @@ export function shiftDateToWeekday(dateStr: string, targetWeekday: number): stri
   if (diff === 0) return dateStr;
   return addDaysToDateString(dateStr, diff);
 }
+
+/**
+ * Checks if a reservation covers the full operating day (09:00 - 22:00 Cairo time).
+ */
+export function isFullDayReservation(
+  r: { start_hhmm?: string | null; end_hhmm?: string | null; startHhmm?: string | null; endHhmm?: string | null } | null | undefined,
+): boolean {
+  if (!r) return false;
+  const start = r.start_hhmm ?? r.startHhmm;
+  const end = r.end_hhmm ?? r.endHhmm;
+  return start === "09:00" && end === "22:00";
+}
+
+/**
+ * Formats a reservation timestamp into localized date in Cairo time.
+ */
+export function formatReservationDate(
+  dateInput: Date | string | number | null | undefined,
+  locale?: string,
+): string {
+  if (!dateInput) return "";
+  const parts = getCairoParts(dateInput);
+  const d = new Date(parts.year, parts.month - 1, parts.day);
+  const activeLang = locale || i18n.language;
+  const isAr = activeLang === "ar";
+  return d.toLocaleDateString(isAr ? "ar-u-nu-latn" : "en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
+ * Formats start and end times into localized Cairo time range (e.g. "09:00 AM – 11:30 AM").
+ */
+export function formatReservationTimeRange(
+  startInput: Date | string | number | null | undefined,
+  endInput: Date | string | number | null | undefined,
+  locale?: string,
+): string {
+  if (!startInput) return "";
+  const sParts = getCairoParts(startInput);
+  const sTime = formatHhmmTo12Hour(
+    `${String(sParts.hour).padStart(2, "0")}:${String(sParts.minute).padStart(2, "0")}`,
+    locale,
+  );
+  if (!endInput) return sTime;
+  const eParts = getCairoParts(endInput);
+  const eTime = formatHhmmTo12Hour(
+    `${String(eParts.hour).padStart(2, "0")}:${String(eParts.minute).padStart(2, "0")}`,
+    locale,
+  );
+  return `${sTime} – ${eTime}`;
+}
+

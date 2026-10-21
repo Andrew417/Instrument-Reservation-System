@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+.vapid.json
+firebase-applet-config.json
+migrate-*.txt
+drizzle_backup_before_repair/
+report/

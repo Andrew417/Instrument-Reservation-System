@@ -11,6 +11,7 @@ import {
   getCairoTimeString,
   isConditionCheckWindowOpen,
 } from "../lib/date-utils";
+import { useWindowExpiryTimer } from "../hooks/useWindowExpiryTimer";
 import { ConditionCheckModal } from "./ConditionCheckModal.tsx";
 import {
   Calendar,
@@ -157,17 +158,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showInstrumentDetails, setShowInstrumentDetails] = useState(false);
   const [isConditionModalOpen, setIsConditionModalOpen] = useState(false);
-  const [conditionWindowNow, setConditionWindowNow] = useState(() =>
-    Date.now(),
-  );
-
-  useEffect(() => {
-    const timer = window.setInterval(
-      () => setConditionWindowNow(Date.now()),
-      30_000,
-    );
-    return () => window.clearInterval(timer);
-  }, []);
+  const conditionWindowNow = useWindowExpiryTimer(30_000);
 
   // Cancellation
   const [isCancelling, setIsCancelling] = useState(false);

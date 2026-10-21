@@ -10,6 +10,7 @@ import {
   getCairoTimeString,
   isConditionCheckWindowOpen,
 } from "../lib/date-utils";
+import { useWindowExpiryTimer } from "../hooks/useWindowExpiryTimer";
 import {
   Calendar,
   Clock,
@@ -111,9 +112,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   const [reservations, setReservations] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [conditionWindowNow, setConditionWindowNow] = useState(() =>
-    Date.now(),
-  );
+  const conditionWindowNow = useWindowExpiryTimer(30_000);
 
   const fetchMyReservations = async () => {
     if (!profile) return;
@@ -146,13 +145,6 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     fetchMyReservations();
   }, [profile?.id, refreshTrigger, sessionToken]);
 
-  useEffect(() => {
-    const timer = window.setInterval(
-      () => setConditionWindowNow(Date.now()),
-      30_000,
-    );
-    return () => window.clearInterval(timer);
-  }, []);
 
   const [selectedOccurrencesBySeries, setSelectedOccurrencesBySeries] =
     useState<Record<string, string[]>>({});

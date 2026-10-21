@@ -74,14 +74,7 @@ interface AvailabilityCalendarProps {
   onOpenReservationDetail?: (reservationId: string) => void;
 }
 
-// Generate 30-minute intervals from 09:00 to 22:00 (26 slots)
-const TIME_SLOTS: string[] = [];
-for (let hour = 9; hour <= 21; hour++) {
-  const hStr = hour < 10 ? `0${hour}` : `${hour}`;
-  TIME_SLOTS.push(`${hStr}:00`);
-  TIME_SLOTS.push(`${hStr}:30`);
-}
-TIME_SLOTS.push("22:00");
+import { TIME_SLOTS } from "../constants/reservationTimes";
 
 const MANUAL_TYPE_ORDER: string[] = [
   "Piano",

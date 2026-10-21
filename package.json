@@ -15,6 +15,7 @@
     "db:migrate:prod": "drizzle-kit migrate --config=src/db/drizzle.config.prod.ts",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "tsx src/db/seed-super-admin.ts",
+    "ctx": "tsx scripts/generate-ai-context.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
