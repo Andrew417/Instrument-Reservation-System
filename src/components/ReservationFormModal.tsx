@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext.tsx";
 import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
 import { ReservationUsageTypeSelector } from "./ReservationUsageTypeSelector.tsx";
 import { formatHhmmTo12Hour, getTodayDateString } from "../lib/date-utils";
+import { buildOwnerPayload, OnBehalfOf } from "../lib/reservation-owner";
 import {
   Calendar,
   Clock,
@@ -27,7 +28,19 @@ import {
   Zap,
 } from "lucide-react";
 
+export interface SeriesPrefill {
+  instrument: Instrument;
+  serviceName: string;
+  musicianName: string;
+  date: string;
+  startTime: string;
+  duration: number;
+  reservationType: "in_church" | "outside_church";
+  note?: string;
+}
+
 export interface ReservationFormProps {
+  onBehalfOf?: OnBehalfOf;
   initialInstrument: Instrument;
   allInstruments: Instrument[];
   initialDate: string;
@@ -37,16 +50,7 @@ export interface ReservationFormProps {
   initialMusicianName?: string;
   onClose: () => void;
   onSuccess: (reservationData: any) => void;
-  onOpenSeriesBuilder?: (prefill: {
-    instrument: Instrument;
-    serviceName: string;
-    musicianName: string;
-    date: string;
-    startTime: string;
-    duration: number;
-    reservationType: "in_church" | "outside_church";
-    note?: string;
-  }) => void;
+  onOpenSeriesBuilder?: (prefill: SeriesPrefill) => void;
 }
 
 import { START_TIME_SLOTS as TIME_SLOTS } from "../constants/reservationTimes";
@@ -163,6 +167,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   initialDuration = 2,
   initialServiceName = "",
   initialMusicianName = "",
+  onBehalfOf,
   onClose,
   onSuccess,
   onOpenSeriesBuilder,
@@ -311,8 +316,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     setErrorMsg(null);
 
     try {
-      const isAdminRole =
-        profile.role === "admin" || profile.role === "super_admin";
       const res = await fetch("/api/reservations", {
         method: "POST",
         headers: {
@@ -320,8 +323,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
-          userId: isAdminRole ? null : profile.id,
-          adminId: isAdminRole ? profile.id : null,
+          ...buildOwnerPayload(profile, onBehalfOf),
           instrumentId: currentInstrument.id,
           serviceName: serviceName.trim(),
           serviceLocation: serviceLocation.trim() || undefined,
@@ -384,7 +386,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   <h2 className="text-[13px] sm:text-sm font-bold text-white leading-tight truncate">
                     {submissionResult
                       ? t("reservationForm.confirmTitle")
-                      : t("reservationForm.title")}
+                      : onBehalfOf
+                        ? t("reservationForm.bookedOnBehalf", {
+                            name: onBehalfOf.name,
+                          })
+                        : t("reservationForm.title")}
                   </h2>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-200 border border-amber-700/50 hidden sm:inline-block">
                     {currentInstrument.name}

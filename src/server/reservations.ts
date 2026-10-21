@@ -68,6 +68,34 @@ async function extractSessionIdentity(req: Request) {
 }
 
 /**
+ * Resolves who owns a new booking. Admins may book for a member via
+ * `onBehalfOfUserId`; the admin id always comes from the session.
+ */
+async function resolveBookingOwner(req: Request) {
+  const identity = await extractSessionIdentity(req);
+  const onBehalfOfUserId = String(req.body?.onBehalfOfUserId ?? "").trim();
+
+  if (!onBehalfOfUserId) {
+    return identity
+      ? { userId: identity.userId, adminId: identity.adminId }
+      : {};
+  }
+
+  if (!identity?.adminId) {
+    throw new Error("Not authorized to book on behalf of a member.");
+  }
+
+  const [member] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, onBehalfOfUserId))
+    .limit(1);
+  if (!member) throw new Error("Member not found.");
+
+  return { userId: member.id, adminId: identity.adminId };
+}
+
+/**
  * Resolve the calling user's OWN identity for "self-booking" features
  * like quick-rebook. Returns the users.id when a member session is present,
  * or the admins.id when an admin / super_admin session is present.
@@ -199,13 +227,7 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const sessionIdentity = await extractSessionIdentity(req);
-    const payload = {
-      ...req.body,
-      ...(sessionIdentity
-        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
-        : {}),
-    };
+    const payload = { ...req.body, ...(await resolveBookingOwner(req)) };
     const result = await createReservationSeries(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
@@ -250,13 +272,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       });
       return;
     }
-    const sessionIdentity = await extractSessionIdentity(req);
-    const payload = {
-      ...req.body,
-      ...(sessionIdentity
-        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
-        : {}),
-    };
+    const payload = { ...req.body, ...(await resolveBookingOwner(req)) };
     const result = await createReservation(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {

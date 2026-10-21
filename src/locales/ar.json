@@ -367,6 +367,7 @@
     "paidSaved": "مدفوع — تم الحفظ"
   },
   "reservationForm": {
+    "bookedOnBehalf": "حجز بالنيابة عن ({{name}})",
     "title": "حجز آلة موسيقية",
     "instrumentLabel": "الآلة الموسيقية",
     "serviceNameLabel": "اسم الخدمة / الغرض",
@@ -973,6 +974,7 @@
     "tabTrustedStatus": "الأعضاء الموثوقين وسجل التدقيق",
     "tabNotificationSettings": "إعدادات الإشعارات",
     "review": {
+      "emptyPending": "لا توجد حجوزات معلقة للمراجعة.",
       "bulkActionsLabel": "إجراءات جماعية",
       "selectModeBtn": "تحديد",
       "selectModeTooltip": "ادخل وضع التحديد لإدارة الحجوزات بشكل جماعي",

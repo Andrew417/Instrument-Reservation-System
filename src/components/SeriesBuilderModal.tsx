@@ -13,6 +13,7 @@ import {
   formatHhmmTo12Hour,
 } from "../lib/date-utils";
 import { getAuthSessionToken } from "../lib/auth-helpers";
+import { buildOwnerPayload, OnBehalfOf } from "../lib/reservation-owner";
 
 import {
   Calendar,
@@ -62,8 +63,7 @@ export interface SeriesBuilderModalProps {
   onClose: () => void;
   onSuccess: (seriesData: any) => void;
   onBack?: () => void;
-  targetUser?: { id: string; name: string } | null;
-  isAdminBooking?: boolean;
+  onBehalfOf?: OnBehalfOf;
 }
 
 interface ConflictDetail {
@@ -87,8 +87,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   onClose,
   onSuccess,
   onBack,
-  targetUser = null,
-  isAdminBooking = false,
+  onBehalfOf,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -138,11 +137,6 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   const [customDates, setCustomDates] = useState<string[]>([initialDate]);
   const [newCustomDateInput, setNewCustomDateInput] = useState<string>("");
   const [skippedNotice, setSkippedNotice] = useState<number | null>(null);
-
-  const isAdminRole =
-    isAdminBooking ||
-    profile?.role === "admin" ||
-    profile?.role === "super_admin";
 
   const [maxSeriesLimit, setMaxSeriesLimit] = useState<number>(8);
   const [isLoadingLimits, setIsLoadingLimits] = useState<boolean>(true);
@@ -437,48 +431,27 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
     try {
       const token = getAuthSessionToken(sessionToken);
 
-      let endpoint = "/api/reservations/series";
-      let payload: any;
+      const payload = {
+        ...buildOwnerPayload(profile, onBehalfOf),
+        instrumentId: currentInstrument.id,
+        serviceName: serviceName.trim(),
+        serviceLocation: serviceLocation.trim() || undefined,
+        musicianName: musicianName.trim(),
+        note: note.trim() || undefined,
+        patternType,
+        reservationType,
+        feeAcknowledged:
+          reservationType === "outside_church" ? feeAcknowledged : false,
+        occurrences: generatedOccurrences.map(
+          ({ date, startTime, duration }) => ({
+            date,
+            startTime,
+            duration,
+          }),
+        ),
+      };
 
-      if (isAdminBooking && targetUser?.id) {
-        endpoint = `/api/admin/users/${targetUser.id}/book-series-on-behalf`;
-        payload = {
-          instrumentId: currentInstrument.id,
-          serviceName: serviceName.trim(),
-          serviceLocation: serviceLocation.trim() || undefined,
-          musicianName: musicianName.trim(),
-          note: note.trim() || undefined,
-          patternType,
-          reservationType,
-          feeAcknowledged: true,
-          occurrences: generatedOccurrences.map((occ) => ({
-            date: occ.date,
-            startTime: occ.startTime,
-            duration: occ.duration,
-          })),
-        };
-      } else {
-        payload = {
-          userId: isAdminRole ? null : profile?.id,
-          adminId: isAdminRole ? profile?.id : null,
-          instrumentId: currentInstrument.id,
-          serviceName: serviceName.trim(),
-          serviceLocation: serviceLocation.trim() || undefined,
-          musicianName: musicianName.trim(),
-          note: note.trim() || undefined,
-          patternType,
-          reservationType,
-          feeAcknowledged:
-            reservationType === "outside_church" ? feeAcknowledged : false,
-          occurrences: generatedOccurrences.map((occ) => ({
-            date: occ.date,
-            startTime: occ.startTime,
-            duration: occ.duration,
-          })),
-        };
-      }
-
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/reservations/series", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -532,24 +505,20 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 <h2 className="text-[13px] sm:text-sm font-bold text-white leading-tight truncate">
                   {seriesResult
                     ? t("seriesBuilder.confirmationTitle")
-                    : t("seriesBuilder.title")}
+                    : onBehalfOf
+                      ? t("reservationForm.bookedOnBehalf", {
+                          name: onBehalfOf.name,
+                        })
+                      : t("seriesBuilder.title")}
                 </h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-200 border border-amber-700/50 hidden sm:inline-block truncate max-w-[140px]">
                   {currentInstrument.name}
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-stone-400 truncate mt-0.5">
-                {targetUser ? (
-                  <span className="text-amber-300 font-bold">
-                    {isAr
-                      ? `حجز بالنيابة عن: ${targetUser.name}`
-                      : `Booking on behalf of: ${targetUser.name}`}
-                  </span>
-                ) : seriesResult ? (
-                  t("seriesBuilder.confirmationSubtitle")
-                ) : (
-                  t("seriesBuilder.builderSubtitle")
-                )}
+                {seriesResult
+                  ? t("seriesBuilder.confirmationSubtitle")
+                  : t("seriesBuilder.builderSubtitle")}
               </p>
             </div>
           </div>
@@ -560,12 +529,12 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                 type="button"
                 onClick={onBack}
                 className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 transition cursor-pointer border border-stone-700/70"
-                title={t("common.back", { defaultValue: "Back to Single Booking" })}
+                title={t("common.back", {
+                  defaultValue: "Back to Single Booking",
+                })}
                 aria-label={t("common.back", { defaultValue: "Back" })}
               >
-                <ArrowRight
-                  className={`w-4 h-4 ${isAr ? "" : "rotate-180"}`}
-                />
+                <ArrowRight className={`w-4 h-4 ${isAr ? "" : "rotate-180"}`} />
               </button>
             )}
 

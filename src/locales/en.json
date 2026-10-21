@@ -183,6 +183,7 @@
     "deselectAll": "Deselect"
   },
   "reservationForm": {
+    "bookedOnBehalf": "Booked on Behalf ({{name}})",
     "title": "Reserve Instrument",
     "instrumentLabel": "Instrument",
     "serviceNameLabel": "Service Name / Purpose",
@@ -974,6 +975,7 @@
     "tabTrustedStatus": "Trusted & Audit Trail",
     "tabNotificationSettings": "Notification Settings",
     "review": {
+      "emptyPending": "No pending reservations to review.",
       "bulkActionsLabel": "Bulk Actions",
       "selectModeBtn": "Select",
       "selectModeTooltip": "Enter selection mode to bulk-manage reservations",
