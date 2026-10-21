@@ -381,7 +381,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
     >
       {/* Top Banner / Header */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-2xl bg-amber-800 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
               <Calendar className="w-5 h-5" />
@@ -399,10 +399,10 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             onClick={onOpenNewReservation}
-            className="shrink-0 h-9 px-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
+            className="w-full sm:w-auto shrink-0 h-10 sm:h-9 px-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
           >
             <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">
+            <span>
               {t("myReservations.newReservation")}
             </span>
           </button>

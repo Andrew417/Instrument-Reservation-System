@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../lib/i18n";
 import { Instrument } from "./AvailabilityCalendar.tsx";
@@ -188,6 +188,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     initialMusicianName || profile?.name || "",
   );
   const [note, setNote] = useState<string>("");
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const [date, setDate] = useState<string>(initialDate);
   const [startTime, setStartTime] = useState<string>(
     initialTimeHhmm || "10:00",
@@ -277,6 +278,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       setMusicianName(profile.name);
     }
   }, [profile?.name, musicianName]);
+
+  useEffect(() => {
+    const textarea = noteRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [note]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -845,14 +854,19 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                     <textarea
                       id="input-reservation-note"
-                      rows={2}
+                      ref={noteRef}
+                      rows={1}
                       value={note}
-                      onChange={(e) => setNote(e.target.value)}
+                      onChange={(e) => {
+                        e.currentTarget.style.height = "auto";
+                        e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                        setNote(e.target.value);
+                      }}
                       placeholder={t("reservationForm.notePlaceholder", {
                         defaultValue:
                           "أي طلبات خاصة أو مستلزمات مثل محول أو كابل...",
                       })}
-                      className="w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
+                      className="w-full min-h-9 overflow-hidden bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
                     />
                   </div>
                 </div>
@@ -879,7 +893,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <label className="block text-[11px] sm:text-xs font-bold text-stone-700">
                         {t("reservationForm.dateLabel")}
@@ -967,17 +981,23 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 />
 
                 {/* Section 5: Recurring toggle */}
-                <div className="bg-white border border-stone-200 rounded-2xl p-2.5 sm:p-3 shadow-2xs">
+                <div
+                  className={`rounded-2xl p-2.5 sm:p-3 shadow-2xs transition border ${
+                    isRecurring
+                      ? "bg-brand-50 border-brand-500 ring-2 ring-brand-300"
+                      : "bg-brand-50 border-brand-300"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-amber-100/80 text-amber-900 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                         <Repeat className="w-3.5 h-3.5" />
                       </div>
                       <div>
-                        <span className="text-[11px] sm:text-xs font-bold text-stone-900 block">
+                        <span className="text-[11px] sm:text-xs font-extrabold text-brand-950 block">
                           {t("reservationForm.recurringToggleLabel")}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] text-stone-500 block">
+                        <span className="text-[10px] sm:text-[11px] text-brand-800 block">
                           تكرار الحجز أسبوعياً أو في تواريخ متعددة
                         </span>
                       </div>
@@ -991,12 +1011,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         onChange={(e) => setIsRecurring(e.target.checked)}
                         className="sr-only peer"
                       />
-                      <div className="w-10 h-5.5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-amber-800" />
+                      <div className="w-11 h-6 bg-brand-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-brand-400 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-700" />
                     </label>
                   </div>
 
                   {isRecurring && (
-                    <div className="mt-2 pt-1.5 border-t border-stone-100 text-[11px] text-amber-900 bg-amber-50/60 p-2 rounded-xl flex items-center justify-between gap-2">
+                    <div className="mt-2 pt-1.5 border-t border-brand-200 text-[11px] text-brand-900 bg-brand-100 p-2 rounded-xl flex items-center justify-between gap-2">
                       <span>{t("reservationForm.recurringNextStepNote")}</span>
                       {isAr ? (
                         <ArrowRight className="w-3.5 h-3.5 rotate-180 shrink-0" />
@@ -1025,7 +1045,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   className={`flex-1 py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-[11px] sm:text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                     isSubmitDisabled
                       ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
-                      : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
+                      : isRecurring
+                        ? "bg-brand-700 hover:bg-brand-800 active:scale-[0.99] ring-2 ring-brand-300 ring-offset-2"
+                        : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
                   }`}
                 >
                   {isSubmitting ? (
