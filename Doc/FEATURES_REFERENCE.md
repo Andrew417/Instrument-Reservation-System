@@ -29,8 +29,19 @@
 |---|---|---|
 | **Member (User)** | Browse catalog, check calendar, submit single/series/band bookings, chat on reservations, condition checks, view ministry profile. | Standard fair usage rules apply. |
 | **Trusted User** | All member capabilities. | **Auto-approval bypass:** Reservations are instantly approved on both Manual and Instant instruments and bypass all limits 1–6 (slot conflicts still apply). |
-| **Admin** | All member capabilities + review requests, edit/cancel reservations, manage instruments, chat with members, export handover sheets, view dashboard. | Can book on behalf of members (admin recorded as creator in audit log); self-bookings auto-approve. |
-| **Super Admin** | Full admin powers + promote/demote/delete admins, configure global hard limits, set Instapay payment info, grant/revoke Trusted status. | Idempotently seeded at startup; protected from deletion or demotion. |
+| **Admin** | All member capabilities + review requests, edit/cancel reservations, manage instruments, chat with members, export handover sheets, view dashboard. | Can book on behalf of members (admin recorded as creator in audit log); self-bookings auto-approve. Account actions protected by transactional retry logic (`withRetry`). |
+| **Super Admin** | Full admin powers + promote/demote/delete admins, configure global hard limits, set Instapay payment info, grant/revoke Trusted status with interactive sortable audit logs. | Idempotently seeded at startup; protected from deletion or demotion. |
+
+### 1.4 Trusted Status Audit Log & Interactive Sorting
+- **Audit Tracking:** Every grant or revocation of Trusted status is logged in `trusted_status_audit_log` with `target_user_id`, `granted_by_admin_id`, and `action` (`granted` | `revoked`).
+- **Interactive Multi-Column Sorting:** In the Super Admin portal, audit logs can be sorted ascending or descending by:
+  - Date & Time (`created_at`)
+  - Action (`action`)
+  - Target Member Name (`target_user_name`)
+  - Authorized Admin Name (`granted_by_admin_name`)
+  - Note / Reason (`reason`)
+- **Directional Indicators:** Interactive column headers display dynamic sort icons (`ArrowUpDown`, `ArrowUp`, `ArrowDown`) with screen-reader friendly aria-labels (`admin.trustedStatus.sortBy`).
+- **Bilingual Default Reasons:** System automatically provides localized context for historical actions (`admin.trustedStatus.grantedReason` and `admin.trustedStatus.revokedReason`) when no explicit note was entered.
 
 ---
 
@@ -87,6 +98,16 @@ All 6 limits are configured live in Settings by the Super Admin:
 6. **Submission Rate Limit (`max_submissions_per_hour`, default 10):** Rolling 1-hour submission window. *(Hard Cap -> Blocks submission outright)*.
 - **Global Limit Bypass:** Super Admin can toggle `bypass_hard_limits` in settings to temporarily suspend all limits system-wide for all users during busy seasons (e.g. Christmas / Easter praise festivals).
 
+### 3.5 Floating Error Alert Overlay & Dynamic Form Ergonomics
+- **Fixed Floating Alert Overlay (`z-[220]`):** When a reservation submission violates limits or encounters an error, the error banner floats as a prominent alert overlay at the top of the viewport instead of taking static layout space inside the scroll container.
+  - **Screen Reader Accessibility:** Uses `role="alert"` and `aria-live="assertive"` for instantaneous assistive technology announcements.
+  - **Actionable Next Steps:** Shows violation title, clear explanation, and a highlighted "What to do:" recovery guide (`getLimitMessage(error).nextStep`).
+  - **Dismissible:** Includes an explicit dismiss button (`X`) so users can acknowledge and dismiss the notice.
+  - **Directional Alignment:** Automatically positioned top-right on LTR and top-left on RTL (`sm:right-5 sm:left-auto` vs. `sm:left-5 sm:right-auto`), centered on mobile.
+- **Auto-Expanding Notes Textarea:** The special notes field in `ReservationFormModal` automatically expands as the user types (`noteRef` + `scrollHeight`), eliminating cramped fixed text boxes.
+- **Compact 2-Column Slot Grid:** Date and Time selectors are arranged in a 2-column layout (`grid-cols-2`) for rapid touch selection on mobile and desktop.
+- **High-Visibility Recurring Toggle:** Styled with distinctive brand color backgrounds (`bg-brand-50`, `border-brand-300`, `ring-brand-300`) and an active ring focus indicator on the submit action when recurring mode is selected.
+
 ---
 
 ## 4. Recurring Series Booking
@@ -100,9 +121,14 @@ All 6 limits are configured live in Settings by the Super Admin:
 - If conflicts exist with existing approved bookings, the UI highlights conflicting dates in red.
 - **"Skip Conflicting Dates" Button:** 1-click action that automatically prunes the conflicting occurrences and converts the request into a clean Custom pattern, enabling immediate submission without manual date deletion.
 
-### 4.3 Series Admin Management
-- Admin Portal groups recurring occurrences into an expandable card.
-- Supports **Approve All** and **Reject All** batch actions, as well as granular approval or rejection of individual occurrences.
+### 4.3 Series Admin Management & Structured Rejection
+- **Grouped Series Cards:** The Admin Portal groups recurring occurrences into an expandable card displaying dates, times, and progress.
+- **Batch Actions:** Supports **Approve All** and **Reject All** batch operations as well as granular review per single occurrence.
+- **Single vs. Series Rejection Modal (`RejectReasonModal`):**
+  - Displays pre-formatted reservation metadata (Instrument Name, Member Name, Formatted Cairo Date via `formatDisplayDate`, and 12-hour Time Window via `formatHhmmTo12Hour`).
+  - Toggle between rejecting just this specific date (`isSeriesReject: false`) vs. rejecting the entire remaining series (`isSeriesReject: true`).
+  - Rejection reason selection with preset buttons and custom text.
+  - Dispatches to `/api/admin/series/:seriesId/reject` or `/api/admin/reservations/:id/reject` with transactional audit logging.
 
 ---
 
@@ -146,12 +172,17 @@ Replaces informal WhatsApp booking chats with a 3-second, 1-tap mobile experienc
 Protects members from being blamed for pre-existing scratches, worn drumheads, broken strings, or missing power cables.
 
 ### 7.2 Inspection Logging Flow
-- Before taking custody of the instrument, member opens the reservation and selects:
-  - 🟢 **Pristine & Ready to Play** (سليمة وممتازة 100%)
-  - 🟡 **Minor Existing Wear / Pre-existing Issues** (ملاحظات أو عيوب سابقة بسيطة)
-- **Condition Tags:** Quick toggle tags (e.g. *All cables present*, *Pre-existing scratches*, *Broken string*, *Noisy audio jack*, *Damaged drum head*, *Missing sustain pedal*).
-- **Photo Evidence:** Upload or take a live photo of the instrument / defect.
-- **Tamper-Evident Record:** Logs inspector's name and Cairo timestamp. Permanently visible to both member and admin on the Reservation Detail modal.
+The condition verification modal follows a structured, step-by-step layout designed for rapid on-site inspection before taking custody of the instrument:
+1. **Section 1: Inspector Identification (اسم الخادم أو العازف الفاحص):** Verified By name input with User icon placed prominently at the top, pre-populated with the logged-in member's name.
+2. **Instrument Info Summary Card:** Shows the instrument name, category, and booked service timing.
+3. **Section 2: Two-Choice Status Selector (كيف ترى حالة الآلة عند الاستلام؟):**
+   - 🟢 **Pristine & Ready to Play** (سليمة وممتازة 100%)
+   - 🟡 **Minor Pre-existing Issues** (ملاحظات أو عيوب سابقة بسيطة)
+4. **Section 3: Quick Tag Chips (اختيارات سريعة للملحقات والحالة):** Interactive toggle chips for instant categorization (e.g., *All cables present*, *Pre-existing scratches*, *Broken string*, *Noisy audio jack*, *Damaged drum head*, *Missing sustain pedal*, *Adapter checked*).
+5. **Section 4: Remarks & Notes (ملاحظات إضافية بالكلمات):** Free-form text area for specific physical observations.
+6. **Section 5: Photo Evidence (صورة توثيقية للآلة أو التلف السابق):** Camera capture or file upload with instant preview and remove capability.
+- **Sticky Bottom Action Bar:** Compact, mobile-friendly footer with "Cancel" and "Save & Verify Condition" (حفظ وتوثيق الفحص رسمياً) buttons.
+- **Tamper-Evident Record:** Permanently logs inspector's name and Cairo timestamp. Displayed in both member and admin reservation detail sheets.
 
 ---
 
@@ -238,19 +269,23 @@ Specifically designed for the church sexton / key-holder holding the instrument 
    - Pending recurring series awaiting batch review.
    - Stale requests awaiting review past the threshold.
 2. **Overview & Analytics Tab:** Reservation volume trends (this week vs. last week), instrument utilization distribution using Recharts.
-3. **Approvals / Review Tab:** Full list of pending requests with inline quick-approval and rejection reason presets.
+3. **Approvals / Review Tab:**
+   - Dedicated filter buttons by status: **Pending (قيد الانتظار)**, **Approved (مقبولة)**, **Rejected (مرفوضة)**, and **All (الكل)**.
+   - Real-time search query across member name, phone, or email.
+   - Direct inline approval and rejection modal triggers with count badges (`counts: { pending, approved, rejected, total }`).
+   - Powered by resilient database transactions via `withRetry` ensuring zero partial updates during concurrent review.
 4. **Instruments Tab:** Add, edit, photo upload, toggle Instant/Manual mode, set outside fees, and retire instruments.
-5. **Users Tab:** Member directory, account approval/rejection, active booking counts, no-show counts, deactivation/reactivation, and Super Admin Trusted toggle.
+5. **Users Tab:** Member directory, account approval/rejection with automatic session revocation on rejection, active booking counts, no-show counts, deactivation/reactivation, and Super Admin Trusted toggle.
 6. **Messaging Tab:** Unified inbox of all reservation chat threads with unread indicators and quick replies.
 7. **Super Admin Controls:**
    - *Admin Accounts:* Create, demote, or delete admin accounts.
    - *Hard Limits Configuration:* Adjust all 6 limits with inline documentation tooltips.
    - *Payment Settings:* Configure Instapay account details and payment URLs.
    - *Notification Settings:* Mute/unmute registration and reservation emails.
-   - *Trusted Status Audit Log:* Audit trail of every Trusted status grant and revocation with admin attribution.
+   - *Trusted Status Audit Log:* Interactive multi-column sortable audit trail (`created_at`, `action`, `target_user_name`, `granted_by_admin_name`, `reason`).
 
 ### 12.3 Structured Rejection & Cancellation Presets
-- **Rejection Presets:** *"Time slot already booked"*, *"Reserved for church use"*, *"Instrument under maintenance"*, *"Exceeds booking limits"*, plus custom note.
+- **Rejection Presets:** *"Time slot already booked"*, *"Reserved for church use"*, *"Instrument under maintenance"*, *"Exceeds booking limits"*, plus custom note. Includes single occurrence vs. entire series toggle.
 - **Cancellation Presets:** Presets + custom reason surfaced to the member via an amber alert banner on the reservation detail screen.
 
 ---
@@ -265,6 +300,7 @@ Specifically designed for the church sexton / key-holder holding the instrument 
   2. **اكتب اسم الخدمة ثم اضغط "تأكيد"** — Enter service name and confirm.
   3. **استلم الآلة في موعدك المحدد** — Notice of approval and smooth pickup at church.
 - Collapsible section for advanced rules (fair usage limits and outside-church Instapay guidelines).
+- **Streamlined Footer:** Compact dismiss button ("فهمت، ابدأ الاستخدام") with helpful reminder note to revisit the guide anytime from the header button.
 
 ---
 
@@ -274,3 +310,12 @@ Specifically designed for the church sexton / key-holder holding the instrument 
 - **Directional Switching:** Seamlessly toggles `dir="rtl"` and `dir="ltr"` on the document root with persistent storage in localStorage.
 - **Culturally Natural Church Terminology:** All terminology strictly adheres to Coptic/Egyptian church traditions (خدمة, قداس, اجتماع شباب, ترانيم, كورال, بروفة, ادمن).
 - **Cairo Timezone Resiliency:** All dates, working hours, and slot boundaries are evaluated strictly in Cairo wall-clock time (`Africa/Cairo`) using robust timestamp parsing in `date-utils.ts` to prevent timezone skew across mobile clients.
+
+---
+
+## 15. 🛡️ Database Resilience & Transaction Retry Patterns
+
+- **`withRetry` Database Wrapper (`src/db/index.ts`):** Critical backend operations (account approval, account rejection, active session termination, and status updates) are wrapped in `withRetry<T>`.
+- **Transient Glitch Protection:** Automatically retries queries on transient pool timeouts, connection disconnects, or deadlocks with exponential backoff before failing gracefully.
+- **Zero Orphaned Sessions:** When an admin rejects a user account, active sessions in `sessions` are purged atomically within a retry block, preventing unauthorized API calls immediately.
+
