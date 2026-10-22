@@ -241,7 +241,6 @@
     "rejectSubtitle": "قدّم توضيحاً للعضو",
     "cancelReject": "إلغاء الرفض",
     "requestSummary": "ملخص الطلب",
-    "member": "العضو:",
     "slotTime": "الموعد:",
     "rejectionScope": "نطاق الرفض:",
     "thisOccurrenceOnly": "هذا الموعد فقط",
@@ -612,7 +611,6 @@
   },
   "notifications": {
     "title": "الإشعارات",
-    "msgAccountApproval": "طلب تسجيل عضو جديد من {{name}} بانتظار الموافقة.",
     "subtitle": "آخر التحديثات حول حجوزاتك ورسائل الادمنين",
     "markAllRead": "تحديد الكل كمقروء",
     "markAllReadTooltip": "تحديد الكل كمقروء",

@@ -2315,7 +2315,9 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
     const rawStatus =
       typeof req.query.status === "string"
         ? req.query.status.toLowerCase().trim()
-        : "pending";
+        : typeof req.query.filter === "string"
+          ? req.query.filter.toLowerCase().trim()
+          : "pending";
     const status = rawStatus || "pending";
     const search = req.query.search;
 

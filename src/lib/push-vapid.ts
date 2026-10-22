@@ -82,6 +82,30 @@ export function getVapidKeys(): VapidKeys | null {
     }
   }
 
+  // Auto-generate keys in non-production if not present
+  if (!isProd) {
+    try {
+      const generated = webpush.generateVAPIDKeys();
+      const newKeys = {
+        publicKey: generated.publicKey,
+        privateKey: generated.privateKey,
+        subject: envSubject,
+      };
+      try {
+        fs.writeFileSync(vapidFilePath, JSON.stringify(newKeys, null, 2), "utf-8");
+      } catch {}
+      cachedKeys = newKeys;
+      webpush.setVapidDetails(
+        cachedKeys.subject,
+        cachedKeys.publicKey,
+        cachedKeys.privateKey,
+      );
+      return cachedKeys;
+    } catch (err: any) {
+      console.warn("[Push VAPID Warning] Failed to auto-generate keys:", err?.message || err);
+    }
+  }
+
   return null;
 }
 

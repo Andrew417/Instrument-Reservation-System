@@ -428,7 +428,6 @@
   },
   "notifications": {
     "title": "Notifications",
-    "msgAccountApproval": "New member registration from {{name}} awaiting approval.",
     "subtitle": "Updates regarding your bookings and messages",
     "markAllRead": "Mark All Read",
     "markAllReadTooltip": "Mark all as read",
@@ -774,7 +773,6 @@
     "rejectSubtitle": "Provide an explanation for the member",
     "cancelReject": "Cancel Reject",
     "requestSummary": "Request Summary",
-    "member": "Member:",
     "slotTime": "Slot:",
     "rejectionScope": "Rejection Scope:",
     "thisOccurrenceOnly": "This Occurrence Only",
@@ -816,7 +814,6 @@
     "you": "You",
     "churchAdministration": "Church Administration",
     "member": "Member",
-    "rejected": "Rejected",
     "reply": "Reply",
     "viewRejectionAndReply": "View rejection reason and reply",
     "notice": "Notice",

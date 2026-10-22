@@ -15,12 +15,23 @@ import { admins } from "./schema.js";
  * Reads credentials strictly from environment variables.
  */
 export async function seedSuperAdmin(): Promise<void> {
-  const email = process.env.SUPER_ADMIN_EMAIL?.trim();
-  const phone = process.env.SUPER_ADMIN_PHONE?.trim();
-  const name = process.env.SUPER_ADMIN_NAME?.trim();
-  const password = process.env.SUPER_ADMIN_PASSWORD;
+  const isProd =
+    process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 
-  // 1. Fail fast if any required environment variable is missing
+  const email =
+    process.env.SUPER_ADMIN_EMAIL?.trim() ||
+    (!isProd ? "admin@church.org" : "");
+  const phone =
+    process.env.SUPER_ADMIN_PHONE?.trim() ||
+    (!isProd ? "01000000000" : "");
+  const name =
+    process.env.SUPER_ADMIN_NAME?.trim() ||
+    (!isProd ? "Super Admin" : "");
+  const password =
+    process.env.SUPER_ADMIN_PASSWORD ||
+    (!isProd ? "Admin@123456" : "");
+
+  // 1. In production, fail fast if any required environment variable is missing
   const missingVars: string[] = [];
   if (!email) missingVars.push("SUPER_ADMIN_EMAIL");
   if (!phone) missingVars.push("SUPER_ADMIN_PHONE");
@@ -28,9 +39,12 @@ export async function seedSuperAdmin(): Promise<void> {
   if (!password) missingVars.push("SUPER_ADMIN_PASSWORD");
 
   if (missingVars.length > 0) {
-    throw new Error(
-      `[Super Admin Seed] Missing required environment variable(s): ${missingVars.join(", ")}. Please provide them in .env.local or the runtime environment.`,
-    );
+    if (isProd) {
+      throw new Error(
+        `[Super Admin Seed] Missing required environment variable(s): ${missingVars.join(", ")}. Please provide them in production environment.`,
+      );
+    }
+    return;
   }
 
   const normalizedEmail = email.toLowerCase();
