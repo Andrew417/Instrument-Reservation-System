@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   X,
   Repeat,
-  Sparkles,
+  ListFilter,
   Shield,
   HelpCircle,
   ChevronRight,
@@ -76,6 +76,20 @@ interface LimitMessage {
   description: string;
   nextStep: string;
 }
+
+interface TypeSettingResponse {
+  type: string;
+  can_be_requested?: boolean;
+  canBeRequested?: boolean;
+  flat_fee_outside?: string | null;
+  flatFeeOutside?: string | null;
+  active_instruments_count?: number;
+}
+
+const getValidFee = (value: unknown): number => {
+  const fee = Number(value);
+  return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+};
 
 const getLimitMessage = (reason: string): LimitMessage | null => {
   const activeReservationsMatch = reason.match(
@@ -216,7 +230,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         .then((res) => res.json())
         .then((data) => {
           if (data.success && Array.isArray(data.types)) {
-            setAvailableTypes(data.types);
+            setAvailableTypes(
+              (data.types as TypeSettingResponse[]).map((item) => ({
+                type: item.type,
+                can_be_requested:
+                  item.can_be_requested ?? item.canBeRequested ?? false,
+                flat_fee_outside:
+                  item.flat_fee_outside ?? item.flatFeeOutside ?? "0.00",
+                active_instruments_count: item.active_instruments_count ?? 0,
+              })),
+            );
             if (!selectedRequestedType && data.types.length > 0) {
               setSelectedRequestedType(data.types[0].type);
             }
@@ -234,9 +257,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     initialServiceName || "",
   );
   const [serviceLocation, setServiceLocation] = useState<string>("");
-  const [musicianName, setMusicianName] = useState<string>(
-    initialMusicianName || profile?.name || "",
-  );
+  const [musicianName, setMusicianName] = useState<string>("");
   const [note, setNote] = useState<string>("");
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const [date, setDate] = useState<string>(initialDate);
@@ -309,26 +330,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const selectedTypeSetting = availableTypes.find(
     (t) => t.type.toLowerCase() === selectedRequestedType.toLowerCase(),
   );
+  const selectedTypeFee = getValidFee(selectedTypeSetting?.flat_fee_outside);
 
   const feeNumber = isTypeRequest
-    ? selectedTypeSetting
-      ? Number(selectedTypeSetting.flat_fee_outside)
-      : 0
-    : currentInstrument.outsideFeePerDay != null
-      ? Number(currentInstrument.outsideFeePerDay)
-      : 0;
+    ? selectedTypeFee
+    : getValidFee(currentInstrument.outsideFeePerDay);
 
   useEffect(() => {
     if (reservationType === "in_church") {
       setFeeAcknowledged(false);
     }
   }, [reservationType]);
-
-  useEffect(() => {
-    if (!musicianName && profile?.name) {
-      setMusicianName(profile.name);
-    }
-  }, [profile?.name, musicianName]);
 
   useEffect(() => {
     const textarea = noteRef.current;
@@ -758,7 +770,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           : "text-stone-600 hover:text-stone-900"
                       }`}
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <ListFilter className="w-3.5 h-3.5 text-purple-600" />
                       <span>
                         {t("reservationForm.typeRequest", {
                           defaultValue: "Request by Category",
@@ -830,14 +842,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               >
                                 {availableTypes.map((item) => (
                                   <option key={item.type} value={item.type}>
-                                    {item.type}{" "}
-                                    {Number(
-                                      item.flat_fee_outside ??
-                                        (item as any).flatFeeOutside ??
-                                        0,
-                                    ) > 0
-                                      ? `(${item.flat_fee_outside ?? (item as any).flatFeeOutside} EGP outside)`
-                                      : ""}
+                                    {item.type}
                                   </option>
                                 ))}
                               </select>
@@ -853,10 +858,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             </div>
                           )}
 
-                          <div className="mt-2 text-[10px] text-stone-500 leading-snug">
+                          <div className="mt-2 text-[10px] sm:text-[11px] text-stone-600 leading-relaxed">
                             {t("reservationForm.typeRequestNotice", {
                               defaultValue:
-                                "You are requesting this type of instrument. Church administration will assign an available instrument from stock before your event starts.",
+                                "Choose the kind of instrument you need. The church team will choose an available instrument from this category and assign it to you before your event.",
                             })}
                           </div>
                         </div>
@@ -1060,12 +1065,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         className="block text-[11px] sm:text-xs font-bold text-stone-700"
                       >
                         {t("reservationForm.leaveANoteLabel", {
-                          defaultValue: "ملاحظات / طلبات خاصة",
+                          defaultValue: "Notes",
                         })}
                       </label>
-                      <span className="text-[10px] text-stone-400 font-medium">
-                        ({t("common.optional", { defaultValue: "اختياري" })})
-                      </span>
                     </div>
                     <textarea
                       id="input-reservation-note"

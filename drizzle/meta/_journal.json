@@ -43,6 +43,13 @@
       "when": 1791800000000,
       "tag": "0005_web_push_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792952712197,
+      "tag": "0006_burly_wiccan",
+      "breakpoints": true
     }
   ]
 }
