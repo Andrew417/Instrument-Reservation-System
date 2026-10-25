@@ -22,6 +22,7 @@ export interface UserProfile {
   phoneNumber: string;
   role: "user" | "admin" | "super_admin";
   isTrusted?: boolean;
+  isMusician?: boolean;
   isActive?: boolean;
   approvalStatus?: "pending" | "approved" | "rejected";
   isSuperAdmin?: boolean;

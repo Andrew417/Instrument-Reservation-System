@@ -37,6 +37,9 @@ export interface SeriesPrefill {
   duration: number;
   reservationType: "in_church" | "outside_church";
   note?: string;
+  isTypeRequest?: boolean;
+  requestedType?: string;
+  flatFeeOutside?: string;
 }
 
 export interface ReservationFormProps {
@@ -48,6 +51,8 @@ export interface ReservationFormProps {
   initialDuration?: number;
   initialServiceName?: string;
   initialMusicianName?: string;
+  initialIsTypeRequest?: boolean;
+  initialRequestedType?: string;
   onClose: () => void;
   onSuccess: (reservationData: any) => void;
   onOpenSeriesBuilder?: (prefill: SeriesPrefill) => void;
@@ -167,6 +172,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   initialDuration = 2,
   initialServiceName = "",
   initialMusicianName = "",
+  initialIsTypeRequest = false,
+  initialRequestedType = "",
   onBehalfOf,
   onClose,
   onSuccess,
@@ -176,7 +183,50 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
 
+  const isMusicianUser = Boolean(profile?.isMusician);
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
+  );
+  // Musicians and Admins book visible instruments directly; regular users can also request by category (type)
+  const canRequestByType = !isMusicianUser && !isAdmin;
+
   // Form State
+  const [isTypeRequest, setIsTypeRequest] = useState<boolean>(
+    Boolean(initialIsTypeRequest && canRequestByType),
+  );
+  const [availableTypes, setAvailableTypes] = useState<
+    Array<{
+      type: string;
+      can_be_requested: boolean;
+      flat_fee_outside: string;
+      active_instruments_count: number;
+    }>
+  >([]);
+  const [selectedRequestedType, setSelectedRequestedType] = useState<string>(
+    initialRequestedType || "",
+  );
+  const [isLoadingTypes, setIsLoadingTypes] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (canRequestByType) {
+      setIsLoadingTypes(true);
+      fetch("/api/instruments/types")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.types)) {
+            setAvailableTypes(data.types);
+            if (!selectedRequestedType && data.types.length > 0) {
+              setSelectedRequestedType(data.types[0].type);
+            }
+          }
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingTypes(false));
+    }
+  }, [canRequestByType]);
+
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
     initialInstrument.id,
   );
@@ -221,12 +271,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showPolicyExplainer, onClose]);
 
-  const isAdmin = Boolean(
-    profile?.role === "admin" ||
-    profile?.role === "super_admin" ||
-    profile?.isSuperAdmin,
-  );
-
   const durationOptions = useMemo(() => {
     if (isAdmin) {
       return [
@@ -262,8 +306,15 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
   const todayStr = getTodayDateString();
 
-  const feeNumber =
-    currentInstrument.outsideFeePerDay != null
+  const selectedTypeSetting = availableTypes.find(
+    (t) => t.type.toLowerCase() === selectedRequestedType.toLowerCase(),
+  );
+
+  const feeNumber = isTypeRequest
+    ? selectedTypeSetting
+      ? Number(selectedTypeSetting.flat_fee_outside)
+      : 0
+    : currentInstrument.outsideFeePerDay != null
       ? Number(currentInstrument.outsideFeePerDay)
       : 0;
 
@@ -302,6 +353,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       setErrorMsg(t("reservationForm.musicianNameRequired"));
       return;
     }
+    if (isTypeRequest && (!selectedRequestedType || !selectedRequestedType.trim())) {
+      setErrorMsg(
+        t("reservationForm.msgSelectCategory", {
+          defaultValue: "Please select an instrument category.",
+        }),
+      );
+      return;
+    }
     if (reservationType === "outside_church" && !feeAcknowledged) {
       setErrorMsg(t("reservationForm.msgAcknowledgeFee"));
       return;
@@ -317,6 +376,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         duration,
         reservationType,
         note: note.trim() || undefined,
+        isTypeRequest,
+        requestedType: selectedRequestedType,
+        flatFeeOutside: String(feeNumber),
       });
       return;
     }
@@ -325,26 +387,30 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     setErrorMsg(null);
 
     try {
+      const payload: any = {
+        ...buildOwnerPayload(profile, onBehalfOf),
+        isTypeRequest,
+        requestedType: isTypeRequest ? selectedRequestedType : undefined,
+        instrumentId: isTypeRequest ? null : currentInstrument.id,
+        serviceName: serviceName.trim(),
+        serviceLocation: serviceLocation.trim() || undefined,
+        musicianName: musicianName.trim(),
+        note: note.trim() || undefined,
+        date,
+        startTime,
+        duration,
+        reservationType,
+        feeAcknowledged:
+          reservationType === "outside_church" ? feeAcknowledged : false,
+      };
+
       const res = await fetch("/api/reservations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({
-          ...buildOwnerPayload(profile, onBehalfOf),
-          instrumentId: currentInstrument.id,
-          serviceName: serviceName.trim(),
-          serviceLocation: serviceLocation.trim() || undefined,
-          musicianName: musicianName.trim(),
-          note: note.trim() || undefined,
-          date,
-          startTime,
-          duration,
-          reservationType,
-          feeAcknowledged:
-            reservationType === "outside_church" ? feeAcknowledged : false,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -371,7 +437,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     isSubmitting ||
     !serviceName.trim() ||
     !musicianName.trim() ||
-    (reservationType === "outside_church" && !feeAcknowledged);
+    (reservationType === "outside_church" && !feeAcknowledged) ||
+    (isTypeRequest && (!selectedRequestedType || availableTypes.length === 0));
 
   return (
     <>
@@ -520,17 +587,40 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="min-w-0">
-                      <span className="text-stone-500 font-medium block text-[11px]">
-                        {t("reservationForm.instrumentColonLabel")}
-                      </span>
-                      <span className="font-bold text-stone-900 text-xs block truncate">
-                        {currentInstrument.name}
-                      </span>
-                      <span className="text-[10px] text-stone-500 block truncate">
-                        {currentInstrument.type}
-                      </span>
-                    </div>
+                    {submissionResult.reservation.is_type_request ? (
+                      <div className="min-w-0">
+                        <span className="text-stone-500 font-medium block text-[11px]">
+                          {t("reservationForm.requestedCategory", {
+                            defaultValue: "Requested Category",
+                          })}
+                        </span>
+                        <span className="font-bold text-stone-900 text-xs block truncate">
+                          {submissionResult.reservation.requested_type ||
+                            selectedRequestedType}
+                        </span>
+                        <span className="text-[10px] text-purple-700 font-semibold block truncate">
+                          {submissionResult.reservation.instrument_id
+                            ? t("reservationForm.assigned", {
+                                defaultValue: "Assigned",
+                              })
+                            : t("reservations.awaitingAssignment", {
+                                defaultValue: "Awaiting Admin Assignment",
+                              })}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="min-w-0">
+                        <span className="text-stone-500 font-medium block text-[11px]">
+                          {t("reservationForm.instrumentColonLabel")}
+                        </span>
+                        <span className="font-bold text-stone-900 text-xs block truncate">
+                          {currentInstrument.name}
+                        </span>
+                        <span className="text-[10px] text-stone-500 block truncate">
+                          {currentInstrument.type}
+                        </span>
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <span className="text-stone-500 font-medium block text-[11px]">
                         {t("reservationForm.typeColonLabel")}
@@ -640,105 +730,236 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             >
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-3 sm:space-y-3.5">
                 {/* Errors are shown in the fixed alert overlay below. */}
-                {/* Section 1: Instrument & Mode Hero Card */}
-                <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
-                  <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-1.5">
-                    <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                      <Music2 className="w-3.5 h-3.5 text-amber-800" />
-                      <span>
-                        {t("reservationForm.selectedInstrumentLabel")}
-                      </span>
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
-                        currentInstrument.bookingMode === "instant"
-                          ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                          : "bg-amber-100 text-amber-900 border border-amber-200"
+                {/* Mode Selector for Regular Users */}
+                {canRequestByType && (
+                  <div className="flex p-1 bg-stone-200/70 rounded-2xl text-xs font-semibold gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsTypeRequest(false)}
+                      className={`flex-1 py-1.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        !isTypeRequest
+                          ? "bg-white text-stone-900 shadow-2xs font-bold"
+                          : "text-stone-600 hover:text-stone-900"
                       }`}
                     >
-                      {currentInstrument.bookingMode === "instant" ? (
-                        <>
-                          <Zap className="w-2.5 h-2.5" />
-                          <span>{t("common.instant")}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Shield className="w-2.5 h-2.5" />
-                          <span>{t("common.manual")}</span>
-                        </>
-                      )}
-                    </span>
+                      <Music2 className="w-3.5 h-3.5 text-amber-800" />
+                      <span>
+                        {t("reservationForm.directBooking", {
+                          defaultValue: "Specific Instrument",
+                        })}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsTypeRequest(true)}
+                      className={`flex-1 py-1.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        isTypeRequest
+                          ? "bg-white text-purple-950 shadow-2xs font-bold"
+                          : "text-stone-600 hover:text-stone-900"
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>
+                        {t("reservationForm.typeRequest", {
+                          defaultValue: "Request by Category",
+                        })}
+                      </span>
+                    </button>
                   </div>
+                )}
 
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-                      {currentInstrument.photoUrl ? (
-                        <img
-                          src={currentInstrument.photoUrl}
-                          alt={currentInstrument.name}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Music2 className="w-5 h-5 text-amber-800" />
-                      )}
-                    </div>
+                {/* Section 1: Instrument & Mode Hero Card */}
+                <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
+                  {isTypeRequest ? (
+                    <>
+                      <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-1.5">
+                        <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                          <Music2 className="w-3.5 h-3.5 text-purple-800" />
+                          <span>
+                            {t("reservationForm.typeRequestCategory", {
+                              defaultValue: "Instrument Type Request",
+                            })}
+                          </span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-200">
+                          <Shield className="w-2.5 h-2.5" />
+                          <span>
+                            {t("reservations.adminAssignment", {
+                              defaultValue: "Admin Assignment",
+                            })}
+                          </span>
+                        </span>
+                      </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="relative">
-                        <select
-                          id="select-instrument"
-                          value={selectedInstrumentId}
-                          onChange={(e) =>
-                            setSelectedInstrumentId(e.target.value)
-                          }
-                          className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
-                        >
-                          {allInstruments.map((inst) => (
-                            <option key={inst.id} value={inst.id}>
-                              {inst.name} ({inst.type})
-                            </option>
-                          ))}
-                        </select>
-                        <div
-                          className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
-                            isAr ? "left-0" : "right-0"
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-200 text-purple-800 flex items-center justify-center shrink-0 shadow-2xs">
+                          <Music2 className="w-6 h-6" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <label
+                            htmlFor="select-request-type"
+                            className="block text-[11px] font-bold text-stone-700 mb-1"
+                          >
+                            {t("reservationForm.chooseCategoryLabel", {
+                              defaultValue: "Select Category / Type",
+                            })}
+                          </label>
+                          {isLoadingTypes ? (
+                            <div className="text-xs text-stone-500 py-2">
+                              {t("common.loading", {
+                                defaultValue: "Loading...",
+                              })}
+                            </div>
+                          ) : availableTypes.length === 0 ? (
+                            <div className="text-xs text-stone-500 bg-stone-50 p-2 rounded-xl border border-stone-200">
+                              {t("reservationForm.noTypesAvailable", {
+                                defaultValue:
+                                  "No categories currently enabled for requests. Please book a specific instrument.",
+                              })}
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <select
+                                id="select-request-type"
+                                value={selectedRequestedType}
+                                onChange={(e) =>
+                                  setSelectedRequestedType(e.target.value)
+                                }
+                                className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-purple-800/40 focus:border-purple-800 transition cursor-pointer pr-8"
+                              >
+                                {availableTypes.map((item) => (
+                                  <option key={item.type} value={item.type}>
+                                    {item.type}{" "}
+                                    {Number(item.flat_fee_outside) > 0
+                                      ? `(${item.flat_fee_outside} EGP outside)`
+                                      : ""}
+                                  </option>
+                                ))}
+                              </select>
+                              <div
+                                className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
+                                  isAr ? "left-0" : "right-0"
+                                }`}
+                              >
+                                <ChevronRight
+                                  className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-2 text-[10px] text-stone-500 leading-snug">
+                            {t("reservationForm.typeRequestNotice", {
+                              defaultValue:
+                                "You are requesting this type of instrument. Church administration will assign an available instrument from stock before your event starts.",
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-1.5">
+                        <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                          <Music2 className="w-3.5 h-3.5 text-amber-800" />
+                          <span>
+                            {t("reservationForm.selectedInstrumentLabel")}
+                          </span>
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
+                            currentInstrument.bookingMode === "instant"
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                              : "bg-amber-100 text-amber-900 border border-amber-200"
                           }`}
                         >
-                          <ChevronRight
-                            className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1 text-[10px] sm:text-[11px] text-stone-500">
-                        <span className="font-medium">
-                          {currentInstrument.type}
-                        </span>
-                        {currentInstrument.outsideFeePerDay != null &&
-                          Number(currentInstrument.outsideFeePerDay) > 0 && (
+                          {currentInstrument.bookingMode === "instant" ? (
                             <>
-                              <span>•</span>
-                              <span className="font-semibold text-purple-700">
-                                {currentInstrument.outsideFeePerDay} ج.م/يوم
-                                (خارج الكنيسة)
-                              </span>
+                              <Zap className="w-2.5 h-2.5" />
+                              <span>{t("common.instant")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="w-2.5 h-2.5" />
+                              <span>{t("common.manual")}</span>
                             </>
                           )}
+                        </span>
                       </div>
-                      {currentInstrument.description?.trim() && (
-                        <div
-                          className="mt-1 flex items-start gap-1 text-[10px] leading-snug text-stone-500"
-                          title={currentInstrument.description}
-                        >
-                          <FileText className="w-3 h-3 mt-0.5 shrink-0 text-stone-400" />
-                          <p className="line-clamp-2">
-                            {currentInstrument.description.trim()}
-                          </p>
+
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                          {currentInstrument.photoUrl ? (
+                            <img
+                              src={currentInstrument.photoUrl}
+                              alt={currentInstrument.name}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Music2 className="w-5 h-5 text-amber-800" />
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="relative">
+                            <select
+                              id="select-instrument"
+                              value={selectedInstrumentId}
+                              onChange={(e) =>
+                                setSelectedInstrumentId(e.target.value)
+                              }
+                              className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
+                            >
+                              {allInstruments.map((inst) => (
+                                <option key={inst.id} value={inst.id}>
+                                  {inst.name} ({inst.type})
+                                </option>
+                              ))}
+                            </select>
+                            <div
+                              className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
+                                isAr ? "left-0" : "right-0"
+                              }`}
+                            >
+                              <ChevronRight
+                                className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-1 text-[10px] sm:text-[11px] text-stone-500">
+                            <span className="font-medium">
+                              {currentInstrument.type}
+                            </span>
+                            {currentInstrument.outsideFeePerDay != null &&
+                              Number(currentInstrument.outsideFeePerDay) >
+                                0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-semibold text-purple-700">
+                                    {currentInstrument.outsideFeePerDay} ج.م/يوم
+                                    (خارج الكنيسة)
+                                  </span>
+                                </>
+                              )}
+                          </div>
+                          {currentInstrument.description?.trim() && (
+                            <div
+                              className="mt-1 flex items-start gap-1 text-[10px] leading-snug text-stone-500"
+                              title={currentInstrument.description}
+                            >
+                              <FileText className="w-3 h-3 mt-0.5 shrink-0 text-stone-400" />
+                              <p className="line-clamp-2">
+                                {currentInstrument.description.trim()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Section 2: Service & Musician */}

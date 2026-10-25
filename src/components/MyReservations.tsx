@@ -300,8 +300,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
 
         return {
           seriesId,
-          instrumentName: first.instrument_name || "Instrument",
-          instrumentType: first.instrument_type || "General",
+          instrumentName:
+            first.is_type_request && !first.instrument_id
+              ? `${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })} (${first.requested_type || "Type Request"})`
+              : first.instrument_name || "Instrument",
+          instrumentType: first.requested_type || first.instrument_type || "General",
           bookingMode: first.booking_mode || "manual",
           serviceName:
             first.service_name || t("myReservations.churchServiceFallback"),
@@ -756,6 +759,19 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                             </span>
                           )}
 
+                          {Boolean(res.is_type_request) && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-900 border border-purple-200 shrink-0">
+                              <Sparkles className="w-2.5 h-2.5 text-purple-700" />
+                              {res.instrument_id
+                                ? t("reservations.assignedTypeRequest", {
+                                    defaultValue: "Type Request (Assigned)",
+                                  })
+                                : t("reservations.typeRequestPending", {
+                                    defaultValue: "Type Request",
+                                  })}
+                            </span>
+                          )}
+
                           {res.condition_status === "pristine" && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
                               <ShieldCheck className="w-3 h-3 text-emerald-600" />
@@ -789,7 +805,9 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         {/* Instrument + date/time */}
                         <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="font-semibold text-stone-800 truncate max-w-full">
-                            {res.instrument_name}
+                            {res.is_type_request && !res.instrument_id
+                              ? `${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })} (${res.requested_type || res.instrument_type || "Type Request"})`
+                              : res.instrument_name}
                           </span>
                           <span className="text-stone-500 font-medium whitespace-nowrap">
                             {dateStr} ({timeStr})

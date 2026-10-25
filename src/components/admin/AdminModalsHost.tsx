@@ -127,9 +127,15 @@ export const AdminModalsHost: React.FC<AdminModalsHostProps> = ({
         <AssignInstrumentModal
           isOpen={admin.assignModal.isOpen}
           reservation={admin.assignModal.reservation}
+          isSeries={admin.assignModal.isSeries}
+          isReassign={admin.assignModal.isReassign}
           onClose={() => admin.setAssignModal(null)}
           onSuccess={() => {
-            admin.showNotice("Gear allocated and reservation approved successfully!");
+            admin.showNotice(
+              admin.assignModal?.isReassign
+                ? "Instrument reallocated successfully!"
+                : "Gear allocated and reservation approved successfully!"
+            );
             admin.fetchReservations();
             admin.refreshAllStats();
           }}

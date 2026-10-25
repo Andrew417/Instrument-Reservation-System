@@ -35,7 +35,7 @@ export interface TimeSlot {
 export interface ReservationSubmissionInput {
   userId?: string;
   adminId?: string;
-  instrumentId: string;
+  instrumentId?: string;
   serviceName: string; // Required free-text (e.g. 'Sunday Morning Service', 'Youth Choir Practice')
   serviceLocation?: string; // Location or hall (e.g. 'Main Church Sanctuary', 'Youth Hall', 'St. George Chapel')
   musicianName: string;
@@ -46,12 +46,14 @@ export interface ReservationSubmissionInput {
   feeAcknowledged?: boolean;
   bandPackId?: string;
   note?: string;
+  isTypeRequest?: boolean;
+  requestedType?: string;
 }
 
 export interface SeriesSubmissionInput {
   userId?: string;
   adminId?: string;
-  instrumentId: string;
+  instrumentId?: string;
   serviceName: string; // Applies to the whole series
   serviceLocation?: string;
   musicianName: string;
@@ -60,6 +62,8 @@ export interface SeriesSubmissionInput {
   reservationType: "in_church" | "outside_church";
   feeAcknowledged?: boolean;
   note?: string;
+  isTypeRequest?: boolean;
+  requestedType?: string;
 }
 
 export interface EvaluationResult {
@@ -70,6 +74,9 @@ export interface EvaluationResult {
   startTimeUtc: Date;
   endTimeUtc: Date;
   timeRangeSqlString: string;
+  exceededLimits?: string[];
+  isTypeRequest?: boolean;
+  requestedType?: string;
 }
 
 /**
@@ -237,11 +244,13 @@ export async function resolveUserAndAdminIds(
   resolvedUserId: string | null;
   resolvedAdminId: string | null;
   isTrusted: boolean;
+  isMusician: boolean;
   isAdmin: boolean;
 }> {
   let userId = toNullableString(rawUserId);
   let adminId = toNullableString(rawAdminId);
   let isTrusted = false;
+  let isMusician = false;
   let isAdmin = false;
 
   // 1. If adminId provided, verify it against admins or fallback to users
@@ -257,7 +266,11 @@ export async function resolveUserAndAdminIds(
         isAdmin = true;
       } else {
         const userRows = await db
-          .select({ id: users.id, isTrusted: users.isTrusted })
+          .select({
+            id: users.id,
+            isTrusted: users.isTrusted,
+            isMusician: users.isMusician,
+          })
           .from(users)
           .where(eq(users.id, adminId))
           .limit(1);
@@ -266,6 +279,7 @@ export async function resolveUserAndAdminIds(
           userId = adminId;
           adminId = null;
           isTrusted = Boolean(userRows[0].isTrusted);
+          isMusician = Boolean(userRows[0].isMusician);
         } else {
           adminId = null;
         }
@@ -279,13 +293,18 @@ export async function resolveUserAndAdminIds(
   if (userId) {
     try {
       const userRows = await db
-        .select({ id: users.id, isTrusted: users.isTrusted })
+        .select({
+          id: users.id,
+          isTrusted: users.isTrusted,
+          isMusician: users.isMusician,
+        })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
 
       if (userRows.length > 0) {
         isTrusted = Boolean(userRows[0].isTrusted);
+        isMusician = Boolean(userRows[0].isMusician);
       } else {
         const adminRows = await db
           .select({ id: admins.id })
@@ -310,6 +329,7 @@ export async function resolveUserAndAdminIds(
     resolvedUserId: userId,
     resolvedAdminId: adminId,
     isTrusted,
+    isMusician,
     isAdmin,
   };
 }
@@ -332,12 +352,15 @@ export async function evaluateReservationSubmission(
     duration,
     reservationType,
     feeAcknowledged,
+    isTypeRequest,
+    requestedType,
   } = input;
 
-  const { resolvedUserId, resolvedAdminId, isTrusted, isAdmin } =
+  const { resolvedUserId, resolvedAdminId, isTrusted, isMusician, isAdmin } =
     await resolveUserAndAdminIds(userId, adminId);
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
+  const isTrustedOrAdmin = isTrusted || isAdmin;
 
   // 1. Working hours check
   const { start, end, timeRangeSqlString } = buildTimeRange(
@@ -347,24 +370,16 @@ export async function evaluateReservationSubmission(
   );
   validateWorkingHours(start, end);
 
-  // Fetch instrument
-  const instrumentRes = await db
-    .select()
-    .from(instruments)
-    .where(
-      and(eq(instruments.id, instrumentId), eq(instruments.isRemoved, false)),
-    )
-    .limit(1);
-
-  if (instrumentRes.length === 0) {
-    throw new Error("Instrument not found or has been removed.");
-  }
-  const instrument = instrumentRes[0];
-
   const limits = options?.preloadedLimits || (await getHardLimits());
 
   // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled, or admin booking)
-  if (!options?.skipRateLimitCheck && cleanUserId && !cleanAdminId && !isAdmin && !limits.bypassHardLimits) {
+  if (
+    !options?.skipRateLimitCheck &&
+    cleanUserId &&
+    !cleanAdminId &&
+    !isAdmin &&
+    !limits.bypassHardLimits
+  ) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentSubmissions = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -384,8 +399,162 @@ export async function evaluateReservationSubmission(
     }
   }
 
-  // 3. Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
-  // Applies to EVERY user type, no exceptions (including Trusted and Admin).
+  // BRANCH A: TYPE REQUEST
+  if (isTypeRequest) {
+    if (isMusician && !isAdmin && !cleanAdminId) {
+      throw new Error(
+        "Musicians don't use type requests; they book visible instruments directly.",
+      );
+    }
+    const cleanType = requestedType?.trim();
+    if (!cleanType) {
+      throw new Error("Requested instrument type is required.");
+    }
+
+    // Verify type is configured and can be requested
+    const typeRes = await db.execute(sql`
+      SELECT type, can_be_requested, flat_fee_outside
+      FROM instrument_type_settings
+      WHERE type ILIKE ${cleanType}
+      LIMIT 1;
+    `);
+    const typeRow = (typeRes as any).rows?.[0];
+    if (!typeRow || !typeRow.can_be_requested) {
+      throw new Error(`Requests for type "${cleanType}" are not currently enabled.`);
+    }
+
+    // Outside church fee check: flat fee per type locked at submission
+    let outsideFeeSnapshot: string | null = null;
+    if (reservationType === "outside_church") {
+      if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
+        throw new Error(
+          `Outside church type request requires fee acknowledgment (flat fee: ${typeRow.flat_fee_outside || "0.00"} EGP).`,
+        );
+      }
+      outsideFeeSnapshot = String(typeRow.flat_fee_outside || "0.00");
+    }
+
+    // Limits check for type requests:
+    // - Regular user cannot submit if active reservations limit reached (Pending type requests count, series counts as 1).
+    // - Trusted users and admins bypass this limit.
+    if (!isTrustedOrAdmin && !limits.bypassHardLimits && cleanUserId) {
+      await ensureCurrentReservationStatuses().catch(() => {});
+      const activeRes = await db
+        .select({
+          activeCount: sql<number>`COUNT(DISTINCT COALESCE(${reservations.seriesId}, ${reservations.id}))::int`,
+        })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.userId, cleanUserId),
+            inArray(reservations.status, ["pending", "approved"]),
+          ),
+        );
+
+      const activeCount = Number(activeRes[0]?.activeCount || 0);
+      if (activeCount >= limits.maxActiveReservations) {
+        throw new Error(
+          `You've reached your active reservations limit (${activeCount}/${limits.maxActiveReservations}). Pending requests and approved bookings count toward this limit.`,
+        );
+      }
+    }
+
+    // Other limits (daily reservations, duration, concurrent same-type):
+    // Accepted anyway, but marked in exceededLimits so the admin sees why.
+    const exceededLimits: string[] = [];
+    if (!limits.bypassHardLimits && cleanUserId && !isAdmin && !cleanAdminId) {
+      const dateStr = getCairoDateString(start);
+      const dayRes = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(reservations)
+        .where(
+          sql`${reservations.userId} = ${cleanUserId}
+            AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
+            AND (lower(${reservations.timeRange}) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date`,
+        );
+      const dayCount = Number(dayRes[0]?.count || 0);
+      if (dayCount >= limits.maxReservationsPerDay) {
+        exceededLimits.push(
+          `Exceeded daily reservation limit (${dayCount}/${limits.maxReservationsPerDay} on ${dateStr})`,
+        );
+      }
+
+      if (duration > limits.maxDurationHours) {
+        exceededLimits.push(
+          `Exceeded single booking duration limit (${duration}h > ${limits.maxDurationHours}h)`,
+        );
+      }
+
+      const concurrentRes = await db.execute(sql`
+        SELECT count(*)::int as count
+        FROM reservations r
+        LEFT JOIN instruments i ON r.instrument_id = i.id
+        WHERE r.user_id = ${cleanUserId}
+          AND r.status IN ('pending', 'approved')
+          AND (COALESCE(i.type, r.requested_type) ILIKE ${cleanType})
+          AND r.time_range && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')
+      `);
+      const concurrentCount = Number((concurrentRes as any).rows?.[0]?.count || 0);
+      if (concurrentCount >= limits.maxConcurrentPerType) {
+        exceededLimits.push(
+          `Exceeded concurrent bookings limit for ${cleanType} (${concurrentCount}/${limits.maxConcurrentPerType})`,
+        );
+      }
+    }
+
+    // Type requests always start as Pending, even for Trusted users!
+    // Never appears on calendar and doesn't block slots until assigned.
+    const reasons = [
+      "Type request submitted for administrator assignment.",
+      ...exceededLimits,
+    ];
+
+    return {
+      status: "pending",
+      reasons,
+      isTrustedOrAdmin,
+      outsideFeeSnapshot,
+      startTimeUtc: start,
+      endTimeUtc: end,
+      timeRangeSqlString,
+      exceededLimits: exceededLimits.length > 0 ? exceededLimits : undefined,
+      isTypeRequest: true,
+      requestedType: cleanType,
+    };
+  }
+
+  // BRANCH B: DIRECT BOOKING
+  if (!instrumentId) {
+    throw new Error("Instrument ID is required for direct booking.");
+  }
+
+  // Fetch instrument
+  const instrumentRes = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(eq(instruments.id, instrumentId), eq(instruments.isRemoved, false)),
+    )
+    .limit(1);
+
+  if (instrumentRes.length === 0) {
+    throw new Error("Instrument not found or has been removed.");
+  }
+  const instrument = instrumentRes[0];
+
+  if (instrument.isOutOfService) {
+    throw new Error("This instrument is currently marked Out of service and cannot be booked.");
+  }
+
+  if (instrument.visibilityLevel === "room_stock" && !isAdmin && !cleanAdminId) {
+    throw new Error("Room stock instruments cannot be booked directly.");
+  }
+
+  if (instrument.visibilityLevel === "musician" && !isMusician && !isAdmin && !cleanAdminId) {
+    throw new Error("This instrument is restricted to registered church musicians.");
+  }
+
+  // Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
   const conflicts = await db
     .select({ id: reservations.id, timeRange: reservations.timeRange })
     .from(reservations)
@@ -402,10 +571,7 @@ export async function evaluateReservationSubmission(
     );
   }
 
-  // 4. Trusted or Admin check
-  const isTrustedOrAdmin = isTrusted || isAdmin;
-
-  // 5. Outside church fee requirement check
+  // Outside church fee requirement check
   let outsideFeeSnapshot: string | null = null;
   if (reservationType === "outside_church") {
     if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
@@ -428,25 +594,20 @@ export async function evaluateReservationSubmission(
         "Auto-approved via Administrator Privilege (Outside-church fee snapshotted)",
       );
     } else {
-      // Outside-church ALWAYS sets status to Pending on submission (manual review), never Instant — regardless of instrument mode
       calculatedStatus = "pending";
       reasons.push(
         "Outside-church reservation requires administrator review and payment arrangement.",
       );
     }
   } else if (isTrustedOrAdmin) {
-    // Auto-approve immediately for Trusted Users and Admins (in-church reservations)
     calculatedStatus = "approved";
     reasons.push("Auto-approved via Trusted User / Admin privilege");
   } else {
-    // Ensure status transitions are up-to-date before checking active limits
     await ensureCurrentReservationStatuses().catch(() => {});
 
-    // Regular user, in_church reservation:
     let limitExceeded = false;
 
     if (!limits.bypassHardLimits) {
-      // Check 5a: max_active_reservations (Pending + Approved, series counts as 1)
       if (cleanUserId) {
         const activeRes = await db
           .select({
@@ -463,14 +624,12 @@ export async function evaluateReservationSubmission(
         const activeCount = Number(activeRes[0]?.activeCount || 0);
         if (activeCount >= limits.maxActiveReservations) {
           limitExceeded = true;
-          // 5a: max_active_reservations
           reasons.push(
             `You've reached your active reservations limit (${activeCount}/${limits.maxActiveReservations}). This request will wait for admin review instead of auto-approving.`,
           );
         }
       }
 
-      // Check 5b: max_reservations_per_day
       if (cleanUserId) {
         const dateStr = getCairoDateString(start);
         const dayRes = await db
@@ -485,23 +644,19 @@ export async function evaluateReservationSubmission(
         const dayCount = Number(dayRes[0]?.count || 0);
         if (dayCount >= limits.maxReservationsPerDay) {
           limitExceeded = true;
-          // 5b: max_reservations_per_day
           reasons.push(
             `You've reached your daily reservation limit for ${dateStr} (${dayCount}/${limits.maxReservationsPerDay}). This request will wait for admin review instead of auto-approving.`,
           );
         }
       }
 
-      // Check 5c: max_duration_hours
       if (duration > limits.maxDurationHours) {
         limitExceeded = true;
-        // 5c: max_duration_hours
         reasons.push(
           `This booking (${duration}h) is longer than the ${limits.maxDurationHours}h limit for a single reservation. It will wait for admin review instead of auto-approving.`,
         );
       }
 
-      // Check 5d: max_concurrent_per_type (counts same-type reservations overlapping the requested slot)
       if (cleanUserId) {
         const concurrentRes = await db
           .select({ count: sql<number>`count(*)::int` })
@@ -519,7 +674,6 @@ export async function evaluateReservationSubmission(
         const concurrentCount = Number(concurrentRes[0]?.count || 0);
         if (concurrentCount >= limits.maxConcurrentPerType) {
           limitExceeded = true;
-          // 5d: max_concurrent_per_type
           reasons.push(
             `You already have ${concurrentCount}/${limits.maxConcurrentPerType} ${instrument.type} reservations at this same time. This request will wait for admin review instead of auto-approving.`,
           );
@@ -527,14 +681,12 @@ export async function evaluateReservationSubmission(
       }
     }
 
-    // Instrument mode check + limit decision
     if (instrument.bookingMode === "instant" && !limitExceeded) {
       calculatedStatus = "approved";
       reasons.push("Auto-approved via Instant Booking mode");
     } else {
       calculatedStatus = "pending";
       if (instrument.bookingMode === "manual") {
-        // 5e: manual_approval
         reasons.push("Instrument is set to Manual Approval mode");
       }
     }
@@ -548,6 +700,7 @@ export async function evaluateReservationSubmission(
     startTimeUtc: start,
     endTimeUtc: end,
     timeRangeSqlString,
+    isTypeRequest: false,
   };
 }
 
@@ -566,6 +719,7 @@ export async function autoRejectOverlappingPending(
         rejection_reason = 'Another reservation was approved for this time slot'
     WHERE instrument_id = ${instrumentId}
       AND status = 'pending'
+      AND (is_type_request = false OR is_type_request IS NULL)
       ${approvedReservationId ? sql`AND id != ${approvedReservationId}` : sql``}
       AND time_range && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')
     RETURNING id, user_id, service_name, time_range;
@@ -629,8 +783,8 @@ export async function createReservation(input: ReservationSubmissionInput) {
     throw new Error("Musician name is required.");
   }
 
-  // Runtime validation assertion
-  if (!input.instrumentId) {
+  // Runtime validation assertion: instrumentId is required only for direct bookings
+  if (!input.isTypeRequest && !input.instrumentId) {
     throw new Error("Instrument ID is required.");
   }
 
@@ -638,7 +792,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     seriesId: null,
     userId: cleanUserId,
     adminId: cleanAdminId,
-    instrumentId: input.instrumentId,
+    instrumentId: input.isTypeRequest ? null : input.instrumentId,
     serviceName: cleanServiceName,
     serviceLocation: toNullableString(input.serviceLocation),
     musicianName: cleanMusicianName,
@@ -653,6 +807,12 @@ export async function createReservation(input: ReservationSubmissionInput) {
     rejectionReason: null,
     paymentScreenshotUrl: null,
     bookedByAdmin: Boolean(cleanAdminId),
+    isTypeRequest: Boolean(input.isTypeRequest),
+    requestedType: input.isTypeRequest ? input.requestedType?.trim() || null : null,
+    exceededLimits:
+      evalResult.exceededLimits && evalResult.exceededLimits.length > 0
+        ? JSON.stringify(evalResult.exceededLimits)
+        : null,
   };
 
   const [newReservation] = await db
@@ -772,8 +932,13 @@ export async function createReservation(input: ReservationSubmissionInput) {
     }
   } else if (cleanUserId) {
     // Notification for pending submission
-    const pendingMsg =
-      input.reservationType === "outside_church"
+    const targetTypeOrName = input.isTypeRequest
+      ? input.requestedType || "Instrument"
+      : "an instrument";
+
+    const pendingMsg = input.isTypeRequest
+      ? `Your request for a ${input.requestedType} on ${input.date} (${input.startTime}) has been submitted and is awaiting administrator assignment.`
+      : input.reservationType === "outside_church"
         ? "Your outside-church reservation request has been submitted. If approved, an administrator will contact you on WhatsApp to confirm details and arrange payment."
         : `Your reservation request on ${input.date} (${input.startTime}) has been submitted and is pending administrator review.`;
 
@@ -790,25 +955,35 @@ export async function createReservation(input: ReservationSubmissionInput) {
       .where(eq(users.id, cleanUserId))
       .limit(1);
 
-    const [instrumentRow] = await db
-      .select({ name: instruments.name })
-      .from(instruments)
-      .where(eq(instruments.id, input.instrumentId))
-      .limit(1);
+    const [instrumentRow] = input.instrumentId
+      ? await db
+          .select({ name: instruments.name })
+          .from(instruments)
+          .where(eq(instruments.id, input.instrumentId))
+          .limit(1)
+      : [null];
+
+    const instrumentDisplayName = input.isTypeRequest
+      ? `${input.requestedType} (Type Request)`
+      : instrumentRow?.name || "Instrument";
 
     const formattedStartTime = input.startTime;
     const formattedEndTime = getCairoTimeString(evalResult.endTimeUtc);
 
-    const notifSettings = await getNotificationSettings(); // new helper, same pattern as getHardLimits
+    const notifSettings = await getNotificationSettings();
     if (!notifSettings.muteReservationRequestEmails) {
       await sendSuperAdminNotificationEmail(
-        "New Reservation Pending Approval - St. Mark Musicians",
-        "New Reservation Request",
-        "A reservation request is awaiting your approval.",
+        input.isTypeRequest
+          ? "New Instrument Type Request Awaiting Assignment - St. Mark Musicians"
+          : "New Reservation Pending Approval - St. Mark Musicians",
+        input.isTypeRequest ? "New Type Request" : "New Reservation Request",
+        input.isTypeRequest
+          ? "A member has requested an instrument by type and requires assignment."
+          : "A reservation request is awaiting your approval.",
         [
           { label: "Requested by:", value: requester?.name || "Unknown" },
           { label: "Phone:", value: requester?.phoneNumber || "N/A" },
-          { label: "Instrument:", value: instrumentRow?.name || "Unknown" },
+          { label: "Instrument / Type:", value: instrumentDisplayName },
           { label: "Musician:", value: input.musicianName },
           { label: "Service:", value: input.serviceName },
           { label: "Date:", value: input.date },
@@ -830,8 +1005,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
     }
     const allAdmins = await db.select({ id: admins.id }).from(admins);
 
-    // Minimal notification text: e.g. "Acoustic Guitar on Sunday 22-9-2026 from 6:00 to 9:00 (3h)"
-    let minimalRequestMsg = `New reservation request from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} on ${input.date}.`;
+    let minimalRequestMsg = input.isTypeRequest
+      ? `New type request from ${requester?.name || "a member"} for ${input.requestedType} on ${input.date}.`
+      : `New reservation request from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} on ${input.date}.`;
+
     try {
       const [y, m, d] = input.date.split("-").map(Number);
       const dateUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
@@ -863,7 +1040,9 @@ export async function createReservation(input: ReservationSubmissionInput) {
         getCairoTimeString(evalResult.endTimeUtc),
       );
       const durStr = input.duration ? ` (${input.duration}h)` : "";
-      minimalRequestMsg = `${instrumentRow?.name || "Instrument"} on ${dayName} ${formattedDate} from ${startFmt} to ${endFmt}${durStr}`;
+      minimalRequestMsg = input.isTypeRequest
+        ? `[Type Request] ${input.requestedType} on ${dayName} ${formattedDate} from ${startFmt} to ${endFmt}${durStr}`
+        : `${instrumentRow?.name || "Instrument"} on ${dayName} ${formattedDate} from ${startFmt} to ${endFmt}${durStr}`;
     } catch {
       // fallback to default
     }
@@ -883,15 +1062,17 @@ export async function createReservation(input: ReservationSubmissionInput) {
     // Web Push notification to admins for new request
     sendPushToAdmins(
       {
-        titleAr: "طلب حجز جديد",
-        titleEn: "New Reservation Request",
-        bodyAr: `${requester?.name || "عضو"}: ${instrumentRow?.name || "آلة"} (${input.serviceName || "خدمة"})`,
-        bodyEn: `${requester?.name || "A member"}: ${instrumentRow?.name || "Instrument"} (${input.serviceName || "Service"})`,
+        titleAr: input.isTypeRequest ? "طلب نوع آلة جديد" : "طلب حجز جديد",
+        titleEn: input.isTypeRequest
+          ? "New Instrument Type Request"
+          : "New Reservation Request",
+        bodyAr: `${requester?.name || "عضو"}: ${instrumentDisplayName} (${input.serviceName || "خدمة"})`,
+        bodyEn: `${requester?.name || "A member"}: ${instrumentDisplayName} (${input.serviceName || "Service"})`,
         tag: "admin-new-requests",
         url: `/?reservationId=${newReservation.id}`,
         data: {
           reservationId: newReservation.id,
-          type: "reservation_request",
+          type: input.isTypeRequest ? "type_request" : "reservation_request",
         },
       },
       "new_requests",
@@ -927,12 +1108,78 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     throw new Error("Series must have at least one occurrence.");
   }
 
-  const { resolvedUserId, resolvedAdminId, isTrusted, isAdmin } =
+  const { resolvedUserId, resolvedAdminId, isTrusted, isMusician, isAdmin } =
     await resolveUserAndAdminIds(userId, adminId);
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
 
+  if (input.isTypeRequest && isMusician && !isAdmin && !cleanAdminId) {
+    throw new Error(
+      "Musicians don't use type requests; they book visible instruments directly.",
+    );
+  }
+
+  const cleanRequestedType = input.isTypeRequest
+    ? input.requestedType?.trim()
+    : undefined;
+  let typeFlatFeeSnapshot: string | null = null;
+  if (input.isTypeRequest) {
+    if (!cleanRequestedType) {
+      throw new Error("Requested instrument type is required.");
+    }
+    const typeRes = await db.execute(sql`
+      SELECT type, can_be_requested, flat_fee_outside
+      FROM instrument_type_settings
+      WHERE type ILIKE ${cleanRequestedType}
+      LIMIT 1;
+    `);
+    const typeRow = (typeRes as any).rows?.[0];
+    if (!typeRow || !typeRow.can_be_requested) {
+      throw new Error(
+        `Requests for type "${cleanRequestedType}" are not currently enabled.`,
+      );
+    }
+    if (reservationType === "outside_church") {
+      if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
+        throw new Error(
+          `Outside church type request requires fee acknowledgment (flat fee: ${typeRow.flat_fee_outside || "0.00"} EGP).`,
+        );
+      }
+      typeFlatFeeSnapshot = String(typeRow.flat_fee_outside || "0.00");
+    }
+  }
+
   const limits = await getHardLimits();
+
+  // Active reservations limit for type requests:
+  // Pending type requests count toward this number, and a recurring series counts as one.
+  // Trusted users and admins are not blocked by these limits.
+  if (
+    input.isTypeRequest &&
+    !isTrusted &&
+    !isAdmin &&
+    !limits.bypassHardLimits &&
+    cleanUserId
+  ) {
+    await ensureCurrentReservationStatuses().catch(() => {});
+    const activeRes = await db
+      .select({
+        activeCount: sql<number>`COUNT(DISTINCT COALESCE(${reservations.seriesId}, ${reservations.id}))::int`,
+      })
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.userId, cleanUserId),
+          inArray(reservations.status, ["pending", "approved"]),
+        ),
+      );
+    const activeCount = Number(activeRes[0]?.activeCount || 0);
+    if (activeCount >= limits.maxActiveReservations) {
+      throw new Error(
+        `You've reached your active reservations limit (${activeCount}/${limits.maxActiveReservations}). Pending requests and approved bookings count toward this limit.`,
+      );
+    }
+  }
 
   // 1. Occurrence count check: reject if > max_series_occurrences (unless bypass enabled or user is Trusted/Admin)
   if (
@@ -978,38 +1225,43 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     }
   }
 
-  // 4. Conflict check against existing approved reservations
+  // 4. Conflict check against existing approved reservations (direct booking only)
   const conflictingOccurrences: any[] = [];
-  for (const occ of parsedOccurrences) {
-    const conflicts = await db
-      .select({ id: reservations.id, timeRange: reservations.timeRange })
-      .from(reservations)
-      .where(
-        sql`${reservations.instrumentId} = ${instrumentId}
-          AND ${reservations.status} = 'approved'
-          AND ${reservations.timeRange} && tstzrange(${occ.start.toISOString()}, ${occ.end.toISOString()}, '[)')`,
-      );
-
-    if (conflicts.length > 0) {
-      conflictingOccurrences.push({
-        occurrenceIndex: occ.index,
-        date: occ.date,
-        startTime: occ.startTime,
-        duration: occ.duration,
-        conflictingReservationId: conflicts[0].id,
-      });
+  if (!input.isTypeRequest) {
+    if (!instrumentId) {
+      throw new Error("Instrument ID is required for direct booking series.");
     }
-  }
+    for (const occ of parsedOccurrences) {
+      const conflicts = await db
+        .select({ id: reservations.id, timeRange: reservations.timeRange })
+        .from(reservations)
+        .where(
+          sql`${reservations.instrumentId} = ${instrumentId}
+            AND ${reservations.status} = 'approved'
+            AND ${reservations.timeRange} && tstzrange(${occ.start.toISOString()}, ${occ.end.toISOString()}, '[)')`,
+        );
 
-  if (conflictingOccurrences.length > 0) {
-    const conflictDescriptions = conflictingOccurrences.map(
-      (c) => `Occurrence #${c.occurrenceIndex} on ${c.date} at ${c.startTime}`,
-    );
-    const error: any = new Error(
-      `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations: ${conflictDescriptions.join(", ")}.`,
-    );
-    error.conflicts = conflictingOccurrences;
-    throw error;
+      if (conflicts.length > 0) {
+        conflictingOccurrences.push({
+          occurrenceIndex: occ.index,
+          date: occ.date,
+          startTime: occ.startTime,
+          duration: occ.duration,
+          conflictingReservationId: conflicts[0].id,
+        });
+      }
+    }
+
+    if (conflictingOccurrences.length > 0) {
+      const conflictDescriptions = conflictingOccurrences.map(
+        (c) => `Occurrence #${c.occurrenceIndex} on ${c.date} at ${c.startTime}`,
+      );
+      const error: any = new Error(
+        `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations: ${conflictDescriptions.join(", ")}.`,
+      );
+      error.conflicts = conflictingOccurrences;
+      throw error;
+    }
   }
 
   // 5. Rate limit check for the series submission (bypassed for admin)
@@ -1044,10 +1296,12 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       .values({
         userId: cleanUserId,
         adminId: cleanAdminId,
-        instrumentId,
+        instrumentId: input.isTypeRequest ? null : instrumentId,
         patternType,
         serviceLocation: toNullableString(input.serviceLocation),
         note: cleanNote,
+        isTypeRequest: Boolean(input.isTypeRequest),
+        requestedType: input.isTypeRequest ? cleanRequestedType || null : null,
       })
       .returning();
 
@@ -1059,7 +1313,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         {
           userId: cleanUserId || undefined,
           adminId: cleanAdminId || undefined,
-          instrumentId,
+          instrumentId: input.isTypeRequest ? undefined : instrumentId,
           serviceName: input.serviceName,
           serviceLocation: input.serviceLocation,
           musicianName: input.musicianName,
@@ -1068,19 +1322,25 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
           duration: occ.duration,
           reservationType,
           feeAcknowledged: cleanAdminId ? true : feeAcknowledged,
+          isTypeRequest: input.isTypeRequest,
+          requestedType: cleanRequestedType,
         },
         { skipRateLimitCheck: true, preloadedLimits: limits },
       );
 
-      const cleanFeeSnapshot = toNullableString(evalResult.outsideFeeSnapshot);
-      const occurrenceStatus =
-        isBookedByAdminOnBehalf || isAdmin ? "approved" : evalResult.status;
+      const cleanFeeSnapshot = toNullableString(
+        input.isTypeRequest ? typeFlatFeeSnapshot : evalResult.outsideFeeSnapshot,
+      );
+      // Type requests ALWAYS start as pending (even for Trusted users)
+      const occurrenceStatus = input.isTypeRequest
+        ? "pending"
+        : (isBookedByAdminOnBehalf || isAdmin ? "approved" : evalResult.status);
 
       const occurrenceParams = {
         seriesId: seriesRow.id,
         userId: cleanUserId,
         adminId: cleanAdminId,
-        instrumentId,
+        instrumentId: input.isTypeRequest ? null : instrumentId,
         serviceName: (input.serviceName || "").trim() || "Not specified",
         serviceLocation: toNullableString(input.serviceLocation),
         musicianName: (input.musicianName || "").trim(),
@@ -1093,6 +1353,12 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         rejectionReason: null,
         paymentScreenshotUrl: null,
         bookedByAdmin: Boolean(cleanAdminId),
+        isTypeRequest: Boolean(input.isTypeRequest),
+        requestedType: input.isTypeRequest ? cleanRequestedType || null : null,
+        exceededLimits:
+          evalResult.exceededLimits && evalResult.exceededLimits.length > 0
+            ? JSON.stringify(evalResult.exceededLimits)
+            : null,
       };
 
       const [resRow] = await tx
@@ -1147,14 +1413,16 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   });
 
   // Post-transaction: auto-reject other overlapping pending reservations
-  for (const occ of createdOccurrences) {
-    if (occ.reservation.status === "approved") {
-      await autoRejectOverlappingPending(
-        instrumentId,
-        occ.evaluation.startTimeUtc,
-        occ.evaluation.endTimeUtc,
-        occ.reservation.id,
-      ).catch(() => {});
+  if (!input.isTypeRequest && instrumentId) {
+    for (const occ of createdOccurrences) {
+      if (occ.reservation.status === "approved") {
+        await autoRejectOverlappingPending(
+          instrumentId,
+          occ.evaluation.startTimeUtc,
+          occ.evaluation.endTimeUtc,
+          occ.reservation.id,
+        ).catch(() => {});
+      }
     }
   }
 
@@ -1420,15 +1688,15 @@ export async function editReservation(
     throw new Error("You are not authorized to edit this reservation.");
   }
 
-  const instrumentId = updates.instrumentId || existing.instrumentId;
+  const isTypeRequest = Boolean(existing.isTypeRequest);
+  const timeChanged = Boolean(
+    updates.date || updates.startTime || updates.duration,
+  );
 
-  // Extract current time range if not updated
-  // If date/startTime/duration provided, compute new range
   let start: Date;
   let end: Date;
 
-  if (updates.date || updates.startTime || updates.duration) {
-    // Need all three or fallback
+  if (timeChanged) {
     if (!updates.date || !updates.startTime || !updates.duration) {
       throw new Error(
         "When editing time, date, startTime, and duration must all be provided.",
@@ -1442,7 +1710,6 @@ export async function editReservation(
     start = tr.start;
     end = tr.end;
   } else {
-    // Query postgres to extract bounds of existing time_range
     const boundsRes: any = await db.execute(
       sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
     );
@@ -1452,101 +1719,125 @@ export async function editReservation(
 
   validateWorkingHours(start, end);
 
-  // Check conflicts with OTHER approved reservations on this instrument
-  const conflicts = await db
-    .select({ id: reservations.id })
-    .from(reservations)
-    .where(
-      sql`${reservations.instrumentId} = ${instrumentId}
-        AND ${reservations.id} != ${reservationId}
-        AND ${reservations.status} = 'approved'
-        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
-    )
-    .limit(1);
-
-  if (conflicts.length > 0) {
-    throw new Error(
-      "The updated time slot conflicts with an existing approved reservation.",
-    );
-  }
-
-  // Fetch instrument
-  const [instrument] = await db
-    .select()
-    .from(instruments)
-    .where(eq(instruments.id, instrumentId))
-    .limit(1);
-
-  if (!instrument) {
-    throw new Error("Target instrument not found.");
-  }
-
-  // Check Trusted or Admin status
-  let isTrustedOrAdmin = false;
-  if (existing.adminId || caller.adminId) {
-    isTrustedOrAdmin = true;
-  } else if (existing.userId) {
-    const [u] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, existing.userId))
-      .limit(1);
-    if (u?.isTrusted) isTrustedOrAdmin = true;
-  }
-
+  let finalInstrumentId: string | null = null;
+  let newStatus: "approved" | "pending" = "pending";
   let outsideFee = existing.feeSnapshot;
   const resType = updates.reservationType || existing.reservationType;
-  if (resType === "outside_church") {
-    if (!updates.feeAcknowledged && !existing.feeSnapshot) {
+
+  if (isTypeRequest) {
+    if (timeChanged) {
+      // Per spec:
+      // "Pending type request: stays Pending after an edit."
+      // "Approved type request: any change to date, time or duration returns it to Pending and removes the assigned instrument. The admin assigns again and the user is told it needs another review."
+      newStatus = "pending";
+      finalInstrumentId = null;
+    } else {
+      // Non-time edit (musician, note, etc.)
+      finalInstrumentId = existing.instrumentId;
+      newStatus = existing.status === "approved" ? "approved" : "pending";
+    }
+
+    if (resType === "outside_church" && existing.requestedType) {
+      const typeRes = await db.execute(sql`
+        SELECT flat_fee_outside FROM instrument_type_settings WHERE type ILIKE ${existing.requestedType} LIMIT 1;
+      `);
+      const row = (typeRes as any).rows?.[0];
+      outsideFee = row?.flat_fee_outside ? String(row.flat_fee_outside) : existing.feeSnapshot;
+    }
+  } else {
+    // Direct booking flow
+    const targetInstId = updates.instrumentId || existing.instrumentId;
+    if (!targetInstId) {
+      throw new Error("Target instrument not specified.");
+    }
+    finalInstrumentId = targetInstId;
+
+    // Check conflicts with OTHER approved reservations on this instrument
+    const conflicts = await db
+      .select({ id: reservations.id })
+      .from(reservations)
+      .where(
+        sql`${reservations.instrumentId} = ${finalInstrumentId}
+          AND ${reservations.id} != ${reservationId}
+          AND ${reservations.status} = 'approved'
+          AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
+      )
+      .limit(1);
+
+    if (conflicts.length > 0) {
       throw new Error(
-        "Outside church reservation requires fee acknowledgment.",
+        "The updated time slot conflicts with an existing approved reservation.",
       );
     }
-    outsideFee = instrument.outsideFeePerDay;
-  } else {
-    outsideFee = null;
-  }
 
-  let newStatus: "approved" | "pending" = "pending";
+    const [instrument] = await db
+      .select()
+      .from(instruments)
+      .where(eq(instruments.id, finalInstrumentId))
+      .limit(1);
 
-  if (resType === "outside_church" && !isTrustedOrAdmin) {
-    // Outside-church ALWAYS requires admin review and fee arrangement, regardless of instrument booking mode
-    newStatus = "pending";
-  } else if (isTrustedOrAdmin) {
-    // Always re-run and auto-approve again (skip limit/mode checks, conflict check already passed)
-    newStatus = "approved";
-  } else if (existing.status === "pending") {
-    // Stays pending, conflict check already passed
-    newStatus = "pending";
-  } else if (existing.status === "approved") {
-    if (instrument.bookingMode === "manual") {
-      newStatus = "pending";
-    } else {
-      // Check hard limits
-      const limits = await getHardLimits();
-      let limitExceeded = false;
-      const durationHours = (end.getTime() - start.getTime()) / (3600 * 1000);
+    if (!instrument) {
+      throw new Error("Target instrument not found.");
+    }
 
-      if (durationHours > limits.maxDurationHours) limitExceeded = true;
+    // Check Trusted or Admin status
+    let isTrustedOrAdmin = false;
+    if (existing.adminId || caller.adminId) {
+      isTrustedOrAdmin = true;
+    } else if (existing.userId) {
+      const [u] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, existing.userId))
+        .limit(1);
+      if (u?.isTrusted) isTrustedOrAdmin = true;
+    }
 
-      if (!limitExceeded && existing.userId) {
-        // Active reservations check (exclude current reservation)
-        const activeRes = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(reservations)
-          .where(
-            and(
-              eq(reservations.userId, existing.userId),
-              sql`${reservations.id} != ${reservationId}`,
-              inArray(reservations.status, ["pending", "approved"]),
-            ),
-          );
-        if (Number(activeRes[0]?.count || 0) >= limits.maxActiveReservations) {
-          limitExceeded = true;
-        }
+    if (resType === "outside_church") {
+      if (!updates.feeAcknowledged && !existing.feeSnapshot) {
+        throw new Error(
+          "Outside church reservation requires fee acknowledgment.",
+        );
       }
+      outsideFee = instrument.outsideFeePerDay;
+    } else {
+      outsideFee = null;
+    }
 
-      newStatus = limitExceeded ? "pending" : "approved";
+    if (resType === "outside_church" && !isTrustedOrAdmin) {
+      newStatus = "pending";
+    } else if (isTrustedOrAdmin) {
+      newStatus = "approved";
+    } else if (existing.status === "pending") {
+      newStatus = "pending";
+    } else if (existing.status === "approved") {
+      if (instrument.bookingMode === "manual") {
+        newStatus = "pending";
+      } else {
+        const limits = await getHardLimits();
+        let limitExceeded = false;
+        const durationHours = (end.getTime() - start.getTime()) / (3600 * 1000);
+
+        if (durationHours > limits.maxDurationHours) limitExceeded = true;
+
+        if (!limitExceeded && existing.userId) {
+          const activeRes = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(reservations)
+            .where(
+              and(
+                eq(reservations.userId, existing.userId),
+                sql`${reservations.id} != ${reservationId}`,
+                inArray(reservations.status, ["pending", "approved"]),
+              ),
+            );
+          if (Number(activeRes[0]?.count || 0) >= limits.maxActiveReservations) {
+            limitExceeded = true;
+          }
+        }
+
+        newStatus = limitExceeded ? "pending" : "approved";
+      }
     }
   }
 
@@ -1573,7 +1864,7 @@ export async function editReservation(
   const [updated] = await db
     .update(reservations)
     .set({
-      instrumentId,
+      instrumentId: finalInstrumentId,
       serviceName: cleanServiceName,
       serviceLocation: cleanServiceLocation,
       musicianName: cleanMusicianName,
@@ -1588,8 +1879,40 @@ export async function editReservation(
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  if (newStatus === "approved") {
-    await autoRejectOverlappingPending(instrumentId, start, end, reservationId);
+  if (newStatus === "approved" && finalInstrumentId) {
+    await autoRejectOverlappingPending(finalInstrumentId, start, end, reservationId);
+  }
+
+  // If an approved type request was modified and returned to pending, notify user and admins
+  if (isTypeRequest && existing.status === "approved" && newStatus === "pending") {
+    if (existing.userId) {
+      await db.insert(notifications).values({
+        userId: existing.userId,
+        reservationId: updated.id,
+        type: "reservation_submitted",
+        message:
+          "Your modified type request has returned to pending review and is awaiting administrator instrument assignment.",
+      });
+      sendPushToUser(existing.userId, {
+        titleAr: "طلب الحجز قيد المراجعة مجدداً",
+        titleEn: "Type Request Pending Assignment",
+        bodyAr: "تمت إعادة طلبك إلى قائمة المراجعة لتخصيص آلة جديدة بعد تعديل الموعد.",
+        bodyEn: "Your modified type request returned to pending review for instrument assignment.",
+        tag: `res-status-${updated.id}`,
+        url: `/?reservationId=${updated.id}`,
+        data: { reservationId: updated.id, status: "pending" },
+      }).catch(() => {});
+    }
+
+    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    for (const adm of allAdmins) {
+      await db.insert(notifications).values({
+        adminId: adm.id,
+        reservationId: updated.id,
+        type: "reservation_submitted",
+        message: `Member modified an approved type request (${existing.requestedType}). Returned to pending for instrument assignment.`,
+      }).catch(() => {});
+    }
   }
 
   return updated;
@@ -3030,15 +3353,49 @@ export const NO_SHOW_WINDOW_HOURS = 48;
  * =========================================================================
  */
 export async function ensureCurrentReservationStatuses() {
-  // 1. Expired: A Pending reservation whose start datetime (in Africa/Cairo / UTC instant)
-  // has passed transitions to Expired.
-  // - Do NOT touch reservations in any other status.
-  // - Applies to individual occurrences within a recurring series independently.
-  // - Silent transition without bell notifications.
+  // 0. Auto-reject unassigned type requests whose start time has arrived
+  // Spec: "If nobody assigns an instrument before the start time, the request is automatically rejected with the reason 'Not assigned before the start time', and the user is notified. For a series, only the dates already in the past are affected."
+  const unassignedTypeReqs = await db.execute(sql`
+    UPDATE reservations
+    SET status = 'rejected',
+        rejection_reason = 'Not assigned before the start time'
+    WHERE status = 'pending'
+      AND is_type_request = true
+      AND lower(time_range) <= NOW()
+    RETURNING id, user_id, service_name, requested_type;
+  `);
+
+  const rejectedTypeRows = (unassignedTypeReqs as any).rows || [];
+  for (const row of rejectedTypeRows) {
+    if (row.user_id) {
+      await db
+        .insert(notifications)
+        .values({
+          userId: row.user_id,
+          reservationId: row.id,
+          type: "reservation_rejected",
+          message: `Your request for a ${row.requested_type || "instrument"} was not assigned before the start time and has been cancelled.`,
+        })
+        .catch(() => {});
+
+      sendPushToUser(row.user_id, {
+        titleAr: "تعذر تخصيص آلة لطلبك",
+        titleEn: "Type Request Not Assigned",
+        bodyAr: `لم يتم تخصيص آلة لطلب "${row.service_name || row.requested_type}" قبل موعد البدء وتم إلغاؤه تلقائياً.`,
+        bodyEn: `Your request for "${row.service_name || row.requested_type}" was not assigned before the start time.`,
+        tag: `res-status-${row.id}`,
+        url: `/?reservationId=${row.id}`,
+        data: { reservationId: row.id, status: "rejected" },
+      }).catch(() => {});
+    }
+  }
+
+  // 1. Expired: A regular pending direct reservation whose start datetime has passed transitions to Expired
   const toExpiredRes = await db.execute(sql`
     UPDATE reservations
     SET status = 'expired'
     WHERE status = 'pending'
+      AND (is_type_request = false OR is_type_request IS NULL)
       AND lower(time_range) <= NOW()
     RETURNING id;
   `);
@@ -3273,4 +3630,638 @@ export async function removeInstrumentWithConfirmation(
     cancelledReservationsCount: futureActive.length,
     instrument: removedInstrument,
   };
+}
+
+/**
+ * =========================================================================
+ * 9. TYPE REQUEST CANDIDATE MATCHING & ADMIN ASSIGNMENT
+ * =========================================================================
+ */
+
+/**
+ * Fetches candidate instruments of the requested type for a single type request.
+ * Sorts according to policy: Room stock first, then Musician, then Public (so public is the last choice).
+ * Free candidates are prioritized within each level; busy and out-of-service candidates are clearly flagged.
+ */
+export async function getTypeRequestCandidates(reservationId: string) {
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error("Reservation not found.");
+  if (!res.isTypeRequest || !res.requestedType) {
+    throw new Error("This reservation is not a type request.");
+  }
+
+  const boundsRes: any = await db.execute(
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
+  );
+  if (!boundsRes.rows || boundsRes.rows.length === 0) {
+    throw new Error("Could not determine reservation time boundaries.");
+  }
+  const start = new Date(boundsRes.rows[0].start_time);
+  const end = new Date(boundsRes.rows[0].end_time);
+
+  const matchingInstruments = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(
+        eq(instruments.isRemoved, false),
+        sql`${instruments.type} ILIKE ${res.requestedType.trim()}`,
+      ),
+    );
+
+  const candidates = [];
+  for (const inst of matchingInstruments) {
+    let candidateStatus: "free" | "busy" | "out_of_service" = "free";
+    let statusReason: string | null = null;
+    let conflictDetails: any = null;
+
+    if (inst.isOutOfService) {
+      candidateStatus = "out_of_service";
+      statusReason = "Instrument is marked Out of service";
+    } else {
+      const conflictRes = await db
+        .select({
+          id: reservations.id,
+          serviceName: reservations.serviceName,
+          musicianName: reservations.musicianName,
+        })
+        .from(reservations)
+        .where(
+          sql`${reservations.instrumentId} = ${inst.id}
+            AND ${reservations.status} = 'approved'
+            AND ${reservations.id} != ${reservationId}
+            AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
+        )
+        .limit(1);
+
+      if (conflictRes.length > 0) {
+        candidateStatus = "busy";
+        const c = conflictRes[0];
+        const cBounds: any = await db.execute(
+          sql`SELECT lower(time_range) as st, upper(time_range) as et FROM reservations WHERE id = ${c.id}`,
+        );
+        const cStart = cBounds.rows?.[0]?.st ? new Date(cBounds.rows[0].st) : null;
+        const cEnd = cBounds.rows?.[0]?.et ? new Date(cBounds.rows[0].et) : null;
+        const timeFmt = cStart && cEnd ? ` (${getCairoTimeString(cStart)} - ${getCairoTimeString(cEnd)})` : "";
+        statusReason = `Busy: conflicts with "${c.serviceName}" (${c.musicianName || "Musician"})${timeFmt}`;
+        conflictDetails = {
+          reservationId: c.id,
+          serviceName: c.serviceName,
+          musicianName: c.musicianName,
+          start: cStart,
+          end: cEnd,
+        };
+      }
+    }
+
+    candidates.push({
+      instrument: inst,
+      status: candidateStatus,
+      statusReason,
+      conflictDetails,
+    });
+  }
+
+  // Sorting rule per spec:
+  // "Room stock is listed first, then musician level, then public, so public instruments are the last choice."
+  const levelPriority: Record<string, number> = {
+    room_stock: 1,
+    musician: 2,
+    public: 3,
+  };
+  const statusPriority: Record<string, number> = {
+    free: 1,
+    busy: 2,
+    out_of_service: 3,
+  };
+
+  candidates.sort((a, b) => {
+    const levelDiff =
+      (levelPriority[a.instrument.visibilityLevel || "public"] || 9) -
+      (levelPriority[b.instrument.visibilityLevel || "public"] || 9);
+    if (levelDiff !== 0) return levelDiff;
+
+    const statusDiff =
+      (statusPriority[a.status] || 9) - (statusPriority[b.status] || 9);
+    if (statusDiff !== 0) return statusDiff;
+
+    return a.instrument.name.localeCompare(b.instrument.name);
+  });
+
+  return {
+    reservation: res,
+    requestedType: res.requestedType,
+    start,
+    end,
+    candidates,
+    freeCount: candidates.filter((c) => c.status === "free").length,
+  };
+}
+
+/**
+ * Fetches candidates for all occurrences of a recurring series type request.
+ */
+export async function getSeriesTypeRequestCandidates(seriesId: string) {
+  const [series] = await db
+    .select()
+    .from(reservationSeries)
+    .where(eq(reservationSeries.id, seriesId))
+    .limit(1);
+
+  if (!series) throw new Error("Series not found.");
+  if (!series.isTypeRequest || !series.requestedType) {
+    throw new Error("This series is not a type request.");
+  }
+
+  const occurrences = await db
+    .select()
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.seriesId, seriesId),
+        inArray(reservations.status, ["pending", "approved"]),
+      ),
+    );
+
+  const occEvaluations = [];
+  for (const occ of occurrences) {
+    const evalData = await getTypeRequestCandidates(occ.id);
+    occEvaluations.push({
+      occurrence: occ,
+      ...evalData,
+    });
+  }
+
+  const matchingInstruments = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(
+        eq(instruments.isRemoved, false),
+        sql`${instruments.type} ILIKE ${series.requestedType.trim()}`,
+      ),
+    );
+
+  const levelPriority: Record<string, number> = {
+    room_stock: 1,
+    musician: 2,
+    public: 3,
+  };
+
+  const aggregateCandidates = matchingInstruments.map((inst) => {
+    const isOutOfService = inst.isOutOfService;
+    let freeOnAllDates = !isOutOfService;
+    let conflictDatesCount = 0;
+    const occStatuses = occEvaluations.map((oe) => {
+      const match = oe.candidates.find((c) => c.instrument.id === inst.id);
+      if (match?.status !== "free") {
+        freeOnAllDates = false;
+        conflictDatesCount++;
+      }
+      return {
+        reservationId: oe.reservation.id,
+        status: match?.status || "free",
+        statusReason: match?.statusReason,
+      };
+    });
+
+    return {
+      instrument: inst,
+      freeOnAllDates,
+      conflictDatesCount,
+      isOutOfService,
+      occStatuses,
+    };
+  });
+
+  aggregateCandidates.sort((a, b) => {
+    const levelDiff =
+      (levelPriority[a.instrument.visibilityLevel || "public"] || 9) -
+      (levelPriority[b.instrument.visibilityLevel || "public"] || 9);
+    if (levelDiff !== 0) return levelDiff;
+    if (a.freeOnAllDates && !b.freeOnAllDates) return -1;
+    if (!a.freeOnAllDates && b.freeOnAllDates) return 1;
+    return a.instrument.name.localeCompare(b.instrument.name);
+  });
+
+  return {
+    series,
+    requestedType: series.requestedType,
+    occurrences: occEvaluations,
+    aggregateCandidates,
+    freeOnAllCount: aggregateCandidates.filter((c) => c.freeOnAllDates).length,
+  };
+}
+
+/**
+ * Assigns an instrument to a type request and approves it.
+ * Validates candidate is not out of service and not busy.
+ * Auto-rejects overlapping pending direct requests.
+ */
+export async function adminAssignTypeRequest(
+  reservationId: string,
+  instrumentId: string,
+  adminId?: string | null,
+) {
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error("Reservation not found.");
+
+  const [instrument] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, instrumentId))
+    .limit(1);
+
+  if (!instrument || instrument.isRemoved) {
+    throw new Error("Selected instrument was not found or was removed.");
+  }
+  if (instrument.isOutOfService) {
+    throw new Error("Cannot assign: This instrument is marked Out of service.");
+  }
+
+  const boundsRes: any = await db.execute(
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
+  );
+  const start = new Date(boundsRes.rows[0].start_time);
+  const end = new Date(boundsRes.rows[0].end_time);
+
+  const conflicts = await db
+    .select({ id: reservations.id, serviceName: reservations.serviceName })
+    .from(reservations)
+    .where(
+      sql`${reservations.instrumentId} = ${instrumentId}
+        AND ${reservations.status} = 'approved'
+        AND ${reservations.id} != ${reservationId}
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
+    )
+    .limit(1);
+
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Cannot assign: "${instrument.name}" conflicts with another approved reservation ("${conflicts[0].serviceName}") in this slot.`,
+    );
+  }
+
+  const cleanAdminId = toNullableString(adminId);
+
+  const [approved] = await db
+    .update(reservations)
+    .set({
+      instrumentId,
+      status: "approved",
+      rejectionReason: null,
+      adminId: cleanAdminId || res.adminId,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  // Auto-reject other pending direct requests for this instrument and time
+  await autoRejectOverlappingPending(instrumentId, start, end, reservationId);
+
+  if (res.userId) {
+    const notifyMsg = `Your request for a ${res.requestedType || "instrument"} has been approved! The church administration has allocated "${instrument.name}".`;
+    await db.insert(notifications).values({
+      userId: res.userId,
+      reservationId: res.id,
+      type: "reservation_approved",
+      message: notifyMsg,
+    });
+
+    sendPushToUser(res.userId, {
+      titleAr: "تم تخصيص الآلة واعتماد طلبك! 🎉",
+      titleEn: "Instrument Assigned & Approved! 🎉",
+      bodyAr: `تم تخصيص "${instrument.name}" لطلبك (${res.serviceName}).`,
+      bodyEn: `Your type request was approved! "${instrument.name}" has been allocated.`,
+      tag: `res-status-${res.id}`,
+      url: `/?reservationId=${res.id}`,
+      data: { reservationId: res.id, status: "approved" },
+    }).catch(() => {});
+
+    (async () => {
+      try {
+        const [userInfo] = await db
+          .select({ name: users.name, email: users.email })
+          .from(users)
+          .where(eq(users.id, res.userId!))
+          .limit(1);
+
+        if (userInfo?.email) {
+          await sendReservationApprovedEmail({
+            email: userInfo.email,
+            name: userInfo.name,
+            instrumentName: instrument.name,
+            musicianName: res.musicianName,
+            serviceName: res.serviceName,
+            reservationType: res.reservationType,
+            startTime: start,
+            endTime: end,
+            isSeries: Boolean(res.seriesId),
+            feeSnapshot: res.feeSnapshot,
+          });
+        }
+      } catch (mailErr) {
+        console.error("Error sending assignment approval email:", mailErr);
+      }
+    })();
+  }
+
+  return approved;
+}
+
+/**
+ * Assigns one instrument to a series of type requests.
+ * Supports approving fitting dates and optionally rejecting conflicting dates with a reason.
+ */
+export async function adminAssignSeriesTypeRequest(
+  seriesId: string,
+  instrumentId: string,
+  adminId?: string | null,
+  options?: {
+    rejectConflicting?: boolean;
+    conflictRejectionReason?: string;
+  },
+) {
+  const [series] = await db
+    .select()
+    .from(reservationSeries)
+    .where(eq(reservationSeries.id, seriesId))
+    .limit(1);
+
+  if (!series) throw new Error("Series not found.");
+
+  const [instrument] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, instrumentId))
+    .limit(1);
+
+  if (!instrument || instrument.isRemoved) {
+    throw new Error("Target instrument not found.");
+  }
+  if (instrument.isOutOfService) {
+    throw new Error("Cannot assign: This instrument is marked Out of service.");
+  }
+
+  const occurrences = await db
+    .select()
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.seriesId, seriesId),
+        inArray(reservations.status, ["pending", "approved"]),
+      ),
+    );
+
+  const cleanAdminId = toNullableString(adminId);
+  const approvedList: any[] = [];
+  const rejectedList: any[] = [];
+  const conflictList: any[] = [];
+
+  for (const occ of occurrences) {
+    const boundsRes: any = await db.execute(
+      sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${occ.id}`,
+    );
+    const start = new Date(boundsRes.rows[0].start_time);
+    const end = new Date(boundsRes.rows[0].end_time);
+
+    const conflicts = await db
+      .select({ id: reservations.id, serviceName: reservations.serviceName })
+      .from(reservations)
+      .where(
+        sql`${reservations.instrumentId} = ${instrumentId}
+          AND ${reservations.status} = 'approved'
+          AND ${reservations.id} != ${occ.id}
+          AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
+      )
+      .limit(1);
+
+    if (conflicts.length > 0) {
+      if (options?.rejectConflicting) {
+        const reason =
+          options.conflictRejectionReason ||
+          `Conflicted with approved reservation ("${conflicts[0].serviceName}") on ${instrument.name}`;
+        const [rej] = await db
+          .update(reservations)
+          .set({
+            status: "rejected",
+            rejectionReason: reason,
+            adminId: cleanAdminId || occ.adminId,
+          })
+          .where(eq(reservations.id, occ.id))
+          .returning();
+        rejectedList.push(rej);
+      } else {
+        conflictList.push({
+          reservationId: occ.id,
+          serviceName: occ.serviceName,
+          conflictingWith: conflicts[0].serviceName,
+        });
+      }
+    } else {
+      const [app] = await db
+        .update(reservations)
+        .set({
+          instrumentId,
+          status: "approved",
+          rejectionReason: null,
+          adminId: cleanAdminId || occ.adminId,
+        })
+        .where(eq(reservations.id, occ.id))
+        .returning();
+
+      await autoRejectOverlappingPending(instrumentId, start, end, occ.id);
+      approvedList.push(app);
+    }
+  }
+
+  if (conflictList.length > 0 && !options?.rejectConflicting) {
+    throw new Error(
+      `Cannot assign: ${conflictList.length} date(s) conflict with existing approved reservations on "${instrument.name}".`,
+    );
+  }
+
+  // Update parent series
+  await db
+    .update(reservationSeries)
+    .set({ instrumentId })
+    .where(eq(reservationSeries.id, seriesId));
+
+  // User notification
+  if (series.userId) {
+    const notifyMsg = `Church administration assigned "${instrument.name}" to your recurring series (${approvedList.length} dates approved${rejectedList.length > 0 ? `, ${rejectedList.length} dates rejected due to conflict` : ""}).`;
+    await db.insert(notifications).values({
+      userId: series.userId,
+      reservationId: approvedList[0]?.id || rejectedList[0]?.id,
+      type: "reservation_approved",
+      message: notifyMsg,
+    });
+
+    sendPushToUser(series.userId, {
+      titleAr: "تم تخصيص آلة لسلسلتك المتكررة 🎉",
+      titleEn: "Instrument Assigned to Recurring Series",
+      bodyAr: `تم تخصيص "${instrument.name}" لـ ${approvedList.length} مواعيد في سلسلتك.`,
+      bodyEn: `Assigned "${instrument.name}" to ${approvedList.length} dates in your series.`,
+      tag: `series-assigned-${seriesId}`,
+      url: `/?reservationId=${approvedList[0]?.id}`,
+      data: { seriesId, status: "approved" },
+    }).catch(() => {});
+  }
+
+  return {
+    seriesId,
+    instrumentId,
+    approvedCount: approvedList.length,
+    rejectedCount: rejectedList.length,
+    approved: approvedList,
+    rejected: rejectedList,
+  };
+}
+
+/**
+ * Reassigns an approved reservation to a different instrument (e.g., if one breaks).
+ * User is notified of the change with the new instrument name.
+ */
+export async function adminReassignReservation(
+  reservationId: string,
+  newInstrumentId: string,
+  adminId?: string | null,
+  reason?: string,
+) {
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error("Reservation not found.");
+
+  const [newInstrument] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, newInstrumentId))
+    .limit(1);
+
+  if (!newInstrument || newInstrument.isRemoved) {
+    throw new Error("Target instrument not found.");
+  }
+  if (newInstrument.isOutOfService) {
+    throw new Error("Cannot reassign to an instrument marked Out of service.");
+  }
+
+  const boundsRes: any = await db.execute(
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
+  );
+  const start = new Date(boundsRes.rows[0].start_time);
+  const end = new Date(boundsRes.rows[0].end_time);
+
+  const conflicts = await db
+    .select({ id: reservations.id, serviceName: reservations.serviceName })
+    .from(reservations)
+    .where(
+      sql`${reservations.instrumentId} = ${newInstrumentId}
+        AND ${reservations.status} = 'approved'
+        AND ${reservations.id} != ${reservationId}
+        AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
+    )
+    .limit(1);
+
+  if (conflicts.length > 0) {
+    throw new Error(
+      `Cannot reassign: "${newInstrument.name}" conflicts with another approved reservation ("${conflicts[0].serviceName}") in this slot.`,
+    );
+  }
+
+  const cleanAdminId = toNullableString(adminId);
+
+  const [reassigned] = await db
+    .update(reservations)
+    .set({
+      instrumentId: newInstrumentId,
+      adminId: cleanAdminId || res.adminId,
+    })
+    .where(eq(reservations.id, reservationId))
+    .returning();
+
+  await autoRejectOverlappingPending(newInstrumentId, start, end, reservationId);
+
+  try {
+    let adminName = "Church Administration";
+    if (cleanAdminId) {
+      const [adm] = await db
+        .select({ name: admins.name })
+        .from(admins)
+        .where(eq(admins.id, cleanAdminId))
+        .limit(1);
+      if (adm?.name) adminName = adm.name;
+    }
+    await db.insert(messages).values({
+      reservationId: res.id,
+      adminId: cleanAdminId,
+      senderRole: "admin",
+      senderName: adminName,
+      content: `Reassignment notice: Allocated instrument updated to "${newInstrument.name}".${reason ? ` Reason: ${reason}` : ""}`,
+      isRead: false,
+    });
+  } catch {}
+
+  if (res.userId) {
+    const reassignedMsg = `Your reservation for "${res.serviceName}" has been reallocated to "${newInstrument.name}" by church administration.${reason ? ` (${reason})` : ""}`;
+    await db.insert(notifications).values({
+      userId: res.userId,
+      reservationId: res.id,
+      type: "reservation_reassigned",
+      message: reassignedMsg,
+    });
+
+    sendPushToUser(res.userId, {
+      titleAr: "تم تغيير الآلة المخصصة لحجزك 🔄",
+      titleEn: "Reservation Instrument Reassigned 🔄",
+      bodyAr: `تم تحديث الآلة المخصصة لحجز "${res.serviceName}" لتصبح "${newInstrument.name}".`,
+      bodyEn: `Your reservation instrument for "${res.serviceName}" was changed to "${newInstrument.name}".`,
+      tag: `res-reassigned-${res.id}`,
+      url: `/?reservationId=${res.id}`,
+      data: { reservationId: res.id, status: "approved" },
+    }).catch(() => {});
+  }
+
+  return reassigned;
+}
+
+/**
+ * Gets future approved and pending bookings for an instrument.
+ * Used when an instrument is marked Out of Service so the admin sees affected bookings.
+ */
+export async function getFutureBookingsForInstrument(instrumentId: string) {
+  const query = sql`
+    SELECT
+      r.id,
+      r.user_id,
+      r.service_name,
+      r.musician_name,
+      r.status,
+      r.reservation_type,
+      lower(r.time_range) as start_time,
+      upper(r.time_range) as end_time,
+      u.name as user_name,
+      u.phone_number as user_phone
+    FROM reservations r
+    LEFT JOIN users u ON r.user_id = u.id
+    WHERE r.instrument_id = ${instrumentId}
+      AND r.status IN ('pending', 'approved')
+      AND upper(r.time_range) > NOW()
+    ORDER BY lower(r.time_range) ASC;
+  `;
+
+  const res: any = await db.execute(query);
+  return res.rows || [];
 }

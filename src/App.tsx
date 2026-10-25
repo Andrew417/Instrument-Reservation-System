@@ -71,6 +71,9 @@ interface SeriesPrefillInfo {
   duration: number;
   reservationType: "in_church" | "outside_church";
   note?: string;
+  isTypeRequest?: boolean;
+  requestedType?: string;
+  flatFeeOutside?: string;
 }
 
 // Simple event bus so AdminPortal can publish its tab list to the App
@@ -693,6 +696,9 @@ const UserPortalMain: React.FC = () => {
               ? allInstruments
               : [seriesPrefill.instrument]
           }
+          isTypeRequest={seriesPrefill.isTypeRequest}
+          requestedType={seriesPrefill.requestedType}
+          flatFeeOutside={seriesPrefill.flatFeeOutside}
           initialServiceName={seriesPrefill.serviceName}
           initialMusicianName={seriesPrefill.musicianName}
           initialDate={seriesPrefill.date}

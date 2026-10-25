@@ -10,6 +10,8 @@ import {
   Sparkles,
   Check,
   Plus,
+  Music2,
+  ArrowUpCircle,
 } from "lucide-react";
 import { getStatusColor } from "../../../lib/status-colors";
 import { LoadingSpinner } from "../../shared/LoadingSpinner";
@@ -24,6 +26,8 @@ export interface UsersTabProps {
   handleApproveRegistration: (userId: string, userName: string) => void;
   triggerRejectUser: (user: any) => void;
   setBookOnBehalfUser: (user: any) => void;
+  isSuperAdmin?: boolean;
+  onPromoteUser?: (userId: string, userName: string, isMusician?: boolean) => void;
 }
 
 export const UsersTab: React.FC<UsersTabProps> = ({
@@ -36,11 +40,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({
   handleApproveRegistration,
   triggerRejectUser,
   setBookOnBehalfUser,
+  isSuperAdmin,
+  onPromoteUser,
 }) => {
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
+    <div className="bg-white border border-stone-200 rounded-2xl p-3.5 sm:p-5 shadow-2xs space-y-4">
       <div className="flex flex-col gap-2 pb-3">
         <div className="min-w-0">
           <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
@@ -74,8 +80,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       {loadingUsers ? (
         <LoadingSpinner centered label={t("admin.users.loading") || "Loading users..."} />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs border-collapse min-w-[640px]">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                 <th className="py-2.5 px-3 whitespace-nowrap w-[220px]">
@@ -184,19 +190,29 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                       )}
                     </td>
 
-                    {/* Trusted */}
+                    {/* Roles & Status */}
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-1.5 flex-wrap">
+                        {Boolean(u.isMusician) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-200">
+                            <Music2 className="w-2.5 h-2.5 text-indigo-700" />
+                            <span>
+                              {t("admin.users.musicianBadge", {
+                                defaultValue: "Musician",
+                              })}
+                            </span>
+                          </span>
+                        )}
                         {u.isTrusted ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
                             <Sparkles className="w-2.5 h-2.5 text-amber-700" />
                             {t("admin.users.trustedMember")}
                           </span>
-                        ) : (
+                        ) : !u.isMusician ? (
                           <span className="text-[10px] text-stone-400 font-medium">
                             {t("admin.users.standard")}
                           </span>
-                        )}
+                        ) : null}
                         {Number(u.noShowCount || 0) > 0 && (
                           <span
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200"
@@ -242,12 +258,27 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 
                         <button
                           onClick={() => setBookOnBehalfUser(u)}
-                          className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0"
+                          className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
                           title={t("admin.users.bookForTooltip")}
                         >
                           <Plus className="w-3 h-3 text-amber-800 shrink-0" />
                           <span>{t("admin.users.bookFor")}</span>
                         </button>
+
+                        {isSuperAdmin && onPromoteUser && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPromoteUser(u.id, u.name, u.isMusician);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-amber-900 border border-stone-200 hover:border-amber-300 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                            title="Promote or manage role/musician status"
+                          >
+                            <ArrowUpCircle className="w-3 h-3 text-amber-700 shrink-0" />
+                            <span>Promote</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

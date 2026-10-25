@@ -16,6 +16,8 @@ export interface InstrumentFormState {
   description: string;
   outsideFeePerDay: string;
   bookingMode: "instant" | "manual";
+  visibilityLevel: "public" | "musician" | "room_stock";
+  isOutOfService: boolean;
 }
 
 interface InstrumentFormModalProps {
@@ -250,6 +252,73 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
                   {t("admin.modals.instrumentForm.manualOption")}
                 </option>
               </select>
+            </div>
+          </div>
+
+          {/* Visibility Level & Out of Service */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-stone-100/70 rounded-xl border border-stone-200">
+            <div>
+              <label className="block font-bold text-stone-700 mb-1">
+                {t("admin.instruments.visibilityLevel", {
+                  defaultValue: "Visibility Level",
+                })}
+              </label>
+              <select
+                value={form.visibilityLevel || "public"}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    visibilityLevel: e.target.value as
+                      | "public"
+                      | "musician"
+                      | "room_stock",
+                  })
+                }
+                className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+              >
+                <option value="public">
+                  {t("admin.instruments.visibilityPublic", {
+                    defaultValue: "Public (Everyone can book)",
+                  })}
+                </option>
+                <option value="musician">
+                  {t("admin.instruments.visibilityMusician", {
+                    defaultValue: "Musician Only (Musicians & Admins)",
+                  })}
+                </option>
+                <option value="room_stock">
+                  {t("admin.instruments.visibilityRoomStock", {
+                    defaultValue: "Room Stock (Admin assignment only)",
+                  })}
+                </option>
+              </select>
+            </div>
+
+            <div className="flex flex-col justify-end">
+              <label className="flex items-center gap-2 cursor-pointer py-1.5">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.isOutOfService)}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      isOutOfService: e.target.checked,
+                    })
+                  }
+                  className="rounded border-stone-300 text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer"
+                />
+                <span className="font-bold text-stone-800 select-none">
+                  {t("admin.instruments.outOfServiceToggle", {
+                    defaultValue: "Out of Service (Unavailable)",
+                  })}
+                </span>
+              </label>
+              <p className="text-[10px] text-stone-500 leading-tight">
+                {t("admin.instruments.outOfServiceNotice", {
+                  defaultValue:
+                    "Cannot be booked directly or assigned to requests.",
+                })}
+              </p>
             </div>
           </div>
 

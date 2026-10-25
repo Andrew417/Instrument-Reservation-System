@@ -27,13 +27,16 @@
 ### 1.3 Role Hierarchy & Permissions
 | Role | Capabilities | Unique Privileges |
 |---|---|---|
-| **Member (User)** | Browse catalog, check calendar, submit single/series/band bookings, chat on reservations, condition checks, view ministry profile. | Standard fair usage rules apply. |
-| **Trusted User** | All member capabilities. | **Auto-approval bypass:** Reservations are instantly approved on both Manual and Instant instruments and bypass all limits 1–6 (slot conflicts still apply). |
-| **Admin** | All member capabilities + review requests, edit/cancel reservations, manage instruments, chat with members, export handover sheets, view dashboard. | Can book on behalf of members (admin recorded as creator in audit log); self-bookings auto-approve. Account actions protected by transactional retry logic (`withRetry`). |
-| **Super Admin** | Full admin powers + promote/demote/delete admins, configure global hard limits, set Instapay payment info, grant/revoke Trusted status with interactive sortable audit logs. | Idempotently seeded at startup; protected from deletion or demotion. |
+| **Member (User)** | Browse catalog, check calendar, submit single/series/band bookings, chat on reservations, condition checks, view ministry profile. | Standard fair usage rules apply. Can submit category Type Requests for enabled categories. |
+| **Musician User** | Independent flag (`is_musician`). Books visible instruments directly without category requests. | **Direct Access:** Can see and directly book `musician`-tier instruments on the calendar. Standard fair usage applies unless also Trusted. |
+| **Trusted User** | Independent flag (`is_trusted`). All member capabilities. | **Auto-approval bypass:** Direct reservations are instantly approved on both Manual and Instant instruments and bypass all limits 1–6 (slot conflicts still apply). |
+| **Admin** | All member capabilities + review requests, edit/cancel reservations, manage instruments, assign instruments to type requests, chat with members, export handover sheets, view dashboard. | Can book on behalf of members (admin recorded as creator in audit log); self-bookings auto-approve. Account actions protected by transactional retry logic (`withRetry`). |
+| **Super Admin** | Full admin powers + promote/demote/delete admins, configure global hard limits, set Instapay payment info, grant/revoke Trusted status and Musician status with interactive sortable audit logs. | Idempotently seeded at startup; protected from deletion or demotion. Sole role permitted to grant/revoke Musician status. |
 
-### 1.4 Trusted Status Audit Log & Interactive Sorting
-- **Audit Tracking:** Every grant or revocation of Trusted status is logged in `trusted_status_audit_log` with `target_user_id`, `granted_by_admin_id`, and `action` (`granted` | `revoked`).
+### 1.4 Trusted & Musician Status Audit Logs & Interactive Sorting
+- **Audit Tracking:**
+  - Trusted status changes are logged in `trusted_status_audit_log` with `target_user_id`, `granted_by_admin_id`, `action` (`granted` | `revoked`), and timestamp.
+  - Musician status changes are logged in `musician_status_audit_log` with `target_user_id`, `granted_by_admin_id`, `action` (`granted` | `revoked`), and timestamp.
 - **Interactive Multi-Column Sorting:** In the Super Admin portal, audit logs can be sorted ascending or descending by:
   - Date & Time (`created_at`)
   - Action (`action`)
@@ -41,26 +44,48 @@
   - Authorized Admin Name (`granted_by_admin_name`)
   - Note / Reason (`reason`)
 - **Directional Indicators:** Interactive column headers display dynamic sort icons (`ArrowUpDown`, `ArrowUp`, `ArrowDown`) with screen-reader friendly aria-labels (`admin.trustedStatus.sortBy`).
-- **Bilingual Default Reasons:** System automatically provides localized context for historical actions (`admin.trustedStatus.grantedReason` and `admin.trustedStatus.revokedReason`) when no explicit note was entered.
+- **Sub-Tab Switcher:** The Trusted Status tab features a sub-tab toggle allowing Super Admins to switch seamlessly between Trusted Status and Musician Status audit logs.
 
 ---
 
-## 2. Instrument Inventory & Booking Modes
+## 2. Instrument Inventory, Visibility Levels & Type Requests
 
-### 2.1 Individual Instrument Units
+### 2.1 Instrument Units & Visibility Levels
 - Instruments represent individual physical assets (e.g., *Drum Kit #1*, *Yamaha Motif Keyboard #2*, *Bass Guitar #1*).
-- Attributes: Unique ID, Name, Category/Type, Photo URL, Description, Outside Fee Per Day, Booking Mode, Reserve Pool flag.
+- **Visibility Levels:**
+  - **`public`**: Visible and bookable by all registered users.
+  - **`musician`**: Visible and directly bookable by Musicians and Admins only. Completely hidden from regular users (enforced via server-side queries).
+  - **`room_stock`**: Visible to Admins only. Cannot be booked directly; reserved for administrator assignment to type requests.
+  - **`out_of_service`**: Broken or unavailable instruments. Clearly badged across admin and calendar views; slot booking and type assignment are strictly disabled.
 
-### 2.2 Booking Modes: Instant vs. Manual
-- **Instant Mode:** Submissions from regular members within fair-usage limits are **automatically approved** immediately upon submission.
+### 2.2 Category Type Requests (Regular Members)
+- **Concept:** Regular members can choose to submit a request for an instrument category/type (e.g., "any Keyboard") instead of selecting a specific physical unit.
+- **Category Configuration (`instrument_type_settings`):**
+  - **`can_be_requested`**: Admin-controlled boolean toggle per category (default `false`).
+  - **`flat_fee_outside`**: Fixed rental fee in EGP locked at submission time for outside-church usage.
+- **Behavioral Invariants:**
+  - Type requests **always start in `pending` status** (even for Trusted users).
+  - Type requests do **not** block calendar slots and do not appear on public schedules until assigned.
+  - Counts toward the user's active reservations limit (recurring series counts as 1).
+  - **Auto-Expiration:** If an unassigned type request reaches its scheduled start time, the system automatically rejects it with the reason `"Not assigned before the start time"` and sends a notification.
+
+### 2.3 Admin Assignment & Reassignment Engine
+- **Review Queue:** Type requests in the Review tab display a dedicated **"Assign Instrument"** action and show the count of matching available units.
+- **Candidate Smart Prioritization:**
+  1. **Room Stock** (Allocated first to protect bookable inventory)
+  2. **Musician Instruments**
+  3. **Public Instruments**
+- **Disqualification Rules:** Instruments booked during that time or marked Out of Service are disabled with clear conflict notices.
+- **Series Assignment:** Admins can assign one instrument for all dates in a recurring series, or approve fitting dates and reject conflicting dates with an explicit reason.
+- **Reassignment:** Approved reservations have a "Reassign" action to move them safely to another candidate instrument.
+- **Edit Reset:** Editing date, time, or duration on an approved type request resets its status to `pending` and clears `instrument_id = null`.
+
+### 2.4 Booking Modes: Instant vs. Manual
+- **Instant Mode:** Submissions from regular members on public instruments within fair-usage limits are **automatically approved** immediately upon submission.
 - **Manual Mode:** Submissions from regular members enter `pending` status, requiring an administrator to explicitly review and approve/reject.
 - **Mid-flight Mode Changes:** Modifying an instrument's mode only affects future submissions. Existing pending requests retain their submission-time evaluation.
 
-### 2.3 Reserve Pool Instruments
-- Flagged with `is_reserve_pool = true`.
-- Hidden from regular member self-service views; reserved exclusively for liturgical services, emergency replacements, or admin assignment.
-
-### 2.4 Instrument Removal & Cascade Handling
+### 2.5 Instrument Removal & Cascade Handling
 - If an admin deletes/retires an active instrument with future bookings, the system performs a safe force-removal:
   - Cancels all future `pending` and `approved` reservations for that instrument.
   - Attaches cancellation reason: *"Instrument retired or under maintenance"*.

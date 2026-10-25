@@ -29,6 +29,7 @@ export const users = pgTable(
     phoneNumber: text("phone_number").notNull(),
     passwordHash: text("password_hash").notNull(),
     isTrusted: boolean("is_trusted").default(false).notNull(),
+    isMusician: boolean("is_musician").default(false).notNull(),
     isActive: boolean("is_active").default(false).notNull(),
     approvalStatus: text("approval_status").default("pending").notNull(), // 'pending' | 'approved' | 'rejected'
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -74,6 +75,8 @@ export const instruments = pgTable(
     description: text("description"),
     outsideFeePerDay: numeric("outside_fee_per_day").default("0").notNull(),
     bookingMode: text("booking_mode").notNull(), // 'manual' | 'instant'
+    visibilityLevel: text("visibility_level").default("public").notNull(), // 'public' | 'musician' | 'room_stock'
+    isOutOfService: boolean("is_out_of_service").default(false).notNull(),
     isRemoved: boolean("is_removed").default(false).notNull(),
     isReservePool: boolean("is_reserve_pool").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -85,10 +88,24 @@ export const instruments = pgTable(
       "booking_mode_check",
       sql`${table.bookingMode} IN ('manual', 'instant')`,
     ),
+    check(
+      "visibility_level_check",
+      sql`${table.visibilityLevel} IN ('public', 'musician', 'room_stock')`,
+    ),
   ],
 );
 
-// 4. Reservation Series Table
+// 4. Instrument Type Settings Table (Configured by admin)
+export const instrumentTypeSettings = pgTable("instrument_type_settings", {
+  type: text("type").primaryKey(),
+  canBeRequested: boolean("can_be_requested").default(false).notNull(),
+  flatFeeOutside: numeric("flat_fee_outside").default("0.00").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// 5. Reservation Series Table
 export const reservationSeries = pgTable(
   "reservation_series",
   {
@@ -99,12 +116,15 @@ export const reservationSeries = pgTable(
     adminId: uuid("admin_id").references(() => admins.id, {
       onDelete: "set null",
     }),
-    instrumentId: uuid("instrument_id")
-      .references(() => instruments.id, { onDelete: "cascade" })
-      .notNull(),
+    instrumentId: uuid("instrument_id").references(() => instruments.id, {
+      onDelete: "cascade",
+    }),
     patternType: text("pattern_type").notNull(), // 'weekly' | 'custom'
     serviceLocation: text("service_location"),
     note: text("note"),
+    isTypeRequest: boolean("is_type_request").default(false).notNull(),
+    requestedType: text("requested_type"),
+    exceededLimits: text("exceeded_limits"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -117,7 +137,7 @@ export const reservationSeries = pgTable(
   ],
 );
 
-// 5. Reservations Table
+// 6. Reservations Table
 export const reservations = pgTable(
   "reservations",
   {
@@ -131,9 +151,9 @@ export const reservations = pgTable(
     adminId: uuid("admin_id").references(() => admins.id, {
       onDelete: "set null",
     }),
-    instrumentId: uuid("instrument_id")
-      .references(() => instruments.id, { onDelete: "cascade" })
-      .notNull(),
+    instrumentId: uuid("instrument_id").references(() => instruments.id, {
+      onDelete: "cascade",
+    }),
     serviceName: text("service_name").notNull(),
     serviceLocation: text("service_location"),
     musicianName: text("musician_name").notNull(),
@@ -158,6 +178,9 @@ export const reservations = pgTable(
       onDelete: "set null",
     }),
     bookedByAdmin: boolean("booked_by_admin").default(false).notNull(),
+    isTypeRequest: boolean("is_type_request").default(false).notNull(),
+    requestedType: text("requested_type"),
+    exceededLimits: text("exceeded_limits"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -280,6 +303,27 @@ export const trustedStatusAuditLog = pgTable(
   ],
 );
 
+// 11. Musician Status Audit Log Table (Super Admin Only)
+export const musicianStatusAuditLog = pgTable(
+  "musician_status_audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    targetUserId: uuid("target_user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    grantedByAdminId: uuid("granted_by_admin_id")
+      .references(() => admins.id, { onDelete: "cascade" })
+      .notNull(),
+    action: text("action").notNull(), // 'granted' | 'revoked'
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check("musician_audit_action_check", sql`${table.action} IN ('granted', 'revoked')`),
+  ],
+);
+
 // 11. Failed Login Attempts Table
 export const failedLoginAttempts = pgTable("failed_login_attempts", {
   email: text("email").primaryKey(),
@@ -396,6 +440,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   series: many(reservationSeries),
   notifications: many(notifications),
   auditLogs: many(trustedStatusAuditLog),
+  musicianAuditLogs: many(musicianStatusAuditLog),
   messages: many(messages),
   pushSubscriptions: many(pushSubscriptions),
 }));
@@ -405,6 +450,7 @@ export const adminsRelations = relations(admins, ({ one, many }) => ({
   series: many(reservationSeries),
   messages: many(messages),
   grantedAudits: many(trustedStatusAuditLog),
+  grantedMusicianAudits: many(musicianStatusAuditLog),
   pushSubscriptions: many(pushSubscriptions),
   pushPreferences: one(adminPushPreferences, {
     fields: [admins.id],
@@ -478,6 +524,20 @@ export const trustedStatusAuditLogRelations = relations(
     }),
     grantedByAdmin: one(admins, {
       fields: [trustedStatusAuditLog.grantedByAdminId],
+      references: [admins.id],
+    }),
+  }),
+);
+
+export const musicianStatusAuditLogRelations = relations(
+  musicianStatusAuditLog,
+  ({ one }) => ({
+    targetUser: one(users, {
+      fields: [musicianStatusAuditLog.targetUserId],
+      references: [users.id],
+    }),
+    grantedByAdmin: one(admins, {
+      fields: [musicianStatusAuditLog.grantedByAdminId],
       references: [admins.id],
     }),
   }),

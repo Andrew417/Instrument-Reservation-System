@@ -17,6 +17,7 @@ export interface SessionUser {
   phoneNumber: string;
   role: "user" | "admin" | "super_admin";
   isTrusted?: boolean;
+  isMusician?: boolean;
   isActive?: boolean;
   approvalStatus?: string;
   isSuperAdmin?: boolean;
@@ -87,6 +88,7 @@ export async function createSession(
       phoneNumber: u.phoneNumber,
       role: "user",
       isTrusted: u.isTrusted,
+      isMusician: u.isMusician,
       isActive: u.isActive,
       approvalStatus: u.approvalStatus,
       createdAt: u.createdAt.toISOString(),
@@ -192,6 +194,7 @@ export async function validateSession(
         phoneNumber: u.phoneNumber,
         role: "user",
         isTrusted: u.isTrusted,
+        isMusician: u.isMusician,
         isActive: u.isActive,
         approvalStatus: u.approvalStatus,
         createdAt: u.createdAt.toISOString(),

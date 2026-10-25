@@ -209,10 +209,20 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
       });
       return;
     }
-    if (!req.body.instrumentId) {
+    if (!req.body.isTypeRequest && !req.body.instrumentId) {
       res.status(400).json({
         success: false,
         error: "Instrument is required.",
+      });
+      return;
+    }
+    if (
+      req.body.isTypeRequest &&
+      (!req.body.requestedType || !req.body.requestedType.trim())
+    ) {
+      res.status(400).json({
+        success: false,
+        error: "Requested instrument type is required.",
       });
       return;
     }
@@ -1652,21 +1662,26 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
         to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
-        i.name as instrument_name,
-        i.type as instrument_type,
+        COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
+        COALESCE(i.type, r.requested_type) as instrument_type,
         i.booking_mode,
+        i.visibility_level,
+        i.is_out_of_service,
         i.outside_fee_per_day,
         i.is_reserve_pool,
         i.is_removed as instrument_is_removed,
         i.photo_url as instrument_photo_url,
         i.description as instrument_description,
+        r.is_type_request,
+        r.requested_type,
+        r.exceeded_limits,
         s.pattern_type as series_pattern_type,
         u.name as user_name,
         u.phone_number as user_phone,
         u.is_trusted as user_is_trusted,
         a.name as admin_name
       FROM reservations r
-      JOIN instruments i ON r.instrument_id = i.id
+      LEFT JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
@@ -1747,6 +1762,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       : (req.headers["x-session-token"] as string);
 
     let isAdmin = false;
+    let isMusician = false;
     let currentUserId: string | null = null;
     if (token) {
       try {
@@ -1759,6 +1775,9 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
             session.user?.isSuperAdmin
           ) {
             isAdmin = true;
+          }
+          if (session.user?.isMusician) {
+            isMusician = true;
           }
         }
       } catch {
@@ -1799,21 +1818,26 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
         to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
-        i.name as instrument_name,
-        i.type as instrument_type,
+        COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
+        COALESCE(i.type, r.requested_type) as instrument_type,
         i.booking_mode,
+        i.visibility_level,
+        i.is_out_of_service,
         i.outside_fee_per_day,
         i.is_reserve_pool,
         i.is_removed as instrument_is_removed,
         i.photo_url as instrument_photo_url,
         i.description as instrument_description,
+        r.is_type_request,
+        r.requested_type,
+        r.exceeded_limits,
         s.pattern_type as series_pattern_type,
         COALESCE(u.name, a.name, 'Administrator') as user_name,
         u.phone_number as user_phone,
         u.is_trusted as user_is_trusted,
         a.name as admin_name
       FROM reservations r
-      JOIN instruments i ON r.instrument_id = i.id
+      LEFT JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
@@ -1821,7 +1845,8 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       ${
         userId
           ? sql`AND (r.user_id = ${userId as string} OR ${isAdmin ? sql`(r.admin_id = ${userId as string} AND r.user_id IS NULL)` : sql`false`})`
-          : sql``
+          : sql`AND (r.is_type_request = false OR r.is_type_request IS NULL OR r.status = 'approved')
+                AND (${isAdmin ? sql`true` : isMusician ? sql`(i.visibility_level IN ('public', 'musician') OR i.visibility_level IS NULL)` : sql`(i.visibility_level = 'public' OR i.visibility_level IS NULL)`})`
       }
       ${instrumentId ? sql`AND r.instrument_id = ${instrumentId as string}` : sql``}
       ${status ? ((status as string).includes(",") ? sql`AND r.status = ANY(string_to_array(${status as string}, ','))` : sql`AND r.status = ${status as string}`) : sql``}

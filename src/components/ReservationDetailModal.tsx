@@ -1501,11 +1501,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   </div>
                   <div className="min-w-0 text-left">
                     <div className="text-[10px] uppercase font-bold text-stone-500">
-                      {t("reservationDetail.instrument")}
+                      {reservation.is_type_request && !reservation.instrument_id
+                        ? t("reservationDetail.requestedCategory", {
+                            defaultValue: "Requested Category",
+                          })
+                        : t("reservationDetail.instrument")}
                     </div>
                     <div className="font-bold text-stone-900 text-[13px] truncate">
-                      {reservation.instrument_name ||
-                        t("reservationDetail.instrument")}
+                      {reservation.is_type_request && !reservation.instrument_id
+                        ? `${reservation.requested_type || reservation.instrument_type} (${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })})`
+                        : reservation.instrument_name ||
+                          t("reservationDetail.instrument")}
                     </div>
                   </div>
                 </div>

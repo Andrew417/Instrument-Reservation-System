@@ -18,6 +18,7 @@ import {
   UserCheck,
   UserX,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import {
   getStatusColor,
@@ -64,8 +65,9 @@ export interface ReviewTabProps {
   handleUnmarkNoShow: (id: string) => void;
   noShowWindowNow: number;
   isReservationAdminBooked: (r: any) => boolean;
-  getAdminDisplayName: (r: any) => string;
+  getAdminDisplayName?: (r: any) => string;
   openCancelModal?: (r: any) => void;
+  openAssignModal?: (r: any, isSeries?: boolean, isReassign?: boolean) => void;
   expandedSeriesIds?: any;
   setExpandedSeriesIds?: any;
 }
@@ -184,6 +186,7 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
   noShowWindowNow,
   isReservationAdminBooked,
   getAdminDisplayName,
+  openAssignModal,
 }) => {
   const { t } = useTranslation();
   const [expandedSeriesIds, setExpandedSeriesIds] = React.useState<Set<string>>(
@@ -420,6 +423,21 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                       })}
                     </span>
                   </span>
+                  {primary.is_type_request && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200 shrink-0">
+                      <Sparkles className="w-3 h-3 text-purple-700 shrink-0" />
+                      <span>{isAr ? "طلب حسب النوع" : "Type request"}</span>
+                    </span>
+                  )}
+                  {primary.free_instruments_count !== undefined && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 shrink-0">
+                      <span>
+                        {isAr
+                          ? `${primary.free_instruments_count} متاحة بكل التواريخ`
+                          : `${primary.free_instruments_count} free on all dates`}
+                      </span>
+                    </span>
+                  )}
                 </div>
                 {renderOwner(primary, () =>
                   handleToggleSelectSeries(occurrences),
@@ -442,7 +460,12 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
               <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
                 <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
-                <span>{primary.instrument_name}</span>
+                <span>
+                  {primary.instrument_name ||
+                    (isAr
+                      ? `نوع الآلة: ${primary.requested_type || "غير محدد"}`
+                      : `Type: ${primary.requested_type || "Any"}`)}
+                </span>
               </span>
               {renderMusician(primary)}
               <span className="text-stone-300">•</span>
@@ -476,19 +499,33 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
         {!isSelectionMode && hasPending && (
           <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <button
-                type="button"
-                onClick={() => handleApproveSeries(seriesId)}
-                className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                title="Approve all future pending occurrences in this recurring series"
-              >
-                <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                <span>
-                  {t("admin.review.approveSeriesBtn", {
-                    defaultValue: "Approve All",
-                  })}
-                </span>
-              </button>
+              {primary.is_type_request && !primary.instrument_id ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openAssignModal && openAssignModal(primary, true, false)
+                  }
+                  className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                  title="Assign instrument to this recurring series"
+                >
+                  <Sparkles className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                  <span>{isAr ? "تخصيص آلة للسلسلة" : "Assign Series"}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleApproveSeries(seriesId)}
+                  className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                  title="Approve all future pending occurrences in this recurring series"
+                >
+                  <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                  <span>
+                    {t("admin.review.approveSeriesBtn", {
+                      defaultValue: "Approve All",
+                    })}
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() =>
@@ -674,6 +711,21 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                   <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
                     {r.service_name || "Reservation"}
                   </h3>
+                  {r.is_type_request && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 shrink-0">
+                      <Sparkles className="w-2.5 h-2.5 text-purple-700" />
+                      <span>{isAr ? "طلب حسب النوع" : "Type request"}</span>
+                    </span>
+                  )}
+                  {r.free_instruments_count !== undefined && isPending && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                      <span>
+                        {isAr
+                          ? `${r.free_instruments_count} متاحة الآن`
+                          : `${r.free_instruments_count} free`}
+                      </span>
+                    </span>
+                  )}
                   {isPending && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
@@ -696,7 +748,12 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-stone-600 bg-stone-50/70 rounded-xl px-2.5 py-1.5 border border-stone-100">
               <span className="font-bold text-stone-900 flex items-center gap-1.5 truncate">
                 <span className="w-2 h-2 rounded-full bg-amber-700 shrink-0"></span>
-                <span>{r.instrument_name}</span>
+                <span>
+                  {r.instrument_name ||
+                    (isAr
+                      ? `في انتظار تخصيص (${r.requested_type || "آلة"})`
+                      : `Awaiting assignment (${r.requested_type || "Instrument"})`)}
+                </span>
               </span>
               {renderMusician(r)}
               <span className="text-stone-300">•</span>
@@ -727,6 +784,34 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                   </span>
                 )}
                 {renderTypeBadge(r)}
+                {(() => {
+                  let limits: string[] = [];
+                  try {
+                    limits = Array.isArray(r.exceeded_limits)
+                      ? r.exceeded_limits
+                      : typeof r.exceeded_limits === "string"
+                        ? JSON.parse(r.exceeded_limits)
+                        : [];
+                  } catch {
+                    // ignore
+                  }
+                  if (limits && limits.length > 0) {
+                    return (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300"
+                        title={limits.join(", ")}
+                      >
+                        <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
+                        <span>
+                          {isAr
+                            ? `تجاوز ${limits.length} حدود`
+                            : `${limits.length} limits exceeded`}
+                        </span>
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
                 {r.is_no_show && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                     <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
@@ -739,57 +824,89 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
           </div>
         </div>
 
-        {!isSelectionMode && (isPending || showNoShowActions) && (
-          <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {isPending && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleApprove(r.id)}
-                    className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                    title="Approve request"
-                  >
-                    <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                    <span>{t("admin.review.approveBtn")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openRejectModal(r)}
-                    className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-xs flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
-                    title="Reject request"
-                  >
-                    <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
-                    <span>{t("admin.review.rejectBtn")}</span>
-                  </button>
-                </>
-              )}
+        {!isSelectionMode &&
+          (isPending ||
+            showNoShowActions ||
+            (r.status === "approved" && openAssignModal)) && (
+            <div className="px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 bg-stone-50 border-t border-stone-200/80">
+              <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+                {isPending && (
+                  <>
+                    {r.is_type_request && !r.instrument_id ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openAssignModal &&
+                          openAssignModal(r, false, false)
+                        }
+                        className="flex-1 sm:flex-none min-h-[32px] px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                        title="Allocate instrument & approve"
+                      >
+                        <Sparkles className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                        <span>
+                          {isAr ? "تخصيص آلة واعتماد" : "Assign Instrument"}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(r.id)}
+                        className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                        title="Approve request"
+                      >
+                        <Check className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                        <span>{t("admin.review.approveBtn")}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openRejectModal(r)}
+                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-red-50 active:bg-red-100 text-red-700 border border-stone-300 hover:border-red-300 text-xs font-bold transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-xs flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
+                      title="Reject request"
+                    >
+                      <X className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                      <span>{t("admin.review.rejectBtn")}</span>
+                    </button>
+                  </>
+                )}
 
-              {r.status === "completed" &&
-                (r.is_no_show ? (
+                {r.status === "approved" && openAssignModal && (
                   <button
                     type="button"
-                    onClick={() => handleUnmarkNoShow(r.id)}
-                    className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation whitespace-nowrap"
-                    title={t("common.unmarkNoShow")}
+                    onClick={() => openAssignModal(r, false, true)}
+                    className="flex-1 sm:flex-none min-h-[30px] px-3 py-1 rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    title="Move approved booking to a different instrument"
                   >
-                    <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
-                    <span>{t("common.unmarkNoShow")}</span>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                    <span>{isAr ? "تغيير الآلة" : "Reassign"}</span>
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleMarkNoShow(r.id)}
-                    className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation whitespace-nowrap"
-                    title={t("common.markNoShow")}
-                  >
-                    <UserX className="w-4 h-4 text-rose-700 shrink-0" />
-                    <span>{t("common.markNoShow")}</span>
-                  </button>
-                ))}
+                )}
+
+                {r.status === "completed" &&
+                  (r.is_no_show ? (
+                    <button
+                      type="button"
+                      onClick={() => handleUnmarkNoShow(r.id)}
+                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-white hover:bg-stone-100 active:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation whitespace-nowrap"
+                      title={t("common.unmarkNoShow")}
+                    >
+                      <UserCheck className="w-4 h-4 text-stone-600 shrink-0" />
+                      <span>{t("common.unmarkNoShow")}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkNoShow(r.id)}
+                      className="flex-1 sm:flex-none min-h-[32px] px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-800 border border-rose-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs touch-manipulation whitespace-nowrap"
+                      title={t("common.markNoShow")}
+                    >
+                      <UserX className="w-4 h-4 text-rose-700 shrink-0" />
+                      <span>{t("common.markNoShow")}</span>
+                    </button>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
     );
   };

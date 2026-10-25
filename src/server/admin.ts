@@ -11,6 +11,8 @@ import {
   hardLimits,
   paymentSettings,
   trustedStatusAuditLog,
+  musicianStatusAuditLog,
+  instrumentTypeSettings,
   messages,
   sessions,
   notificationSettings,
@@ -46,6 +48,12 @@ import {
   markReservationNoShow,
   unmarkReservationNoShow,
   NO_SHOW_WINDOW_HOURS,
+  getTypeRequestCandidates,
+  getSeriesTypeRequestCandidates,
+  adminAssignTypeRequest,
+  adminAssignSeriesTypeRequest,
+  adminReassignReservation,
+  getFutureBookingsForInstrument,
 } from "../services/reservation-logic.js";
 
 const router = Router();
@@ -603,20 +611,44 @@ router.get(
         r.no_show_marked_at,
         r.no_show_admin_id,
         nsa.name as no_show_admin_name,
-        i.name as instrument_name,
-        i.type as instrument_type,
+        COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
+        COALESCE(i.type, r.requested_type) as instrument_type,
         i.booking_mode,
+        i.visibility_level,
+        i.is_out_of_service,
         i.is_reserve_pool,
         i.is_removed as instrument_is_removed,
         i.photo_url as instrument_photo_url,
+        r.is_type_request,
+        r.requested_type,
+        r.exceeded_limits,
+        (
+          CASE WHEN r.is_type_request = true THEN (
+            SELECT COUNT(*)::int
+            FROM instruments ci
+            WHERE ci.is_removed = false
+              AND ci.is_out_of_service = false
+              AND ci.type ILIKE r.requested_type
+              AND NOT EXISTS (
+                SELECT 1 FROM reservations cr
+                WHERE cr.instrument_id = ci.id
+                  AND cr.status = 'approved'
+                  AND cr.id != r.id
+                  AND cr.time_range && r.time_range
+              )
+          )
+          ELSE NULL
+          END
+        ) as free_instruments_count,
         s.pattern_type as series_pattern_type,
         u.name as user_name,
         u.phone_number as user_phone,
         u.is_trusted as user_is_trusted,
+        u.is_musician as user_is_musician,
         u.is_active as user_is_active,
         COALESCE(a.name, u2.name) as admin_name
       FROM reservations r
-      JOIN instruments i ON r.instrument_id = i.id
+      LEFT JOIN instruments i ON r.instrument_id = i.id
       LEFT JOIN reservation_series s ON r.series_id = s.id
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
@@ -1162,6 +1194,128 @@ router.post(
 );
 
 /**
+ * Get candidate instruments for a type request
+ */
+router.get(
+  "/reservations/:id/assignment-candidates",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const data = await getTypeRequestCandidates(id);
+      res.json({ success: true, ...data });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Get candidate instruments across a series of type requests
+ */
+router.get(
+  "/series/:seriesId/assignment-candidates",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { seriesId } = req.params;
+      const data = await getSeriesTypeRequestCandidates(seriesId);
+      res.json({ success: true, ...data });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Assign an instrument to a single type request and approve it
+ */
+router.post(
+  "/reservations/:id/assign",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { instrumentId } = req.body;
+      if (!instrumentId) {
+        res.status(400).json({ success: false, error: "Instrument ID is required." });
+        return;
+      }
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const result = await adminAssignTypeRequest(id, instrumentId, adminId);
+      res.json({
+        success: true,
+        reservation: result,
+        message: "Instrument assigned and reservation approved successfully.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Assign an instrument across a recurring series of type requests
+ */
+router.post(
+  "/series/:seriesId/assign",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { seriesId } = req.params;
+      const { instrumentId, rejectConflicting, conflictRejectionReason } = req.body;
+      if (!instrumentId) {
+        res.status(400).json({ success: false, error: "Instrument ID is required." });
+        return;
+      }
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const result = await adminAssignSeriesTypeRequest(
+        seriesId,
+        instrumentId,
+        adminId,
+        {
+          rejectConflicting: Boolean(rejectConflicting),
+          conflictRejectionReason,
+        },
+      );
+      res.json({
+        success: true,
+        ...result,
+        message: "Series assigned successfully.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * Reassign an approved reservation to a different instrument
+ */
+router.post(
+  "/reservations/:id/reassign",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { newInstrumentId, instrumentId, reason } = req.body;
+      const targetId = newInstrumentId || instrumentId;
+      if (!targetId) {
+        res.status(400).json({ success: false, error: "Target instrument ID is required." });
+        return;
+      }
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const result = await adminReassignReservation(id, targetId, adminId, reason);
+      res.json({
+        success: true,
+        reservation: result,
+        message: "Reservation instrument reallocated successfully.",
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
  * Bulk approve reservations
  */
 router.post(
@@ -1547,6 +1701,8 @@ router.get(
         i.description,
         i.outside_fee_per_day,
         i.booking_mode,
+        i.visibility_level,
+        i.is_out_of_service,
         i.is_removed,
         i.is_reserve_pool,
         i.created_at,
@@ -1571,6 +1727,10 @@ router.get(
         outside_fee_per_day: inst.outside_fee_per_day,
         bookingMode: inst.booking_mode,
         booking_mode: inst.booking_mode,
+        visibilityLevel: inst.visibility_level || "public",
+        visibility_level: inst.visibility_level || "public",
+        isOutOfService: Boolean(inst.is_out_of_service),
+        is_out_of_service: Boolean(inst.is_out_of_service),
         isRemoved: inst.is_removed,
         is_removed: inst.is_removed,
         isReservePool: false,
@@ -1648,6 +1808,10 @@ router.post(
           description: description?.trim() || null,
           outsideFeePerDay: fee,
           bookingMode: mode,
+          visibilityLevel: ["public", "musician", "room_stock"].includes(req.body.visibilityLevel)
+            ? req.body.visibilityLevel
+            : "public",
+          isOutOfService: Boolean(req.body.isOutOfService),
           isReservePool: false,
           isRemoved: false,
         })
@@ -1658,6 +1822,10 @@ router.post(
         ...inst,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
+        visibility_level: inst.visibilityLevel,
+        visibilityLevel: inst.visibilityLevel,
+        is_out_of_service: inst.isOutOfService,
+        isOutOfService: inst.isOutOfService,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,
         created_at: inst.createdAt,
@@ -1689,6 +1857,8 @@ router.put(
         description,
         outsideFeePerDay,
         bookingMode,
+        visibilityLevel,
+        isOutOfService,
       } = req.body;
 
       const updates: any = {};
@@ -1702,6 +1872,12 @@ router.put(
       }
       if (bookingMode !== undefined) {
         updates.bookingMode = bookingMode === "manual" ? "manual" : "instant";
+      }
+      if (visibilityLevel !== undefined && ["public", "musician", "room_stock"].includes(visibilityLevel)) {
+        updates.visibilityLevel = visibilityLevel;
+      }
+      if (isOutOfService !== undefined) {
+        updates.isOutOfService = Boolean(isOutOfService);
       }
 
       const updated = await db
@@ -1722,6 +1898,10 @@ router.put(
         ...inst,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
+        visibility_level: inst.visibilityLevel,
+        visibilityLevel: inst.visibilityLevel,
+        is_out_of_service: inst.isOutOfService,
+        isOutOfService: inst.isOutOfService,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,
         is_reserve_pool: inst.isReservePool,
@@ -1866,6 +2046,23 @@ router.post(
     }
   },
 );
+
+/**
+ * Get future active and pending bookings for an instrument.
+ * Used when toggling Out of Service to review affected bookings for reassignment or cancellation.
+ */
+router.get(
+  "/instruments/:id/future-bookings",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const bookings = await getFutureBookingsForInstrument(id);
+      res.json({ success: true, bookings, count: bookings.length });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
 /**
  * Permanently delete an instrument row from the database
  * (For correcting mistaken entries only; separate from Decommission)
@@ -1927,6 +2124,82 @@ router.delete(
   },
 );
 
+/**
+ * Get all instrument types with requestability and outside flat fee settings
+ */
+router.get("/types", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db.execute(sql`
+      SELECT 
+        i.type,
+        COALESCE(s.can_be_requested, false) as can_be_requested,
+        COALESCE(s.flat_fee_outside, '0.00') as flat_fee_outside,
+        COUNT(CASE WHEN i.is_removed = false AND i.is_out_of_service = false THEN 1 END)::int as active_instruments_count
+      FROM instruments i
+      LEFT JOIN instrument_type_settings s ON LOWER(i.type) = LOWER(s.type)
+      GROUP BY i.type, s.can_be_requested, s.flat_fee_outside
+      ORDER BY i.type ASC
+    `);
+    res.json({ success: true, types: (result as any).rows || [] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Update type settings (can_be_requested toggle, flat_fee_outside)
+ */
+router.put("/types/:type", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { type } = req.params;
+    const { canBeRequested, flatFeeOutside } = req.body;
+
+    const fee =
+      flatFeeOutside !== undefined
+        ? String(parseFloat(flatFeeOutside) || 0)
+        : "0.00";
+    const canReq = Boolean(canBeRequested);
+
+    const [existing] = await db
+      .select()
+      .from(instrumentTypeSettings)
+      .where(sql`LOWER(${instrumentTypeSettings.type}) = LOWER(${type})`)
+      .limit(1);
+
+    let updated;
+    if (existing) {
+      const [row] = await db
+        .update(instrumentTypeSettings)
+        .set({
+          canBeRequested: canReq,
+          flatFeeOutside: fee,
+          updatedAt: new Date(),
+        })
+        .where(eq(instrumentTypeSettings.type, type))
+        .returning();
+      updated = row;
+    } else {
+      const [row] = await db
+        .insert(instrumentTypeSettings)
+        .values({
+          type,
+          canBeRequested: canReq,
+          flatFeeOutside: fee,
+        })
+        .returning();
+      updated = row;
+    }
+
+    res.json({
+      success: true,
+      setting: updated,
+      message: `Type settings for "${type}" updated successfully.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 /* =========================================================================
    4. USER MANAGEMENT (Shared: Admin & Super Admin)
    ========================================================================= */
@@ -1945,6 +2218,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
         u.email,
         u.phone_number,
         u.is_trusted,
+        u.is_musician,
         u.is_active,
         u.approval_status,
         u.created_at,
@@ -1963,6 +2237,8 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
       querySql = sql`${querySql} AND u.is_active = false AND u.approval_status = 'approved'`;
     } else if (status === "trusted") {
       querySql = sql`${querySql} AND u.is_trusted = true`;
+    } else if (status === "musician") {
+      querySql = sql`${querySql} AND u.is_musician = true`;
     } else if (status === "pending") {
       querySql = sql`${querySql} AND u.approval_status = 'pending'`;
     } else if (status === "rejected") {
@@ -1982,6 +2258,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
       name: row.name,
       phoneNumber: row.phone_number,
       isTrusted: row.is_trusted,
+      isMusician: row.is_musician,
       email: row.email,
       isActive: row.is_active,
       approvalStatus: row.approval_status,
@@ -3317,6 +3594,201 @@ router.get(
         error: err.message,
         cause: err.cause?.message,
       });
+    }
+  },
+);
+
+/**
+ * 6.4b Musician Status Management & Audit Logs (Super Admin Only)
+ */
+router.post(
+  "/users/:userId/musician-status",
+  requireSuperAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+      const { isMusician } = req.body;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+
+      const action = isMusician ? "granted" : "revoked";
+
+      const [updatedUser] = await db
+        .update(users)
+        .set({ isMusician: Boolean(isMusician) })
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        res.status(404).json({ success: false, error: "User not found." });
+        return;
+      }
+
+      await db.insert(musicianStatusAuditLog).values({
+        targetUserId: userId,
+        grantedByAdminId: adminId,
+        action: action as any,
+      });
+
+      try {
+        await db.insert(notifications).values({
+          userId,
+          type: isMusician
+            ? "musician_status_granted"
+            : "musician_status_revoked",
+          message: isMusician
+            ? 'Congratulations! You have been granted the "Church Musician" role by church administration. You can now view and book musician-level instruments directly.'
+            : 'Notice: Your "Church Musician" role has been updated by church administration. Your existing approved bookings remain valid.',
+        });
+
+        sendPushToUser(userId, {
+          titleAr: isMusician
+            ? "تم تعيينك كعازف بالكنيسة 🎵"
+            : "تحديث صفة العازف 🎵",
+          titleEn: isMusician
+            ? "Church Musician Role Granted 🎵"
+            : "Church Musician Role Updated 🎵",
+          bodyAr: isMusician
+            ? "يمكنك الآن حجز الآلات المخصصة للعازفين مباشرة."
+            : "تم تحديث صفة العازف لحسابك — الحجوزات السابقة سارية.",
+          bodyEn: isMusician
+            ? "You can now view and book musician-tier instruments directly."
+            : "Your musician role has been updated. Existing bookings stay.",
+          tag: `musician-role-${userId}`,
+          url: "/?view=calendar",
+          data: { type: "musician_status_change", isMusician: Boolean(isMusician) },
+        }).catch(() => {});
+      } catch {
+        // non-fatal
+      }
+
+      res.json({
+        success: true,
+        user: updatedUser,
+        message: `Musician status ${action} for ${updatedUser.name}.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 6.5b Get Musician Status Audit Logs (Super Admin Only)
+ */
+router.get(
+  "/musician-audit-logs",
+  requireSuperAdminAuth,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await db.execute(sql`
+        SELECT 
+          l.id,
+          l.action,
+          l.created_at,
+          u.name as target_user_name,
+          u.phone_number as user_phone,
+          a.name as granted_by_admin_name
+        FROM musician_status_audit_log l
+        JOIN users u ON l.target_user_id = u.id
+        JOIN admins a ON l.granted_by_admin_id = a.id
+        ORDER BY l.created_at DESC
+        LIMIT 100
+      `);
+
+      res.json({ success: true, auditLogs: (result as any).rows || [] });
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        error: err.message,
+      });
+    }
+  },
+);
+
+/**
+ * Instrument Type Settings (Settings / Configuration)
+ */
+router.get("/types", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const types = await db
+      .select()
+      .from(instrumentTypeSettings)
+      .orderBy(asc(instrumentTypeSettings.type));
+    res.json({ success: true, types });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put(
+  "/types/:type",
+  requireSuperAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { type } = req.params;
+      const { canBeRequested, flatFeeOutside } = req.body;
+
+      const updates: any = { updatedAt: new Date() };
+      if (canBeRequested !== undefined) {
+        updates.canBeRequested = Boolean(canBeRequested);
+      }
+      if (flatFeeOutside !== undefined) {
+        updates.flatFeeOutside = String(parseFloat(flatFeeOutside) || 0);
+      }
+
+      const [updated] = await db
+        .update(instrumentTypeSettings)
+        .set(updates)
+        .where(eq(instrumentTypeSettings.type, type))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ success: false, error: "Type not found." });
+        return;
+      }
+
+      res.json({ success: true, type: updated });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.post(
+  "/types",
+  requireSuperAdminAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { type, canBeRequested, flatFeeOutside } = req.body;
+      if (!type || !type.trim()) {
+        res.status(400).json({ success: false, error: "Type name is required." });
+        return;
+      }
+
+      const cleanType = type.trim();
+      const fee = flatFeeOutside !== undefined ? String(parseFloat(flatFeeOutside) || 0) : "0.00";
+
+      const [saved] = await db
+        .insert(instrumentTypeSettings)
+        .values({
+          type: cleanType,
+          canBeRequested: Boolean(canBeRequested),
+          flatFeeOutside: fee,
+        })
+        .onConflictDoUpdate({
+          target: instrumentTypeSettings.type,
+          set: {
+            canBeRequested: Boolean(canBeRequested),
+            flatFeeOutside: fee,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      res.json({ success: true, type: saved });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
     }
   },
 );

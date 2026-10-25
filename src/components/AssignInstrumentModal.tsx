@@ -6,7 +6,6 @@ import {
   Music2,
   Calendar,
   Clock,
-  User,
   Church,
   AlertTriangle,
   CheckCircle2,
@@ -15,34 +14,69 @@ import {
   Sparkles,
   ShieldAlert,
   Archive,
-  ChevronRight,
+  RefreshCw,
+  Repeat,
+  Layers,
   Info,
 } from "lucide-react";
 
-export interface AssignmentOption {
-  id: string;
-  name: string;
-  type: string;
-  photoUrl: string | null;
-  description: string | null;
-  bookingMode: string;
-  isRemoved: boolean;
-  isCurrent: boolean;
-  hasConflict: boolean;
-  conflictDetails: string | null;
-  categoryBadge: string;
+export interface CandidateItem {
+  instrument: {
+    id: string;
+    name: string;
+    type: string;
+    photoUrl?: string | null;
+    photo_url?: string | null;
+    description?: string | null;
+    visibilityLevel?: "public" | "musician" | "room_stock";
+    visibility_level?: "public" | "musician" | "room_stock";
+    isOutOfService?: boolean;
+    is_out_of_service?: boolean;
+    outsideFeePerDay?: string;
+  };
+  status: "free" | "busy" | "out_of_service";
+  statusReason?: string | null;
+  conflictReservation?: any;
+}
+
+export interface SeriesAggregateCandidate {
+  instrument: {
+    id: string;
+    name: string;
+    type: string;
+    photoUrl?: string | null;
+    photo_url?: string | null;
+    description?: string | null;
+    visibilityLevel?: "public" | "musician" | "room_stock";
+    visibility_level?: "public" | "musician" | "room_stock";
+    isOutOfService?: boolean;
+    is_out_of_service?: boolean;
+    outsideFeePerDay?: string;
+  };
+  freeOnAllDates: boolean;
+  conflictDatesCount: number;
+  isOutOfService: boolean;
+  occStatuses: Array<{
+    reservationId: string;
+    status: string;
+    statusReason?: string;
+  }>;
 }
 
 export interface AssignInstrumentModalProps {
   isOpen: boolean;
   reservation: any;
+  isSeries?: boolean;
+  isReassign?: boolean;
   onClose: () => void;
-  onSuccess: (updatedReservation: any) => void;
+  onSuccess: (updatedReservation?: any) => void;
 }
 
 export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
   isOpen,
   reservation,
+  isSeries = false,
+  isReassign = false,
   onClose,
   onSuccess,
 }) => {
@@ -52,11 +86,13 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
 
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [options, setOptions] = useState<AssignmentOption[]>([]);
+  const [candidates, setCandidates] = useState<CandidateItem[]>([]);
+  const [seriesCandidates, setSeriesCandidates] = useState<SeriesAggregateCandidate[]>([]);
+  const [requestedType, setRequestedType] = useState<string>("");
   const [selectedInstId, setSelectedInstId] = useState<string>("");
-  const [serviceLocation, setServiceLocation] = useState<string>("");
-  const [allocationNote, setAllocationNote] = useState<string>("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [rejectConflicting, setRejectConflicting] = useState<boolean>(false);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
+  const [reassignReason, setReassignReason] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -72,109 +108,136 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  const seriesId = reservation?.series_id || reservation?.seriesId;
+  const effectiveIsSeries = Boolean(isSeries || (seriesId && reservation?.isSeriesAssign));
+
   useEffect(() => {
     if (!isOpen || !reservation?.id) return;
 
-    setServiceLocation(
-      reservation.service_location || reservation.serviceLocation || "",
-    );
-    setSelectedInstId(
-      reservation.instrument_id || reservation.instrumentId || "",
-    );
-    setAllocationNote("");
-    setSearchQuery("");
-    setCategoryFilter("all");
+    setSelectedInstId(reservation.instrument_id || reservation.instrumentId || "");
     setErrorMsg(null);
+    setSearchQuery("");
+    setReassignReason("");
+    setRejectConflicting(false);
+    setRejectionReason(
+      isAr
+        ? "تعارض مع حجز معتمد آخر في هذا الموعد"
+        : "Conflict with another approved booking in this slot",
+    );
     setLoading(true);
 
-    const fetchOptions = async () => {
+    const fetchCandidates = async () => {
       try {
         const token =
-          sessionToken || localStorage.getItem("church_session_token_v1");
-        const res = await fetch(
-          `/api/admin/reservations/${reservation.id}/assignment-options`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: token ? `Bearer ${token}` : "",
-            },
+          sessionToken || localStorage.getItem("church_session_token_v1") || "";
+        const endpoint = effectiveIsSeries
+          ? `/api/admin/series/${seriesId}/assignment-candidates`
+          : `/api/admin/reservations/${reservation.id}/assignment-candidates`;
+
+        const res = await fetch(endpoint, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
           },
-        );
+        });
         const data = await res.json();
         if (!res.ok || !data.success) {
-          throw new Error(data.error || "Failed to load gear options");
+          throw new Error(data.error || "Failed to load candidate instruments");
         }
 
-        setOptions(data.options || []);
+        setRequestedType(data.requestedType || reservation.requested_type || reservation.requestedType || "");
 
-        // If the current reservation is on a Reserve Pool placeholder, preselect the first available real instrument if possible
-        const initialSelected = (data.options || []).find(
-          (opt: AssignmentOption) =>
-            opt.id === (reservation.instrument_id || reservation.instrumentId),
-        );
-
-        if (initialSelected && !initialSelected.hasConflict) {
-          setSelectedInstId(initialSelected.id);
+        if (effectiveIsSeries) {
+          const list: SeriesAggregateCandidate[] = data.aggregateCandidates || [];
+          setSeriesCandidates(list);
+          const firstFree = list.find((c) => c.freeOnAllDates && !c.isOutOfService);
+          if (firstFree) {
+            setSelectedInstId(firstFree.instrument.id);
+          } else if (list.length > 0 && !list[0].isOutOfService) {
+            setSelectedInstId(list[0].instrument.id);
+          }
         } else {
-          // Preselect first non-conflicting instrument
-          const firstAvailable = (data.options || []).find(
-            (opt: AssignmentOption) => !opt.hasConflict,
-          );
-          if (firstAvailable) {
-            setSelectedInstId(firstAvailable.id);
+          const list: CandidateItem[] = data.candidates || [];
+          setCandidates(list);
+          const firstFree = list.find((c) => c.status === "free");
+          if (firstFree) {
+            setSelectedInstId(firstFree.instrument.id);
           }
         }
       } catch (err: any) {
-        setErrorMsg(err.message || "Failed to fetch allocation options");
+        setErrorMsg(err.message || "Failed to fetch candidate instruments");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOptions();
-  }, [isOpen, reservation, sessionToken]);
+    fetchCandidates();
+  }, [isOpen, reservation, sessionToken, effectiveIsSeries, seriesId, isAr]);
 
-  // Unique categories for filter bar
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    options.forEach((opt) => {
-      if (opt.type) set.add(opt.type);
+  const filteredCandidates = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (effectiveIsSeries) {
+      return seriesCandidates.filter((c) => {
+        if (!q) return true;
+        return (
+          c.instrument.name.toLowerCase().includes(q) ||
+          c.instrument.type.toLowerCase().includes(q)
+        );
+      });
+    }
+    return candidates.filter((c) => {
+      if (!q) return true;
+      return (
+        c.instrument.name.toLowerCase().includes(q) ||
+        c.instrument.type.toLowerCase().includes(q)
+      );
     });
-    return Array.from(set);
-  }, [options]);
+  }, [candidates, seriesCandidates, effectiveIsSeries, searchQuery]);
 
-  // Filtered list
-  const filteredOptions = useMemo(() => {
-    return options.filter((opt) => {
-      if (categoryFilter !== "all" && opt.type !== categoryFilter) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = opt.name.toLowerCase().includes(q);
-        const matchesType = opt.type.toLowerCase().includes(q);
-        if (!matchesName && !matchesType) return false;
-      }
-      return true;
-    });
-  }, [options, categoryFilter, searchQuery]);
-
-  const selectedOption = useMemo(() => {
-    return options.find((opt) => opt.id === selectedInstId);
-  }, [options, selectedInstId]);
+  const selectedCandidate = useMemo(() => {
+    if (effectiveIsSeries) {
+      return seriesCandidates.find((c) => c.instrument.id === selectedInstId);
+    }
+    return candidates.find((c) => c.instrument.id === selectedInstId);
+  }, [effectiveIsSeries, seriesCandidates, candidates, selectedInstId]);
 
   if (!isOpen || !reservation) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInstId) {
-      setErrorMsg("Please select an instrument to allocate.");
+      setErrorMsg(isAr ? "يرجى اختيار آلة للتخصيص." : "Please select an instrument to assign.");
       return;
     }
 
-    if (selectedOption?.hasConflict) {
-      setErrorMsg(
-        `Cannot allocate: "${selectedOption.name}" has an approved reservation during this time window.`,
-      );
-      return;
+    if (!effectiveIsSeries) {
+      const single = candidates.find((c) => c.instrument.id === selectedInstId);
+      if (single?.status === "out_of_service") {
+        setErrorMsg(isAr ? "لا يمكن تخصيص آلة خارج الخدمة." : "Cannot assign an out-of-service instrument.");
+        return;
+      }
+      if (single?.status === "busy") {
+        setErrorMsg(
+          isAr
+            ? `الآلة غير متاحة: ${single.statusReason || "يوجد تعارض في الموعد"}`
+            : `Cannot assign: ${single.statusReason || "Instrument has a conflict in this slot."}`,
+        );
+        return;
+      }
+    } else {
+      const sc = seriesCandidates.find((c) => c.instrument.id === selectedInstId);
+      if (sc?.isOutOfService) {
+        setErrorMsg(isAr ? "لا يمكن تخصيص آلة خارج الخدمة." : "Cannot assign an out-of-service instrument.");
+        return;
+      }
+      if (!sc?.freeOnAllDates && !rejectConflicting) {
+        setErrorMsg(
+          isAr
+            ? `الآلة بها تعارض في ${sc?.conflictDatesCount} مواعيد. يرجى تفعيل خيار استبعاد المواعيد المتعارضة للاستمرار.`
+            : `Instrument has conflicts in ${sc?.conflictDatesCount} date(s). Please enable "Reject conflicting dates" to proceed.`,
+        );
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -182,26 +245,43 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
 
     try {
       const token =
-        sessionToken || localStorage.getItem("church_session_token_v1");
-      const res = await fetch(
-        `/api/admin/reservations/${reservation.id}/assign-and-approve`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-          body: JSON.stringify({
-            assignInstrumentId: selectedInstId,
-            serviceLocation: serviceLocation.trim() || undefined,
-            note: allocationNote.trim() || undefined,
-          }),
+        sessionToken || localStorage.getItem("church_session_token_v1") || "";
+
+      let endpoint = "";
+      let payload: any = {};
+
+      if (isReassign) {
+        endpoint = `/api/admin/reservations/${reservation.id}/reassign`;
+        payload = {
+          newInstrumentId: selectedInstId,
+          reason: reassignReason.trim() || undefined,
+        };
+      } else if (effectiveIsSeries) {
+        endpoint = `/api/admin/series/${seriesId}/assign`;
+        payload = {
+          instrumentId: selectedInstId,
+          rejectConflicting,
+          conflictRejectionReason: rejectionReason.trim() || undefined,
+        };
+      } else {
+        endpoint = `/api/admin/reservations/${reservation.id}/assign`;
+        payload = {
+          instrumentId: selectedInstId,
+        };
+      }
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to assign instrument.");
+        throw new Error(data.error || "Failed to complete assignment.");
       }
 
       onSuccess(data.reservation);
@@ -213,9 +293,30 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
     }
   };
 
-  const startTimeHhmm = reservation.start_hhmm || "";
-  const endTimeHhmm = reservation.end_hhmm || "";
-  const dateFormatted = reservation.reservation_date || "";
+  const getVisibilityBadge = (level?: string) => {
+    switch (level) {
+      case "room_stock":
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            <Archive className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+            <span>{isAr ? "عهدة الغرفة (Room Stock)" : "Room Stock"}</span>
+          </span>
+        );
+      case "musician":
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-300">
+            <Sparkles className="w-2.5 h-2.5 text-purple-700 shrink-0" />
+            <span>{isAr ? "للعازفين (Musician)" : "Musician"}</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+            <span>{isAr ? "عامة (Public)" : "Public"}</span>
+          </span>
+        );
+    }
+  };
 
   return (
     <div
@@ -230,18 +331,31 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
         {/* Header */}
         <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between border-b border-stone-800">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-purple-700 text-purple-100 flex items-center justify-center font-bold shadow-xs shrink-0">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-amber-700 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
+              {effectiveIsSeries ? (
+                <Repeat className="w-5 h-5" />
+              ) : (
+                <Sparkles className="w-5 h-5" />
+              )}
             </div>
             <div className="min-w-0">
               <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
-                {t("admin.review.assignModalTitle", "Allocate Gear & Approve Request")}
+                {isReassign
+                  ? isAr
+                    ? "تغيير الآلة المخصصة"
+                    : "Reassign Instrument"
+                  : effectiveIsSeries
+                    ? isAr
+                      ? "تخصيص آلة للسلسلة المتكررة"
+                      : "Assign Instrument to Recurring Series"
+                    : isAr
+                      ? "تخصيص آلة واعتماد الطلب"
+                      : "Assign Instrument & Approve Request"}
               </h2>
               <p className="text-[11px] sm:text-xs text-stone-400 truncate">
-                {t(
-                  "admin.review.assignModalSubtitle",
-                  "Assign an instrument from church inventory (including reserve & vault gear) to this service.",
-                )}
+                {isAr
+                  ? `النوع المطلوب: ${requestedType || "كل الآلات"} • يتم عرض عهدة الغرفة أولاً، ثم عازفي الكنيسة، ثم العامة`
+                  : `Requested type: ${requestedType || "All"} • Room stock listed first, then Musician, then Public`}
               </p>
             </div>
           </div>
@@ -268,14 +382,14 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
             )}
 
             {/* Request Summary Card */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2.5 text-xs">
+            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-2 text-xs">
               <div className="flex items-start justify-between gap-2 border-b border-stone-100 pb-2">
                 <div className="min-w-0">
                   <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider block">
-                    {isAr ? "بيانات الخدمة المطلوبة" : "Requested Service"}
+                    {isAr ? "الخدمة المطلوبة" : "Requested Service"}
                   </span>
                   <span className="font-bold text-stone-900 text-sm block truncate">
-                    {reservation.service_name || "Church Service"}
+                    {reservation.service_name || reservation.serviceName || "Church Service"}
                   </span>
                 </div>
                 <div className="text-end shrink-0">
@@ -283,76 +397,109 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     {isAr ? "مقدم الطلب / العازف" : "Requester & Musician"}
                   </span>
                   <span className="font-semibold text-stone-800 text-xs block">
-                    {reservation.user_name || "Member"}
-                    {reservation.musician_name ? ` (${reservation.musician_name})` : ""}
+                    {reservation.user_name || reservation.userName || "Member"}
+                    {reservation.musician_name || reservation.musicianName
+                      ? ` (${reservation.musician_name || reservation.musicianName})`
+                      : ""}
                   </span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-stone-600">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-stone-600">
                 <span className="flex items-center gap-1 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                  <span>{dateFormatted}</span>
+                  <span>
+                    {reservation.reservation_date ||
+                      (reservation.start_time
+                        ? String(reservation.start_time).substring(0, 10)
+                        : "")}
+                  </span>
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1 font-bold text-stone-900">
                   <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                   <span>
-                    {startTimeHhmm && formatHhmmTo12Hour(startTimeHhmm)} –{" "}
-                    {endTimeHhmm && formatHhmmTo12Hour(endTimeHhmm)}
+                    {reservation.start_hhmm && formatHhmmTo12Hour(reservation.start_hhmm)} –{" "}
+                    {reservation.end_hhmm && formatHhmmTo12Hour(reservation.end_hhmm)}
                   </span>
                 </span>
+                {requestedType && (
+                  <>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                      {isAr ? `نوع الآلة: ${requestedType}` : `Type: ${requestedType}`}
+                    </span>
+                  </>
+                )}
               </div>
 
-              {reservation.note && (
-                <div className="bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-stone-700 leading-snug">
-                  <span className="font-bold text-[11px] text-stone-900 block mb-0.5">
-                    {isAr ? "ملاحظات واحتياجات مقدم الطلب:" : "Musician Needs / Notes:"}
-                  </span>
-                  <span>{reservation.note}</span>
-                </div>
-              )}
+              {/* Exceeded Limits Badge Notice */}
+              {(() => {
+                let limits: string[] = [];
+                try {
+                  if (Array.isArray(reservation.exceeded_limits)) {
+                    limits = reservation.exceeded_limits;
+                  } else if (typeof reservation.exceeded_limits === "string") {
+                    limits = JSON.parse(reservation.exceeded_limits);
+                  }
+                } catch {
+                  // ignore
+                }
+
+                if (limits && limits.length > 0) {
+                  return (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block">
+                          {isAr ? "ملاحظة: تجاوز هذا الطلب حدود الحجز التالية:" : "Notice: This request exceeded limits:"}
+                        </span>
+                        <ul className="list-disc list-inside space-y-0.5 mt-0.5 text-amber-800">
+                          {limits.map((l, i) => (
+                            <li key={i}>{l}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
-            {/* Service Location / Hall Field */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-1.5">
-              <label
-                htmlFor="assign-service-location"
-                className="block text-xs font-bold text-stone-800 flex items-center gap-1.5"
-              >
-                <Church className="w-4 h-4 text-purple-700" />
-                <span>
-                  {t("admin.review.assignServiceLocation", "Service Location / Hall")}
-                </span>
-              </label>
-              <input
-                id="assign-service-location"
-                type="text"
-                value={serviceLocation}
-                onChange={(e) => setServiceLocation(e.target.value)}
-                placeholder={t(
-                  "reservationForm.serviceLocationPlaceholder",
-                  "e.g. Main Church Sanctuary, Ground Floor Youth Hall, St. George Chapel",
-                )}
-                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-purple-700/40 focus:border-purple-700 transition"
-              />
-              <span className="text-[11px] text-stone-500 block">
-                {isAr
-                  ? "تحديد مكان إقامة الخدمة يساعد خدام غرفة العهدة في تجهيز وتسليم الآلة في المكان الصحيح."
-                  : "Specifying the hall helps gear room servants prepare and position the equipment."}
-              </span>
-            </div>
+            {/* Reassign Reason Field */}
+            {isReassign && (
+              <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-1.5">
+                <label
+                  htmlFor="reassign-reason"
+                  className="block text-xs font-bold text-stone-800"
+                >
+                  {isAr ? "سبب إعادة التخصيص للمستخدم:" : "Reason for Reassignment (sent to user):"}
+                </label>
+                <input
+                  id="reassign-reason"
+                  type="text"
+                  value={reassignReason}
+                  onChange={(e) => setReassignReason(e.target.value)}
+                  placeholder={
+                    isAr
+                      ? "مثال: صيانة مفاجئة للآلة السابقة، تم توفير بديل مكافئ..."
+                      : "e.g. Previous instrument undergoing maintenance, assigned equivalent model..."
+                  }
+                  className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-700/40"
+                />
+              </div>
+            )}
 
             {/* Instrument Selection Section */}
             <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-2.5">
                 <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                  <Music2 className="w-4 h-4 text-purple-700" />
+                  <Music2 className="w-4 h-4 text-amber-700" />
                   <span>
-                    {t(
-                      "admin.review.assignSelectInstrument",
-                      "Select Instrument to Allocate:",
-                    )}
+                    {isAr
+                      ? `الآلات المتاحة من نوع (${requestedType || "الكل"}):`
+                      : `Available Instruments (${requestedType || "All"}):`}
                   </span>
                 </span>
 
@@ -363,79 +510,71 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={isAr ? "بحث بالاسم أو النوع..." : "Search gear..."}
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl ps-8 pe-3 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-purple-700/30"
+                    placeholder={isAr ? "بحث بالاسم..." : "Search instruments..."}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl ps-8 pe-3 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-700/30"
                   />
                 </div>
               </div>
 
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter("all")}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
-                    categoryFilter === "all"
-                      ? "bg-purple-700 text-white shadow-2xs"
-                      : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                  }`}
-                >
-                  {isAr ? "الكل" : "All Categories"} ({options.length})
-                </button>
-                {categories.map((cat) => {
-                  const count = options.filter((o) => o.type === cat).length;
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCategoryFilter(cat)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer touch-manipulation ${
-                        categoryFilter === cat
-                          ? "bg-purple-700 text-white shadow-2xs"
-                          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                      }`}
-                    >
-                      {cat} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Instruments List with Real-time Conflict Indicators */}
               {loading ? (
                 <div className="py-12 text-center text-xs text-stone-500 space-y-2">
-                  <div className="w-6 h-6 border-2 border-stone-300 border-t-purple-700 rounded-full animate-spin mx-auto" />
-                  <span>Checking inventory availability & overlaps...</span>
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto text-amber-700" />
+                  <span>
+                    {isAr
+                      ? "جارٍ فحص توفر الآلات وترتيب الأولويات..."
+                      : "Checking inventory availability & ranking..."}
+                  </span>
                 </div>
-              ) : filteredOptions.length === 0 ? (
+              ) : filteredCandidates.length === 0 ? (
                 <div className="py-8 text-center text-xs text-stone-500">
-                  No gear matches the selected filter.
+                  {isAr
+                    ? "لا توجد آلات مطابقة من هذا النوع في قاعدة البيانات."
+                    : "No matching instruments found for this type category."}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[300px] overflow-y-auto p-0.5">
-                  {filteredOptions.map((opt) => {
-                    const isSelected = selectedInstId === opt.id;
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[320px] overflow-y-auto p-0.5">
+                  {filteredCandidates.map((item: any) => {
+                    const inst = item.instrument;
+                    const isSelected = selectedInstId === inst.id;
+
+                    const isOutOfService = Boolean(
+                      item.isOutOfService ?? inst.isOutOfService ?? inst.is_out_of_service,
+                    );
+                    const isBusy = effectiveIsSeries
+                      ? !item.freeOnAllDates
+                      : item.status === "busy";
+                    const isFree = !isOutOfService && !isBusy;
+
+                    const photo = inst.photoUrl || inst.photo_url;
+                    const level = inst.visibilityLevel || inst.visibility_level || "public";
+
                     return (
                       <button
-                        key={opt.id}
+                        key={inst.id}
                         type="button"
-                        onClick={() => setSelectedInstId(opt.id)}
-                        className={`text-start p-3 rounded-2xl border transition-all cursor-pointer relative touch-manipulation flex flex-col justify-between gap-2 ${
-                          isSelected
-                            ? opt.hasConflict
-                              ? "bg-red-50/80 border-red-500 ring-2 ring-red-400/40 shadow-xs"
-                              : "bg-purple-50/80 border-purple-600 ring-2 ring-purple-500/40 shadow-xs"
-                            : opt.hasConflict
-                              ? "bg-stone-50/70 border-stone-200 hover:border-red-300 opacity-80"
-                              : "bg-white border-stone-200 hover:border-purple-300 hover:bg-purple-50/30"
+                        onClick={() => {
+                          if (isOutOfService) return;
+                          setSelectedInstId(inst.id);
+                        }}
+                        disabled={isOutOfService}
+                        className={`text-start p-3 rounded-2xl border transition-all relative flex flex-col justify-between gap-2 touch-manipulation ${
+                          isOutOfService
+                            ? "bg-stone-100 border-stone-200 opacity-50 cursor-not-allowed"
+                            : isSelected
+                              ? isBusy
+                                ? "bg-amber-50/90 border-amber-500 ring-2 ring-amber-400/40 shadow-xs cursor-pointer"
+                                : "bg-emerald-50/90 border-emerald-600 ring-2 ring-emerald-500/40 shadow-xs cursor-pointer"
+                              : isBusy
+                                ? "bg-stone-50/80 border-stone-200 hover:border-amber-300 opacity-80 cursor-pointer"
+                                : "bg-white border-stone-200 hover:border-amber-400 hover:bg-amber-50/20 cursor-pointer"
                         }`}
                       >
                         <div className="flex items-start gap-2.5 min-w-0">
                           <div className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 flex items-center justify-center shrink-0 overflow-hidden">
-                            {opt.photoUrl ? (
+                            {photo ? (
                               <img
-                                src={opt.photoUrl}
-                                alt={opt.name}
+                                src={photo}
+                                alt={inst.name}
                                 referrerPolicy="no-referrer"
                                 className="w-full h-full object-cover"
                               />
@@ -447,41 +586,54 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-1">
                               <span className="font-bold text-xs text-stone-900 truncate block">
-                                {opt.name}
+                                {inst.name}
                               </span>
                               {isSelected && (
                                 <CheckCircle2
                                   className={`w-4 h-4 shrink-0 ${
-                                    opt.hasConflict ? "text-red-600" : "text-purple-700"
+                                    isBusy ? "text-amber-600" : "text-emerald-700"
                                   }`}
                                 />
                               )}
                             </div>
 
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <span className="text-[10px] text-stone-500 font-medium">
-                                {opt.type}
-                              </span>
-
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                <span>{isAr ? "أساسية" : "Standard"}</span>
-                              </span>
+                            <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              {getVisibilityBadge(level)}
                             </div>
                           </div>
                         </div>
 
-                        {/* Availability / Conflict Status Ribbon */}
+                        {/* Availability ribbon */}
                         <div className="pt-1.5 border-t border-stone-100 flex items-center justify-between gap-1 text-[10px]">
-                          {opt.hasConflict ? (
-                            <div className="flex items-center gap-1 text-red-700 font-semibold truncate">
+                          {isOutOfService ? (
+                            <span className="text-red-700 font-bold flex items-center gap-1">
                               <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" />
-                              <span className="truncate">{opt.conflictDetails}</span>
-                            </div>
+                              <span>{isAr ? "خارج الخدمة (معطلة)" : "Out of Service"}</span>
+                            </span>
+                          ) : isBusy ? (
+                            <span className="text-amber-800 font-semibold truncate flex items-center gap-1">
+                              <ShieldAlert className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span className="truncate">
+                                {effectiveIsSeries
+                                  ? isAr
+                                    ? `تعارض في ${item.conflictDatesCount} مواعيد`
+                                    : `Conflicts in ${item.conflictDatesCount} date(s)`
+                                  : item.statusReason || (isAr ? "مشغولة في هذا الموعد" : "Busy in this slot")}
+                              </span>
+                            </span>
                           ) : (
-                            <div className="flex items-center gap-1 text-emerald-700 font-bold">
+                            <span className="text-emerald-700 font-bold flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                              <span>{t("admin.review.assignAvailable", "Available (Free)")}</span>
-                            </div>
+                              <span>
+                                {effectiveIsSeries
+                                  ? isAr
+                                    ? "متاحة في كل مواعيد السلسلة"
+                                    : "Free on all series dates"
+                                  : isAr
+                                    ? "متاحة (جاهزة للتخصيص)"
+                                    : "Free (Available)"}
+                              </span>
+                            </span>
                           )}
                         </div>
                       </button>
@@ -490,48 +642,55 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                 </div>
               )}
 
-              {/* Conflict Alert Warning Box */}
-              {selectedOption?.hasConflict && (
-                <div className="bg-red-50 border border-red-300 rounded-2xl p-3.5 text-xs text-red-900 space-y-1 animate-in fade-in">
-                  <div className="font-bold flex items-center gap-1.5 text-red-950">
-                    <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
-                    <span>{t("admin.review.assignConflictNotice", "Conflict Warning")}</span>
-                  </div>
-                  <p className="text-red-800 text-[11px] leading-relaxed">
-                    {selectedOption.conflictDetails ||
-                      "This instrument is already booked for another approved church service during this time window. Choosing it will create a double-booking."}
-                  </p>
-                </div>
-              )}
-            </div>
+              {/* Series conflict resolution toggle */}
+              {effectiveIsSeries &&
+                selectedCandidate &&
+                !(selectedCandidate as SeriesAggregateCandidate).freeOnAllDates &&
+                !(selectedCandidate as SeriesAggregateCandidate).isOutOfService && (
+                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 space-y-2 animate-in fade-in">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                      <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>
+                        {isAr
+                          ? "يوجد تعارض في بعض مواعيد السلسلة على هذه الآلة"
+                          : "Conflict in some series dates on this instrument"}
+                      </span>
+                    </div>
+                    <p className="text-amber-800 text-[11px] leading-relaxed">
+                      {isAr
+                        ? `يمكنك اعتماد المواعيد المتاحة واستبعاد المواعيد المتعارضة تلقائياً (إجمالي المواعيد المتعارضة: ${(selectedCandidate as SeriesAggregateCandidate).conflictDatesCount}).`
+                        : `You can approve the fitting dates and reject only the conflicting dates (conflicts: ${(selectedCandidate as SeriesAggregateCandidate).conflictDatesCount}).`}
+                    </p>
 
-            {/* Optional Allocation Note for the Musician */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-1.5">
-              <label
-                htmlFor="assign-note"
-                className="block text-xs font-bold text-stone-800 flex items-center justify-between"
-              >
-                <span>
-                  {t(
-                    "admin.review.assignNoteLabel",
-                    "Allocation Note for Musician (Optional)",
-                  )}
-                </span>
-                <span className="text-[10px] text-stone-400 font-medium">
-                  {t("common.optional", "Optional")}
-                </span>
-              </label>
-              <textarea
-                id="assign-note"
-                rows={2}
-                value={allocationNote}
-                onChange={(e) => setAllocationNote(e.target.value)}
-                placeholder={t(
-                  "admin.review.assignNotePlaceholder",
-                  "e.g. Please collect the Roland GW-8 from the 2nd floor gear locker...",
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-amber-900 pt-1">
+                      <input
+                        type="checkbox"
+                        checked={rejectConflicting}
+                        onChange={(e) => setRejectConflicting(e.target.checked)}
+                        className="w-4 h-4 rounded text-amber-800 border-amber-300 focus:ring-amber-700/20"
+                      />
+                      <span>
+                        {isAr
+                          ? "اعتماد المواعيد المتاحة ورفض المواعيد المتعارضة مع إخطار العازف"
+                          : "Approve fitting dates and reject conflicting dates with reason"}
+                      </span>
+                    </label>
+
+                    {rejectConflicting && (
+                      <input
+                        type="text"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        placeholder={
+                          isAr
+                            ? "سبب رفض المواعيد المتعارضة..."
+                            : "Reason for rejecting conflicting dates..."
+                        }
+                        className="w-full bg-white border border-amber-300 rounded-xl px-2.5 py-1.5 text-xs text-amber-950 mt-1"
+                      />
+                    )}
+                  </div>
                 )}
-                className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-purple-700/40 focus:border-purple-700 transition resize-none"
-              />
             </div>
           </div>
 
@@ -547,20 +706,44 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
 
             <button
               type="submit"
-              disabled={submitting || !selectedInstId || selectedOption?.hasConflict}
+              disabled={
+                submitting ||
+                !selectedInstId ||
+                (!effectiveIsSeries &&
+                  candidates.find((c) => c.instrument.id === selectedInstId)?.status !== "free") ||
+                (effectiveIsSeries &&
+                  seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.isOutOfService) ||
+                (effectiveIsSeries &&
+                  !seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.freeOnAllDates &&
+                  !rejectConflicting)
+              }
               className={`min-h-[42px] px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] touch-manipulation ${
-                submitting || !selectedInstId || selectedOption?.hasConflict
+                submitting ||
+                !selectedInstId ||
+                (!effectiveIsSeries &&
+                  candidates.find((c) => c.instrument.id === selectedInstId)?.status !== "free") ||
+                (effectiveIsSeries &&
+                  seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.isOutOfService) ||
+                (effectiveIsSeries &&
+                  !seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.freeOnAllDates &&
+                  !rejectConflicting)
                   ? "bg-stone-300 text-stone-500 cursor-not-allowed shadow-none"
-                  : "bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white shadow-md hover:shadow-lg"
+                  : "bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white shadow-md hover:shadow-lg"
               }`}
             >
               <Sparkles className="w-4 h-4 shrink-0" />
               <span>
                 {submitting
                   ? isAr
-                    ? "جارٍ التخصيص..."
-                    : "Allocating..."
-                  : t("admin.review.assignConfirmBtn", "Confirm & Allocate Gear")}
+                    ? "جارٍ التنفيذ..."
+                    : "Processing..."
+                  : isReassign
+                    ? isAr
+                      ? "تأكيد إعادة التخصيص"
+                      : "Confirm Reassignment"
+                    : isAr
+                      ? "تخصيص واعتماد الحجز"
+                      : "Confirm & Allocate Instrument"}
               </span>
             </button>
           </div>

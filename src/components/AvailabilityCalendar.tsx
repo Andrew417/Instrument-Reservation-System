@@ -15,6 +15,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Sun,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { useTranslation } from "react-i18next";
@@ -39,6 +40,8 @@ export interface Instrument {
   description: string | null;
   outsideFeePerDay: string;
   bookingMode: "manual" | "instant";
+  visibilityLevel?: "public" | "musician" | "room_stock";
+  isOutOfService?: boolean;
   isRemoved: boolean;
   createdAt: string;
 }
@@ -1000,6 +1003,26 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                 </span>
                               )}
 
+                              {/* Out of Service Chip */}
+                              {(inst.isOutOfService || (inst as any).is_out_of_service) && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                  <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
+                                  <span>Out of Service</span>
+                                </span>
+                              )}
+
+                              {/* Visibility Level Chip (if musician or room_stock) */}
+                              {inst.visibilityLevel === "musician" && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  <span>Musicians</span>
+                                </span>
+                              )}
+                              {inst.visibilityLevel === "room_stock" && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                  <span>Room Stock</span>
+                                </span>
+                              )}
+
                               {hasFee && (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
                                   <span>
@@ -1060,6 +1083,31 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                       {/* Instrument Slot Cells */}
                       {Object.values(groupedInstruments).flatMap((typeInsts) =>
                         typeInsts.map((inst) => {
+                          const isOutOfService =
+                            inst.isOutOfService ||
+                            (inst as any).is_out_of_service;
+
+                          if (isOutOfService) {
+                            return (
+                              <td
+                                key={`${inst.id}-${slotHhmm}`}
+                                id={`slot-disabled-${inst.id}-${slotHhmm}`}
+                                className={`p-1 ${
+                                  isAr ? "border-l" : "border-r"
+                                } border-stone-200 text-center select-none bg-stone-50/60`}
+                              >
+                                <div
+                                  className="w-full min-h-8 py-1 px-1.5 rounded-lg flex items-center justify-center text-[10px] font-semibold bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed select-none"
+                                  title="Instrument is out of service"
+                                >
+                                  <span className="text-[9px] uppercase tracking-wider">
+                                    Unavailable
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          }
+
                           const booked = isSlotBooked(inst.id, slotHhmm);
                           const userOwn = isUserOwnBooking(inst.id, slotHhmm);
 

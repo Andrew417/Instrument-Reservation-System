@@ -82,6 +82,27 @@ The application will start on **`http://localhost:3000`** with full Vite HMR, Ex
 ---
 
 
+## Core System Features
+
+- **Instrument Visibility Levels**:
+  - `public`: Visible and directly bookable by everyone.
+  - `musician`: Visible and bookable directly by Musicians and Admins only; completely hidden from regular users.
+  - `room_stock`: Visible to Admins only; dedicated inventory allocated to type requests.
+  - `out_of_service`: Broken or unavailable instruments; disabled from direct booking and assignment.
+- **Independent Roles**:
+  - `isMusician`: Granted exclusively by Super Admins (via Promote options or User Profile); full audit logging in `musician_status_audit_log`.
+  - `isTrusted`: Auto-approval and fair-usage bypass for direct bookings; logged in `trusted_status_audit_log`.
+- **Category Type Requests**:
+  - Regular users can request by category (e.g. "any keyboard") for enabled types in `instrument_type_settings`.
+  - Locks outside flat fee at submission time. Always starts as `pending` and does not block slots until assigned.
+  - Auto-expires with notification if not assigned prior to the start time.
+- **Admin Assignment & Reassignment Engine**:
+  - Prioritizes Room Stock first, Musician second, Public third.
+  - Conflict checking and out-of-service prevention for single and recurring series.
+  - Reassignment of approved bookings and automatic reset upon date/time/duration edits.
+
+---
+
 ## Available Scripts
 
 | Command              | Description                                                                     |
@@ -94,4 +115,4 @@ The application will start on **`http://localhost:3000`** with full Vite HMR, Ex
 | `npm run build`      | Compiles the client SPA into `/dist` and bundles the server                     |
 | `npm start`          | Starts the production server bundle                                             |
 
-ready for production
+Ready for production.

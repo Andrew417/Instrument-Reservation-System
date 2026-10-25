@@ -196,20 +196,95 @@ ensureSampleInstruments().catch((err: any) => {
 });
 
 /**
- * 1. Get all active instruments
+ * Helper to determine caller identity and roles for visibility rules
  */
-router.get("/", async (_req: Request, res: Response): Promise<void> => {
+async function resolveUserRoleFromRequest(req: Request): Promise<{
+  isAdmin: boolean;
+  isMusician: boolean;
+  userId: string | null;
+}> {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.substring(7)
+    : (req.headers["x-session-token"] as string);
+
+  if (!token) {
+    return { isAdmin: false, isMusician: false, userId: null };
+  }
+
   try {
+    const { valid, session } = await validateSession(token);
+    if (valid && session) {
+      const isAdm =
+        session.role === "admin" ||
+        session.role === "super_admin" ||
+        Boolean(session.user?.isSuperAdmin);
+      return {
+        isAdmin: isAdm,
+        isMusician: Boolean(session.user?.isMusician),
+        userId: session.user?.id || session.userId || null,
+      };
+    }
+  } catch {
+    // Ignore and fallback to guest
+  }
+
+  return { isAdmin: false, isMusician: false, userId: null };
+}
+
+/**
+ * 0. Get requestable instrument types with their outside flat fees
+ */
+router.get("/types", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const typeRows = await db.execute(sql`
+      SELECT type, can_be_requested, flat_fee_outside
+      FROM instrument_type_settings
+      WHERE can_be_requested = true
+      ORDER BY type ASC;
+    `);
+
+    res.json({
+      success: true,
+      types: ((typeRows as any).rows || []).map((r: any) => ({
+        type: r.type,
+        canBeRequested: Boolean(r.can_be_requested),
+        flatFeeOutside: String(r.flat_fee_outside || "0.00"),
+      })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * 1. Get all active instruments (filtered by role visibility)
+ */
+router.get("/", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { isAdmin, isMusician } = await resolveUserRoleFromRequest(req);
+
+    let whereClause = sql`${instruments.isRemoved} = false`;
+    if (!isAdmin) {
+      if (isMusician) {
+        whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} IN ('public', 'musician')`;
+      } else {
+        whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} = 'public'`;
+      }
+    }
+
     const list = await db
       .select()
       .from(instruments)
-      .where(eq(instruments.isRemoved, false))
+      .where(whereClause)
       .orderBy(asc(instruments.type), asc(instruments.name));
 
     const formatted = sortInstrumentsByManualOrder(list).map((inst) => ({
       ...inst,
       booking_mode: inst.bookingMode,
       outside_fee_per_day: inst.outsideFeePerDay,
+      visibility_level: inst.visibilityLevel,
+      is_out_of_service: inst.isOutOfService,
       photo_url: inst.photoUrl,
       is_removed: inst.isRemoved,
       created_at: inst.createdAt,
@@ -232,37 +307,23 @@ router.get(
       await ensureCurrentReservationStatuses().catch(() => {});
       const dateStr = (req.query.date as string) || getCairoDateString();
 
-      // Check if requester is admin or super admin
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.startsWith("Bearer ")
-        ? authHeader.substring(7)
-        : (req.headers["x-session-token"] as string);
+      const { isAdmin, isMusician, userId: currentUserId } =
+        await resolveUserRoleFromRequest(req);
 
-      let isAdmin = false;
-      let currentUserId: string | null = null;
-      if (token) {
-        try {
-          const { valid, session } = await validateSession(token);
-          if (valid && session) {
-            currentUserId = session.user?.id || session.userId || null;
-            if (
-              session.role === "admin" ||
-              session.role === "super_admin" ||
-              session.user?.isSuperAdmin
-            ) {
-              isAdmin = true;
-            }
-          }
-        } catch {
-          // Continue with guest/standard permissions
+      // Filter visible instruments
+      let whereClause = sql`${instruments.isRemoved} = false`;
+      if (!isAdmin) {
+        if (isMusician) {
+          whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} IN ('public', 'musician')`;
+        } else {
+          whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} = 'public'`;
         }
       }
 
-      // 1. Get all active instruments
       const allInstruments = await db
         .select()
         .from(instruments)
-        .where(eq(instruments.isRemoved, false))
+        .where(whereClause)
         .orderBy(asc(instruments.type), asc(instruments.name));
 
       const formattedInstruments = sortInstrumentsByManualOrder(
@@ -271,12 +332,16 @@ router.get(
         ...inst,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
+        visibility_level: inst.visibilityLevel,
+        is_out_of_service: inst.isOutOfService,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,
         created_at: inst.createdAt,
       }));
 
-      // 2. Query approved / ongoing reservations on that date
+      // Query approved / ongoing reservations on that date
+      // Note: Only reservations with an assigned instrumentId are relevant for slots.
+      // Pending type requests without an instrument never appear on the calendar and don't block slots.
       const reservationsOnDate = await db.execute(sql`
       SELECT 
         r.id,
@@ -296,6 +361,7 @@ router.get(
       LEFT JOIN users u ON r.user_id = u.id
       LEFT JOIN admins a ON r.admin_id = a.id
       WHERE r.status IN ('approved', 'ongoing', 'completed')
+        AND r.instrument_id IS NOT NULL
         AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date
       ORDER BY lower(r.time_range) ASC
     `);
@@ -334,114 +400,14 @@ router.get(
 );
 
 // Alias for convenience /availability -> /availability/date
-router.get(
-  "/availability",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      await ensureCurrentReservationStatuses().catch(() => {});
-      const dateStr = (req.query.date as string) || getCairoDateString();
-
-      const authHeader = req.headers.authorization;
-      const token = authHeader?.startsWith("Bearer ")
-        ? authHeader.substring(7)
-        : (req.headers["x-session-token"] as string);
-
-      let isAdmin = false;
-      let currentUserId: string | null = null;
-      if (token) {
-        try {
-          const { valid, session } = await validateSession(token);
-          if (valid && session) {
-            currentUserId = session.user?.id || session.userId || null;
-            if (
-              session.role === "admin" ||
-              session.role === "super_admin" ||
-              session.user?.isSuperAdmin
-            ) {
-              isAdmin = true;
-            }
-          }
-        } catch {
-          // Continue with guest permissions
-        }
-      }
-
-      const allInstruments = await db
-        .select()
-        .from(instruments)
-        .where(eq(instruments.isRemoved, false))
-        .orderBy(asc(instruments.type), asc(instruments.name));
-
-      const formattedInstruments = sortInstrumentsByManualOrder(
-        allInstruments,
-      ).map((inst) => ({
-        ...inst,
-        booking_mode: inst.bookingMode,
-        outside_fee_per_day: inst.outsideFeePerDay,
-        photo_url: inst.photoUrl,
-        is_removed: inst.isRemoved,
-        is_reserve_pool: false,
-        isReservePool: false,
-        created_at: inst.createdAt,
-      }));
-
-      const reservationsOnDate = await db.execute(sql`
-      SELECT 
-        r.id,
-        r.instrument_id,
-        r.status,
-        r.reservation_type,
-        r.user_id,
-        r.admin_id,
-        r.service_name,
-        COALESCE(u.name, a.name, 'Administrator') as user_name,
-        lower(r.time_range) as start_time,
-        upper(r.time_range) as end_time,
-        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
-        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours
-      FROM reservations r
-      LEFT JOIN users u ON r.user_id = u.id
-      LEFT JOIN admins a ON r.admin_id = a.id
-      WHERE r.status IN ('approved', 'ongoing', 'completed')
-        AND (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date
-      ORDER BY lower(r.time_range) ASC
-    `);
-
-      const reservedSlots = (reservationsOnDate as any).rows || [];
-
-      res.json({
-        success: true,
-        date: dateStr,
-        instruments: formattedInstruments,
-        reservations: reservedSlots.map((r: any) => {
-          const isFullDay =
-            (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
-            Number(r.duration_hours) >= 13;
-          return {
-            id: r.id,
-            instrumentId: r.instrument_id,
-            status: r.status,
-            reservationType: r.reservation_type,
-            isFullDay,
-            userId: isAdmin ? r.user_id || r.admin_id : undefined,
-            userName: isAdmin ? r.user_name : undefined,
-            serviceName: isAdmin ? r.service_name : undefined,
-            startTime: r.start_time,
-            endTime: r.end_time,
-            startHhmm: r.start_hhmm,
-            endHhmm: r.end_hhmm,
-          };
-        }),
-      });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  },
-);
+router.get("/availability", async (req: Request, res: Response): Promise<void> => {
+  // Delegate directly to the availability/date handler logic
+  req.url = "/availability/date" + (req.url.includes("?") ? req.url.substring(req.url.indexOf("?")) : "");
+  (router as any).handle(req, res, () => {});
+});
 
 /**
- * 3. Get single instrument by ID
+ * 3. Get single instrument by ID (Enforces visibility level rules)
  */
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -462,7 +428,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     const [inst] = await db
       .select()
       .from(instruments)
-      .where(eq(instruments.id, id))
+      .where(and(eq(instruments.id, id), eq(instruments.isRemoved, false)))
       .limit(1);
 
     if (!inst) {
@@ -470,7 +436,31 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.json({ success: true, instrument: inst });
+    const { isAdmin, isMusician } = await resolveUserRoleFromRequest(req);
+    if (!isAdmin) {
+      if (inst.visibilityLevel === "room_stock") {
+        res.status(404).json({ success: false, error: "Instrument not found" });
+        return;
+      }
+      if (inst.visibilityLevel === "musician" && !isMusician) {
+        res.status(404).json({ success: false, error: "Instrument not found" });
+        return;
+      }
+    }
+
+    res.json({
+      success: true,
+      instrument: {
+        ...inst,
+        booking_mode: inst.bookingMode,
+        outside_fee_per_day: inst.outsideFeePerDay,
+        visibility_level: inst.visibilityLevel,
+        is_out_of_service: inst.isOutOfService,
+        photo_url: inst.photoUrl,
+        is_removed: inst.isRemoved,
+        created_at: inst.createdAt,
+      },
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

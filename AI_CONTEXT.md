@@ -6,7 +6,7 @@
 
 ## Components (UI)
 
-### `src/components/AdminPortal.tsx` (417 lines)
+### `src/components/AdminPortal.tsx` (435 lines)
 ```typescript
 export interface AdminPortalProps extends UseAdminPortalDataProps {}
 export const AdminPortal: React.FC<AdminPortalProps> = (props)
@@ -17,9 +17,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props)
 export const AnalyticsTab: React.FC = ()
 ```
 
-### `src/components/AssignInstrumentModal.tsx` (572 lines)
+### `src/components/AssignInstrumentModal.tsx` (755 lines)
 ```typescript
-export interface AssignmentOption
+export interface CandidateItem
+export interface SeriesAggregateCandidate
 export interface AssignInstrumentModalProps
 export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = (
 ```
@@ -29,7 +30,7 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = (
 export const AuthScreen: React.FC = ()
 ```
 
-### `src/components/AvailabilityCalendar.tsx` (1210 lines)
+### `src/components/AvailabilityCalendar.tsx` (1258 lines)
 ```typescript
 export interface Instrument
 export interface ReservedSlot
@@ -75,7 +76,7 @@ export interface MusicianMinistryProfileModalProps
 export const MusicianMinistryProfileModal: React.FC<
 ```
 
-### `src/components/MyReservations.tsx` (1321 lines)
+### `src/components/MyReservations.tsx` (1339 lines)
 ```typescript
 export interface MyReservationsProps
 export const MyReservations: React.FC<MyReservationsProps> = (
@@ -106,7 +107,7 @@ export interface QuickRebookCardProps
 export const QuickRebookCard: React.FC<QuickRebookCardProps> = (
 ```
 
-### `src/components/ReservationDetailModal.tsx` (2527 lines)
+### `src/components/ReservationDetailModal.tsx` (2533 lines)
 ```typescript
 export interface ReservationDetailModalProps
 export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = (
@@ -126,7 +127,7 @@ export interface ReservationFiltersPopoverProps
 export const ReservationFiltersPopover: React.FC<
 ```
 
-### `src/components/ReservationFormModal.tsx` (1115 lines)
+### `src/components/ReservationFormModal.tsx` (1336 lines)
 ```typescript
 export interface SeriesPrefill
 export interface ReservationFormProps
@@ -139,14 +140,14 @@ export interface ReservationUsageTypeSelectorProps
 export const ReservationUsageTypeSelector: React.FC<
 ```
 
-### `src/components/SeriesBuilderModal.tsx` (1730 lines)
+### `src/components/SeriesBuilderModal.tsx` (1791 lines)
 ```typescript
 export interface OccurrenceItem
 export interface SeriesBuilderModalProps
 export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = (
 ```
 
-### `src/components/UserDetailModal.tsx` (957 lines)
+### `src/components/UserDetailModal.tsx` (1062 lines)
 ```typescript
 export interface UserDetailModalProps
 export const UserDetailModal: React.FC<UserDetailModalProps> = (props)
@@ -164,7 +165,7 @@ export interface ConfirmModalState
 export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = (
 ```
 
-### `src/components/admin/AdminModalsHost.tsx` (141 lines)
+### `src/components/admin/AdminModalsHost.tsx` (147 lines)
 ```typescript
 export interface AdminModalsHostProps
 export const AdminModalsHost: React.FC<AdminModalsHostProps> = (
@@ -205,7 +206,7 @@ export interface HardLimitsFormState
 export const HardLimitsTab: React.FC<HardLimitsTabProps> = (
 ```
 
-### `src/components/admin/InstrumentFormModal.tsx` (454 lines)
+### `src/components/admin/InstrumentFormModal.tsx` (523 lines)
 ```typescript
 export interface InstrumentFormState
 export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = (
@@ -230,8 +231,9 @@ export interface PaymentSettingsState
 export const PaymentSettingsTab: React.FC<PaymentSettingsTabProps> = (
 ```
 
-### `src/components/admin/PromoteUserModal.tsx` (134 lines)
+### `src/components/admin/PromoteUserModal.tsx` (211 lines)
 ```typescript
+export type PromoteRoleOption = "admin" | "super_admin" | "musician";
 export interface PromoteModalState
 export const PromoteUserModal: React.FC<PromoteUserModalProps> = (
 ```
@@ -248,7 +250,7 @@ export interface RetireInstrumentItem
 export const RetireInstrumentModal: React.FC<RetireInstrumentModalProps> = (
 ```
 
-### `src/components/admin/TrustedStatusTab.tsx` (181 lines)
+### `src/components/admin/TrustedStatusTab.tsx` (219 lines)
 ```typescript
 export interface TrustedStatusAuditLogItem
 export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = (
@@ -266,7 +268,7 @@ export interface DashboardTabProps
 export const DashboardTab: React.FC<DashboardTabProps> = (
 ```
 
-### `src/components/admin/tabs/InstrumentsTab.tsx` (227 lines)
+### `src/components/admin/tabs/InstrumentsTab.tsx` (412 lines)
 ```typescript
 export interface InstrumentsTabProps
 export const InstrumentsTab: React.FC<InstrumentsTabProps> = (
@@ -278,19 +280,19 @@ export interface MessagingTabProps
 export const MessagingTab: React.FC<MessagingTabProps> = (
 ```
 
-### `src/components/admin/tabs/ReviewTab.tsx` (964 lines)
+### `src/components/admin/tabs/ReviewTab.tsx` (1081 lines)
 ```typescript
 export interface ReviewTabProps
 export const ReviewTab: React.FC<ReviewTabProps> = (
 ```
 
-### `src/components/admin/tabs/UsersTab.tsx` (263 lines)
+### `src/components/admin/tabs/UsersTab.tsx` (294 lines)
 ```typescript
 export interface UsersTabProps
 export const UsersTab: React.FC<UsersTabProps> = (
 ```
 
-### `src/components/admin/useAdminPortalData.ts` (1894 lines)
+### `src/components/admin/useAdminPortalData.ts` (1946 lines)
 ```typescript
 export type AdminTab =
 export interface UseAdminPortalDataProps
@@ -330,11 +332,14 @@ export const ReservationStatusBadge: React.FC<ReservationStatusBadgeProps> = (
 
 ## Server Routes (API)
 
-### `src/server/admin.ts` (3559 lines)
+### `src/server/admin.ts` (4033 lines)
 ```typescript
 Route: GET /analytics
+Route: GET /types
+Route: PUT /types/:type
 Route: GET /users
 Route: GET /approvals
+Route: GET /types
 ```
 
 ### `src/server/auth.ts` (1042 lines)
@@ -345,10 +350,12 @@ Route: GET /me
 Route: POST /logout
 ```
 
-### `src/server/instruments.ts` (552 lines)
+### `src/server/instruments.ts` (542 lines)
 ```typescript
 export async function ensureSampleInstruments(): Promise<void>
+Route: GET /types
 Route: GET /
+Route: GET /availability
 Route: GET /:id
 Route: PUT /:id/mode
 ```
@@ -369,7 +376,7 @@ Route: GET /preferences
 Route: POST /preferences
 ```
 
-### `src/server/reservations.ts` (1893 lines)
+### `src/server/reservations.ts` (1918 lines)
 ```typescript
 Route: GET /limits
 export function getMaskedInstrumentName(type?: string | null): string
@@ -381,7 +388,7 @@ Route: GET /:id
 Route: GET /
 ```
 
-### `src/server/session-manager.ts` (310 lines)
+### `src/server/session-manager.ts` (313 lines)
 ```typescript
 export interface SessionUser
 export interface ActiveSession
@@ -395,7 +402,7 @@ export async function withUserContext<T>(
 
 ## Services & Business Logic
 
-### `src/services/reservation-logic.ts` (3277 lines)
+### `src/services/reservation-logic.ts` (4268 lines)
 ```typescript
 export interface TimeSlot
 export interface ReservationSubmissionInput
@@ -412,7 +419,7 @@ export async function evaluateReservationSubmission(
 export async function autoRejectOverlappingPending(
 export async function createReservation(input: ReservationSubmissionInput)
 export async function createReservationSeries(input: SeriesSubmissionInput)
-// ... +19 more signatures
+// ... +25 more signatures
 ```
 
 ## Utilities & Lib
@@ -536,7 +543,7 @@ export async function sendPushToAdmins(
 export async function sendTestPushToSubscription(
 ```
 
-### `src/lib/push-vapid.ts` (94 lines)
+### `src/lib/push-vapid.ts` (118 lines)
 ```typescript
 export function isPushConfigured(): boolean
 export function getVapidKeys(): VapidKeys | null
@@ -585,12 +592,13 @@ export async function ensureEnhancedColumns(): Promise<void>
 export async function ensurePushTables(): Promise<void>
 ```
 
-### `src/db/schema.ts` (485 lines)
+### `src/db/schema.ts` (545 lines)
 ```typescript
 export const tstzrange = customType<
 export const users = pgTable(
 export const admins = pgTable(
 export const instruments = pgTable(
+export const instrumentTypeSettings = pgTable("instrument_type_settings",
 export const reservationSeries = pgTable(
 export const reservations = pgTable(
 export const messages = pgTable("messages",
@@ -599,23 +607,22 @@ export const hardLimits = pgTable("hard_limits",
 export const paymentSettings = pgTable("payment_settings",
 export const notificationSettings = pgTable("notification_settings",
 export const trustedStatusAuditLog = pgTable(
+export const musicianStatusAuditLog = pgTable(
 export const failedLoginAttempts = pgTable("failed_login_attempts",
-export const sessions = pgTable("sessions",
-export const passwordResetOtps = pgTable(
-// ... +11 more signatures
+// ... +14 more signatures
 ```
 
-### `src/db/seed-super-admin.ts` (125 lines)
+### `src/db/seed-super-admin.ts` (139 lines)
 ```typescript
 export async function seedSuperAdmin(): Promise<void>
 ```
 
 ## Contexts & Core
 
-### `src/App.tsx` (1520 lines)
+### `src/App.tsx` (1526 lines)
 *No top-level exports or routes detected*
 
-### `src/contexts/AuthContext.tsx` (403 lines)
+### `src/contexts/AuthContext.tsx` (404 lines)
 ```typescript
 export interface UserProfile
 export const AuthProvider: React.FC<

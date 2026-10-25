@@ -41,7 +41,7 @@ export interface UserDetailModalProps {
   sessionToken?: string | null;
   onUserUpdated?: () => void;
   zIndexClass?: string;
-  onPromoteUser?: (userId: string, name: string) => void;
+  onPromoteUser?: (userId: string, name: string, isMusician?: boolean) => void;
   onDeleteUser?: (userId: string, name: string) => void;
   onBookOnBehalf?: (user: any) => void;
 }
@@ -111,6 +111,9 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [isTogglingTrust, setIsTogglingTrust] = useState<boolean>(false);
   const [confirmToggleTrust, setConfirmToggleTrust] = useState<boolean>(false);
+  const [isTogglingMusician, setIsTogglingMusician] = useState<boolean>(false);
+  const [confirmToggleMusician, setConfirmToggleMusician] =
+    useState<boolean>(false);
   const [isTogglingActive, setIsTogglingActive] = useState<boolean>(false);
   const [confirmToggleActive, setConfirmToggleActive] =
     useState<boolean>(false);
@@ -233,6 +236,47 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
       alert(err.message || "Failed to update trusted status");
     } finally {
       setIsTogglingTrust(false);
+    }
+  };
+
+  const handleToggleMusician = async () => {
+    if (!userData) return;
+    setIsTogglingMusician(true);
+    try {
+      const token =
+        sessionToken ||
+        localStorage.getItem("admin_session_token") ||
+        localStorage.getItem("auth_token") ||
+        "";
+
+      const targetStatus = !userData.isMusician;
+      const res = await fetch(
+        `/api/admin/users/${userData.id}/musician-status`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ isMusician: targetStatus }),
+        },
+      );
+
+      const data = await res.json();
+      if (data.success) {
+        setUserData((prev: any) => ({
+          ...prev,
+          isMusician: targetStatus,
+        }));
+        setConfirmToggleMusician(false);
+        if (onUserUpdated) onUserUpdated();
+      } else {
+        alert(data.error || "Failed to update musician status");
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to update musician status");
+    } finally {
+      setIsTogglingMusician(false);
     }
   };
 
@@ -435,7 +479,8 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   // Count of visible action buttons for the compact row grid
   const actionCount = [
     Boolean(onBookOnBehalf),
-    isSuperAdmin,
+    isSuperAdmin, // trusted
+    isSuperAdmin, // musician
     true, // Active toggle is always shown for users
     isSuperAdmin && !!onPromoteUser,
     isSuperAdmin && !!onDeleteUser,
@@ -468,13 +513,25 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                 {userData?.name || t("admin.userDetail.title")}
               </h2>
               {userData && (
-                <div className="mt-0.5">
+                <div className="mt-0.5 flex items-center gap-1 flex-wrap">
                   <RoleBadge
                     role={userData?.role}
                     isSuperAdmin={
                       userData?.isSuperAdmin || userData?.is_super_admin
                     }
                   />
+                  {userData.isMusician && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border bg-indigo-50 text-indigo-800 border-indigo-200">
+                      <Music2 className="w-2.5 h-2.5" />
+                      <span>Musician</span>
+                    </span>
+                  )}
+                  {userData.isTrusted && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border bg-amber-50 text-amber-800 border-amber-200">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      <span>Trusted</span>
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -632,6 +689,50 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                           </div>
                         ))}
 
+                      {/* Musician Status */}
+                      {isSuperAdmin &&
+                        (!confirmToggleMusician ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmToggleMusician(true)}
+                            title={
+                              userData.isMusician
+                                ? "Remove musician status"
+                                : "Grant musician status"
+                            }
+                            className={`flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border transition cursor-pointer active:scale-95 touch-manipulation ${
+                              userData.isMusician
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-800"
+                                : "bg-stone-50 border-stone-200 text-stone-500"
+                            }`}
+                          >
+                            <Music2 className="w-5 h-5 shrink-0" />
+                            <span className="text-[11px] font-bold leading-none">
+                              {userData.isMusician ? "Musician" : "+Musician"}
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmToggleMusician(false)}
+                              className="flex-1 min-h-[56px] rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold active:scale-95 touch-manipulation"
+                              aria-label="Cancel"
+                            >
+                              ✕
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleToggleMusician}
+                              disabled={isTogglingMusician}
+                              className="flex-1 min-h-[56px] rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white text-sm font-bold disabled:opacity-50 active:scale-95 touch-manipulation"
+                              aria-label="Confirm"
+                            >
+                              {isTogglingMusician ? "…" : "✓"}
+                            </button>
+                          </div>
+                        ))}
+
                       {/* Active / Deactivate */}
                       {!confirmToggleActive ? (
                         <button
@@ -686,9 +787,13 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                         <button
                           type="button"
                           onClick={() =>
-                            onPromoteUser(userData.id, userData.name)
+                            onPromoteUser(
+                              userData.id,
+                              userData.name,
+                              userData.isMusician,
+                            )
                           }
-                          title="Promote to Admin"
+                          title="Promote / Manage Role & Privileges"
                           className="flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border bg-stone-50 border-stone-200 text-amber-800 transition cursor-pointer active:scale-95 touch-manipulation"
                         >
                           <ArrowUpCircle className="w-5 h-5 shrink-0" />

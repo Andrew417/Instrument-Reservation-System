@@ -229,6 +229,14 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
             }}
             expandedSeriesIds={admin.expandedSeriesIds}
             setExpandedSeriesIds={admin.setExpandedSeriesIds}
+            openAssignModal={(r, isSeries, isReassign) =>
+              admin.setAssignModal({
+                isOpen: true,
+                reservation: r,
+                isSeries,
+                isReassign,
+              })
+            }
           />
         )}
 
@@ -267,6 +275,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
                 description: "",
                 outsideFeePerDay: "0",
                 bookingMode: "manual",
+                visibilityLevel: "public",
+                isOutOfService: false,
               });
               admin.setShowInstrumentModal(true);
             }}
@@ -282,6 +292,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
                 ),
                 bookingMode:
                   (inst.bookingMode ?? inst.booking_mode) || "manual",
+                visibilityLevel:
+                  (inst.visibilityLevel ?? inst.visibility_level) || "public",
+                isOutOfService: Boolean(
+                  inst.isOutOfService ?? inst.is_out_of_service,
+                ),
               });
               admin.setShowInstrumentModal(true);
             }}
@@ -305,6 +320,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
             handleApproveRegistration={admin.handleApproveRegistration}
             triggerRejectUser={admin.triggerRejectUser}
             setBookOnBehalfUser={admin.setBookOnBehalfUser}
+            isSuperAdmin={admin.isSuperAdmin}
+            onPromoteUser={admin.handleOpenPromoteModal}
           />
         )}
 
@@ -351,6 +368,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
         {admin.activeTab === "trusted_status" && admin.isSuperAdmin && (
           <TrustedStatusTab
             trustedAuditLogs={admin.trustedAuditLogs}
+            musicianAuditLogs={admin.musicianAuditLogs}
             loadingAuditLogs={admin.loadingAuditLogs}
           />
         )}

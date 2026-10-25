@@ -278,6 +278,8 @@ export function useAdminPortalData({
     description: "",
     outsideFeePerDay: "0.00",
     bookingMode: "instant" as "instant" | "manual",
+    visibilityLevel: "public" as "public" | "musician" | "room_stock",
+    isOutOfService: false,
   });
   const [removingInstrument, setRemovingInstrument] = useState<any | null>(
     null,
@@ -322,6 +324,7 @@ export function useAdminPortalData({
   }, [approvalsList]);
 
   const [trustedAuditLogs, setTrustedAuditLogs] = useState<any[]>([]);
+  const [musicianAuditLogs, setMusicianAuditLogs] = useState<any[]>([]);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState<boolean>(false);
 
   const [messagingReservations, setMessagingReservations] = useState<any[]>([]);
@@ -415,12 +418,15 @@ export function useAdminPortalData({
     isOpen: boolean;
     userId: string;
     userName: string;
-    role: "admin" | "super_admin";
+    role: "admin" | "super_admin" | "musician";
+    isMusician?: boolean;
   } | null>(null);
 
   const [assignModal, setAssignModal] = useState<{
     isOpen: boolean;
     reservation: any | null;
+    isSeries?: boolean;
+    isReassign?: boolean;
   } | null>(null);
 
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
@@ -603,13 +609,22 @@ export function useAdminPortalData({
   const fetchAuditLogs = async () => {
     setLoadingAuditLogs(true);
     try {
-      const res = await adminFetch("/trusted-audit-logs");
-      const data = await res.json();
-      if (data.success) {
-        setTrustedAuditLogs(data.auditLogs || data.logs || []);
+      const [trustedRes, musicianRes] = await Promise.all([
+        adminFetch("/trusted-audit-logs"),
+        adminFetch("/musician-audit-logs"),
+      ]);
+      const [trustedData, musicianData] = await Promise.all([
+        trustedRes.json(),
+        musicianRes.json(),
+      ]);
+      if (trustedData.success) {
+        setTrustedAuditLogs(trustedData.auditLogs || trustedData.logs || []);
+      }
+      if (musicianData.success) {
+        setMusicianAuditLogs(musicianData.auditLogs || musicianData.logs || []);
       }
     } catch {
-      showNotice("Failed to load trusted audit logs", "error");
+      showNotice("Failed to load audit logs", "error");
     } finally {
       setLoadingAuditLogs(false);
     }
@@ -975,6 +990,8 @@ export function useAdminPortalData({
       description: "",
       outsideFeePerDay: "0",
       bookingMode: "manual",
+      visibilityLevel: "public",
+      isOutOfService: false,
     });
     setShowInstrumentModal(true);
   };
@@ -990,6 +1007,8 @@ export function useAdminPortalData({
         inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? "0",
       ),
       bookingMode: (inst.bookingMode ?? inst.booking_mode) || "manual",
+      visibilityLevel: (inst.visibilityLevel ?? inst.visibility_level) || "public",
+      isOutOfService: Boolean(inst.isOutOfService ?? inst.is_out_of_service),
     });
     setShowInstrumentModal(true);
   };
@@ -1256,18 +1275,50 @@ export function useAdminPortalData({
     });
   };
 
-  const handleOpenPromoteModal = (userId: string, userName: string) => {
+  const handleOpenPromoteModal = (
+    userId: string,
+    userName: string,
+    isMusician?: boolean,
+  ) => {
     setPromoteModal({
       isOpen: true,
       userId,
       userName,
-      role: "admin",
+      role: "musician",
+      isMusician: Boolean(isMusician),
     });
   };
 
-  const executePromoteUser = async (targetRole: "admin" | "super_admin") => {
+  const executePromoteUser = async (
+    targetRole: "admin" | "super_admin" | "musician",
+  ) => {
     if (!promoteModal) return;
     try {
+      if (targetRole === "musician") {
+        const nextMusician = !promoteModal.isMusician;
+        const res = await adminFetch(
+          `/users/${promoteModal.userId}/musician-status`,
+          {
+            method: "POST",
+            body: JSON.stringify({ isMusician: nextMusician }),
+          },
+        );
+        const data = await res.json();
+        if (data.success) {
+          showNotice(
+            nextMusician
+              ? `Granted Church Musician role to ${promoteModal.userName} 🎵`
+              : `Revoked Church Musician role from ${promoteModal.userName}`,
+          );
+          setPromoteModal(null);
+          fetchUsers();
+          setInternalSelectedUserId(null);
+        } else {
+          showNotice(data.error || "Failed to update musician status", "error");
+        }
+        return;
+      }
+
       const res = await adminFetch(`/users/${promoteModal.userId}/promote`, {
         method: "POST",
         body: JSON.stringify({ role: targetRole }),
@@ -1791,6 +1842,7 @@ export function useAdminPortalData({
     approvalActionId,
     approvalCounts,
     trustedAuditLogs,
+    musicianAuditLogs,
     loadingAuditLogs,
     messagingReservations,
     loadingMessagingReservations,

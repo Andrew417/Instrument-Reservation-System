@@ -26,21 +26,26 @@ interface SortState {
 
 interface TrustedStatusTabProps {
   trustedAuditLogs: TrustedStatusAuditLogItem[];
+  musicianAuditLogs?: TrustedStatusAuditLogItem[];
   loadingAuditLogs: boolean;
 }
 
 export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
   trustedAuditLogs,
+  musicianAuditLogs = [],
   loadingAuditLogs,
 }) => {
   const { t } = useTranslation();
+  const [activeLogType, setActiveLogType] = React.useState<"trusted" | "musician">("trusted");
   const [sort, setSort] = React.useState<SortState>({
     key: "created_at",
     direction: "desc",
   });
 
+  const currentLogs = activeLogType === "trusted" ? trustedAuditLogs : musicianAuditLogs;
+
   const sortedAuditLogs = React.useMemo(() => {
-    return [...trustedAuditLogs].sort((left, right) => {
+    return [...currentLogs].sort((left, right) => {
       const leftValue =
         sort.key === "created_at"
           ? new Date(left.created_at).getTime()
@@ -54,7 +59,7 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
       if (leftValue > rightValue) return sort.direction === "asc" ? 1 : -1;
       return 0;
     });
-  }, [sort, trustedAuditLogs]);
+  }, [sort, currentLogs]);
 
   const handleSort = (key: SortKey) => {
     setSort((current) => ({
@@ -86,14 +91,47 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
   );
 
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
-      <div className="border-b border-stone-100 pb-3">
-        <h2 className="font-bold text-stone-900 text-sm">
-          {t("admin.trustedStatus.title")}
-        </h2>
-        <p className="text-xs text-stone-500">
-          {t("admin.trustedStatus.subtitle")}
-        </p>
+    <div className="bg-white border border-stone-200 rounded-2xl p-3.5 sm:p-5 shadow-2xs space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-100 pb-3">
+        <div>
+          <h2 className="font-bold text-stone-900 text-sm">
+            {activeLogType === "trusted"
+              ? t("admin.trustedStatus.title")
+              : t("admin.musicianStatus.title", { defaultValue: "Musician Status Audit Log" })}
+          </h2>
+          <p className="text-xs text-stone-500">
+            {activeLogType === "trusted"
+              ? t("admin.trustedStatus.subtitle")
+              : t("admin.musicianStatus.subtitle", {
+                  defaultValue: "Audit history of musician role grants and revocations by Super Admins.",
+                })}
+          </p>
+        </div>
+
+        <div className="flex p-1 bg-stone-100 rounded-xl text-xs font-semibold gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveLogType("trusted")}
+            className={`py-1.5 px-3 rounded-lg transition cursor-pointer ${
+              activeLogType === "trusted"
+                ? "bg-white text-stone-900 shadow-2xs font-bold"
+                : "text-stone-500 hover:text-stone-900"
+            }`}
+          >
+            {t("admin.trustedStatus.tabTrusted", { defaultValue: "Trusted Logs" })}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveLogType("musician")}
+            className={`py-1.5 px-3 rounded-lg transition cursor-pointer ${
+              activeLogType === "musician"
+                ? "bg-white text-indigo-950 shadow-2xs font-bold"
+                : "text-stone-500 hover:text-stone-900"
+            }`}
+          >
+            {t("admin.trustedStatus.tabMusician", { defaultValue: "Musician Logs" })}
+          </button>
+        </div>
       </div>
 
       {loadingAuditLogs ? (
@@ -101,13 +139,13 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
           <RefreshCw className="w-4 h-4 animate-spin text-amber-700" />
           <div className="text-xs">{t("admin.trustedStatus.loading")}</div>
         </div>
-      ) : trustedAuditLogs.length === 0 ? (
+      ) : currentLogs.length === 0 ? (
         <div className="py-12 text-center text-stone-400 text-xs">
           {t("admin.trustedStatus.empty")}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+          <table className="w-full text-left text-xs border-collapse min-w-[540px]">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                 <th className="py-2.5 px-3">
