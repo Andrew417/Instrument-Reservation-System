@@ -87,7 +87,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<CandidateItem[]>([]);
-  const [seriesCandidates, setSeriesCandidates] = useState<SeriesAggregateCandidate[]>([]);
+  const [seriesCandidates, setSeriesCandidates] = useState<
+    SeriesAggregateCandidate[]
+  >([]);
   const [requestedType, setRequestedType] = useState<string>("");
   const [selectedInstId, setSelectedInstId] = useState<string>("");
   const [rejectConflicting, setRejectConflicting] = useState<boolean>(false);
@@ -109,12 +111,16 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
   }, [isOpen, onClose]);
 
   const seriesId = reservation?.series_id || reservation?.seriesId;
-  const effectiveIsSeries = Boolean(isSeries || (seriesId && reservation?.isSeriesAssign));
+  const effectiveIsSeries = Boolean(
+    isSeries || (seriesId && reservation?.isSeriesAssign),
+  );
 
   useEffect(() => {
     if (!isOpen || !reservation?.id) return;
 
-    setSelectedInstId(reservation.instrument_id || reservation.instrumentId || "");
+    setSelectedInstId(
+      reservation.instrument_id || reservation.instrumentId || "",
+    );
     setErrorMsg(null);
     setSearchQuery("");
     setReassignReason("");
@@ -145,12 +151,20 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
           throw new Error(data.error || "Failed to load candidate instruments");
         }
 
-        setRequestedType(data.requestedType || reservation.requested_type || reservation.requestedType || "");
+        setRequestedType(
+          data.requestedType ||
+            reservation.requested_type ||
+            reservation.requestedType ||
+            "",
+        );
 
         if (effectiveIsSeries) {
-          const list: SeriesAggregateCandidate[] = data.aggregateCandidates || [];
+          const list: SeriesAggregateCandidate[] =
+            data.aggregateCandidates || [];
           setSeriesCandidates(list);
-          const firstFree = list.find((c) => c.freeOnAllDates && !c.isOutOfService);
+          const firstFree = list.find(
+            (c) => c.freeOnAllDates && !c.isOutOfService,
+          );
           if (firstFree) {
             setSelectedInstId(firstFree.instrument.id);
           } else if (list.length > 0 && !list[0].isOutOfService) {
@@ -206,14 +220,22 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInstId) {
-      setErrorMsg(isAr ? "يرجى اختيار آلة للتخصيص." : "Please select an instrument to assign.");
+      setErrorMsg(
+        isAr
+          ? "يرجى اختيار آلة للتخصيص."
+          : "Please select an instrument to assign.",
+      );
       return;
     }
 
     if (!effectiveIsSeries) {
       const single = candidates.find((c) => c.instrument.id === selectedInstId);
       if (single?.status === "out_of_service") {
-        setErrorMsg(isAr ? "لا يمكن تخصيص آلة خارج الخدمة." : "Cannot assign an out-of-service instrument.");
+        setErrorMsg(
+          isAr
+            ? "لا يمكن تخصيص آلة خارج الخدمة."
+            : "Cannot assign an out-of-service instrument.",
+        );
         return;
       }
       if (single?.status === "busy") {
@@ -225,9 +247,15 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
         return;
       }
     } else {
-      const sc = seriesCandidates.find((c) => c.instrument.id === selectedInstId);
+      const sc = seriesCandidates.find(
+        (c) => c.instrument.id === selectedInstId,
+      );
       if (sc?.isOutOfService) {
-        setErrorMsg(isAr ? "لا يمكن تخصيص آلة خارج الخدمة." : "Cannot assign an out-of-service instrument.");
+        setErrorMsg(
+          isAr
+            ? "لا يمكن تخصيص آلة خارج الخدمة."
+            : "Cannot assign an out-of-service instrument.",
+        );
         return;
       }
       if (!sc?.freeOnAllDates && !rejectConflicting) {
@@ -377,7 +405,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
             {errorMsg && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-3.5 text-xs text-red-900 flex items-start gap-2.5 animate-in fade-in">
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                <span className="leading-relaxed font-semibold">{errorMsg}</span>
+                <span className="leading-relaxed font-semibold">
+                  {errorMsg}
+                </span>
               </div>
             )}
 
@@ -389,7 +419,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     {isAr ? "الخدمة المطلوبة" : "Requested Service"}
                   </span>
                   <span className="font-bold text-stone-900 text-sm block truncate">
-                    {reservation.service_name || reservation.serviceName || "Church Service"}
+                    {reservation.service_name ||
+                      reservation.serviceName ||
+                      "Church Service"}
                   </span>
                 </div>
                 <div className="text-end shrink-0">
@@ -419,15 +451,20 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                 <span className="flex items-center gap-1 font-bold text-stone-900">
                   <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                   <span>
-                    {reservation.start_hhmm && formatHhmmTo12Hour(reservation.start_hhmm)} –{" "}
-                    {reservation.end_hhmm && formatHhmmTo12Hour(reservation.end_hhmm)}
+                    {reservation.start_hhmm &&
+                      formatHhmmTo12Hour(reservation.start_hhmm)}{" "}
+                    –{" "}
+                    {reservation.end_hhmm &&
+                      formatHhmmTo12Hour(reservation.end_hhmm)}
                   </span>
                 </span>
                 {requestedType && (
                   <>
                     <span>•</span>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                      {isAr ? `نوع الآلة: ${requestedType}` : `Type: ${requestedType}`}
+                      {isAr
+                        ? `نوع الآلة: ${requestedType}`
+                        : `Type: ${requestedType}`}
                     </span>
                   </>
                 )}
@@ -452,7 +489,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
                       <div>
                         <span className="font-bold block">
-                          {isAr ? "ملاحظة: تجاوز هذا الطلب حدود الحجز التالية:" : "Notice: This request exceeded limits:"}
+                          {isAr
+                            ? "ملاحظة: تجاوز هذا الطلب حدود الحجز التالية:"
+                            : "Notice: This request exceeded limits:"}
                         </span>
                         <ul className="list-disc list-inside space-y-0.5 mt-0.5 text-amber-800">
                           {limits.map((l, i) => (
@@ -474,7 +513,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                   htmlFor="reassign-reason"
                   className="block text-xs font-bold text-stone-800"
                 >
-                  {isAr ? "سبب إعادة التخصيص للمستخدم:" : "Reason for Reassignment (sent to user):"}
+                  {isAr
+                    ? "سبب إعادة التخصيص للمستخدم:"
+                    : "Reason for Reassignment (sent to user):"}
                 </label>
                 <input
                   id="reassign-reason"
@@ -510,7 +551,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={isAr ? "بحث بالاسم..." : "Search instruments..."}
+                    placeholder={
+                      isAr ? "بحث بالاسم..." : "Search instruments..."
+                    }
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl ps-8 pe-3 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-700/30"
                   />
                 </div>
@@ -538,7 +581,9 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     const isSelected = selectedInstId === inst.id;
 
                     const isOutOfService = Boolean(
-                      item.isOutOfService ?? inst.isOutOfService ?? inst.is_out_of_service,
+                      item.isOutOfService ??
+                      inst.isOutOfService ??
+                      inst.is_out_of_service,
                     );
                     const isBusy = effectiveIsSeries
                       ? !item.freeOnAllDates
@@ -546,7 +591,8 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                     const isFree = !isOutOfService && !isBusy;
 
                     const photo = inst.photoUrl || inst.photo_url;
-                    const level = inst.visibilityLevel || inst.visibility_level || "public";
+                    const level =
+                      inst.visibilityLevel || inst.visibility_level || "public";
 
                     return (
                       <button
@@ -583,58 +629,67 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                             )}
                           </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-bold text-xs text-stone-900 truncate block">
-                                {inst.name}
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="flex items-start gap-1 min-w-0 font-bold text-xs text-stone-900">
+                                {isSelected && (
+                                  <CheckCircle2
+                                    className={`w-4 h-4 shrink-0 ${
+                                      isBusy
+                                        ? "text-amber-600"
+                                        : "text-emerald-700"
+                                    }`}
+                                  />
+                                )}
+                                <span className="min-w-0 break-words">
+                                  {inst.name}
+                                </span>
                               </span>
-                              {isSelected && (
-                                <CheckCircle2
-                                  className={`w-4 h-4 shrink-0 ${
-                                    isBusy ? "text-amber-600" : "text-emerald-700"
-                                  }`}
-                                />
+                              <span className="shrink-0">
+                                {getVisibilityBadge(level)}
+                              </span>
+                            </div>
+
+                            <div className="text-[10px]">
+                              {isOutOfService ? (
+                                <span className="text-red-700 font-bold flex items-center gap-1">
+                                  <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" />
+                                  <span>
+                                    {isAr
+                                      ? "خارج الخدمة (معطلة)"
+                                      : "Out of Service"}
+                                  </span>
+                                </span>
+                              ) : isBusy ? (
+                                <span className="text-amber-800 font-semibold flex items-start gap-1">
+                                  <ShieldAlert className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                                  <span className="min-w-0 break-words whitespace-normal">
+                                    {effectiveIsSeries
+                                      ? isAr
+                                        ? `تعارض في ${item.conflictDatesCount} مواعيد`
+                                        : `Conflicts in ${item.conflictDatesCount} date(s)`
+                                      : item.statusReason ||
+                                        (isAr
+                                          ? "مشغولة في هذا الموعد"
+                                          : "Busy in this slot")}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                  <span>
+                                    {effectiveIsSeries
+                                      ? isAr
+                                        ? "متاحة في كل مواعيد السلسلة"
+                                        : "Free on all series dates"
+                                      : isAr
+                                        ? "متاحة (جاهزة للتخصيص)"
+                                        : "Free (Available)"}
+                                  </span>
+                                </span>
                               )}
                             </div>
-
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              {getVisibilityBadge(level)}
-                            </div>
                           </div>
-                        </div>
-
-                        {/* Availability ribbon */}
-                        <div className="pt-1.5 border-t border-stone-100 flex items-center justify-between gap-1 text-[10px]">
-                          {isOutOfService ? (
-                            <span className="text-red-700 font-bold flex items-center gap-1">
-                              <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" />
-                              <span>{isAr ? "خارج الخدمة (معطلة)" : "Out of Service"}</span>
-                            </span>
-                          ) : isBusy ? (
-                            <span className="text-amber-800 font-semibold truncate flex items-center gap-1">
-                              <ShieldAlert className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span className="truncate">
-                                {effectiveIsSeries
-                                  ? isAr
-                                    ? `تعارض في ${item.conflictDatesCount} مواعيد`
-                                    : `Conflicts in ${item.conflictDatesCount} date(s)`
-                                  : item.statusReason || (isAr ? "مشغولة في هذا الموعد" : "Busy in this slot")}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-emerald-700 font-bold flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                              <span>
-                                {effectiveIsSeries
-                                  ? isAr
-                                    ? "متاحة في كل مواعيد السلسلة"
-                                    : "Free on all series dates"
-                                  : isAr
-                                    ? "متاحة (جاهزة للتخصيص)"
-                                    : "Free (Available)"}
-                              </span>
-                            </span>
-                          )}
                         </div>
                       </button>
                     );
@@ -645,8 +700,10 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
               {/* Series conflict resolution toggle */}
               {effectiveIsSeries &&
                 selectedCandidate &&
-                !(selectedCandidate as SeriesAggregateCandidate).freeOnAllDates &&
-                !(selectedCandidate as SeriesAggregateCandidate).isOutOfService && (
+                !(selectedCandidate as SeriesAggregateCandidate)
+                  .freeOnAllDates &&
+                !(selectedCandidate as SeriesAggregateCandidate)
+                  .isOutOfService && (
                   <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 space-y-2 animate-in fade-in">
                     <div className="font-bold flex items-center gap-1.5 text-amber-900">
                       <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
@@ -710,22 +767,32 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                 submitting ||
                 !selectedInstId ||
                 (!effectiveIsSeries &&
-                  candidates.find((c) => c.instrument.id === selectedInstId)?.status !== "free") ||
+                  candidates.find((c) => c.instrument.id === selectedInstId)
+                    ?.status !== "free") ||
                 (effectiveIsSeries &&
-                  seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.isOutOfService) ||
+                  seriesCandidates.find(
+                    (c) => c.instrument.id === selectedInstId,
+                  )?.isOutOfService) ||
                 (effectiveIsSeries &&
-                  !seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.freeOnAllDates &&
+                  !seriesCandidates.find(
+                    (c) => c.instrument.id === selectedInstId,
+                  )?.freeOnAllDates &&
                   !rejectConflicting)
               }
               className={`min-h-[42px] px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] touch-manipulation ${
                 submitting ||
                 !selectedInstId ||
                 (!effectiveIsSeries &&
-                  candidates.find((c) => c.instrument.id === selectedInstId)?.status !== "free") ||
+                  candidates.find((c) => c.instrument.id === selectedInstId)
+                    ?.status !== "free") ||
                 (effectiveIsSeries &&
-                  seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.isOutOfService) ||
+                  seriesCandidates.find(
+                    (c) => c.instrument.id === selectedInstId,
+                  )?.isOutOfService) ||
                 (effectiveIsSeries &&
-                  !seriesCandidates.find((c) => c.instrument.id === selectedInstId)?.freeOnAllDates &&
+                  !seriesCandidates.find(
+                    (c) => c.instrument.id === selectedInstId,
+                  )?.freeOnAllDates &&
                   !rejectConflicting)
                   ? "bg-stone-300 text-stone-500 cursor-not-allowed shadow-none"
                   : "bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white shadow-md hover:shadow-lg"

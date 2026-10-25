@@ -74,6 +74,7 @@ export interface ReservationDetailModalProps {
   initialTab?: "details" | "chat";
   onOpenUserProfile?: (userId: string) => void;
   zIndexClass?: string;
+  onAssignInstrument?: (reservation: any) => void;
 }
 
 export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
@@ -88,6 +89,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
   initialTab = "details",
   onOpenUserProfile,
   zIndexClass = "z-50",
+  onAssignInstrument,
 }) => {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
@@ -949,20 +951,29 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     })[status] || status;
 
   const canCancelNow = !isPast && !isCancelled && !isCompleted;
-  const showApprove = isAdminViewer && isPending;
+  const needsAssignment = Boolean(
+    reservation.is_type_request && !reservation.instrument_id,
+  );
+  const showApprove = isAdminViewer && isPending && !needsAssignment;
+  const showAssign =
+    isAdminViewer &&
+    isPending &&
+    needsAssignment &&
+    Boolean(onAssignInstrument);
   const showReject = isAdminViewer && isPending;
   const showSavePayment =
     !isAdminViewer &&
     isOutsideChurch &&
     isApprovedOutsideChurch &&
     canCancelNow;
-  const showCancel = canCancelNow && !showApprove;
+  const showCancel = canCancelNow && !showApprove && !showAssign;
   const showNoShowToggle =
     isAdminViewer && isCompleted && (canMarkNoShow || canUnmarkNoShow);
   const showMoreButton =
     reservation.status !== "cancelled" && !isPast && !isCompleted;
   const showFooter =
     showApprove ||
+    showAssign ||
     showReject ||
     showSavePayment ||
     showCancel ||
@@ -2274,6 +2285,22 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <Trash2 className="w-4 h-4 shrink-0" />
                 <span className="hidden sm:inline">
                   {t("reservationDetail.cancelReservation")}
+                </span>
+              </button>
+            )}
+
+            {showAssign && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onAssignInstrument?.(reservation);
+                }}
+                className="flex-1 py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-[11px] sm:text-xs font-bold text-white transition flex items-center justify-center gap-2 cursor-pointer touch-manipulation bg-purple-700 hover:bg-purple-800 active:scale-[0.99] shadow-md"
+              >
+                <Music2 className="w-4 h-4 shrink-0" />
+                <span className="truncate">
+                  {isRTL ? "تخصيص آلة" : "Assign Instrument"}
                 </span>
               </button>
             )}

@@ -623,7 +623,11 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                     <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                       <button
                         type="button"
-                        onClick={() => handleApprove(occ.id)}
+                        onClick={() =>
+                          occ.is_type_request && !occ.instrument_id
+                            ? openAssignModal?.(occ, false, false)
+                            : handleApprove(occ.id)
+                        }
                         className="min-h-[28px] px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
                         title={t("admin.review.approveDateOnly", {
                           defaultValue: "Approve this date only",
@@ -631,9 +635,13 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                       >
                         <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                         <span>
-                          {t("admin.review.approveOccurrenceBtn", {
-                            defaultValue: "Approve",
-                          })}
+                          {occ.is_type_request && !occ.instrument_id
+                            ? isAr
+                              ? "تخصيص آلة"
+                              : "Assign Instrument"
+                            : t("admin.review.approveOccurrenceBtn", {
+                                defaultValue: "Approve",
+                              })}
                         </span>
                       </button>
                       <button
@@ -836,8 +844,7 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                       <button
                         type="button"
                         onClick={() =>
-                          openAssignModal &&
-                          openAssignModal(r, false, false)
+                          openAssignModal && openAssignModal(r, false, false)
                         }
                         className="flex-1 sm:flex-none min-h-[32px] px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 active:bg-purple-900 text-white text-xs font-bold transition-all duration-150 cursor-pointer shadow-xs hover:shadow flex items-center justify-center gap-1.5 touch-manipulation active:scale-[0.98] whitespace-nowrap"
                         title="Allocate instrument & approve"

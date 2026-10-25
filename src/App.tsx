@@ -13,6 +13,7 @@ import { InstrumentDetailModal } from "./components/InstrumentDetailModal.tsx";
 import { MyReservations } from "./components/MyReservations.tsx";
 import { ReservationDetailModal } from "./components/ReservationDetailModal.tsx";
 import { EditReservationModal } from "./components/EditReservationModal.tsx";
+import { AssignInstrumentModal } from "./components/AssignInstrumentModal.tsx";
 import { NotificationsModal } from "./components/NotificationsModal.tsx";
 import { AdminPortal } from "./components/AdminPortal.tsx";
 import { getTodayDateString } from "./lib/date-utils";
@@ -161,7 +162,13 @@ const UserPortalMain: React.FC = () => {
     "calendar" | "my_reservations" | "admin_portal" | "notifications"
   >("calendar");
   const [initialAdminTab, setInitialAdminTab] = useState<
-    "dashboard" | "review" | "approvals" | "instruments" | "users" | "analytics" | "messaging"
+    | "dashboard"
+    | "review"
+    | "approvals"
+    | "instruments"
+    | "users"
+    | "analytics"
+    | "messaging"
   >("dashboard");
 
   // Modals & Active Selections
@@ -191,6 +198,9 @@ const UserPortalMain: React.FC = () => {
     "reservation_over_user" | "user_over_reservation"
   >("user_over_reservation");
   const [editingReservation, setEditingReservation] = useState<any | null>(
+    null,
+  );
+  const [assigningReservation, setAssigningReservation] = useState<any | null>(
     null,
   );
 
@@ -248,7 +258,8 @@ const UserPortalMain: React.FC = () => {
     isMinistryProfileModalOpen ||
     conditionCheckReservation ||
     selectedUserId ||
-    selectedInstrument,
+    selectedInstrument ||
+    assigningReservation,
   );
 
   const handleOpenUserProfile = (userId: string) => {
@@ -294,11 +305,19 @@ const UserPortalMain: React.FC = () => {
           setSelectedReservationDetailId(resId);
           setReservationDetailInitialTab(tab || "details");
           setReservationDetailFromNotifications(true);
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
         } else if (adminTab && isAdminOrSuperAdmin) {
           setInitialAdminTab(adminTab as any);
           setCurrentView("admin_portal");
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
         }
       } catch {
         // non-fatal
@@ -790,9 +809,34 @@ const UserPortalMain: React.FC = () => {
           onNavigateToReservation={(id) => {
             setSelectedReservationDetailId(id);
           }}
+          onAssignInstrument={
+            isAdminOrSuperAdmin
+              ? (reservation) => {
+                  setSelectedReservationDetailId(null);
+                  setAssigningReservation(reservation);
+                }
+              : undefined
+          }
           onOpenUserProfile={
             isAdminOrSuperAdmin ? handleOpenUserProfile : undefined
           }
+        />
+      )}
+
+      {/* Assign Instrument Modal (opened in place from the reservation detail) */}
+      {assigningReservation && (
+        <AssignInstrumentModal
+          isOpen={true}
+          reservation={assigningReservation}
+          isSeries={Boolean(
+            assigningReservation.series_id || assigningReservation.seriesId,
+          )}
+          isReassign={false}
+          onClose={() => setAssigningReservation(null)}
+          onSuccess={() => {
+            setAssigningReservation(null);
+            setRefreshTrigger((prev) => prev + 1);
+          }}
         />
       )}
 

@@ -919,6 +919,25 @@ router.post(
     try {
       const { id } = req.params;
       const { assignInstrumentId, serviceLocation } = req.body || {};
+      const [approveTarget] = await db
+        .select({
+          isTypeRequest: reservations.isTypeRequest,
+          instrumentId: reservations.instrumentId,
+        })
+        .from(reservations)
+        .where(eq(reservations.id, id))
+        .limit(1);
+      if (
+        approveTarget?.isTypeRequest &&
+        !approveTarget.instrumentId &&
+        !assignInstrumentId
+      ) {
+        res.status(400).json({
+          success: false,
+          error: "Assign an instrument before approving this category request.",
+        });
+        return;
+      }
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
       const result = await adminApproveReservation(id, adminId, {
@@ -1235,7 +1254,9 @@ router.post(
       const { id } = req.params;
       const { instrumentId } = req.body;
       if (!instrumentId) {
-        res.status(400).json({ success: false, error: "Instrument ID is required." });
+        res
+          .status(400)
+          .json({ success: false, error: "Instrument ID is required." });
         return;
       }
       const adminId =
@@ -1260,9 +1281,12 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
-      const { instrumentId, rejectConflicting, conflictRejectionReason } = req.body;
+      const { instrumentId, rejectConflicting, conflictRejectionReason } =
+        req.body;
       if (!instrumentId) {
-        res.status(400).json({ success: false, error: "Instrument ID is required." });
+        res
+          .status(400)
+          .json({ success: false, error: "Instrument ID is required." });
         return;
       }
       const adminId =
@@ -1298,12 +1322,19 @@ router.post(
       const { newInstrumentId, instrumentId, reason } = req.body;
       const targetId = newInstrumentId || instrumentId;
       if (!targetId) {
-        res.status(400).json({ success: false, error: "Target instrument ID is required." });
+        res
+          .status(400)
+          .json({ success: false, error: "Target instrument ID is required." });
         return;
       }
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
-      const result = await adminReassignReservation(id, targetId, adminId, reason);
+      const result = await adminReassignReservation(
+        id,
+        targetId,
+        adminId,
+        reason,
+      );
       res.json({
         success: true,
         reservation: result,
@@ -1325,6 +1356,28 @@ router.post(
       const { ids } = req.body;
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const bulkIds: string[] = Array.isArray(ids) ? ids : [];
+      if (bulkIds.length > 0) {
+        const [unassigned] = await db
+          .select({ id: reservations.id })
+          .from(reservations)
+          .where(
+            and(
+              inArray(reservations.id, bulkIds),
+              eq(reservations.isTypeRequest, true),
+              sql`${reservations.instrumentId} IS NULL`,
+            ),
+          )
+          .limit(1);
+        if (unassigned) {
+          res.status(400).json({
+            success: false,
+            error:
+              "Selection includes category requests with no instrument assigned. Assign them first.",
+          });
+          return;
+        }
+      }
       const result = await adminBulkApprove(ids, adminId);
       res.json(result);
     } catch (err: any) {
@@ -1560,6 +1613,25 @@ router.post(
       const { seriesId } = req.params;
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const [unassignedOccurrence] = await db
+        .select({ id: reservations.id })
+        .from(reservations)
+        .where(
+          and(
+            eq(reservations.seriesId, seriesId),
+            eq(reservations.status, "pending"),
+            eq(reservations.isTypeRequest, true),
+            sql`${reservations.instrumentId} IS NULL`,
+          ),
+        )
+        .limit(1);
+      if (unassignedOccurrence) {
+        res.status(400).json({
+          success: false,
+          error: "Assign an instrument to this series before approving it.",
+        });
+        return;
+      }
       const result = await adminApproveSeries(seriesId, adminId);
       res.json({
         success: true,
@@ -1808,7 +1880,9 @@ router.post(
           description: description?.trim() || null,
           outsideFeePerDay: fee,
           bookingMode: mode,
-          visibilityLevel: ["public", "musician", "room_stock"].includes(req.body.visibilityLevel)
+          visibilityLevel: ["public", "musician", "room_stock"].includes(
+            req.body.visibilityLevel,
+          )
             ? req.body.visibilityLevel
             : "public",
           isOutOfService: Boolean(req.body.isOutOfService),
@@ -1873,7 +1947,10 @@ router.put(
       if (bookingMode !== undefined) {
         updates.bookingMode = bookingMode === "manual" ? "manual" : "instant";
       }
-      if (visibilityLevel !== undefined && ["public", "musician", "room_stock"].includes(visibilityLevel)) {
+      if (
+        visibilityLevel !== undefined &&
+        ["public", "musician", "room_stock"].includes(visibilityLevel)
+      ) {
         updates.visibilityLevel = visibilityLevel;
       }
       if (isOutOfService !== undefined) {
@@ -2149,56 +2226,59 @@ router.get("/types", async (_req: Request, res: Response): Promise<void> => {
 /**
  * Update type settings (can_be_requested toggle, flat_fee_outside)
  */
-router.put("/types/:type", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { type } = req.params;
-    const { canBeRequested, flatFeeOutside } = req.body;
+router.put(
+  "/types/:type",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { type } = req.params;
+      const { canBeRequested, flatFeeOutside } = req.body;
 
-    const fee =
-      flatFeeOutside !== undefined
-        ? String(parseFloat(flatFeeOutside) || 0)
-        : "0.00";
-    const canReq = Boolean(canBeRequested);
+      const fee =
+        flatFeeOutside !== undefined
+          ? String(parseFloat(flatFeeOutside) || 0)
+          : "0.00";
+      const canReq = Boolean(canBeRequested);
 
-    const [existing] = await db
-      .select()
-      .from(instrumentTypeSettings)
-      .where(sql`LOWER(${instrumentTypeSettings.type}) = LOWER(${type})`)
-      .limit(1);
+      const [existing] = await db
+        .select()
+        .from(instrumentTypeSettings)
+        .where(sql`LOWER(${instrumentTypeSettings.type}) = LOWER(${type})`)
+        .limit(1);
 
-    let updated;
-    if (existing) {
-      const [row] = await db
-        .update(instrumentTypeSettings)
-        .set({
-          canBeRequested: canReq,
-          flatFeeOutside: fee,
-          updatedAt: new Date(),
-        })
-        .where(eq(instrumentTypeSettings.type, type))
-        .returning();
-      updated = row;
-    } else {
-      const [row] = await db
-        .insert(instrumentTypeSettings)
-        .values({
-          type,
-          canBeRequested: canReq,
-          flatFeeOutside: fee,
-        })
-        .returning();
-      updated = row;
+      let updated;
+      if (existing) {
+        const [row] = await db
+          .update(instrumentTypeSettings)
+          .set({
+            canBeRequested: canReq,
+            flatFeeOutside: fee,
+            updatedAt: new Date(),
+          })
+          .where(eq(instrumentTypeSettings.type, type))
+          .returning();
+        updated = row;
+      } else {
+        const [row] = await db
+          .insert(instrumentTypeSettings)
+          .values({
+            type,
+            canBeRequested: canReq,
+            flatFeeOutside: fee,
+          })
+          .returning();
+        updated = row;
+      }
+
+      res.json({
+        success: true,
+        setting: updated,
+        message: `Type settings for "${type}" updated successfully.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
     }
-
-    res.json({
-      success: true,
-      setting: updated,
-      message: `Type settings for "${type}" updated successfully.`,
-    });
-  } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
+  },
+);
 
 /* =========================================================================
    4. USER MANAGEMENT (Shared: Admin & Super Admin)
@@ -3656,7 +3736,10 @@ router.post(
             : "Your musician role has been updated. Existing bookings stay.",
           tag: `musician-role-${userId}`,
           url: "/?view=calendar",
-          data: { type: "musician_status_change", isMusician: Boolean(isMusician) },
+          data: {
+            type: "musician_status_change",
+            isMusician: Boolean(isMusician),
+          },
         }).catch(() => {});
       } catch {
         // non-fatal
@@ -3762,12 +3845,17 @@ router.post(
     try {
       const { type, canBeRequested, flatFeeOutside } = req.body;
       if (!type || !type.trim()) {
-        res.status(400).json({ success: false, error: "Type name is required." });
+        res
+          .status(400)
+          .json({ success: false, error: "Type name is required." });
         return;
       }
 
       const cleanType = type.trim();
-      const fee = flatFeeOutside !== undefined ? String(parseFloat(flatFeeOutside) || 0) : "0.00";
+      const fee =
+        flatFeeOutside !== undefined
+          ? String(parseFloat(flatFeeOutside) || 0)
+          : "0.00";
 
       const [saved] = await db
         .insert(instrumentTypeSettings)

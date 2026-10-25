@@ -48,6 +48,8 @@ export interface AppNotification {
   start_time_12?: string | null;
   end_time_12?: string | null;
   duration_hours?: number | null;
+  is_type_request?: boolean | null;
+  instrument_id?: string | null;
 }
 
 export interface NotificationsModalProps {
@@ -75,8 +77,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const isAdminViewer = Boolean(
     profile?.role === "admin" ||
-      profile?.role === "super_admin" ||
-      profile?.isSuperAdmin,
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
   );
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -385,8 +387,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           iconBg: "bg-amber-100/90 text-amber-800",
           borderAccent: "border-s-amber-500",
           typeTextColor: "text-amber-900",
-          typeLabel:
-            notif.type === "series_submitted" || notif.series_id
+          typeLabel: notif.is_type_request
+            ? isRTL
+              ? "طلب حجز حسب النوع"
+              : "Type Reservation Request"
+            : notif.type === "series_submitted" || notif.series_id
               ? t("notifications.typeSeriesRequest")
               : t("notifications.typeReservationRequest"),
         };
@@ -402,9 +407,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         };
       case "reservation_instant_approved":
         return {
-          icon: (
-            <Zap className="w-3.5 h-3.5 text-sky-700 shrink-0" />
-          ),
+          icon: <Zap className="w-3.5 h-3.5 text-sky-700 shrink-0" />,
           iconBg: "bg-sky-100/90 text-sky-800",
           borderAccent: "border-s-sky-500",
           typeTextColor: "text-sky-950",
@@ -516,11 +519,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     fallbackInstrument?: string,
     fallbackDate?: string,
   ): string => {
-    const instrument =
+    const instrument = (
       notif.instrument_name ||
       fallbackInstrument ||
       (t("notifications.reservationFallback") as string) ||
-      "Instrument";
+      "Instrument"
+    ).replace(/^\[Type Request\]\s*/i, "");
     const rawDate = notif.reservation_date || fallbackDate || "";
 
     let dayName = "";
@@ -550,7 +554,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           "الجمعة",
           "السبت",
         ];
-        dayName = isRTL ? daysAr[dateUtc.getUTCDay()] : daysEn[dateUtc.getUTCDay()];
+        dayName = isRTL
+          ? daysAr[dateUtc.getUTCDay()]
+          : daysEn[dateUtc.getUTCDay()];
         formattedDate = `${d}-${m}-${y}`;
       }
     } catch {
@@ -573,14 +579,18 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
 
     let timePart = "";
     if (sTime && eTime) {
-      timePart = isRTL ? ` من ${sTime} إلى ${eTime}` : ` from ${sTime} to ${eTime}`;
+      timePart = isRTL
+        ? ` من ${sTime} إلى ${eTime}`
+        : ` from ${sTime} to ${eTime}`;
     } else if (sTime) {
       timePart = isRTL ? ` الساعة ${sTime}` : ` at ${sTime}`;
     }
 
     let durPart = "";
     if (notif.duration_hours && notif.duration_hours > 0) {
-      durPart = isRTL ? ` (${notif.duration_hours} س)` : ` (${notif.duration_hours}h)`;
+      durPart = isRTL
+        ? ` (${notif.duration_hours} س)`
+        : ` (${notif.duration_hours}h)`;
     }
 
     const onWord = isRTL ? "يوم " : "on ";
@@ -678,7 +688,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     {
       type: "reservation_submitted",
       pattern: /^New reservation request from (.+?) for (.+?) on (.+?)\.?$/,
-      translate: (m, notif) => formatMinimalReservationSummary(notif, m[2], m[3]),
+      translate: (m, notif) =>
+        formatMinimalReservationSummary(notif, m[2], m[3]),
     },
     {
       type: "reservation_submitted",
@@ -750,7 +761,13 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     },
   ];
 
-  const getNotificationMessage = (notif: AppNotification): string => {
+  const stripTypeRequestTag = (text: string): string =>
+    text.replace(/\[Type Request\]\s*/gi, "");
+
+  const getNotificationMessage = (notif: AppNotification): string =>
+    stripTypeRequestTag(resolveNotificationMessage(notif));
+
+  const resolveNotificationMessage = (notif: AppNotification): string => {
     try {
       const parsed = JSON.parse(notif.message);
       if (parsed && typeof parsed === "object" && parsed.key) {
@@ -1233,10 +1250,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                   <User className="w-2.5 h-2.5 text-amber-800" />
                                   <span className="truncate max-w-[110px]">
                                     {notifUserName ||
-                                      t(
-                                        "notifications.memberLabel",
-                                        "Member",
-                                      )}
+                                      t("notifications.memberLabel", "Member")}
                                   </span>
                                   <ExternalLink className="w-2 h-2 text-amber-700/60" />
                                 </button>
@@ -1253,9 +1267,17 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                 >
                                   <button
                                     type="button"
-                                    onClick={(e) =>
-                                      handleApproveFromNotification(notif, e)
-                                    }
+                                    onClick={(e) => {
+                                      if (
+                                        notif.is_type_request &&
+                                        !notif.instrument_id
+                                      ) {
+                                        e.stopPropagation();
+                                        handleNotificationClick(notif);
+                                        return;
+                                      }
+                                      handleApproveFromNotification(notif, e);
+                                    }}
                                     disabled={actioningId === notif.id}
                                     className="h-6 px-2 text-[10px] font-bold rounded-md bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex items-center gap-1 active:scale-95 transition shadow-2xs cursor-pointer touch-manipulation disabled:opacity-50"
                                   >
@@ -1264,7 +1286,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                     ) : (
                                       <Check className="w-3 h-3" />
                                     )}
-                                    <span>{t("notifications.approve")}</span>
+                                    <span>
+                                      {notif.is_type_request &&
+                                      !notif.instrument_id
+                                        ? isRTL
+                                          ? "تخصيص آلة"
+                                          : "Assign"
+                                        : t("notifications.approve")}
+                                    </span>
                                   </button>
 
                                   <button

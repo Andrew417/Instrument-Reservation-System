@@ -365,7 +365,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       setErrorMsg(t("reservationForm.musicianNameRequired"));
       return;
     }
-    if (isTypeRequest && (!selectedRequestedType || !selectedRequestedType.trim())) {
+    if (
+      isTypeRequest &&
+      (!selectedRequestedType || !selectedRequestedType.trim())
+    ) {
       setErrorMsg(
         t("reservationForm.msgSelectCategory", {
           defaultValue: "Please select an instrument category.",
@@ -582,9 +585,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         </div>
                       )}
 
-                      <div className="pt-1.5 text-[10px] sm:text-[11px] text-amber-800/90 font-medium">
-                        {t("reservationForm.msgWhatsAppNotice")}
-                      </div>
+                      {reservationType === "outside_church" && (
+                        <div className="pt-1.5 text-[10px] sm:text-[11px] text-amber-800/90 font-medium">
+                          {t("reservationForm.msgWhatsAppNotice")}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -937,8 +942,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                       : "";
                                 return (
                                   <option key={inst.id} value={inst.id}>
-                                    {inst.name} ({inst.type})
-                                    {tag}
+                                    {inst.name} ({inst.type}){tag}
                                   </option>
                                 );
                               })}
@@ -1307,9 +1311,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           aria-live="assertive"
           dir={isAr ? "rtl" : "ltr"}
           className={`fixed inset-x-3 top-4 z-[220] sm:max-w-md animate-in fade-in slide-in-from-top-2 duration-200 ${
-            isAr
-              ? "sm:left-5 sm:right-auto"
-              : "sm:right-5 sm:left-auto"
+            isAr ? "sm:left-5 sm:right-auto" : "sm:right-5 sm:left-auto"
           }`}
         >
           <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 text-red-950 flex items-start gap-3 shadow-2xl">
