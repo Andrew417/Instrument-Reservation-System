@@ -44,8 +44,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const [showUserFilters, setShowUserFilters] = useState(false);
-  const [userFilters, setUserFilters] =
-    useState<ReservationFilterState>({ ...EMPTY_FILTER_STATE });
+  const [userFilters, setUserFilters] = useState<ReservationFilterState>({
+    ...EMPTY_FILTER_STATE,
+  });
   const isAr = i18n.language.startsWith("ar");
 
   const userFilterOptions = useMemo<FilterOptions>(
@@ -311,7 +312,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                           <Plus className="w-3 h-3 text-amber-800 shrink-0" />
                           <span>{t("admin.users.bookFor")}</span>
                         </button>
-
                       </div>
                     </td>
                   </tr>

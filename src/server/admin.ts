@@ -3291,6 +3291,11 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { adminId } = req.params;
+      const { targetRole } = req.body || {};
+      const validTargets = ["user", "musician", "admin", "super_admin"];
+      const finalRole: "user" | "musician" | "admin" | "super_admin" =
+        validTargets.includes(targetRole) ? targetRole : "user";
+
       const [admin] = await db
         .select()
         .from(admins)
@@ -3315,28 +3320,63 @@ router.post(
         return;
       }
 
+      // Case A: Admin ↔ Super Admin (stay in `admins` table, just toggle role)
+      if (finalRole === "admin" || finalRole === "super_admin") {
+        const [updated] = await db
+          .update(admins)
+          .set({
+            role: finalRole,
+            isSuperAdmin: finalRole === "super_admin",
+          })
+          .where(eq(admins.id, admin.id))
+          .returning();
+
+        res.json({
+          success: true,
+          admin: updated,
+          message:
+            finalRole === "super_admin"
+              ? `${admin.name} was promoted to Super Admin.`
+              : `${admin.name} was demoted to Admin.`,
+        });
+        return;
+      }
+
+      // Case B: Admin → User or Musician (move row from admins → users)
       const [existingUser] = await db
         .select()
         .from(users)
         .where(eq(users.phoneNumber, admin.phoneNumber))
         .limit(1);
 
-      const targetUser =
-        existingUser ||
-        (
-          await db
-            .insert(users)
-            .values({
-              name: admin.name,
-              email: admin.email,
-              phoneNumber: admin.phoneNumber,
-              passwordHash: admin.passwordHash,
-              isTrusted: false,
-              isActive: true,
-              approvalStatus: "approved",
-            })
-            .returning()
-        )[0];
+      const nextIsMusician = finalRole === "musician";
+
+      let targetUser: any;
+      if (existingUser) {
+        const [updated] = await db
+          .update(users)
+          .set({ isMusician: nextIsMusician, isActive: true })
+          .where(eq(users.id, existingUser.id))
+          .returning();
+        targetUser = updated;
+      } else {
+        const [inserted] = await db
+          .insert(users)
+          .values({
+            name: admin.name,
+            email: admin.email,
+            phoneNumber: admin.phoneNumber,
+            passwordHash: admin.passwordHash,
+            isTrusted: false,
+            isMusician: nextIsMusician,
+            isActive: true,
+            approvalStatus: "approved",
+            // ✅ Preserve the original join date so they don't appear at the top of the Member Directory
+            createdAt: admin.createdAt || new Date(),
+          })
+          .returning();
+        targetUser = inserted;
+      }
 
       await db
         .update(reservations)
@@ -3350,10 +3390,27 @@ router.post(
       await db.delete(messages).where(eq(messages.adminId, admin.id));
       await db.delete(admins).where(eq(admins.id, admin.id));
 
+      // Notify the demoted user
+      try {
+        await db.insert(notifications).values({
+          userId: targetUser.id,
+          type: "role_changed",
+          message:
+            finalRole === "musician"
+              ? 'Your account has been updated. You now have the "Church Musician" role.'
+              : "Your account has been updated. You are now a regular member.",
+        });
+      } catch {
+        // non-fatal
+      }
+
       res.json({
         success: true,
         user: targetUser,
-        message: `${admin.name} was demoted to a regular member and reservation ownership was reassigned successfully.`,
+        message:
+          finalRole === "musician"
+            ? `${admin.name} was demoted to Musician and reservation ownership was reassigned.`
+            : `${admin.name} was demoted to Member and reservation ownership was reassigned.`,
       });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });

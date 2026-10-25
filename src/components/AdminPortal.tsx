@@ -40,6 +40,143 @@ export interface AdminPortalProps extends UseAdminPortalDataProps {}
 
 export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
   const admin = useAdminPortalData(props);
+  const {
+    setEditingInstrument,
+    setInstrumentForm,
+    setShowInstrumentModal,
+    setRemovingInstrument,
+    setDeletingInstrument,
+    setDeleteConfirmChecked,
+    setAssignModal,
+    setCancelReasonModal,
+    setNewAdminForm,
+    setShowNewAdminModal,
+    setUserSearch,
+    setActiveTab,
+    setFilterQuickTab,
+    setReviewFilters,
+    setHandoverDefaultMode,
+    setHandoverDefaultDate,
+    setHandoverDefaultFormat,
+    setShowHandoverModal,
+    setDashboardSubTab,
+    fetchUpcomingReservations,
+  } = admin;
+
+  const handleOpenCreateInstrument = React.useCallback(() => {
+    setEditingInstrument(null);
+    setInstrumentForm({
+      name: "",
+      type: DEFAULT_INSTRUMENT_TYPE,
+      photoUrl: "",
+      description: "",
+      outsideFeePerDay: "0",
+      bookingMode: "manual",
+      visibilityLevel: "public",
+      isOutOfService: false,
+    });
+    setShowInstrumentModal(true);
+  }, [setEditingInstrument, setInstrumentForm, setShowInstrumentModal]);
+
+  const handleEditInstrument = React.useCallback(
+    (inst: any) => {
+      setEditingInstrument(inst);
+      setInstrumentForm({
+        name: inst.name,
+        type: inst.type,
+        photoUrl: inst.photoUrl || inst.photo_url || "",
+        description: inst.description || "",
+        outsideFeePerDay: String(
+          inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? "0",
+        ),
+        bookingMode: (inst.bookingMode ?? inst.booking_mode) || "manual",
+        visibilityLevel:
+          (inst.visibilityLevel ?? inst.visibility_level) || "public",
+        isOutOfService: Boolean(inst.isOutOfService ?? inst.is_out_of_service),
+      });
+      setShowInstrumentModal(true);
+    },
+    [setEditingInstrument, setInstrumentForm, setShowInstrumentModal],
+  );
+
+  const handleRetireInstrument = React.useCallback(
+    (inst: any) => setRemovingInstrument(inst),
+    [setRemovingInstrument],
+  );
+
+  const handleDeleteInstrument = React.useCallback(
+    (inst: any) => {
+      setDeletingInstrument(inst);
+      setDeleteConfirmChecked(false);
+    },
+    [setDeletingInstrument, setDeleteConfirmChecked],
+  );
+
+  const handleOpenAssignModal = React.useCallback(
+    (r: any, isSeries?: boolean, isReassign?: boolean) => {
+      setAssignModal({ isOpen: true, reservation: r, isSeries, isReassign });
+    },
+    [setAssignModal],
+  );
+
+  const handleOpenCancelModal = React.useCallback(
+    (r: any) => {
+      setCancelReasonModal({
+        isOpen: true,
+        ids: [r.id],
+        preset: "Instrument in maintenance",
+        customText: "",
+        submitting: false,
+      });
+    },
+    [setCancelReasonModal],
+  );
+
+  const handleOpenCreateAdmin = React.useCallback(() => {
+    setNewAdminForm({
+      name: "",
+      email: "",
+      phoneNumber: "",
+      password: "",
+      isSuperAdmin: false,
+    });
+    setShowNewAdminModal(true);
+  }, [setNewAdminForm, setShowNewAdminModal]);
+
+  const handleNavigateToUsersWithSearch = React.useCallback(
+    (name: string) => {
+      setActiveTab("users");
+      setUserSearch(name);
+    },
+    [setActiveTab, setUserSearch],
+  );
+
+  const handleFilterPendingReview = React.useCallback(() => {
+    setActiveTab("review");
+    setFilterQuickTab("pending");
+    setReviewFilters((prev) => ({ ...prev, statuses: ["pending"] }));
+  }, [setActiveTab, setFilterQuickTab, setReviewFilters]);
+
+  const handleSelectDashboardSubTab = React.useCallback(
+    (sub: "today" | "upcoming") => {
+      setActiveTab("dashboard");
+      setDashboardSubTab(sub);
+      if (sub === "upcoming") fetchUpcomingReservations();
+    },
+    [setActiveTab, setDashboardSubTab, fetchUpcomingReservations],
+  );
+
+  const handleExportHandover = React.useCallback(() => {
+    setHandoverDefaultMode("day");
+    setHandoverDefaultDate(getTodayDateString());
+    setHandoverDefaultFormat("xlsx");
+    setShowHandoverModal(true);
+  }, [
+    setHandoverDefaultMode,
+    setHandoverDefaultDate,
+    setHandoverDefaultFormat,
+    setShowHandoverModal,
+  ]);
   const { t, i18n } = useTranslation();
 
   const translateStatus = (status: string) => t(`common.${status}`, status);
@@ -266,45 +403,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           <InstrumentsTab
             instrumentsList={admin.instrumentsList}
             loadingInstruments={admin.loadingInstruments}
-            onOpenCreateInstrument={() => {
-              admin.setEditingInstrument(null);
-              admin.setInstrumentForm({
-                name: "",
-                type: DEFAULT_INSTRUMENT_TYPE,
-                photoUrl: "",
-                description: "",
-                outsideFeePerDay: "0",
-                bookingMode: "manual",
-                visibilityLevel: "public",
-                isOutOfService: false,
-              });
-              admin.setShowInstrumentModal(true);
-            }}
-            onEditInstrument={(inst) => {
-              admin.setEditingInstrument(inst);
-              admin.setInstrumentForm({
-                name: inst.name,
-                type: inst.type,
-                photoUrl: inst.photoUrl || inst.photo_url || "",
-                description: inst.description || "",
-                outsideFeePerDay: String(
-                  inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? "0",
-                ),
-                bookingMode:
-                  (inst.bookingMode ?? inst.booking_mode) || "manual",
-                visibilityLevel:
-                  (inst.visibilityLevel ?? inst.visibility_level) || "public",
-                isOutOfService: Boolean(
-                  inst.isOutOfService ?? inst.is_out_of_service,
-                ),
-              });
-              admin.setShowInstrumentModal(true);
-            }}
-            onRetireInstrument={(inst) => admin.setRemovingInstrument(inst)}
-            onDeleteInstrument={(inst) => {
-              admin.setDeletingInstrument(inst);
-              admin.setDeleteConfirmChecked(false);
-            }}
+            onOpenCreateInstrument={handleOpenCreateInstrument}
+            onEditInstrument={handleEditInstrument}
+            onRetireInstrument={handleRetireInstrument}
+            onDeleteInstrument={handleDeleteInstrument}
             onRestoreInstrument={admin.handleRestoreInstrument}
           />
         )}

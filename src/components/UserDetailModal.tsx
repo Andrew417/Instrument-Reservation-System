@@ -41,7 +41,13 @@ export interface UserDetailModalProps {
   sessionToken?: string | null;
   onUserUpdated?: () => void;
   zIndexClass?: string;
-  onPromoteUser?: (userId: string, name: string, isMusician?: boolean) => void;
+  onPromoteUser?: (
+    userId: string,
+    name: string,
+    isMusician?: boolean,
+    isCurrentlyAdmin?: boolean,
+    isCurrentlySuperAdmin?: boolean,
+  ) => void;
   onDeleteUser?: (userId: string, name: string) => void;
   onBookOnBehalf?: (user: any) => void;
 }
@@ -395,7 +401,6 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
     );
   };
 
-  // Compact stat card — number carries the meaning, no repeated caption line.
   const renderStatCard = (
     label: string,
     current: number,
@@ -432,14 +437,23 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
 
   const noShowCount = Number(standing?.noShowCount || 0);
 
-  // Count of visible action buttons for the compact row grid
-  const actionCount = [
-    Boolean(onBookOnBehalf),
-    isSuperAdmin, // trusted
-    true, // Active toggle is always shown for users
-    isSuperAdmin && !!onPromoteUser,
-    isSuperAdmin && !!onDeleteUser,
-  ].filter(Boolean).length;
+  /* Count of visible action buttons for the compact row grid.
+     - For "user" entity: Book, Trusted, Active toggle, Promote, Delete = up to 5
+     - For "admin" entity: Promote + Delete = up to 2 (no trusted toggle, no active toggle,
+       since admins can only be changed via the /admins/:id/demote route) */
+  const actionCount =
+    entityType === "user"
+      ? [
+          Boolean(onBookOnBehalf),
+          isSuperAdmin,
+          true,
+          isSuperAdmin && !!onPromoteUser,
+          isSuperAdmin && !!onDeleteUser,
+        ].filter(Boolean).length
+      : [
+          isSuperAdmin && !!onPromoteUser,
+          isSuperAdmin && !!onDeleteUser,
+        ].filter(Boolean).length;
 
   return (
     <div
@@ -574,8 +588,8 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Compact Account Actions — users only */}
-                {entityType === "user" && (
+                {/* Account Actions — both users AND admins get the Promote/Delete buttons */}
+                {actionCount > 0 && (
                   <div className="bg-white rounded-xl border border-stone-200 p-2">
                     <div
                       className="grid gap-1.5"
@@ -583,13 +597,14 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                         gridTemplateColumns: `repeat(${Math.max(actionCount, 1)}, minmax(0, 1fr))`,
                       }}
                     >
-                      {/* Book for user */}
-                      {onBookOnBehalf && (
+                      {/* Book for user — users only */}
+                      {entityType === "user" && onBookOnBehalf && (
                         <button
                           type="button"
                           onClick={() => onBookOnBehalf(userData)}
                           title={t("admin.users.bookForTooltip", {
-                            defaultValue: "Book reservation on behalf of this user",
+                            defaultValue:
+                              "Book reservation on behalf of this user",
                           })}
                           className="flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100 transition cursor-pointer active:scale-95 touch-manipulation"
                         >
@@ -600,8 +615,9 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                         </button>
                       )}
 
-                      {/* Trusted */}
-                      {isSuperAdmin &&
+                      {/* Trusted — users only */}
+                      {entityType === "user" &&
+                        isSuperAdmin &&
                         (!confirmToggleTrust ? (
                           <button
                             type="button"
@@ -644,56 +660,57 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                           </div>
                         ))}
 
-                      {/* Active / Deactivate */}
-                      {!confirmToggleActive ? (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmToggleActive(true)}
-                          title={
-                            userData.isActive ? "Deactivate" : "Reactivate"
-                          }
-                          className={`flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border transition cursor-pointer active:scale-95 touch-manipulation ${
-                            userData.isActive
-                              ? "bg-stone-50 border-stone-200 text-stone-500"
-                              : "bg-emerald-50 border-emerald-200 text-emerald-800"
-                          }`}
-                        >
-                          {userData.isActive ? (
-                            <UserX className="w-5 h-5 shrink-0" />
-                          ) : (
-                            <UserCheck className="w-5 h-5 shrink-0" />
-                          )}
-                          <span className="text-[11px] font-bold leading-none">
-                            {userData.isActive ? "Off" : "On"}
-                          </span>
-                        </button>
-                      ) : (
-                        <div className="flex gap-1">
+                      {/* Active / Deactivate — users only */}
+                      {entityType === "user" &&
+                        (!confirmToggleActive ? (
                           <button
                             type="button"
-                            onClick={() => setConfirmToggleActive(false)}
-                            className="flex-1 min-h-[56px] rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold active:scale-95 touch-manipulation"
-                            aria-label="Cancel"
-                          >
-                            ✕
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleToggleActive}
-                            disabled={isTogglingActive}
-                            className={`flex-1 min-h-[56px] rounded-xl text-white text-sm font-bold disabled:opacity-50 active:scale-95 touch-manipulation ${
+                            onClick={() => setConfirmToggleActive(true)}
+                            title={
+                              userData.isActive ? "Deactivate" : "Reactivate"
+                            }
+                            className={`flex flex-col items-center justify-center gap-1 min-h-[56px] py-2 rounded-xl border transition cursor-pointer active:scale-95 touch-manipulation ${
                               userData.isActive
-                                ? "bg-rose-700 hover:bg-rose-800"
-                                : "bg-emerald-700 hover:bg-emerald-800"
+                                ? "bg-stone-50 border-stone-200 text-stone-500"
+                                : "bg-emerald-50 border-emerald-200 text-emerald-800"
                             }`}
-                            aria-label="Confirm"
                           >
-                            {isTogglingActive ? "…" : "✓"}
+                            {userData.isActive ? (
+                              <UserX className="w-5 h-5 shrink-0" />
+                            ) : (
+                              <UserCheck className="w-5 h-5 shrink-0" />
+                            )}
+                            <span className="text-[11px] font-bold leading-none">
+                              {userData.isActive ? "Off" : "On"}
+                            </span>
                           </button>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setConfirmToggleActive(false)}
+                              className="flex-1 min-h-[56px] rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-bold active:scale-95 touch-manipulation"
+                              aria-label="Cancel"
+                            >
+                              ✕
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleToggleActive}
+                              disabled={isTogglingActive}
+                              className={`flex-1 min-h-[56px] rounded-xl text-white text-sm font-bold disabled:opacity-50 active:scale-95 touch-manipulation ${
+                                userData.isActive
+                                  ? "bg-rose-700 hover:bg-rose-800"
+                                  : "bg-emerald-700 hover:bg-emerald-800"
+                              }`}
+                              aria-label="Confirm"
+                            >
+                              {isTogglingActive ? "…" : "✓"}
+                            </button>
+                          </div>
+                        ))}
 
-                      {/* Promote */}
+                      {/* Promote — both user AND admin */}
                       {isSuperAdmin && onPromoteUser && (
                         <button
                           type="button"
@@ -702,6 +719,14 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                               userData.id,
                               userData.name,
                               userData.isMusician,
+                              entityType === "admin" ||
+                                Boolean(userData.isAdmin) ||
+                                userData.role === "admin" ||
+                                userData.role === "super_admin",
+                              Boolean(
+                                userData.isSuperAdmin ||
+                                userData.is_super_admin,
+                              ),
                             )
                           }
                           title="Promote / Manage Role & Privileges"
@@ -714,7 +739,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                         </button>
                       )}
 
-                      {/* Delete */}
+                      {/* Delete — both user AND admin */}
                       {isSuperAdmin && onDeleteUser && (
                         <button
                           type="button"
@@ -942,7 +967,7 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
           )}
         </div>
 
-        {/* Modal Footer — desktop only (mobile uses header X) */}
+        {/* Modal Footer — desktop only */}
         <div className="hidden sm:flex shrink-0 px-5 py-2.5 border-t border-stone-200 bg-stone-50/50 justify-end">
           <button
             type="button"

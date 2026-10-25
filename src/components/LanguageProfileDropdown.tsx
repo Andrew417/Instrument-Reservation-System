@@ -35,8 +35,8 @@ export const LanguageProfileDropdown: React.FC<
 
   const isAdmin = Boolean(
     profile?.role === "admin" ||
-      profile?.role === "super_admin" ||
-      profile?.isSuperAdmin,
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
   );
 
   const shouldShowMinistryProfile =
@@ -76,6 +76,14 @@ export const LanguageProfileDropdown: React.FC<
       return (
         <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-stone-200 text-stone-800">
           {t("common.admin")}
+        </span>
+      );
+    }
+    if (profile?.isMusician) {
+      return (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
+          <Sparkles className="w-2.5 h-2.5" />
+          {t("common.musician", { defaultValue: "Musician" })}
         </span>
       );
     }
