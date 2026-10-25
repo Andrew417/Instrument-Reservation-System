@@ -1093,8 +1093,8 @@
       "deletePermanentlySuccess": "تم حذف {{name}} نهائياً."
     },
     "instruments": {
-      "title": "مخزون آلات الكنيسة",
-      "subtitle": "أضف، عدّل المواصفات، غيّر وضع الحجز، ضع علامة على الآلات المتقاعدة كغير متاحة، أو احذف الإدخالات الخاطئة.",
+      "tabInstruments": "الآلات",
+      "tabCategories": "إعدادات الفئات",
       "addButton": "إضافة آلة",
       "loading": "جارٍ تحميل الآلات...",
       "bookingsCount": "{{count}} حجز",
@@ -1112,7 +1112,19 @@
       "deleteTooltip": "حذف إدخال خاطئ نهائياً من قاعدة البيانات",
       "restore": "استعادة",
       "restoreTooltip": "استعادة الآلة إلى حالة متاحة",
-      "footerNote": "تقاعد = إخفاء مؤقت (قابل للتراجع) · حذف = نهائي، للإدخالات الخاطئة فقط",
+      "filterTitle": "تصفية الآلات",
+      "filterStatus": "الحالة",
+      "filterCategory": "الفئة",
+      "filterVisibility": "الظهور",
+      "filterBookingMode": "وضع الحجز",
+      "statusesSelected": "حالة واحدة محددة",
+      "statusesSelected_plural": "{{count}} حالات محددة",
+      "categoriesSelected": "فئة واحدة محددة",
+      "categoriesSelected_plural": "{{count}} فئات محددة",
+      "visibilitiesSelected": "ظهور واحد محدد",
+      "visibilitiesSelected_plural": "{{count}} مستويات ظهور محددة",
+      "bookingModesSelected": "وضع حجز واحد محدد",
+      "bookingModesSelected_plural": "{{count}} أوضاع حجز محددة",
       "restoreSuccess": "تم استعادة {{name}} بنجاح."
     },
     "users": {

@@ -7,6 +7,9 @@ export type ReservationFilterState = {
   musician: string;
   instruments: string[];
   categories: string[];
+  instrumentStatuses: string[];
+  visibilities: string[];
+  bookingModes: string[];
   weekdays: string[]; // "Sunday", ... (legacy, kept for compatibility)
   statuses: string[];
   dateMode: "any" | "day" | "range" | "weekday";
@@ -20,6 +23,9 @@ export const EMPTY_FILTER_STATE: ReservationFilterState = {
   musician: "",
   instruments: [],
   categories: [],
+  instrumentStatuses: [],
+  visibilities: [],
+  bookingModes: [],
   weekdays: [],
   statuses: [],
   dateMode: "any",
@@ -33,6 +39,9 @@ export interface FilterOptions {
   instruments: string[];
   categories: string[];
   statuses: string[];
+  instrumentStatuses?: string[];
+  visibilities?: string[];
+  bookingModes?: string[];
 }
 
 const WEEKDAYS = [
@@ -62,6 +71,9 @@ export const countActiveFilters = (f: ReservationFilterState): number => {
   if (f.instruments.length) n++;
   if (f.categories.length) n++;
   if (f.statuses.length) n++;
+  if (f.instrumentStatuses?.length) n++;
+  if (f.visibilities?.length) n++;
+  if (f.bookingModes?.length) n++;
   if (f.dateMode !== "any") n++;
   if (f.weekdays.length && f.dateMode === "any") n++;
   return n;
@@ -146,6 +158,7 @@ export interface ActiveFiltersBarProps {
   filters: ReservationFilterState;
   onChange: (next: ReservationFilterState) => void;
   translateStatus?: (s: string) => string;
+  context?: "reservation" | "instrument";
 }
 
 /** Compact a YYYY-MM-DD to a short MM-DD for pill display on mobile. */
@@ -158,6 +171,7 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
   filters,
   onChange,
   translateStatus,
+  context = "reservation",
 }) => {
   const { t } = useTranslation();
 
@@ -167,7 +181,15 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
     translateStatus ? translateStatus(s) : t(STATUS_KEYS[s] || s);
 
   const removeValue = (
-    key: "users" | "instruments" | "categories" | "statuses" | "weekdays",
+    key:
+      | "users"
+      | "instruments"
+      | "categories"
+      | "statuses"
+      | "instrumentStatuses"
+      | "visibilities"
+      | "bookingModes"
+      | "weekdays",
     value: string,
   ) => {
     onChange({
@@ -175,6 +197,47 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
       [key]: filters[key].filter((v) => v !== value),
     });
   };
+
+  const instrumentLabel = (value: string) => {
+    if (value === "active") return t("admin.instruments.activeBadge");
+    if (value === "retired") return t("admin.instruments.retiredBadge");
+    if (value === "musician") {
+      return t("admin.instruments.visMusician", { defaultValue: value });
+    }
+    if (value === "room_stock") {
+      return t("admin.instruments.visRoomStock", { defaultValue: value });
+    }
+    if (value === "public") {
+      return t("admin.instruments.visPublic", { defaultValue: value });
+    }
+    if (value === "instant") {
+      return t("admin.instruments.instantBooking", { defaultValue: value });
+    }
+    if (value === "manual") {
+      return t("admin.instruments.manualReview", { defaultValue: value });
+    }
+    return value;
+  };
+
+  const InstrumentFilterChip = ({
+    value,
+    filterKey,
+  }: {
+    value: string;
+    filterKey: "instrumentStatuses" | "categories" | "visibilities" | "bookingModes";
+  }) => (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+      <span className="truncate max-w-[120px]">{instrumentLabel(value)}</span>
+      <button
+        type="button"
+        onClick={() => removeValue(filterKey, value)}
+        className="hover:text-amber-950 cursor-pointer shrink-0"
+        aria-label={`Remove ${instrumentLabel(value)} filter`}
+      >
+        <X className="w-2.5 h-2.5" />
+      </button>
+    </span>
+  );
 
   return (
     <div className="flex items-start sm:items-center justify-between gap-2 pt-1 border-t border-stone-200/60 text-[11px] text-stone-600 flex-wrap">
@@ -188,6 +251,39 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
           </span>
         </span>
 
+        {context === "instrument" ? (
+          <>
+            {filters.instrumentStatuses.map((value) => (
+              <InstrumentFilterChip
+                key={`instrument-status-${value}`}
+                value={value}
+                filterKey="instrumentStatuses"
+              />
+            ))}
+            {filters.categories.map((value) => (
+              <InstrumentFilterChip
+                key={`instrument-category-${value}`}
+                value={value}
+                filterKey="categories"
+              />
+            ))}
+            {filters.visibilities.map((value) => (
+              <InstrumentFilterChip
+                key={`instrument-visibility-${value}`}
+                value={value}
+                filterKey="visibilities"
+              />
+            ))}
+            {filters.bookingModes.map((value) => (
+              <InstrumentFilterChip
+                key={`instrument-booking-mode-${value}`}
+                value={value}
+                filterKey="bookingModes"
+              />
+            ))}
+          </>
+        ) : (
+          <>
         {filters.users.map((u) => (
           <span
             key={`u-${u}`}
@@ -298,6 +394,8 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
             </button>
           </span>
         )}
+          </>
+        )}
       </div>
 
       <button
@@ -322,17 +420,33 @@ export interface ReservationFiltersPopoverProps {
   options: FilterOptions;
   getOwnerName: (r: any) => string;
   isAr: boolean;
+  context?: "reservation" | "instrument";
 }
 
 export const ReservationFiltersPopover: React.FC<
   ReservationFiltersPopoverProps
-> = ({ open, onToggle, filters, onChange, options, getOwnerName, isAr }) => {
+> = ({
+  open,
+  onToggle,
+  filters,
+  onChange,
+  options,
+  getOwnerName,
+  isAr,
+  context = "reservation",
+}) => {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [musicianDraft, setMusicianDraft] = useState(filters.musician);
   const [userQuery, setUserQuery] = useState("");
   const [openDropdown, setOpenDropdown] = useState<
-    "instrument" | "category" | "status" | null
+    | "instrument"
+    | "category"
+    | "status"
+    | "instrumentStatus"
+    | "visibility"
+    | "bookingMode"
+    | null
   >(null);
 
   // Close on outside click
@@ -370,7 +484,15 @@ export const ReservationFiltersPopover: React.FC<
   }, [musicianDraft]);
 
   const toggleValue = (
-    key: "users" | "instruments" | "categories" | "statuses" | "weekdays",
+    key:
+      | "users"
+      | "instruments"
+      | "categories"
+      | "statuses"
+      | "instrumentStatuses"
+      | "visibilities"
+      | "bookingModes"
+      | "weekdays",
     value: string,
   ) => {
     const current = filters[key];
@@ -394,6 +516,12 @@ export const ReservationFiltersPopover: React.FC<
   };
 
   const activeCount = countActiveFilters(filters);
+  const filterTitleKey =
+    context === "instrument"
+      ? "admin.instruments.filterTitle"
+      : "admin.dashboard.filters.title";
+  const filterTitleDefault =
+    context === "instrument" ? "Filter instruments" : "Filter reservations";
 
   /* ── Reusable chip (users + weekday) ── */
   const Chip = ({
@@ -467,7 +595,13 @@ export const ReservationFiltersPopover: React.FC<
     getOptionLabel,
     selectedLabelKey,
   }: {
-    id: "instrument" | "category" | "status";
+    id:
+      | "instrument"
+      | "category"
+      | "status"
+      | "instrumentStatus"
+      | "visibility"
+      | "bookingMode";
     values: string[];
     options: string[];
     onToggle: (v: string) => void;
@@ -589,15 +723,17 @@ export const ReservationFiltersPopover: React.FC<
         <>
           {/* Mobile: compact anchored panel that leaves the rest of the screen visible */}
           <div
-            className={`sm:hidden absolute top-full mt-2 z-[120] w-[min(92vw,360px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xl ${
-              isAr ? "left-0" : "right-0"
+            className={`sm:hidden absolute top-full mt-2 z-[120] w-[min(92vw,360px)] max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xl ${
+              context === "instrument"
+                ? "left-0 right-auto"
+                : isAr
+                  ? "left-0"
+                  : "right-0"
             }`}
           >
             <div className="flex items-center justify-between gap-2 px-3.5 py-3 border-b border-stone-100 shrink-0">
               <h3 className="text-sm font-extrabold text-stone-900">
-                {t("admin.dashboard.filters.title", {
-                  defaultValue: "Filter reservations",
-                })}
+                {t(filterTitleKey, { defaultValue: filterTitleDefault })}
               </h3>
               <div className="flex items-center gap-2">
                 <button
@@ -622,6 +758,7 @@ export const ReservationFiltersPopover: React.FC<
 
             <PopoverBody
               isAr={isAr}
+              context={context}
               filters={filters}
               onChange={onChange}
               options={options}
@@ -640,15 +777,17 @@ export const ReservationFiltersPopover: React.FC<
 
           {/* Desktop: anchored popover (unchanged behaviour) */}
           <div
-            className={`hidden sm:block absolute top-full mt-2 z-30 w-[min(94vw,360px)] max-h-[75vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xl ${
-              isAr ? "left-0" : "right-0"
+            className={`hidden sm:block absolute top-full mt-2 z-30 w-[min(94vw,360px)] max-w-[calc(100vw-1rem)] max-h-[75vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xl ${
+              context === "instrument"
+                ? "left-0 right-auto"
+                : isAr
+                  ? "left-0"
+                  : "right-0"
             }`}
           >
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-extrabold text-stone-900">
-                {t("admin.dashboard.filters.title", {
-                  defaultValue: "Filter reservations",
-                })}
+                {t(filterTitleKey, { defaultValue: filterTitleDefault })}
               </h3>
               <button
                 type="button"
@@ -662,6 +801,7 @@ export const ReservationFiltersPopover: React.FC<
             </div>
             <PopoverBody
               isAr={isAr}
+              context={context}
               filters={filters}
               onChange={onChange}
               options={options}
@@ -686,6 +826,7 @@ export const ReservationFiltersPopover: React.FC<
 /* Shared body — used by both mobile full-screen and desktop popover */
 const PopoverBody = ({
   isAr,
+  context = "reservation",
   filters,
   onChange,
   options,
@@ -701,6 +842,83 @@ const PopoverBody = ({
   MultiSelectDropdown,
 }: any) => {
   const { t } = useTranslation();
+  if (context === "instrument") {
+    return (
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.instruments.filterStatus", { defaultValue: "Status" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="instrumentStatus"
+            values={filters.instrumentStatuses}
+            options={options.instrumentStatuses || []}
+            onToggle={(v: string) => toggleValue("instrumentStatuses", v)}
+            searchable={false}
+            getOptionLabel={(v: string) =>
+              v === "active"
+                ? t("admin.instruments.activeBadge")
+                : t("admin.instruments.retiredBadge")
+            }
+            selectedLabelKey="admin.instruments.statusesSelected"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.instruments.filterCategory", { defaultValue: "Category" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="category"
+            values={filters.categories}
+            options={options.categories || []}
+            onToggle={(v: string) => toggleValue("categories", v)}
+            selectedLabelKey="admin.instruments.categoriesSelected"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.instruments.filterVisibility", { defaultValue: "Visibility" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="visibility"
+            values={filters.visibilities}
+            options={options.visibilities || []}
+            onToggle={(v: string) => toggleValue("visibilities", v)}
+            searchable={false}
+            getOptionLabel={(v: string) =>
+              t(
+                v === "musician"
+                  ? "admin.instruments.visMusician"
+                  : v === "room_stock"
+                    ? "admin.instruments.visRoomStock"
+                    : "admin.instruments.visPublic",
+                { defaultValue: v },
+              )
+            }
+            selectedLabelKey="admin.instruments.visibilitiesSelected"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.instruments.filterBookingMode", { defaultValue: "Booking mode" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="bookingMode"
+            values={filters.bookingModes}
+            options={options.bookingModes || []}
+            onToggle={(v: string) => toggleValue("bookingModes", v)}
+            searchable={false}
+            getOptionLabel={(v: string) =>
+              v === "instant"
+                ? t("admin.instruments.instantBooking")
+                : t("admin.instruments.manualReview")
+            }
+            selectedLabelKey="admin.instruments.bookingModesSelected"
+          />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-3">
       {/* USERS (multi) */}

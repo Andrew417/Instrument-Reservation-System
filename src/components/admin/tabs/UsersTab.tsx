@@ -27,7 +27,11 @@ export interface UsersTabProps {
   triggerRejectUser: (user: any) => void;
   setBookOnBehalfUser: (user: any) => void;
   isSuperAdmin?: boolean;
-  onPromoteUser?: (userId: string, userName: string, isMusician?: boolean) => void;
+  onPromoteUser?: (
+    userId: string,
+    userName: string,
+    isMusician?: boolean,
+  ) => void;
 }
 
 export const UsersTab: React.FC<UsersTabProps> = ({
@@ -52,9 +56,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({
           <h2 className="font-bold text-stone-900 text-sm whitespace-nowrap">
             {t("admin.users.title")}
           </h2>
-          <p className="text-xs text-stone-500 mt-0.5">
-            {t("admin.users.subtitle")}
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -78,7 +79,10 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       </div>
 
       {loadingUsers ? (
-        <LoadingSpinner centered label={t("admin.users.loading") || "Loading users..."} />
+        <LoadingSpinner
+          centered
+          label={t("admin.users.loading") || "Loading users..."}
+        />
       ) : (
         <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
           <table className="w-full text-left text-xs border-collapse min-w-[640px]">
@@ -109,10 +113,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                   .replace(/^0/, "20");
 
                 return (
-                  <tr
-                    key={u.id}
-                    className="hover:bg-stone-50/60 transition"
-                  >
+                  <tr key={u.id} className="hover:bg-stone-50/60 transition">
                     {/* Member */}
                     <td className="py-3 px-3">
                       <button
@@ -127,9 +128,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                           "View Member Profile"
                         }
                       >
-                        <span className="truncate max-w-[220px]">
-                          {u.name}
-                        </span>
+                        <span className="truncate max-w-[220px]">{u.name}</span>
                         <ExternalLink className="w-3 h-3 text-stone-400 group-hover:text-amber-800 transition shrink-0" />
                       </button>
                     </td>
@@ -249,9 +248,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                               title="Reject registration (account preserved in audit database)"
                             >
                               <X className="w-3 h-3 shrink-0" />
-                              <span>
-                                {t("admin.approvals.rejectBtn")}
-                              </span>
+                              <span>{t("admin.approvals.rejectBtn")}</span>
                             </button>
                           </>
                         )}

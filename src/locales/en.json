@@ -1093,8 +1093,8 @@
       "deletePermanentlySuccess": "{{name}} deleted permanently."
     },
     "instruments": {
-      "title": "Church Instruments Inventory",
-      "subtitle": "Add, edit specifications, change booking mode, mark retired instruments unavailable, or delete accidental mistaken entries.",
+      "tabInstruments": "Instruments",
+      "tabCategories": "Category Settings",
       "addButton": "Add Instrument",
       "loading": "Loading instruments...",
       "bookingsCount": "{{count}} bookings",
@@ -1112,7 +1112,19 @@
       "deleteTooltip": "Delete mistaken entry permanently from database",
       "restore": "Restore",
       "restoreTooltip": "Restore instrument to available status",
-      "footerNote": "Retire = temporarily hide (reversible) · Delete = permanent, for mistaken entries only",
+      "filterTitle": "Filter instruments",
+      "filterStatus": "Status",
+      "filterCategory": "Category",
+      "filterVisibility": "Visibility",
+      "filterBookingMode": "Booking mode",
+      "statusesSelected": "{{count}} status selected",
+      "statusesSelected_plural": "{{count}} statuses selected",
+      "categoriesSelected": "{{count}} category selected",
+      "categoriesSelected_plural": "{{count}} categories selected",
+      "visibilitiesSelected": "{{count}} visibility selected",
+      "visibilitiesSelected_plural": "{{count}} visibilities selected",
+      "bookingModesSelected": "{{count}} booking mode selected",
+      "bookingModesSelected_plural": "{{count}} booking modes selected",
       "restoreSuccess": "{{name}} restored successfully."
     },
     "users": {
