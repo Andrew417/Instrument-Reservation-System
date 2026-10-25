@@ -343,12 +343,10 @@ export function useAdminPortalData({
   const [loadingLimits, setLoadingLimits] = useState<boolean>(false);
   const [savingLimits, setSavingLimits] = useState<boolean>(false);
 
-  const [notificationSettingsState, setNotificationSettingsState] = useState(
-    {
-      muteAccountApprovalEmails: false,
-      muteReservationRequestEmails: false,
-    },
-  );
+  const [notificationSettingsState, setNotificationSettingsState] = useState({
+    muteAccountApprovalEmails: false,
+    muteReservationRequestEmails: false,
+  });
   const [savingNotificationSettings, setSavingNotificationSettings] =
     useState<boolean>(false);
 
@@ -420,6 +418,8 @@ export function useAdminPortalData({
     userName: string;
     role: "user" | "admin" | "super_admin" | "musician";
     isMusician?: boolean;
+    isCurrentlyAdmin?: boolean;
+    isCurrentlySuperAdmin?: boolean;
   } | null>(null);
 
   const [assignModal, setAssignModal] = useState<{
@@ -795,8 +795,7 @@ export function useAdminPortalData({
       isOpen: true,
       reservationId: res.id,
       seriesId: res.series_id || res.seriesId,
-      instrumentName:
-        res.instrument_name || res.instrumentName || "Instrument",
+      instrumentName: res.instrument_name || res.instrumentName || "Instrument",
       memberName:
         res.user_name || res.userName || res.musician_name || "Member",
       dateFormatted: formatDisplayDate(reservationDate),
@@ -1007,7 +1006,8 @@ export function useAdminPortalData({
         inst.outsideFeePerDay ?? inst.outside_fee_per_day ?? "0",
       ),
       bookingMode: (inst.bookingMode ?? inst.booking_mode) || "manual",
-      visibilityLevel: (inst.visibilityLevel ?? inst.visibility_level) || "public",
+      visibilityLevel:
+        (inst.visibilityLevel ?? inst.visibility_level) || "public",
       isOutOfService: Boolean(inst.isOutOfService ?? inst.is_out_of_service),
     });
     setShowInstrumentModal(true);
@@ -1049,9 +1049,9 @@ export function useAdminPortalData({
 
   const handleExecuteRemoveInstrument = async (inst: any) => {
     try {
-      const res = await adminFetch(`/instruments/${inst.id}/retire`, {
+      const res = await adminFetch(`/instruments/${inst.id}/remove`, {
         method: "POST",
-        body: JSON.stringify({ force: true }),
+        body: JSON.stringify({ confirmForce: true }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1065,8 +1065,8 @@ export function useAdminPortalData({
       } else {
         showNotice(data.error || "Failed to retire instrument", "error");
       }
-    } catch {
-      showNotice("Failed to retire instrument", "error");
+    } catch (err: any) {
+      showNotice(err?.message || "Failed to retire instrument", "error");
     }
   };
 
@@ -1222,27 +1222,51 @@ export function useAdminPortalData({
     }
   };
 
-  const handleDemoteAdmin = (admin: any) => {
+  const handleDemoteAdmin = (
+    adminId: string,
+    adminName: string,
+    targetRole: "user" | "musician" | "admin" | "super_admin" = "user",
+  ) => {
+    const labelMap: Record<string, string> = {
+      user: "Regular Member",
+      musician: "Church Musician",
+      admin: "Admin",
+      super_admin: "Super Admin",
+    };
+
     setConfirmModal({
       isOpen: true,
-      title: "Demote Super Admin",
-      description: `Demote ${admin.name} to regular Admin? They will lose access to system configuration and admin management.`,
-      confirmLabel: "Demote to Admin",
+      title: "Change Administrator Role",
+      description: `Change role for ${adminName} → ${labelMap[targetRole]}? Their reservation ownership will be transferred to the new role.`,
+      confirmLabel: `Confirm → ${labelMap[targetRole]}`,
+      isDestructive: targetRole === "user",
       onConfirm: async () => {
         try {
-          const res = await adminFetch(`/admins/${admin.id}/demote`, {
+          const res = await adminFetch(`/admins/${adminId}/demote`, {
             method: "POST",
+            body: JSON.stringify({ targetRole }),
           });
           const data = await res.json();
           if (data.success) {
-            showNotice(`${admin.name} demoted to regular Admin`);
+            showNotice(
+              data.message ||
+                `${adminName} role updated to ${labelMap[targetRole]}.`,
+            );
             setConfirmModal(null);
             fetchAdmins();
+            fetchUsers();
+            refreshAllStats();
           } else {
-            showNotice(data.error || "Failed to demote admin", "error");
+            showNotice(
+              data.error || "Failed to change administrator role",
+              "error",
+            );
           }
-        } catch {
-          showNotice("Failed to demote admin", "error");
+        } catch (err: any) {
+          showNotice(
+            err?.message || "Failed to change administrator role",
+            "error",
+          );
         }
       },
     });
@@ -1279,13 +1303,23 @@ export function useAdminPortalData({
     userId: string,
     userName: string,
     isMusician?: boolean,
+    isCurrentlyAdmin?: boolean,
+    isCurrentlySuperAdmin?: boolean,
   ) => {
     setPromoteModal({
       isOpen: true,
       userId,
       userName,
-      role: "musician",
+      role: isCurrentlySuperAdmin
+        ? "super_admin"
+        : isCurrentlyAdmin
+          ? "admin"
+          : isMusician
+            ? "musician"
+            : "user",
       isMusician: Boolean(isMusician),
+      isCurrentlyAdmin: Boolean(isCurrentlyAdmin),
+      isCurrentlySuperAdmin: Boolean(isCurrentlySuperAdmin),
     });
   };
 
@@ -1293,7 +1327,47 @@ export function useAdminPortalData({
     targetRole: "user" | "admin" | "super_admin" | "musician",
   ) => {
     if (!promoteModal) return;
+
+    const fromAdminSide =
+      Boolean(promoteModal.isCurrentlyAdmin) ||
+      Boolean(promoteModal.isCurrentlySuperAdmin);
+
     try {
+      // ─── Case A: Currently ADMIN / SUPER ADMIN → /admins/:id/demote ───
+      if (fromAdminSide) {
+        const res = await adminFetch(`/admins/${promoteModal.userId}/demote`, {
+          method: "POST",
+          body: JSON.stringify({ targetRole }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          const labelMap: Record<string, string> = {
+            user: "Regular Member",
+            musician: "Church Musician",
+            admin: "Admin",
+            super_admin: "Super Admin",
+          };
+          showNotice(
+            data.message ||
+              `${promoteModal.userName} role changed to ${labelMap[targetRole]}.`,
+          );
+          setPromoteModal(null);
+          fetchAdmins();
+          fetchUsers();
+          fetchApprovals();
+          refreshAllStats();
+          setInternalSelectedUserId(null);
+        } else {
+          showNotice(
+            data.error || "Failed to change administrator role",
+            "error",
+          );
+        }
+        return;
+      }
+
+      // ─── Case B: Currently a USER / MUSICIAN ───
+      // B1. Musician toggle / user reset on an existing `users` row
       if (targetRole === "musician" || targetRole === "user") {
         const nextMusician =
           targetRole === "musician" ? !promoteModal.isMusician : false;
@@ -1309,10 +1383,12 @@ export function useAdminPortalData({
           showNotice(
             nextMusician
               ? `Granted Church Musician role to ${promoteModal.userName} 🎵`
-              : `Returned ${promoteModal.userName} to the regular user role`,
+              : `Returned ${promoteModal.userName} to the regular member role`,
           );
           setPromoteModal(null);
           fetchUsers();
+          fetchAdmins();
+          refreshAllStats();
           setInternalSelectedUserId(null);
         } else {
           showNotice(data.error || "Failed to update musician status", "error");
@@ -1320,6 +1396,7 @@ export function useAdminPortalData({
         return;
       }
 
+      // B2. Promote a `users` row → `admins` table
       const res = await adminFetch(`/users/${promoteModal.userId}/promote`, {
         method: "POST",
         body: JSON.stringify({ role: targetRole }),
@@ -1327,17 +1404,21 @@ export function useAdminPortalData({
       const data = await res.json();
       if (data.success) {
         showNotice(
-          `Promoted ${promoteModal.userName} to ${targetRole === "super_admin" ? "Super Admin" : "Admin"}`,
+          `Promoted ${promoteModal.userName} to ${
+            targetRole === "super_admin" ? "Super Admin" : "Admin"
+          }`,
         );
         setPromoteModal(null);
         fetchUsers();
         fetchAdmins();
+        fetchApprovals();
+        refreshAllStats();
         setInternalSelectedUserId(null);
       } else {
         showNotice(data.error || "Promotion failed", "error");
       }
-    } catch {
-      showNotice("Promotion failed", "error");
+    } catch (err: any) {
+      showNotice(err?.message || "Promotion failed", "error");
     }
   };
 

@@ -1,5 +1,6 @@
 {
   "common": {
+    "musician": "Musician",
     "appName": "Church Instruments Schedule",
     "tapToView": "Tap to view",
     "appSubtitle": "St. Mark Instrument Reservations",
@@ -1186,6 +1187,11 @@
       "emptyState": "Select a reservation on the left to write and dispatch a message."
     },
     "adminAccounts": {
+      "demote": "Change Role",
+      "setSuperAdmin": "Promote to Super Admin",
+      "setAdmin": "Demote to Admin",
+      "setMusician": "Demote to Musician",
+      "setUser": "Demote to Member",
       "title": "Admin Accounts",
       "badge": "Super Admin Only",
       "subtitle": "Provision new administrative staff accounts or remove administrative credentials.",
@@ -1421,6 +1427,17 @@
         "cancelling": "Cancelling..."
       },
       "promote": {
+        "userTitle": "Regular Member",
+        "userDesc": "Standard member. No musician privileges, no admin access.",
+        "musicianTitleGrant": "Grant Musician Status",
+        "musicianTitleRevoke": "Revoke Musician Status",
+        "musicianDescGrant": "Enable direct viewing and booking of musician-only instruments.",
+        "musicianDescRevoke": "Remove musician privileges. They return to standard category-based requests.",
+        "setUser": "Set as User",
+        "setAdmin": "Set as Admin",
+        "setSuperAdmin": "Set as Super Admin",
+        "grantMusician": "Grant Musician Status",
+        "revokeMusician": "Revoke Musician Status",
         "title": "Promote {{name}}",
         "subtitle": "Choose the role to grant this member",
         "adminTitle": "Administrator",
