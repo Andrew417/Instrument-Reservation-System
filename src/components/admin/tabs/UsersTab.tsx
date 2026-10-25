@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Search,
-  RefreshCw,
   ExternalLink,
   MessageCircle,
   Clock,
@@ -11,27 +10,26 @@ import {
   Check,
   Plus,
   Music2,
-  ArrowUpCircle,
 } from "lucide-react";
 import { getStatusColor } from "../../../lib/status-colors";
 import { LoadingSpinner } from "../../shared/LoadingSpinner";
+import {
+  ActiveFiltersBar,
+  EMPTY_FILTER_STATE,
+  ReservationFiltersPopover,
+  type FilterOptions,
+  type ReservationFilterState,
+} from "../../ReservationFiltersPopover";
 
 export interface UsersTabProps {
   usersList: any[];
   loadingUsers: boolean;
   userSearch: string;
   setUserSearch: (val: string) => void;
-  fetchUsers: () => void;
   openUserProfile: (userId: string) => void;
   handleApproveRegistration: (userId: string, userName: string) => void;
   triggerRejectUser: (user: any) => void;
   setBookOnBehalfUser: (user: any) => void;
-  isSuperAdmin?: boolean;
-  onPromoteUser?: (
-    userId: string,
-    userName: string,
-    isMusician?: boolean,
-  ) => void;
 }
 
 export const UsersTab: React.FC<UsersTabProps> = ({
@@ -39,15 +37,57 @@ export const UsersTab: React.FC<UsersTabProps> = ({
   loadingUsers,
   userSearch,
   setUserSearch,
-  fetchUsers,
   openUserProfile,
   handleApproveRegistration,
   triggerRejectUser,
   setBookOnBehalfUser,
-  isSuperAdmin,
-  onPromoteUser,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [showUserFilters, setShowUserFilters] = useState(false);
+  const [userFilters, setUserFilters] =
+    useState<ReservationFilterState>({ ...EMPTY_FILTER_STATE });
+  const isAr = i18n.language.startsWith("ar");
+
+  const userFilterOptions = useMemo<FilterOptions>(
+    () => ({
+      users: [],
+      instruments: [],
+      categories: ["musician", "user"],
+      statuses: ["trusted", "not_trusted"],
+      instrumentStatuses: ["active", "deactivated", "pending", "rejected"],
+    }),
+    [],
+  );
+
+  const filteredUsers = useMemo(
+    () =>
+      usersList.filter((user) => {
+        const approvalStatus =
+          user.approval_status || user.approvalStatus || "approved";
+        const accountStatus =
+          approvalStatus === "pending"
+            ? "pending"
+            : approvalStatus === "rejected"
+              ? "rejected"
+              : user.isActive
+                ? "active"
+                : "deactivated";
+        const role = user.isMusician ? "musician" : "user";
+        const matchesRole =
+          !userFilters.categories.length ||
+          userFilters.categories.includes(role);
+        const matchesBadge =
+          !userFilters.statuses.length ||
+          userFilters.statuses.includes(
+            user.isTrusted ? "trusted" : "not_trusted",
+          );
+        const matchesStatus =
+          !userFilters.instrumentStatuses?.length ||
+          userFilters.instrumentStatuses.includes(accountStatus);
+        return matchesRole && matchesBadge && matchesStatus;
+      }),
+    [userFilters, usersList],
+  );
 
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-3.5 sm:p-5 shadow-2xs space-y-4">
@@ -69,14 +109,24 @@ export const UsersTab: React.FC<UsersTabProps> = ({
               className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-amber-700"
             />
           </div>
-          <button
-            onClick={fetchUsers}
-            className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          <ReservationFiltersPopover
+            open={showUserFilters}
+            onToggle={() => setShowUserFilters((open) => !open)}
+            filters={userFilters}
+            onChange={setUserFilters}
+            options={userFilterOptions}
+            getOwnerName={() => ""}
+            isAr={isAr}
+            context="user"
+          />
         </div>
       </div>
+
+      <ActiveFiltersBar
+        filters={userFilters}
+        onChange={setUserFilters}
+        context="user"
+      />
 
       {loadingUsers ? (
         <LoadingSpinner
@@ -85,28 +135,28 @@ export const UsersTab: React.FC<UsersTabProps> = ({
         />
       ) : (
         <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
-          <table className="w-full text-left text-xs border-collapse min-w-[640px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[560px]">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
-                <th className="py-2.5 px-3 whitespace-nowrap w-[220px]">
+                <th className="py-2.5 px-2.5 whitespace-nowrap w-[180px]">
                   {t("admin.users.colMember")}
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap w-[140px]">
+                <th className="py-2.5 px-2.5 whitespace-nowrap w-[120px]">
                   {t("admin.users.colPhone")}
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap w-[110px]">
+                <th className="py-2.5 px-2.5 whitespace-nowrap w-[100px]">
                   {t("admin.users.colStatus")}
                 </th>
-                <th className="py-2.5 px-3 whitespace-nowrap w-[130px]">
-                  {t("admin.users.colTrusted")}
+                <th className="py-2.5 px-2.5 whitespace-nowrap w-[150px]">
+                  {t("admin.users.colBadges")}
                 </th>
-                <th className="py-2.5 px-3 text-right whitespace-nowrap w-[180px]">
+                <th className="py-2.5 px-2.5 text-right whitespace-nowrap w-[160px]">
                   {t("admin.users.colActions")}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {usersList.map((u) => {
+              {filteredUsers.map((u) => {
                 const rawPhone = u.phoneNumber || u.phone_number || "";
                 const whatsappNumber = rawPhone
                   .replace(/[^\d]/g, "")
@@ -115,7 +165,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                 return (
                   <tr key={u.id} className="hover:bg-stone-50/60 transition">
                     {/* Member */}
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-2.5">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -134,7 +184,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                     </td>
 
                     {/* Phone (WhatsApp clickable) */}
-                    <td className="py-3 px-3 font-mono text-stone-600">
+                    <td className="py-3 px-2.5 font-mono text-stone-600">
                       {whatsappNumber ? (
                         <a
                           href={`https://wa.me/${whatsappNumber}`}
@@ -153,7 +203,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                     </td>
 
                     {/* Status */}
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-2.5">
                       {u.approval_status === "pending" ||
                       u.approvalStatus === "pending" ? (
                         <span
@@ -189,27 +239,27 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                       )}
                     </td>
 
-                    {/* Roles & Status */}
-                    <td className="py-3 px-3">
+                    {/* Badges */}
+                    <td className="py-3 px-2.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {Boolean(u.isMusician) && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-900 border border-indigo-200">
-                            <Music2 className="w-2.5 h-2.5 text-indigo-700" />
-                            <span>
-                              {t("admin.users.musicianBadge", {
-                                defaultValue: "Musician",
-                              })}
-                            </span>
-                          </span>
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                            u.isMusician
+                              ? "bg-purple-50 text-purple-800 border-purple-200"
+                              : "bg-yellow-50 text-yellow-800 border-yellow-200"
+                          }`}
+                        >
+                          {u.isMusician && (
+                            <Music2 className="w-2.5 h-2.5 shrink-0" />
+                          )}
+                          {u.isMusician
+                            ? t("admin.users.musicianRole")
+                            : t("admin.users.userRole")}
+                        </span>
                         {u.isTrusted ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
                             <Sparkles className="w-2.5 h-2.5 text-amber-700" />
                             {t("admin.users.trustedMember")}
-                          </span>
-                        ) : !u.isMusician ? (
-                          <span className="text-[10px] text-stone-400 font-medium">
-                            {t("admin.users.standard")}
                           </span>
                         ) : null}
                         {Number(u.noShowCount || 0) > 0 && (
@@ -224,7 +274,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                     </td>
 
                     {/* Actions */}
-                    <td className="py-3 px-3 text-right">
+                    <td className="py-3 px-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                         {(u.approval_status === "pending" ||
                           u.approvalStatus === "pending") && (
@@ -262,20 +312,6 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                           <span>{t("admin.users.bookFor")}</span>
                         </button>
 
-                        {isSuperAdmin && onPromoteUser && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPromoteUser(u.id, u.name, u.isMusician);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-amber-50 text-amber-900 border border-stone-200 hover:border-amber-300 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
-                            title="Promote or manage role/musician status"
-                          >
-                            <ArrowUpCircle className="w-3 h-3 text-amber-700 shrink-0" />
-                            <span>Promote</span>
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>

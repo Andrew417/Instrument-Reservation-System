@@ -418,7 +418,7 @@ export function useAdminPortalData({
     isOpen: boolean;
     userId: string;
     userName: string;
-    role: "admin" | "super_admin" | "musician";
+    role: "user" | "admin" | "super_admin" | "musician";
     isMusician?: boolean;
   } | null>(null);
 
@@ -1290,12 +1290,13 @@ export function useAdminPortalData({
   };
 
   const executePromoteUser = async (
-    targetRole: "admin" | "super_admin" | "musician",
+    targetRole: "user" | "admin" | "super_admin" | "musician",
   ) => {
     if (!promoteModal) return;
     try {
-      if (targetRole === "musician") {
-        const nextMusician = !promoteModal.isMusician;
+      if (targetRole === "musician" || targetRole === "user") {
+        const nextMusician =
+          targetRole === "musician" ? !promoteModal.isMusician : false;
         const res = await adminFetch(
           `/users/${promoteModal.userId}/musician-status`,
           {
@@ -1308,7 +1309,7 @@ export function useAdminPortalData({
           showNotice(
             nextMusician
               ? `Granted Church Musician role to ${promoteModal.userName} 🎵`
-              : `Revoked Church Musician role from ${promoteModal.userName}`,
+              : `Returned ${promoteModal.userName} to the regular user role`,
           );
           setPromoteModal(null);
           fetchUsers();

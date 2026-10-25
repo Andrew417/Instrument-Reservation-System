@@ -402,7 +402,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           <button
             type="button"
             onClick={onOpenNewReservation}
-            className="w-full sm:w-auto shrink-0 h-10 sm:h-9 px-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
+            className="w-full sm:w-auto shrink-0 h-9 sm:h-8 px-3 rounded-lg bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:bg-amber-950 touch-manipulation"
           >
             <Plus className="w-3.5 h-3.5 shrink-0" />
             <span>
@@ -613,7 +613,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
               <button
                 type="button"
                 onClick={onOpenNewReservation}
-                className="px-4 py-2 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-xl transition cursor-pointer touch-manipulation"
+                className="px-4 py-1.5 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white text-xs font-bold rounded-xl transition cursor-pointer touch-manipulation"
               >
                 {t("myReservations.newReservation")}
               </button>

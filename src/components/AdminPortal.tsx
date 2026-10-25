@@ -315,13 +315,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
             loadingUsers={admin.loadingUsers}
             userSearch={admin.userSearch}
             setUserSearch={admin.setUserSearch}
-            fetchUsers={admin.fetchUsers}
             openUserProfile={admin.openUserProfile}
             handleApproveRegistration={admin.handleApproveRegistration}
             triggerRejectUser={admin.triggerRejectUser}
             setBookOnBehalfUser={admin.setBookOnBehalfUser}
-            isSuperAdmin={admin.isSuperAdmin}
-            onPromoteUser={admin.handleOpenPromoteModal}
           />
         )}
 

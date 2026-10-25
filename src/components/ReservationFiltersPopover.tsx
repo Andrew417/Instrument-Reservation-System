@@ -158,7 +158,7 @@ export interface ActiveFiltersBarProps {
   filters: ReservationFilterState;
   onChange: (next: ReservationFilterState) => void;
   translateStatus?: (s: string) => string;
-  context?: "reservation" | "instrument";
+  context?: "reservation" | "instrument" | "user";
 }
 
 /** Compact a YYYY-MM-DD to a short MM-DD for pill display on mobile. */
@@ -216,6 +216,18 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
     if (value === "manual") {
       return t("admin.instruments.manualReview", { defaultValue: value });
     }
+    if (value === "musician") {
+      return t("admin.users.musicianRole", { defaultValue: "Musician" });
+    }
+    if (value === "user") {
+      return t("admin.users.userRole", { defaultValue: "User" });
+    }
+    if (value === "trusted") {
+      return t("admin.users.trustedMember", { defaultValue: "Trusted" });
+    }
+    if (value === "not_trusted") {
+      return t("admin.users.notTrusted", { defaultValue: "Not trusted" });
+    }
     return value;
   };
 
@@ -224,7 +236,12 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
     filterKey,
   }: {
     value: string;
-    filterKey: "instrumentStatuses" | "categories" | "visibilities" | "bookingModes";
+    filterKey:
+      | "instrumentStatuses"
+      | "categories"
+      | "statuses"
+      | "visibilities"
+      | "bookingModes";
   }) => (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
       <span className="truncate max-w-[120px]">{instrumentLabel(value)}</span>
@@ -251,7 +268,31 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
           </span>
         </span>
 
-        {context === "instrument" ? (
+        {context === "user" ? (
+          <>
+            {filters.categories.map((value) => (
+              <InstrumentFilterChip
+                key={`user-role-${value}`}
+                value={value}
+                filterKey="categories"
+              />
+            ))}
+            {filters.statuses.map((value) => (
+              <InstrumentFilterChip
+                key={`user-badge-${value}`}
+                value={value}
+                filterKey="statuses"
+              />
+            ))}
+            {filters.instrumentStatuses?.map((value) => (
+              <InstrumentFilterChip
+                key={`user-status-${value}`}
+                value={value}
+                filterKey="instrumentStatuses"
+              />
+            ))}
+          </>
+        ) : context === "instrument" ? (
           <>
             {filters.instrumentStatuses.map((value) => (
               <InstrumentFilterChip
@@ -284,116 +325,118 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
           </>
         ) : (
           <>
-        {filters.users.map((u) => (
-          <span
-            key={`u-${u}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]"
-          >
-            <span className="truncate max-w-[100px]">{u}</span>
-            <button
-              type="button"
-              onClick={() => removeValue("users", u)}
-              className="hover:text-stone-900 cursor-pointer shrink-0"
-              aria-label={`Remove ${u}`}
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        ))}
+            {filters.users.map((u) => (
+              <span
+                key={`u-${u}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]"
+              >
+                <span className="truncate max-w-[100px]">{u}</span>
+                <button
+                  type="button"
+                  onClick={() => removeValue("users", u)}
+                  className="hover:text-stone-900 cursor-pointer shrink-0"
+                  aria-label={`Remove ${u}`}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
 
-        {filters.musician.trim() && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
-            <span className="truncate max-w-[100px]">"{filters.musician}"</span>
-            <button
-              type="button"
-              onClick={() => onChange({ ...filters, musician: "" })}
-              className="hover:text-stone-900 cursor-pointer shrink-0"
-              aria-label="Remove musician filter"
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        )}
+            {filters.musician.trim() && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-stone-200 text-stone-700 text-[10px]">
+                <span className="truncate max-w-[100px]">
+                  "{filters.musician}"
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...filters, musician: "" })}
+                  className="hover:text-stone-900 cursor-pointer shrink-0"
+                  aria-label="Remove musician filter"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            )}
 
-        {filters.instruments.map((i) => (
-          <span
-            key={`i-${i}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium"
-          >
-            <span className="truncate max-w-[100px]">{i}</span>
-            <button
-              type="button"
-              onClick={() => removeValue("instruments", i)}
-              className="hover:text-amber-950 cursor-pointer shrink-0"
-              aria-label={`Remove ${i}`}
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        ))}
+            {filters.instruments.map((i) => (
+              <span
+                key={`i-${i}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium"
+              >
+                <span className="truncate max-w-[100px]">{i}</span>
+                <button
+                  type="button"
+                  onClick={() => removeValue("instruments", i)}
+                  className="hover:text-amber-950 cursor-pointer shrink-0"
+                  aria-label={`Remove ${i}`}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
 
-        {filters.categories.map((c) => (
-          <span
-            key={`c-${c}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium"
-          >
-            <span className="truncate max-w-[100px]">{c}</span>
-            <button
-              type="button"
-              onClick={() => removeValue("categories", c)}
-              className="hover:text-amber-950 cursor-pointer shrink-0"
-              aria-label={`Remove ${c}`}
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        ))}
+            {filters.categories.map((c) => (
+              <span
+                key={`c-${c}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium"
+              >
+                <span className="truncate max-w-[100px]">{c}</span>
+                <button
+                  type="button"
+                  onClick={() => removeValue("categories", c)}
+                  className="hover:text-amber-950 cursor-pointer shrink-0"
+                  aria-label={`Remove ${c}`}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
 
-        {filters.statuses.map((s) => (
-          <span
-            key={`s-${s}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium"
-          >
-            <span>{statusLabel(s)}</span>
-            <button
-              type="button"
-              onClick={() => removeValue("statuses", s)}
-              className="hover:text-amber-950 cursor-pointer shrink-0"
-              aria-label={`Remove ${s}`}
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        ))}
+            {filters.statuses.map((s) => (
+              <span
+                key={`s-${s}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium"
+              >
+                <span>{statusLabel(s)}</span>
+                <button
+                  type="button"
+                  onClick={() => removeValue("statuses", s)}
+                  className="hover:text-amber-950 cursor-pointer shrink-0"
+                  aria-label={`Remove ${s}`}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
 
-        {filters.dateMode !== "any" && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
-            <span>
-              {filters.dateMode === "day"
-                ? shortDate(filters.dateSingle)
-                : filters.dateMode === "range"
-                  ? `${shortDate(filters.dateFrom)} → ${shortDate(filters.dateTo)}`
-                  : filters.weekdays.join(", ")}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...filters,
-                  dateMode: "any",
-                  dateSingle: "",
-                  dateFrom: "",
-                  dateTo: "",
-                  weekdays: [],
-                })
-              }
-              className="hover:text-amber-950 cursor-pointer shrink-0"
-              aria-label="Remove date filter"
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        )}
+            {filters.dateMode !== "any" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-amber-300 text-amber-900 text-[10px] font-medium">
+                <span>
+                  {filters.dateMode === "day"
+                    ? shortDate(filters.dateSingle)
+                    : filters.dateMode === "range"
+                      ? `${shortDate(filters.dateFrom)} → ${shortDate(filters.dateTo)}`
+                      : filters.weekdays.join(", ")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      ...filters,
+                      dateMode: "any",
+                      dateSingle: "",
+                      dateFrom: "",
+                      dateTo: "",
+                      weekdays: [],
+                    })
+                  }
+                  className="hover:text-amber-950 cursor-pointer shrink-0"
+                  aria-label="Remove date filter"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            )}
           </>
         )}
       </div>
@@ -420,7 +463,7 @@ export interface ReservationFiltersPopoverProps {
   options: FilterOptions;
   getOwnerName: (r: any) => string;
   isAr: boolean;
-  context?: "reservation" | "instrument";
+  context?: "reservation" | "instrument" | "user";
 }
 
 export const ReservationFiltersPopover: React.FC<
@@ -437,6 +480,8 @@ export const ReservationFiltersPopover: React.FC<
 }) => {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [popoverTop, setPopoverTop] = useState<number | null>(null);
   const [musicianDraft, setMusicianDraft] = useState(filters.musician);
   const [userQuery, setUserQuery] = useState("");
   const [openDropdown, setOpenDropdown] = useState<
@@ -448,6 +493,28 @@ export const ReservationFiltersPopover: React.FC<
     | "bookingMode"
     | null
   >(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPopoverTop(null);
+      return;
+    }
+
+    const updatePopoverPosition = () => {
+      const button = buttonRef.current;
+      if (button) {
+        setPopoverTop(button.getBoundingClientRect().bottom + 8);
+      }
+    };
+
+    updatePopoverPosition();
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
+    };
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -519,9 +586,19 @@ export const ReservationFiltersPopover: React.FC<
   const filterTitleKey =
     context === "instrument"
       ? "admin.instruments.filterTitle"
-      : "admin.dashboard.filters.title";
+      : context === "user"
+        ? "admin.users.filterTitle"
+        : "admin.dashboard.filters.title";
   const filterTitleDefault =
-    context === "instrument" ? "Filter instruments" : "Filter reservations";
+    context === "instrument"
+      ? "Filter instruments"
+      : context === "user"
+        ? "Filter members"
+        : "Filter reservations";
+  const popoverAlignment =
+    context === "instrument" || isAr
+      ? "left-0 right-auto"
+      : "right-0 left-auto";
 
   /* ── Reusable chip (users + weekday) ── */
   const Chip = ({
@@ -697,6 +774,7 @@ export const ReservationFiltersPopover: React.FC<
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={onToggle}
         className={`shrink-0 px-2.5 py-2 rounded-xl border transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold ${
@@ -723,13 +801,11 @@ export const ReservationFiltersPopover: React.FC<
         <>
           {/* Mobile: compact anchored panel that leaves the rest of the screen visible */}
           <div
-            className={`sm:hidden absolute top-full mt-2 z-[120] w-[min(92vw,360px)] max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xl ${
-              context === "instrument"
-                ? "left-0 right-auto"
-                : isAr
-                  ? "left-0"
-                  : "right-0"
-            }`}
+            className="sm:hidden fixed left-1/2 z-[120] box-border w-[calc(100vw-2rem)] max-w-[360px] -translate-x-1/2 max-h-[70vh] overflow-y-auto overscroll-contain rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xl"
+            style={{
+              top: popoverTop ?? 0,
+              visibility: popoverTop === null ? "hidden" : "visible",
+            }}
           >
             <div className="flex items-center justify-between gap-2 px-3.5 py-3 border-b border-stone-100 shrink-0">
               <h3 className="text-sm font-extrabold text-stone-900">
@@ -755,7 +831,6 @@ export const ReservationFiltersPopover: React.FC<
                 </button>
               </div>
             </div>
-
             <PopoverBody
               isAr={isAr}
               context={context}
@@ -777,13 +852,7 @@ export const ReservationFiltersPopover: React.FC<
 
           {/* Desktop: anchored popover (unchanged behaviour) */}
           <div
-            className={`hidden sm:block absolute top-full mt-2 z-30 w-[min(94vw,360px)] max-w-[calc(100vw-1rem)] max-h-[75vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xl ${
-              context === "instrument"
-                ? "left-0 right-auto"
-                : isAr
-                  ? "left-0"
-                  : "right-0"
-            }`}
+            className={`hidden sm:block absolute top-full mt-2 z-[120] box-border w-[min(94vw,360px)] max-w-[calc(100vw-1rem)] max-h-[75vh] overflow-y-auto overscroll-contain rounded-2xl border border-stone-200 bg-white p-3.5 shadow-xl ${popoverAlignment}`}
           >
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-extrabold text-stone-900">
@@ -842,6 +911,73 @@ const PopoverBody = ({
   MultiSelectDropdown,
 }: any) => {
   const { t } = useTranslation();
+  if (context === "user") {
+    return (
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.users.roleFilter", { defaultValue: "Role" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="category"
+            values={filters.categories}
+            options={options.categories}
+            onToggle={(v: string) => toggleValue("categories", v)}
+            searchable={false}
+            getOptionLabel={(v: string) =>
+              v === "musician"
+                ? t("admin.users.musicianRole", { defaultValue: "Musician" })
+                : t("admin.users.userRole", { defaultValue: "User" })
+            }
+            selectedLabelKey="admin.users.rolesSelected"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.users.badgeFilter", { defaultValue: "Badges" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="status"
+            values={filters.statuses}
+            options={options.statuses}
+            onToggle={(v: string) => toggleValue("statuses", v)}
+            searchable={false}
+            getOptionLabel={(v: string) =>
+              v === "trusted"
+                ? t("admin.users.trustedMember", { defaultValue: "Trusted" })
+                : t("admin.users.notTrusted", { defaultValue: "Not trusted" })
+            }
+            selectedLabelKey="admin.users.badgesSelected"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <SectionLabel>
+            {t("admin.users.statusFilter", { defaultValue: "Account status" })}
+          </SectionLabel>
+          <MultiSelectDropdown
+            id="instrumentStatus"
+            values={filters.instrumentStatuses || []}
+            options={options.instrumentStatuses || []}
+            onToggle={(v: string) => toggleValue("instrumentStatuses", v)}
+            searchable={false}
+            getOptionLabel={(v: string) => {
+              const labels: Record<string, string> = {
+                active: t("admin.users.active"),
+                deactivated: t("admin.users.deactivated"),
+                pending: t("admin.users.pendingApproval"),
+                rejected: t("admin.users.rejected"),
+              };
+              return labels[v] || v;
+            }}
+            selectedLabelKey="admin.users.statusesSelected"
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (context === "instrument") {
     return (
       <div className="space-y-3">
@@ -865,7 +1001,9 @@ const PopoverBody = ({
         </div>
         <div className="space-y-1.5">
           <SectionLabel>
-            {t("admin.instruments.filterCategory", { defaultValue: "Category" })}
+            {t("admin.instruments.filterCategory", {
+              defaultValue: "Category",
+            })}
           </SectionLabel>
           <MultiSelectDropdown
             id="category"
@@ -877,7 +1015,9 @@ const PopoverBody = ({
         </div>
         <div className="space-y-1.5">
           <SectionLabel>
-            {t("admin.instruments.filterVisibility", { defaultValue: "Visibility" })}
+            {t("admin.instruments.filterVisibility", {
+              defaultValue: "Visibility",
+            })}
           </SectionLabel>
           <MultiSelectDropdown
             id="visibility"
@@ -900,7 +1040,9 @@ const PopoverBody = ({
         </div>
         <div className="space-y-1.5">
           <SectionLabel>
-            {t("admin.instruments.filterBookingMode", { defaultValue: "Booking mode" })}
+            {t("admin.instruments.filterBookingMode", {
+              defaultValue: "Booking mode",
+            })}
           </SectionLabel>
           <MultiSelectDropdown
             id="bookingMode"

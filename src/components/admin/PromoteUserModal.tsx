@@ -2,7 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { X, ShieldCheck, Sparkles, Music2 } from "lucide-react";
 
-export type PromoteRoleOption = "admin" | "super_admin" | "musician";
+export type PromoteRoleOption = "user" | "admin" | "super_admin" | "musician";
 
 export interface PromoteModalState {
   userId: string;
@@ -59,6 +59,38 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
 
         {/* Options */}
         <div className="space-y-2.5 overflow-y-auto min-h-0 py-1">
+          {/* Regular User Option */}
+          <button
+            type="button"
+            onClick={() => onSelectRole("user")}
+            className={`w-full text-left p-3 sm:p-3.5 rounded-xl border cursor-pointer flex items-start gap-3 transition touch-manipulation ${
+              modal.role === "user"
+                ? "border-yellow-400 bg-yellow-50 shadow-2xs"
+                : "border-stone-200 hover:border-yellow-300 hover:bg-yellow-50/40"
+            }`}
+          >
+            <span
+              className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${
+                modal.role === "user"
+                  ? "border-yellow-700"
+                  : "border-stone-300"
+              }`}
+            >
+              {modal.role === "user" && (
+                <span className="w-2 h-2 rounded-full bg-yellow-700" />
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-300 shrink-0" />
+                <span>User</span>
+              </div>
+              <p className="text-[11px] text-stone-600 mt-1 leading-snug">
+                Remove musician status and return this member to the regular user role.
+              </p>
+            </div>
+          </button>
+
           {/* Musician Status Option */}
           <button
             type="button"
@@ -201,6 +233,8 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
               ? isCurrentMusician
                 ? "Revoke Musician Status"
                 : "Grant Musician Status"
+              : modal.role === "user"
+                ? "Set as User"
               : t("admin.modals.promote.confirmButton", { defaultValue: "Confirm Promotion" })}
           </button>
         </div>
