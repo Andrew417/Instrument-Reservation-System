@@ -189,7 +189,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin,
   );
-  // Musicians and Admins book visible instruments directly; regular users can also request by category (type)
+  // Admins and Musicians book instruments directly (admins see all instruments, including room stock); only regular users request by category
   const canRequestByType = !isMusicianUser && !isAdmin;
 
   // Form State
@@ -770,7 +770,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
                 {/* Section 1: Instrument & Mode Hero Card */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
-                  {isTypeRequest ? (
+                  {isTypeRequest && canRequestByType ? (
                     <>
                       <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-1.5">
                         <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
@@ -831,8 +831,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                 {availableTypes.map((item) => (
                                   <option key={item.type} value={item.type}>
                                     {item.type}{" "}
-                                    {Number(item.flat_fee_outside) > 0
-                                      ? `(${item.flat_fee_outside} EGP outside)`
+                                    {Number(
+                                      item.flat_fee_outside ??
+                                        (item as any).flatFeeOutside ??
+                                        0,
+                                    ) > 0
+                                      ? `(${item.flat_fee_outside ?? (item as any).flatFeeOutside} EGP outside)`
                                       : ""}
                                   </option>
                                 ))}
@@ -912,11 +916,27 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               }
                               className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
                             >
-                              {allInstruments.map((inst) => (
-                                <option key={inst.id} value={inst.id}>
-                                  {inst.name} ({inst.type})
-                                </option>
-                              ))}
+                              {allInstruments.map((inst) => {
+                                const vis =
+                                  inst.visibilityLevel ||
+                                  (inst as any).visibility_level;
+                                const isOOS =
+                                  inst.isOutOfService ||
+                                  (inst as any).is_out_of_service;
+                                const tag = isOOS
+                                  ? " — [Out of Service]"
+                                  : vis === "room_stock"
+                                    ? " — [Room Stock]"
+                                    : vis === "musician"
+                                      ? " — [Musicians Only]"
+                                      : "";
+                                return (
+                                  <option key={inst.id} value={inst.id}>
+                                    {inst.name} ({inst.type})
+                                    {tag}
+                                  </option>
+                                );
+                              })}
                             </select>
                             <div
                               className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
