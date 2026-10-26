@@ -136,9 +136,12 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
       try {
         const token =
           sessionToken || localStorage.getItem("church_session_token_v1") || "";
+        // ✅ Route to the reassign-specific endpoint when isReassign === true
         const endpoint = effectiveIsSeries
           ? `/api/admin/series/${seriesId}/assignment-candidates`
-          : `/api/admin/reservations/${reservation.id}/assignment-candidates`;
+          : isReassign
+            ? `/api/admin/reservations/${reservation.id}/reassign-candidates`
+            : `/api/admin/reservations/${reservation.id}/assignment-candidates`;
 
         const res = await fetch(endpoint, {
           headers: {
@@ -381,9 +384,13 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                       : "Assign Instrument & Approve Request"}
               </h2>
               <p className="text-[11px] sm:text-xs text-stone-400 truncate">
-                {isAr
-                  ? `النوع المطلوب: ${requestedType || "كل الآلات"} • يتم عرض عهدة الغرفة أولاً، ثم عازفي الكنيسة، ثم العامة`
-                  : `Requested type: ${requestedType || "All"} • Room stock listed first, then Musician, then Public`}
+                {isReassign
+                  ? isAr
+                    ? "اختر آلة بديلة • يتم عرض عهدة الغرفة أولاً، ثم عازفي الكنيسة، ثم العامة"
+                    : "Select a replacement instrument • Room stock listed first, then Musician, then Public"
+                  : isAr
+                    ? `النوع المطلوب: ${requestedType || "كل الآلات"} • يتم عرض عهدة الغرفة أولاً، ثم عازفي الكنيسة، ثم العامة`
+                    : `Requested type: ${requestedType || "All"} • Room stock listed first, then Musician, then Public`}
               </p>
             </div>
           </div>
@@ -538,9 +545,13 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                 <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
                   <Music2 className="w-4 h-4 text-amber-700" />
                   <span>
-                    {isAr
-                      ? `الآلات المتاحة من نوع (${requestedType || "الكل"}):`
-                      : `Available Instruments (${requestedType || "All"}):`}
+                    {isReassign
+                      ? isAr
+                        ? "الآلات المتاحة للتبديل:"
+                        : "Available Instruments for Reassignment:"
+                      : isAr
+                        ? `الآلات المتاحة من نوع (${requestedType || "الكل"}):`
+                        : `Available Instruments (${requestedType || "All"}):`}
                   </span>
                 </span>
 

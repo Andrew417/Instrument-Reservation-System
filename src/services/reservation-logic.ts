@@ -420,7 +420,9 @@ export async function evaluateReservationSubmission(
     `);
     const typeRow = (typeRes as any).rows?.[0];
     if (!typeRow || !typeRow.can_be_requested) {
-      throw new Error(`Requests for type "${cleanType}" are not currently enabled.`);
+      throw new Error(
+        `Requests for type "${cleanType}" are not currently enabled.`,
+      );
     }
 
     // Outside church fee check: flat fee per type locked at submission
@@ -494,7 +496,9 @@ export async function evaluateReservationSubmission(
           AND (COALESCE(i.type, r.requested_type) ILIKE ${cleanType})
           AND r.time_range && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')
       `);
-      const concurrentCount = Number((concurrentRes as any).rows?.[0]?.count || 0);
+      const concurrentCount = Number(
+        (concurrentRes as any).rows?.[0]?.count || 0,
+      );
       if (concurrentCount >= limits.maxConcurrentPerType) {
         exceededLimits.push(
           `Exceeded concurrent bookings limit for ${cleanType} (${concurrentCount}/${limits.maxConcurrentPerType})`,
@@ -543,15 +547,28 @@ export async function evaluateReservationSubmission(
   const instrument = instrumentRes[0];
 
   if (instrument.isOutOfService) {
-    throw new Error("This instrument is currently marked Out of service and cannot be booked.");
+    throw new Error(
+      "This instrument is currently marked Out of service and cannot be booked.",
+    );
   }
 
-  if (instrument.visibilityLevel === "room_stock" && !isAdmin && !cleanAdminId) {
+  if (
+    instrument.visibilityLevel === "room_stock" &&
+    !isAdmin &&
+    !cleanAdminId
+  ) {
     throw new Error("Room stock instruments cannot be booked directly.");
   }
 
-  if (instrument.visibilityLevel === "musician" && !isMusician && !isAdmin && !cleanAdminId) {
-    throw new Error("This instrument is restricted to registered church musicians.");
+  if (
+    instrument.visibilityLevel === "musician" &&
+    !isMusician &&
+    !isAdmin &&
+    !cleanAdminId
+  ) {
+    throw new Error(
+      "This instrument is restricted to registered church musicians.",
+    );
   }
 
   // Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
@@ -747,9 +764,7 @@ export async function autoRejectOverlappingPending(
         tag: `res-status-${row.id}`,
         url: `/?reservationId=${row.id}`,
         data: { reservationId: row.id, status: "auto_rejected" },
-      }).catch((e) =>
-        console.warn("[Push auto-reject error]:", e.message),
-      );
+      }).catch((e) => console.warn("[Push auto-reject error]:", e.message));
     }
   }
 
@@ -808,7 +823,9 @@ export async function createReservation(input: ReservationSubmissionInput) {
     paymentScreenshotUrl: null,
     bookedByAdmin: Boolean(cleanAdminId),
     isTypeRequest: Boolean(input.isTypeRequest),
-    requestedType: input.isTypeRequest ? input.requestedType?.trim() || null : null,
+    requestedType: input.isTypeRequest
+      ? input.requestedType?.trim() || null
+      : null,
     exceededLimits:
       evalResult.exceededLimits && evalResult.exceededLimits.length > 0
         ? JSON.stringify(evalResult.exceededLimits)
@@ -1076,9 +1093,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
         },
       },
       "new_requests",
-    ).catch((e) =>
-      console.warn("[Push new reservation error]:", e.message),
-    );
+    ).catch((e) => console.warn("[Push new reservation error]:", e.message));
   }
 
   return {
@@ -1254,7 +1269,8 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
 
     if (conflictingOccurrences.length > 0) {
       const conflictDescriptions = conflictingOccurrences.map(
-        (c) => `Occurrence #${c.occurrenceIndex} on ${c.date} at ${c.startTime}`,
+        (c) =>
+          `Occurrence #${c.occurrenceIndex} on ${c.date} at ${c.startTime}`,
       );
       const error: any = new Error(
         `Series has ${conflictingOccurrences.length} occurrence(s) conflicting with existing approved reservations: ${conflictDescriptions.join(", ")}.`,
@@ -1329,12 +1345,16 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       );
 
       const cleanFeeSnapshot = toNullableString(
-        input.isTypeRequest ? typeFlatFeeSnapshot : evalResult.outsideFeeSnapshot,
+        input.isTypeRequest
+          ? typeFlatFeeSnapshot
+          : evalResult.outsideFeeSnapshot,
       );
       // Type requests ALWAYS start as pending (even for Trusted users)
       const occurrenceStatus = input.isTypeRequest
         ? "pending"
-        : (isBookedByAdminOnBehalf || isAdmin ? "approved" : evalResult.status);
+        : isBookedByAdminOnBehalf || isAdmin
+          ? "approved"
+          : evalResult.status;
 
       const occurrenceParams = {
         seriesId: seriesRow.id,
@@ -1635,9 +1655,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
           },
         },
         "new_requests",
-      ).catch((e) =>
-        console.warn("[Push series request error]:", e.message),
-      );
+      ).catch((e) => console.warn("[Push series request error]:", e.message));
     }
   }
 
@@ -1686,6 +1704,17 @@ export async function editReservation(
     (!caller.userId || existing.userId !== caller.userId)
   ) {
     throw new Error("You are not authorized to edit this reservation.");
+  }
+
+  // ✅ Admin callers must use the Reassign endpoint to change instruments.
+  if (
+    caller.adminId &&
+    updates.instrumentId !== undefined &&
+    updates.instrumentId !== existing.instrumentId
+  ) {
+    throw new Error(
+      "Administrators must use the Reassign flow to change the instrument, so the member is notified and history is preserved.",
+    );
   }
 
   const isTypeRequest = Boolean(existing.isTypeRequest);
@@ -1742,7 +1771,9 @@ export async function editReservation(
         SELECT flat_fee_outside FROM instrument_type_settings WHERE type ILIKE ${existing.requestedType} LIMIT 1;
       `);
       const row = (typeRes as any).rows?.[0];
-      outsideFee = row?.flat_fee_outside ? String(row.flat_fee_outside) : existing.feeSnapshot;
+      outsideFee = row?.flat_fee_outside
+        ? String(row.flat_fee_outside)
+        : existing.feeSnapshot;
     }
   } else {
     // Direct booking flow
@@ -1831,7 +1862,9 @@ export async function editReservation(
                 inArray(reservations.status, ["pending", "approved"]),
               ),
             );
-          if (Number(activeRes[0]?.count || 0) >= limits.maxActiveReservations) {
+          if (
+            Number(activeRes[0]?.count || 0) >= limits.maxActiveReservations
+          ) {
             limitExceeded = true;
           }
         }
@@ -1880,11 +1913,20 @@ export async function editReservation(
     .returning();
 
   if (newStatus === "approved" && finalInstrumentId) {
-    await autoRejectOverlappingPending(finalInstrumentId, start, end, reservationId);
+    await autoRejectOverlappingPending(
+      finalInstrumentId,
+      start,
+      end,
+      reservationId,
+    );
   }
 
   // If an approved type request was modified and returned to pending, notify user and admins
-  if (isTypeRequest && existing.status === "approved" && newStatus === "pending") {
+  if (
+    isTypeRequest &&
+    existing.status === "approved" &&
+    newStatus === "pending"
+  ) {
     if (existing.userId) {
       await db.insert(notifications).values({
         userId: existing.userId,
@@ -1896,8 +1938,10 @@ export async function editReservation(
       sendPushToUser(existing.userId, {
         titleAr: "طلب الحجز قيد المراجعة مجدداً",
         titleEn: "Type Request Pending Assignment",
-        bodyAr: "تمت إعادة طلبك إلى قائمة المراجعة لتخصيص آلة جديدة بعد تعديل الموعد.",
-        bodyEn: "Your modified type request returned to pending review for instrument assignment.",
+        bodyAr:
+          "تمت إعادة طلبك إلى قائمة المراجعة لتخصيص آلة جديدة بعد تعديل الموعد.",
+        bodyEn:
+          "Your modified type request returned to pending review for instrument assignment.",
         tag: `res-status-${updated.id}`,
         url: `/?reservationId=${updated.id}`,
         data: { reservationId: updated.id, status: "pending" },
@@ -1906,12 +1950,15 @@ export async function editReservation(
 
     const allAdmins = await db.select({ id: admins.id }).from(admins);
     for (const adm of allAdmins) {
-      await db.insert(notifications).values({
-        adminId: adm.id,
-        reservationId: updated.id,
-        type: "reservation_submitted",
-        message: `Member modified an approved type request (${existing.requestedType}). Returned to pending for instrument assignment.`,
-      }).catch(() => {});
+      await db
+        .insert(notifications)
+        .values({
+          adminId: adm.id,
+          reservationId: updated.id,
+          type: "reservation_submitted",
+          message: `Member modified an approved type request (${existing.requestedType}). Returned to pending for instrument assignment.`,
+        })
+        .catch(() => {});
     }
   }
 
@@ -1948,7 +1995,11 @@ export interface EditSeriesOptions {
 export async function editReservationSeries(
   seriesId: string,
   options: EditSeriesOptions,
-  caller: { userId?: string | null; adminId?: string | null; isSuperAdmin?: boolean },
+  caller: {
+    userId?: string | null;
+    adminId?: string | null;
+    isSuperAdmin?: boolean;
+  },
 ) {
   const [series] = await db
     .select()
@@ -2002,9 +2053,14 @@ export async function editReservationSeries(
 
   const rawUpcomingRows = queryResult.rows || [];
   let affectedRows = rawUpcomingRows;
-  if (Array.isArray(options.occurrenceIds) && options.occurrenceIds.length > 0) {
+  if (
+    Array.isArray(options.occurrenceIds) &&
+    options.occurrenceIds.length > 0
+  ) {
     const filterSet = new Set(options.occurrenceIds.map(String));
-    affectedRows = rawUpcomingRows.filter((r: any) => filterSet.has(String(r.id)));
+    affectedRows = rawUpcomingRows.filter((r: any) =>
+      filterSet.has(String(r.id)),
+    );
   }
 
   if (affectedRows.length === 0) {
@@ -2043,7 +2099,10 @@ export async function editReservationSeries(
     let newDate = occ.occurrence_date;
     if (dateShift.type === "days" && typeof dateShift.value === "number") {
       newDate = addDaysToDateString(occ.occurrence_date, dateShift.value);
-    } else if (dateShift.type === "weekday" && typeof dateShift.value === "number") {
+    } else if (
+      dateShift.type === "weekday" &&
+      typeof dateShift.value === "number"
+    ) {
       newDate = shiftDateToWeekday(occ.occurrence_date, dateShift.value);
     }
 
@@ -2069,11 +2128,8 @@ export async function editReservationSeries(
         ? toNullableString(changes.serviceLocation)
         : occ.service_location;
     const newNote =
-      changes.note !== undefined
-        ? toNullableString(changes.note)
-        : occ.note;
-    const newReservationType =
-      changes.reservationType || occ.reservation_type;
+      changes.note !== undefined ? toNullableString(changes.note) : occ.note;
+    const newReservationType = changes.reservationType || occ.reservation_type;
 
     if (!newMusicianName) {
       throw new Error("Musician name is required.");
@@ -2155,7 +2211,10 @@ export async function editReservationSeries(
       .where(
         sql`${reservations.instrumentId} = ${p.newInstrumentId}
           AND ${reservations.status} = 'approved'
-          AND ${reservations.id} NOT IN (${sql.join(allAffectedIds.map((id) => sql`${id}`), sql`, `)})
+          AND ${reservations.id} NOT IN (${sql.join(
+            allAffectedIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})
           AND ${reservations.timeRange} && tstzrange(${p.start.toISOString()}, ${p.end.toISOString()}, '[)')`,
       );
 
@@ -2243,7 +2302,10 @@ export async function editReservationSeries(
   try {
     await db.transaction(async (tx) => {
       // Update parent reservation_series row if needed (when editing all upcoming occurrences)
-      if (!options.occurrenceIds || options.occurrenceIds.length >= rawUpcomingRows.length) {
+      if (
+        !options.occurrenceIds ||
+        options.occurrenceIds.length >= rawUpcomingRows.length
+      ) {
         await tx
           .update(reservationSeries)
           .set({
@@ -2473,7 +2535,11 @@ export async function cancelReservation(
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  if (cleanCallerAdminId && cancelled.userId && cancelled.userId !== cleanCallerAdminId) {
+  if (
+    cleanCallerAdminId &&
+    cancelled.userId &&
+    cancelled.userId !== cleanCallerAdminId
+  ) {
     await db.insert(notifications).values({
       userId: cancelled.userId,
       reservationId: cancelled.id,
@@ -2493,9 +2559,7 @@ export async function cancelReservation(
       tag: `res-status-${cancelled.id}`,
       url: `/?reservationId=${cancelled.id}`,
       data: { reservationId: cancelled.id, status: "cancelled" },
-    }).catch((e) =>
-      console.warn("[Push single cancel error]:", e.message),
-    );
+    }).catch((e) => console.warn("[Push single cancel error]:", e.message));
   }
 
   return { mode: "single", reservation: cancelled };
@@ -2626,9 +2690,7 @@ export async function adminApproveReservation(
         tag: `res-status-${res.id}`,
         url: `/?reservationId=${res.id}`,
         data: { reservationId: res.id, status: "approved" },
-      }).catch((e) =>
-        console.warn("[Push single approve error]:", e.message),
-      );
+      }).catch((e) => console.warn("[Push single approve error]:", e.message));
     }
 
     // Send transactional email (non-blocking) unless skipped (e.g. during series approval)
@@ -2796,9 +2858,7 @@ export async function adminTransformToFullDay(
         tag: `res-status-${res.id}`,
         url: `/?reservationId=${res.id}`,
         data: { reservationId: res.id, status: "approved" },
-      }).catch((e) =>
-        console.warn("[Push full day error]:", e.message),
-      );
+      }).catch((e) => console.warn("[Push full day error]:", e.message));
     }
 
     if (!options?.skipEmail) {
@@ -2889,9 +2949,7 @@ export async function adminRejectReservation(
         tag: `res-status-${res.id}`,
         url: `/?reservationId=${res.id}`,
         data: { reservationId: res.id, status: "rejected" },
-      }).catch((e) =>
-        console.warn("[Push single reject error]:", e.message),
-      );
+      }).catch((e) => console.warn("[Push single reject error]:", e.message));
     }
 
     // Also record the rejection reason as an admin message in the conversation thread
@@ -3011,9 +3069,7 @@ export async function adminApproveSeries(
         tag: `series-status-${seriesId}`,
         url: `/?reservationId=${firstOcc.id}`,
         data: { reservationId: firstOcc.id, seriesId, status: "approved" },
-      }).catch((e) =>
-        console.warn("[Push series approve error]:", e.message),
-      );
+      }).catch((e) => console.warn("[Push series approve error]:", e.message));
     }
 
     (async () => {
@@ -3124,9 +3180,7 @@ export async function adminRejectSeries(
         tag: `series-status-${seriesId}`,
         url: `/?reservationId=${seriesOccurrences[0]?.id || ""}`,
         data: { seriesId, status: "rejected" },
-      }).catch((e) =>
-        console.warn("[Push series reject error]:", e.message),
-      );
+      }).catch((e) => console.warn("[Push series reject error]:", e.message));
     }
 
     // Also record the rejection reason as an admin message in the conversation thread for each occurrence
@@ -3286,9 +3340,7 @@ export async function adminBulkReject(
       tag: `bulk-reject-${Date.now()}`,
       url: "/?view=my_reservations",
       data: { status: "rejected" },
-    }).catch((e) =>
-      console.warn("[Push bulk reject error]:", e.message),
-    );
+    }).catch((e) => console.warn("[Push bulk reject error]:", e.message));
   }
 
   return {
@@ -3618,9 +3670,7 @@ export async function removeInstrumentWithConfirmation(
           tag: `inst-removed-${instrumentId}`,
           url: "/?view=calendar",
           data: { instrumentId, type: "instrument_removed" },
-        }).catch((e) =>
-          console.warn("[Push inst remove error]:", e.message),
-        );
+        }).catch((e) => console.warn("[Push inst remove error]:", e.message));
       }
     }
   }
@@ -3705,9 +3755,16 @@ export async function getTypeRequestCandidates(reservationId: string) {
         const cBounds: any = await db.execute(
           sql`SELECT lower(time_range) as st, upper(time_range) as et FROM reservations WHERE id = ${c.id}`,
         );
-        const cStart = cBounds.rows?.[0]?.st ? new Date(cBounds.rows[0].st) : null;
-        const cEnd = cBounds.rows?.[0]?.et ? new Date(cBounds.rows[0].et) : null;
-        const timeFmt = cStart && cEnd ? ` (${getCairoTimeString(cStart)} - ${getCairoTimeString(cEnd)})` : "";
+        const cStart = cBounds.rows?.[0]?.st
+          ? new Date(cBounds.rows[0].st)
+          : null;
+        const cEnd = cBounds.rows?.[0]?.et
+          ? new Date(cBounds.rows[0].et)
+          : null;
+        const timeFmt =
+          cStart && cEnd
+            ? ` (${getCairoTimeString(cStart)} - ${getCairoTimeString(cEnd)})`
+            : "";
         statusReason = `Busy: conflicts with "${c.serviceName}" (${c.musicianName || "Musician"})${timeFmt}`;
         conflictDetails = {
           reservationId: c.id,
@@ -3763,6 +3820,163 @@ export async function getTypeRequestCandidates(reservationId: string) {
   };
 }
 
+/**
+ * Candidates for REASSIGNING an already-approved direct booking.
+ * Unlike getTypeRequestCandidates, this:
+ *   - Accepts any reservation (not just type requests).
+ *   - Lists ALL active instruments (any type).
+ *   - Excludes the currently-assigned instrument from "busy" status
+ *     (it isn't a conflict with itself).
+ *   - Flags conflicts against OTHER approved reservations in the slot.
+ *   - Sorts Room Stock → Musician → Public, then Free → Busy → Out-of-Service.
+ */
+export async function getReassignCandidates(reservationId: string) {
+  const [res] = await db
+    .select()
+    .from(reservations)
+    .where(eq(reservations.id, reservationId))
+    .limit(1);
+
+  if (!res) throw new Error("Reservation not found.");
+
+  const boundsRes: any = await db.execute(
+    sql`SELECT lower(time_range) as start_time, upper(time_range) as end_time FROM reservations WHERE id = ${reservationId}`,
+  );
+  if (!boundsRes.rows || boundsRes.rows.length === 0) {
+    throw new Error("Could not determine reservation time boundaries.");
+  }
+  const start = new Date(boundsRes.rows[0].start_time);
+  const end = new Date(boundsRes.rows[0].end_time);
+
+  // Resolve the category (type) of the currently assigned instrument
+  let currentInstrumentType: string | null = null;
+  if (res.instrumentId) {
+    const [currentInst] = await db
+      .select({ type: instruments.type })
+      .from(instruments)
+      .where(eq(instruments.id, res.instrumentId))
+      .limit(1);
+    currentInstrumentType = currentInst?.type || null;
+  }
+
+  // Fallback to requestedType if there's no current instrument assigned (edge case)
+  const targetType = currentInstrumentType || res.requestedType;
+
+  if (!targetType) {
+    throw new Error("Could not determine the target instrument category.");
+  }
+
+  // All active instruments, strictly filtered by the SAME category
+  const allInstruments = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(
+        eq(instruments.isRemoved, false),
+        sql`${instruments.type} ILIKE ${targetType.trim()}`,
+      ),
+    );
+
+  const candidates: Array<{
+    instrument: (typeof allInstruments)[number];
+    status: "free" | "busy" | "out_of_service";
+    statusReason: string | null;
+    conflictDetails: any;
+  }> = [];
+
+  for (const inst of allInstruments) {
+    let candidateStatus: "free" | "busy" | "out_of_service" = "free";
+    let statusReason: string | null = null;
+    let conflictDetails: any = null;
+
+    if (inst.isOutOfService) {
+      candidateStatus = "out_of_service";
+      statusReason = "Instrument is marked Out of service";
+    } else {
+      const conflictRes = await db
+        .select({
+          id: reservations.id,
+          serviceName: reservations.serviceName,
+          musicianName: reservations.musicianName,
+        })
+        .from(reservations)
+        .where(
+          sql`${reservations.instrumentId} = ${inst.id}
+            AND ${reservations.status} = 'approved'
+            AND ${reservations.id} != ${reservationId}
+            AND ${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
+        )
+        .limit(1);
+
+      if (conflictRes.length > 0) {
+        candidateStatus = "busy";
+        const c = conflictRes[0];
+        const cBounds: any = await db.execute(
+          sql`SELECT lower(time_range) as st, upper(time_range) as et FROM reservations WHERE id = ${c.id}`,
+        );
+        const cStart = cBounds.rows?.[0]?.st
+          ? new Date(cBounds.rows[0].st)
+          : null;
+        const cEnd = cBounds.rows?.[0]?.et
+          ? new Date(cBounds.rows[0].et)
+          : null;
+        const timeFmt =
+          cStart && cEnd
+            ? ` (${getCairoTimeString(cStart)} - ${getCairoTimeString(cEnd)})`
+            : "";
+        statusReason = `Busy: conflicts with "${c.serviceName}" (${c.musicianName || "Musician"})${timeFmt}`;
+        conflictDetails = {
+          reservationId: c.id,
+          serviceName: c.serviceName,
+          musicianName: c.musicianName,
+          start: cStart,
+          end: cEnd,
+        };
+      }
+    }
+
+    candidates.push({
+      instrument: inst,
+      status: candidateStatus,
+      statusReason,
+      conflictDetails,
+    });
+  }
+
+  const levelPriority: Record<string, number> = {
+    room_stock: 1,
+    musician: 2,
+    public: 3,
+  };
+  const statusPriority: Record<string, number> = {
+    free: 1,
+    busy: 2,
+    out_of_service: 3,
+  };
+
+  candidates.sort((a, b) => {
+    const levelDiff =
+      (levelPriority[a.instrument.visibilityLevel || "public"] || 9) -
+      (levelPriority[b.instrument.visibilityLevel || "public"] || 9);
+    if (levelDiff !== 0) return levelDiff;
+
+    const statusDiff =
+      (statusPriority[a.status] || 9) - (statusPriority[b.status] || 9);
+    if (statusDiff !== 0) return statusDiff;
+
+    return a.instrument.name.localeCompare(b.instrument.name);
+  });
+
+  return {
+    reservation: res,
+    // No requestedType — this isn't a type request.
+    requestedType: res.requestedType || res.instrumentId ? null : null,
+    start,
+    end,
+    candidates,
+    freeCount: candidates.filter((c) => c.status === "free").length,
+  };
+}
 /**
  * Fetches candidates for all occurrences of a recurring series type request.
  */
@@ -4192,7 +4406,12 @@ export async function adminReassignReservation(
     .where(eq(reservations.id, reservationId))
     .returning();
 
-  await autoRejectOverlappingPending(newInstrumentId, start, end, reservationId);
+  await autoRejectOverlappingPending(
+    newInstrumentId,
+    start,
+    end,
+    reservationId,
+  );
 
   try {
     let adminName = "Church Administration";

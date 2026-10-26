@@ -50,6 +50,7 @@ import {
   NO_SHOW_WINDOW_HOURS,
   getTypeRequestCandidates,
   getSeriesTypeRequestCandidates,
+  getReassignCandidates,
   adminAssignTypeRequest,
   adminAssignSeriesTypeRequest,
   adminReassignReservation,
@@ -1227,7 +1228,22 @@ router.get(
     }
   },
 );
-
+/**
+ * Candidates for REASSIGNING an already-approved booking to a different instrument.
+ * Not restricted to type requests — works for any reservation that has an instrument.
+ */
+router.get(
+  "/reservations/:id/reassign-candidates",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const data = await getReassignCandidates(id);
+      res.json({ success: true, ...data });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
 /**
  * Get candidate instruments across a series of type requests
  */

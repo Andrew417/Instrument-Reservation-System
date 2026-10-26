@@ -36,6 +36,8 @@ export interface EditReservationModalProps {
   onSuccess: (updatedReservation: any) => void;
   initialScope?: "chooser" | "single" | "series";
   initialSelectedIds?: string[];
+  /** Fired when an admin clicks "Reassign". The parent should close this modal and open the AssignInstrumentModal in reassign mode. */
+  onReassignReservation?: (reservation: any) => void;
 }
 
 import { START_TIME_SLOTS as TIME_SLOTS } from "../constants/reservationTimes";
@@ -68,6 +70,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   onSuccess,
   initialScope,
   initialSelectedIds,
+  onReassignReservation,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -462,7 +465,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
       if (shouldBulkPatch) {
         const body: Record<string, unknown> = {
           changes: {
-            instrumentId: currentInstrument.id,
+            // Admin: never change the instrument through the edit path.
+            // Users: keep the currently selected instrument.
+            ...(isAdmin ? {} : { instrumentId: currentInstrument?.id }),
             serviceName: serviceName.trim(),
             serviceLocation: serviceLocation.trim() || undefined,
             musicianName: musicianName.trim(),
@@ -523,7 +528,8 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           : activeReservation?.id || reservation.id;
 
       const body: Record<string, unknown> = {
-        instrumentId: currentInstrument.id,
+        // Admin: instrument change is blocked here — must use Reassign flow.
+        ...(isAdmin ? {} : { instrumentId: currentInstrument?.id }),
         serviceName: serviceName.trim(),
         serviceLocation: serviceLocation.trim() || undefined,
         musicianName: musicianName.trim(),
@@ -1246,6 +1252,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                       <Music2 className="w-5 h-5 text-amber-800" />
                     )}
                   </div>
+
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-stone-900 truncate">
                       {currentInstrument?.name}
@@ -1257,34 +1264,56 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                         : t("admin.instruments.manualReview")}
                     </div>
                   </div>
+
+                  {/* Admin-only: single compact Reassign button, right-aligned */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onReassignReservation) {
+                          onClose();
+                          onReassignReservation(reservation);
+                        }
+                      }}
+                      disabled={!onReassignReservation || isLocked}
+                      title={isAr ? "إعادة تخصيص الآلة" : "Reassign instrument"}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 active:bg-stone-300 disabled:opacity-50 disabled:cursor-not-allowed text-stone-700 text-xs font-bold transition cursor-pointer whitespace-nowrap shadow-2xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span>{isAr ? "إعادة تخصيص" : "Reassign"}</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="relative">
-                  <select
-                    id="select-edit-instrument"
-                    value={selectedInstrumentId}
-                    onChange={(e) => setSelectedInstrumentId(e.target.value)}
-                    className="w-full appearance-none bg-stone-50 hover:bg-stone-100 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
-                  >
-                    {allInstruments.map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.name} ({inst.type}) —{" "}
-                        {inst.bookingMode === "instant"
-                          ? t("common.instant")
-                          : t("common.manual")}
-                      </option>
-                    ))}
-                  </select>
-                  <div
-                    className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
-                      isAr ? "left-0" : "right-0"
-                    }`}
-                  >
-                    <ChevronRight
-                      className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
-                    />
+                {/* Regular user: unchanged dropdown */}
+                {!isAdmin && (
+                  <div className="relative">
+                    <select
+                      id="select-edit-instrument"
+                      value={selectedInstrumentId}
+                      onChange={(e) => setSelectedInstrumentId(e.target.value)}
+                      className="w-full appearance-none bg-stone-50 hover:bg-stone-100 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
+                    >
+                      {allInstruments.map((inst) => (
+                        <option key={inst.id} value={inst.id}>
+                          {inst.name} ({inst.type}) —{" "}
+                          {inst.bookingMode === "instant"
+                            ? t("common.instant")
+                            : t("common.manual")}
+                        </option>
+                      ))}
+                    </select>
+                    <div
+                      className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
+                        isAr ? "left-0" : "right-0"
+                      }`}
+                    >
+                      <ChevronRight
+                        className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 whitespace-nowrap">

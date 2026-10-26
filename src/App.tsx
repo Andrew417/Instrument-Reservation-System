@@ -831,7 +831,7 @@ const UserPortalMain: React.FC = () => {
           isSeries={Boolean(
             assigningReservation.series_id || assigningReservation.seriesId,
           )}
-          isReassign={false}
+          isReassign={Boolean(assigningReservation._isReassign)}
           onClose={() => setAssigningReservation(null)}
           onSuccess={() => {
             setAssigningReservation(null);
@@ -852,6 +852,17 @@ const UserPortalMain: React.FC = () => {
             setEditingReservation(null);
             setRefreshTrigger((prev) => prev + 1);
           }}
+          onReassignReservation={
+            isAdminOrSuperAdmin
+              ? (reservation) => {
+                  setEditingReservation(null);
+                  setAssigningReservation({
+                    ...reservation,
+                    _isReassign: true,
+                  });
+                }
+              : undefined
+          }
         />
       )}
 
