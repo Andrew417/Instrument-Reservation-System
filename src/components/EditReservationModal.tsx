@@ -52,13 +52,13 @@ const DURATION_OPTIONS = [
 ];
 
 const WEEKDAYS = [
-  { val: 0, labelEn: "Sun", labelAr: "الأحد" },
-  { val: 1, labelEn: "Mon", labelAr: "الإثنين" },
-  { val: 2, labelEn: "Tue", labelAr: "الثلاثاء" },
-  { val: 3, labelEn: "Wed", labelAr: "الأربعاء" },
-  { val: 4, labelEn: "Thu", labelAr: "الخميس" },
-  { val: 5, labelEn: "Fri", labelAr: "الجمعة" },
-  { val: 6, labelEn: "Sat", labelAr: "السبت" },
+  { val: 0, key: "daySun" },
+  { val: 1, key: "dayMon" },
+  { val: 2, key: "dayTue" },
+  { val: 3, key: "dayWed" },
+  { val: 4, key: "dayThu" },
+  { val: 5, key: "dayFri" },
+  { val: 6, key: "daySat" },
 ];
 
 export const EditReservationModal: React.FC<EditReservationModalProps> = ({
@@ -1111,7 +1111,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                                   : "bg-white text-stone-700 border-stone-200 hover:bg-stone-100"
                               }`}
                             >
-                              {isAr ? wd.labelAr : wd.labelEn}
+                              {t(`instrumentDetail.${wd.key}`)}
                             </button>
                           ))}
                         </div>

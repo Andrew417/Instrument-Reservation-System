@@ -1007,19 +1007,19 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               {(inst.isOutOfService || (inst as any).is_out_of_service) && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                                   <AlertTriangle className="w-2.5 h-2.5 text-rose-600" />
-                                  <span>Out of Service</span>
+                                  <span>{t("common.outOfService")}</span>
                                 </span>
                               )}
 
                               {/* Visibility Level Chip (if musician or room_stock) */}
                               {inst.visibilityLevel === "musician" && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                  <span>Musicians</span>
+                                  <span>{t("common.musicians")}</span>
                                 </span>
                               )}
                               {inst.visibilityLevel === "room_stock" && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                                  <span>Room Stock</span>
+                                  <span>{t("common.roomStock")}</span>
                                 </span>
                               )}
 

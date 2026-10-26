@@ -6,4 +6,5 @@ dotenv.config({
     process.cwd(),
     process.env.NODE_ENV === "production" ? ".env" : ".env.local",
   ),
+  quiet: true,
 });

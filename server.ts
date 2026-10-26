@@ -27,7 +27,7 @@ export async function createServer() {
   // Vite middleware for development vs static build in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: "spa",
     });
     app.use(vite.middlewares);
@@ -42,12 +42,43 @@ export async function createServer() {
   return { app, PORT };
 }
 
+// Global safety net to prevent transient background errors from crashing the dev server process
+process.on("unhandledRejection", (reason) => {
+  console.warn("[Unhandled Rejection Notice (handled)]:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.warn("[Uncaught Exception Notice (handled)]:", err?.message || err);
+});
+
 // Start listener for local development / Cloud Run environments
 async function startServer() {
   const { app, PORT } = await createServer();
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });
+
+  server.on("error", (err: any) => {
+    if (err.code === "EADDRINUSE") {
+      console.warn(`[Server] Port ${PORT} busy, retrying in 1s...`);
+      setTimeout(() => {
+        try {
+          server.close();
+        } catch {}
+        server.listen(PORT, "0.0.0.0");
+      }, 1000);
+    } else {
+      console.error("[Server Error]:", err);
+    }
+  });
+
+  process.on("SIGTERM", () => {
+    server.close(() => process.exit(0));
+  });
+  process.on("SIGINT", () => {
+    server.close(() => process.exit(0));
+  });
+
+  return server;
 }
 
 // In Node/TS execution, start server

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import {
   Lock,
@@ -8,18 +9,22 @@ import {
   ShieldAlert,
   ShieldCheck,
   ArrowRight,
+  ArrowLeft,
   KeyRound,
   AlertTriangle,
   Clock,
   X,
-  Church,
   CheckCircle2,
   RefreshCw,
   Eye,
   EyeOff,
+  Globe,
 } from "lucide-react";
 
 export const AuthScreen: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
+
   const {
     loginWithEmail,
     registerWithEmail,
@@ -78,6 +83,10 @@ export const AuthScreen: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showForgotPasswordModal]);
 
+  const toggleLanguage = () => {
+    i18n.changeLanguage(isAr ? "en" : "ar");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting || isLocked) return;
@@ -89,8 +98,7 @@ export const AuthScreen: React.FC = () => {
         const res = await registerWithEmail(name, email, phoneNumber, password);
         if (res && res.pendingApproval) {
           setRegistrationNotice(
-            res.message ||
-              "Your account is awaiting admin approval before you can log in.",
+            res.message || t("auth.defaultPendingNotice"),
           );
           setMode("login");
           setPassword("");
@@ -102,24 +110,6 @@ export const AuthScreen: React.FC = () => {
       setSubmitting(false);
     }
   };
-
-  // Force LTR while the auth screen is mounted; restore prior direction on unmount
-  useEffect(() => {
-    const root = document.documentElement;
-    const prevDir = root.getAttribute("dir");
-    const prevLang = root.getAttribute("lang");
-    const wasRtl = root.classList.contains("rtl");
-
-    root.setAttribute("dir", "ltr");
-    root.setAttribute("lang", "en");
-    root.classList.remove("rtl");
-
-    return () => {
-      if (prevDir) root.setAttribute("dir", prevDir);
-      if (prevLang) root.setAttribute("lang", prevLang);
-      if (wasRtl) root.classList.add("rtl");
-    };
-  }, []);
 
   const openForgotPassword = () => {
     setResetEmail(email || "");
@@ -154,7 +144,7 @@ export const AuthScreen: React.FC = () => {
         if (res.status === 429 && data.retryAfterSeconds) {
           setResendCooldown(data.retryAfterSeconds);
         }
-        setResetError(data.error || "Failed to request verification code");
+        setResetError(data.error || t("auth.errGeneric"));
         return;
       }
 
@@ -163,7 +153,7 @@ export const AuthScreen: React.FC = () => {
       setSimulatedCode(data.testOtpCode || null);
       setResetStep("verify");
     } catch (err: any) {
-      setResetError(err.message || "Network error requesting OTP");
+      setResetError(err.message || t("auth.errGeneric"));
     } finally {
       setResetLoading(false);
     }
@@ -187,7 +177,7 @@ export const AuthScreen: React.FC = () => {
         if (res.status === 429 && data.retryAfterSeconds) {
           setResendCooldown(data.retryAfterSeconds);
         }
-        setResetError(data.error || "Failed to resend verification code");
+        setResetError(data.error || t("auth.errGeneric"));
         return;
       }
 
@@ -196,7 +186,7 @@ export const AuthScreen: React.FC = () => {
       setSimulatedCode(data.testOtpCode || null);
       setOtpCode("");
     } catch (err: any) {
-      setResetError(err.message || "Network error resending OTP");
+      setResetError(err.message || t("auth.errGeneric"));
     } finally {
       setResetLoading(false);
     }
@@ -218,14 +208,14 @@ export const AuthScreen: React.FC = () => {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setResetError(data.error || "Invalid verification code");
+        setResetError(data.error || t("auth.errGeneric"));
         return;
       }
 
       setResetToken(data.resetToken);
       setResetStep("new_password");
     } catch (err: any) {
-      setResetError(err.message || "Network error verifying OTP");
+      setResetError(err.message || t("auth.errGeneric"));
     } finally {
       setResetLoading(false);
     }
@@ -235,15 +225,15 @@ export const AuthScreen: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      setResetError("Password must be at least 6 characters long");
+      setResetError(t("auth.errPasswordMin"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setResetError("Passwords do not match");
+      setResetError(t("auth.errPasswordMismatch"));
       return;
     }
     if (!resetToken) {
-      setResetError("Verification session expired. Please request a new OTP.");
+      setResetError(t("auth.errGeneric"));
       return;
     }
 
@@ -263,7 +253,7 @@ export const AuthScreen: React.FC = () => {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setResetError(data.error || "Failed to reset password");
+        setResetError(data.error || t("auth.errGeneric"));
         return;
       }
 
@@ -273,7 +263,7 @@ export const AuthScreen: React.FC = () => {
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      setResetError(err.message || "Network error setting new password");
+      setResetError(err.message || t("auth.errGeneric"));
     } finally {
       setResetLoading(false);
     }
@@ -288,21 +278,35 @@ export const AuthScreen: React.FC = () => {
   return (
     <div
       id="auth-screen-container"
-      className="min-h-screen bg-stone-100 flex flex-col items-center justify-center p-4 sm:p-6 text-stone-900 font-sans"
+      className="min-h-screen bg-stone-100 flex flex-col items-center justify-center p-4 sm:p-6 text-stone-900 font-sans relative"
+      dir={isAr ? "rtl" : "ltr"}
     >
+      {/* Language Switcher Button */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-stone-200 text-stone-700 hover:text-stone-900 hover:bg-stone-50 text-xs font-semibold shadow-2xs transition cursor-pointer"
+          title={isAr ? "Switch to English" : "التبديل إلى العربية"}
+        >
+          <Globe className="w-3.5 h-3.5 text-amber-800" />
+          <span>{isAr ? "English" : "العربية"}</span>
+        </button>
+      </div>
+
       {/* Brand Header */}
       <div className="flex items-center gap-3 mb-6">
         <img
           src="/logo.png"
-          alt="St. Mark Music & Instruments"
+          alt={t("auth.appName")}
           className="w-11 h-11 rounded-2xl object-cover shadow-md border border-amber-900/40"
         />
         <div>
           <h2 className="text-xl font-bold tracking-tight text-stone-900">
-            St. Mark Music & Instruments
+            {t("auth.appName")}
           </h2>
           <p className="text-xs text-stone-600 font-medium">
-            Reserve instruments for church use
+            {t("auth.appSubtitle")}
           </p>
         </div>
       </div>
@@ -317,12 +321,10 @@ export const AuthScreen: React.FC = () => {
             <KeyRound className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">
-            {mode === "login" ? "Sign In" : "Create an Account"}
+            {mode === "login" ? t("auth.signIn") : t("auth.createAccount")}
           </h1>
           <p className="text-xs text-stone-500 mt-1">
-            {mode === "login"
-              ? "Access church instrument schedules with your email and password"
-              : "Register with your email and contact information to request instruments"}
+            {mode === "login" ? t("auth.signInDesc") : t("auth.registerDesc")}
           </p>
         </div>
 
@@ -344,7 +346,7 @@ export const AuthScreen: React.FC = () => {
                 : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            Sign In
+            {t("auth.signIn")}
           </button>
           <button
             id="tab-btn-register"
@@ -360,7 +362,7 @@ export const AuthScreen: React.FC = () => {
                 : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            New Registration
+            {t("auth.newRegistration")}
           </button>
         </div>
 
@@ -373,7 +375,7 @@ export const AuthScreen: React.FC = () => {
             <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="font-bold text-amber-900 text-sm">
-                Registration Submitted
+                {t("auth.regSubmittedTitle")}
               </div>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed">
                 {registrationNotice}
@@ -391,16 +393,17 @@ export const AuthScreen: React.FC = () => {
             <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="font-bold text-red-900 text-sm">
-                Account Temporarily Locked
+                {t("auth.lockedTitle")}
               </div>
               <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
-                5 consecutive failed login attempts detected. For security,
-                logins for this account are locked for 15 minutes.
+                {t("auth.lockedDesc")}
               </p>
               <div className="flex items-center gap-2 font-mono text-sm font-bold text-red-900 mt-2 bg-red-100 px-3 py-1.5 rounded-lg w-fit border border-red-200">
                 <Clock className="w-4 h-4 text-red-700" />
                 <span>
-                  Lockout expires in: {formatLockTime(lockRemainingSeconds)}
+                  {t("auth.lockoutExpiresIn", {
+                    time: formatLockTime(lockRemainingSeconds),
+                  })}
                 </span>
               </div>
             </div>
@@ -426,20 +429,26 @@ export const AuthScreen: React.FC = () => {
                 htmlFor="register-name-input"
                 className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
               >
-                Full Name
+                {t("auth.fullName")}
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                <div
+                  className={`absolute inset-y-0 ${
+                    isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                  } flex items-center pointer-events-none text-stone-400`}
+                >
                   <User className="w-4 h-4" />
                 </div>
                 <input
                   id="register-name-input"
                   type="text"
                   required
-                  placeholder="e.g. Samuel Mark"
+                  placeholder={t("auth.fullNamePlaceholder")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                  className={`w-full ${
+                    isAr ? "pr-10 pl-3.5" : "pl-10 pr-3.5"
+                  } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
                 />
               </div>
             </div>
@@ -451,26 +460,31 @@ export const AuthScreen: React.FC = () => {
               htmlFor="auth-email-input"
               className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
             >
-              Email Address
+              {t("auth.emailAddress")}
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+              <div
+                className={`absolute inset-y-0 ${
+                  isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                } flex items-center pointer-events-none text-stone-400`}
+              >
                 <Mail className="w-4 h-4" />
               </div>
               <input
                 id="auth-email-input"
                 type="email"
                 required
-                placeholder="e.g. membername@gmail.com"
+                placeholder={t("auth.emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                className={`w-full ${
+                  isAr ? "pr-10 pl-3.5" : "pl-10 pr-3.5"
+                } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
               />
             </div>
             {mode === "register" && (
               <p className="text-[11px] text-stone-400 mt-1.5">
-                You'll receive emails for reservation approvals at this
-                address.{" "}
+                {t("auth.emailHelp")}
               </p>
             )}
           </div>
@@ -482,22 +496,31 @@ export const AuthScreen: React.FC = () => {
                 htmlFor="register-phone-input"
                 className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5"
               >
-                Phone Number <span className="normal-case">(WhatsApp)</span>
+                {t("auth.phoneNumber")}
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                <div
+                  className={`absolute inset-y-0 ${
+                    isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                  } flex items-center pointer-events-none text-stone-400`}
+                >
                   <Phone className="w-4 h-4" />
                 </div>
                 <input
                   id="register-phone-input"
                   type="tel"
                   required
-                  placeholder="e.g. 01012345678"
+                  placeholder={t("auth.phonePlaceholder")}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                  className={`w-full ${
+                    isAr ? "pr-10 pl-3.5" : "pl-10 pr-3.5"
+                  } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
                 />
               </div>
+              <p className="text-[11px] text-stone-400 mt-1.5">
+                {t("auth.phoneHelp")}
+              </p>
             </div>
           )}
 
@@ -508,7 +531,7 @@ export const AuthScreen: React.FC = () => {
                 htmlFor="auth-password-input"
                 className="block text-xs font-bold uppercase tracking-wider text-stone-600"
               >
-                Password
+                {t("auth.password")}
               </label>
               {mode === "login" && (
                 <button
@@ -517,28 +540,36 @@ export const AuthScreen: React.FC = () => {
                   onClick={openForgotPassword}
                   className="text-xs text-amber-800 hover:text-amber-900 font-semibold hover:underline cursor-pointer"
                 >
-                  Forgot Password?
+                  {t("auth.forgotPassword")}
                 </button>
               )}
             </div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+              <div
+                className={`absolute inset-y-0 ${
+                  isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                } flex items-center pointer-events-none text-stone-400`}
+              >
                 <Lock className="w-4 h-4" />
               </div>
               <input
                 id="auth-password-input"
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="••••••••"
+                placeholder={t("auth.passwordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                className={`w-full ${
+                  isAr ? "pr-10 pl-10" : "pl-10 pr-10"
+                } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
               />
               <button
                 type="button"
                 id="btn-toggle-auth-password"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none"
+                className={`absolute inset-y-0 ${
+                  isAr ? "left-0 pl-3.5" : "right-0 pr-3.5"
+                } flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none`}
                 tabIndex={-1}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 title={showPassword ? "Hide password" : "Show password"}
@@ -552,7 +583,7 @@ export const AuthScreen: React.FC = () => {
             </div>
             {mode === "register" && (
               <p className="text-[11px] text-stone-400 mt-1.5">
-                Minimum 6 characters.
+                {t("auth.errPasswordMin")}
               </p>
             )}
           </div>
@@ -562,16 +593,22 @@ export const AuthScreen: React.FC = () => {
             id="auth-submit-btn"
             type="submit"
             disabled={submitting || isLocked}
-            className="w-full mt-3 py-2.5 px-4 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl transition shadow-sm hover:shadow flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full mt-3 py-2.5 px-4 bg-amber-800 hover:bg-amber-900 active:bg-amber-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-xl transition shadow-xs hover:shadow flex items-center justify-center gap-2 cursor-pointer"
           >
             {submitting ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
                 <span>
-                  {mode === "login" ? "Sign In" : "Complete Registration"}
+                  {mode === "login"
+                    ? t("auth.signIn")
+                    : t("auth.completeRegistration")}
                 </span>
-                <ArrowRight className="w-4 h-4" />
+                {isAr ? (
+                  <ArrowLeft className="w-4 h-4" />
+                ) : (
+                  <ArrowRight className="w-4 h-4" />
+                )}
               </>
             )}
           </button>
@@ -580,7 +617,7 @@ export const AuthScreen: React.FC = () => {
         {/* Security Policy Footer */}
         <div className="mt-6 pt-4 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-500 text-xs">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Automatic 15-minute lock after 5 failed attempts</span>
+          <span>{t("auth.securityFooter")}</span>
         </div>
       </div>
 
@@ -589,6 +626,7 @@ export const AuthScreen: React.FC = () => {
         <div
           id="forgot-password-modal-backdrop"
           className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+          dir={isAr ? "rtl" : "ltr"}
         >
           <div
             id="forgot-password-modal"
@@ -602,10 +640,10 @@ export const AuthScreen: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-stone-900">
-                    Reset Account Password
+                    {t("auth.resetPasswordTitle")}
                   </h3>
                   <p className="text-xs text-stone-500">
-                    Verify your email to continue
+                    {t("auth.resetPasswordSubtitle")}
                   </p>
                 </div>
               </div>
@@ -613,6 +651,7 @@ export const AuthScreen: React.FC = () => {
                 id="btn-close-forgot-modal"
                 onClick={() => setShowForgotPasswordModal(false)}
                 className="text-stone-400 hover:text-stone-700 p-1 rounded-lg hover:bg-stone-100 transition cursor-pointer"
+                aria-label={t("auth.close")}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -630,26 +669,31 @@ export const AuthScreen: React.FC = () => {
             {resetStep === "request" && (
               <form onSubmit={handleRequestOtp} className="space-y-4">
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  Enter your registered account email. A 6-digit one-time
-                  verification code (OTP) will be dispatched to your inbox.
+                  {t("auth.resetStep1Desc")}
                 </p>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                    Email Address
+                    {t("auth.emailAddress")}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                    <div
+                      className={`absolute inset-y-0 ${
+                        isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                      } flex items-center pointer-events-none text-stone-400`}
+                    >
                       <Mail className="w-4 h-4" />
                     </div>
                     <input
                       id="reset-email-input"
                       type="email"
                       required
-                      placeholder="e.g. membername@gmail.com"
+                      placeholder={t("auth.emailPlaceholder")}
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
-                      className="w-full pl-10 pr-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                      className={`w-full ${
+                        isAr ? "pr-10 pl-3.5" : "pl-10 pr-3.5"
+                      } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
                     />
                   </div>
                 </div>
@@ -664,8 +708,12 @@ export const AuthScreen: React.FC = () => {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Send 6-Digit Code</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>{t("auth.sendCode")}</span>
+                      {isAr ? (
+                        <ArrowLeft className="w-4 h-4" />
+                      ) : (
+                        <ArrowRight className="w-4 h-4" />
+                      )}
                     </>
                   )}
                 </button>
@@ -682,13 +730,12 @@ export const AuthScreen: React.FC = () => {
                       <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded text-[10px] uppercase tracking-wider font-extrabold">
                         TEST/DEV MODE
                       </span>
-                      <span>Simulated Email OTP</span>
+                      <span>{t("auth.simulatedOtp")}</span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-normal">
-                      RESEND_API_KEY is not set or in test mode. The generated
-                      verification code for{" "}
-                      <strong className="font-semibold">{resetEmail}</strong>{" "}
-                      is:
+                      {t("auth.simulatedOtpDesc", {
+                        code: simulatedCode || "123456",
+                      })}
                     </p>
                     <div className="flex items-center justify-center bg-white border border-amber-300 px-3 py-1.5 rounded-lg">
                       <span className="font-mono text-base font-bold tracking-widest text-amber-950">
@@ -701,7 +748,7 @@ export const AuthScreen: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-600">
-                      6-Digit Code
+                      {t("auth.enterOtp")}
                     </label>
                     <button
                       type="button"
@@ -714,8 +761,8 @@ export const AuthScreen: React.FC = () => {
                       />
                       <span>
                         {resendCooldown > 0
-                          ? `Resend (${resendCooldown}s)`
-                          : "Resend Code"}
+                          ? t("auth.resendIn", { seconds: resendCooldown })
+                          : t("auth.resendOtp")}
                       </span>
                     </button>
                   </div>
@@ -724,16 +771,13 @@ export const AuthScreen: React.FC = () => {
                     type="text"
                     required
                     maxLength={6}
-                    placeholder="123456"
+                    placeholder={t("auth.otpPlaceholder")}
                     value={otpCode}
                     onChange={(e) =>
                       setOtpCode(e.target.value.replace(/\D/g, ""))
                     }
                     className="w-full text-center font-mono text-xl tracking-widest py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
                   />
-                  <p className="text-[11px] text-stone-500 mt-1 text-center">
-                    Code expires in 10 minutes (max 3 verification attempts)
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -742,7 +786,7 @@ export const AuthScreen: React.FC = () => {
                     onClick={() => setResetStep("request")}
                     className="py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-xl transition cursor-pointer"
                   >
-                    Back
+                    {t("common.back")}
                   </button>
                   <button
                     id="btn-verify-otp"
@@ -754,8 +798,12 @@ export const AuthScreen: React.FC = () => {
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       <>
-                        <span>Verify Code</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <span>{t("auth.verifyCode")}</span>
+                        {isAr ? (
+                          <ArrowLeft className="w-4 h-4" />
+                        ) : (
+                          <ArrowRight className="w-4 h-4" />
+                        )}
                       </>
                     )}
                   </button>
@@ -767,37 +815,43 @@ export const AuthScreen: React.FC = () => {
             {resetStep === "new_password" && (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  Verification successful. Choose a new secure password for your
-                  account (minimum 6 characters).
+                  {t("auth.resetStep3Desc")}
                 </p>
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                    New Password
+                    {t("auth.newPassword")}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                    <div
+                      className={`absolute inset-y-0 ${
+                        isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                      } flex items-center pointer-events-none text-stone-400`}
+                    >
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
                       id="reset-new-password-input"
                       type={showNewPassword ? "text" : "password"}
                       required
-                      placeholder="••••••••"
+                      placeholder={t("auth.newPasswordPlaceholder")}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                      className={`w-full ${
+                        isAr ? "pr-10 pl-10" : "pl-10 pr-10"
+                      } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
                     />
                     <button
                       type="button"
                       id="btn-toggle-reset-new-password"
                       onClick={() => setShowNewPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none"
+                      className={`absolute inset-y-0 ${
+                        isAr ? "left-0 pl-3.5" : "right-0 pr-3.5"
+                      } flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none`}
                       tabIndex={-1}
                       aria-label={
                         showNewPassword ? "Hide password" : "Show password"
                       }
-                      aria-describedby="password-visibility-hint"
                       title={
                         showNewPassword ? "Hide password" : "Show password"
                       }
@@ -813,26 +867,34 @@ export const AuthScreen: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 mb-1.5">
-                    Confirm New Password
+                    {t("auth.confirmPassword")}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                    <div
+                      className={`absolute inset-y-0 ${
+                        isAr ? "right-0 pr-3.5" : "left-0 pl-3.5"
+                      } flex items-center pointer-events-none text-stone-400`}
+                    >
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
                       id="reset-confirm-password-input"
                       type={showConfirmPassword ? "text" : "password"}
                       required
-                      placeholder="••••••••"
+                      placeholder={t("auth.confirmPasswordPlaceholder")}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition"
+                      className={`w-full ${
+                        isAr ? "pr-10 pl-10" : "pl-10 pr-10"
+                      } py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 text-sm placeholder:text-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-700 transition`}
                     />
                     <button
                       type="button"
                       id="btn-toggle-reset-confirm-password"
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none"
+                      className={`absolute inset-y-0 ${
+                        isAr ? "left-0 pl-3.5" : "right-0 pr-3.5"
+                      } flex items-center text-stone-400 hover:text-stone-700 transition cursor-pointer focus:outline-none`}
                       tabIndex={-1}
                       aria-label={
                         showConfirmPassword ? "Hide password" : "Show password"
@@ -864,8 +926,12 @@ export const AuthScreen: React.FC = () => {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Save New Password</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>{t("auth.saveNewPassword")}</span>
+                      {isAr ? (
+                        <ArrowLeft className="w-4 h-4" />
+                      ) : (
+                        <ArrowRight className="w-4 h-4" />
+                      )}
                     </>
                   )}
                 </button>
@@ -879,11 +945,10 @@ export const AuthScreen: React.FC = () => {
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <h4 className="text-base font-bold text-stone-900 mb-1">
-                  Password Reset Complete
+                  {t("auth.resetSuccessTitle")}
                 </h4>
                 <p className="text-xs text-stone-600 mb-5 leading-relaxed">
-                  Your password has been securely updated. You can now sign in
-                  immediately.
+                  {t("auth.resetSuccessDesc")}
                 </p>
                 <button
                   id="btn-done-reset"
@@ -893,7 +958,7 @@ export const AuthScreen: React.FC = () => {
                   }}
                   className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition cursor-pointer"
                 >
-                  Proceed to Sign In
+                  {t("auth.backToSignIn")}
                 </button>
               </div>
             )}

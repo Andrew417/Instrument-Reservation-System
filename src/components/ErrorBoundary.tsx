@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw, X } from "lucide-react";
+import i18n from "../lib/i18n";
 
 interface Props {
   children: ReactNode;
@@ -43,10 +44,10 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-rose-900">
-            {this.props.fallbackTitle || "Something went wrong loading this component"}
+            {this.props.fallbackTitle || i18n.t("common.error")}
           </h3>
           <p className="text-xs text-rose-700 max-w-md font-mono bg-rose-100/60 p-2 rounded-lg break-all">
-            {this.state.error?.message || "An unexpected error occurred"}
+            {this.state.error?.message || i18n.t("common.error")}
           </p>
           <div className="flex items-center gap-2 pt-1">
             <button
@@ -55,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
               className="px-3.5 py-1.5 rounded-xl bg-rose-800 hover:bg-rose-900 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Dismiss & Try Again</span>
+              <span>{i18n.t("common.tryAgain")}</span>
             </button>
             {this.props.onReset && (
               <button
@@ -64,7 +65,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
-                <span>Close</span>
+                <span>{i18n.t("common.close")}</span>
               </button>
             )}
           </div>

@@ -87,7 +87,22 @@
     "export": "Export",
     "bookedByAdmin": "Booked by",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "selectAll": "Select All",
+    "loadingPortal": "Loading Church Portal...",
+    "tryAgain": "Dismiss & Try Again",
+    "actionNeeded": "Action Needed",
+    "freeNow": "{{count}} free",
+    "outOfService": "Out of Service",
+    "musicians": "Musicians",
+    "roomStock": "Room Stock",
+    "openAdminMenu": "Open admin menu",
+    "closeAdminMenu": "Close admin menu",
+    "adminNav": "Admin navigation",
+    "processing": "Processing...",
+    "newBooking": "New Booking",
+    "recurringBooking": "Recurring Booking",
+    "bookingGuide": "Booking Guide"
   },
   "nav": {
     "availabilityCalendar": "Availability Calendar",
@@ -299,7 +314,14 @@
     "duration5h": "5 hours",
     "duration6h": "6 hours",
     "duration8h": "8 hours",
-    "durationFullDay": "Full Day (13h • 09:00 – 22:00)"
+    "durationFullDay": "Full Day (13h • 09:00 – 22:00)",
+    "msgSelectCategory": "Please select an instrument category.",
+    "requestedCategory": "Requested Category",
+    "assigned": "Assigned",
+    "directBooking": "Specific Instrument",
+    "typeRequest": "Request by Category",
+    "noTypesAvailable": "No categories currently enabled for requests. Please book a specific instrument.",
+    "flatFeeOutsideLabel": "Flat Outside Fee: {{fee}} EGP"
   },
   "seriesBuilder": {
     "title": "Recurring Series Builder",
@@ -387,7 +409,8 @@
     "allApprovedDesc": "All dates in this series have been approved immediately.",
     "allPendingTitle": "All Occurrences Pending Review",
     "mixedApprovalTitle": "Mixed Status: Approved & Pending",
-    "pendingReviewDesc": "Occurrences requiring review will be examined by church administration."
+    "pendingReviewDesc": "Occurrences requiring review will be examined by church administration.",
+    "serviceSectionTitle": "Service & Musician"
   },
   "policyExplainer": {
     "modalTitle": "Booking Policy Guide",
@@ -428,7 +451,41 @@
     "submissionRateDesc": "Limits repeated booking submissions within a short period to prevent spam.",
     "submissionRateNext": "Please wait before submitting another request.",
     "fairUsageFooter": "To ensure fair usage among all users, these limits only apply to instant bookings. Exceeding any limit means your reservation will require admin approval instead of being automatically confirmed.",
-    "gotIt": "Got It"
+    "gotIt": "Got It",
+    "guideTitle": "Instrument Booking Guide",
+    "guideSubtitle": "Easy steps to reserve an instrument for your service",
+    "closeGuide": "Close Guide",
+    "stepsTitle": "How to book an instrument? (3 simple steps)",
+    "step1Header": "Choose instrument & time slot from the schedule",
+    "step1Text": "Click on any unreserved time slot in the calendar, or tap the instrument name, or click the \"New Booking\" button at the top of My Reservations.",
+    "step2Header": "Enter service and musician name, then click \"Confirm Booking\"",
+    "step2Text": "Specify the service name (e.g. choir rehearsal or prayer meeting), enter the musician's name, choose duration in hours, and click \"Confirm Booking\".",
+    "step3Header": "Pick up the instrument at your reserved time",
+    "step3Text": "You will receive an instant notification on your device screen, the app bell, and email upon approval. Then head to church at the reserved time to pick up the instrument.",
+    "notifTipTitle": "Enable Phone Notifications:",
+    "notifTipText": "Be sure to click \"Enable Notifications\" at the top of the website after signing in, to receive instant alerts on your screen even when the site is closed.",
+    "importantInfoTitle": "Important Information:",
+    "cardApprovalTitle": "Reservation Approval",
+    "cardApprovalText": "Instruments marked \"Instant\" are confirmed immediately within your allowed quota. Instruments marked \"Manual\" await admin approval.",
+    "cardFreeTitle": "Always Free In-Church",
+    "cardFreeText": "In-church reservations are completely free. Outside-church use has a per-day fee shown next to the instrument.",
+    "cardHelpTitle": "Need Help?",
+    "cardHelpText": "Open your reservation and message the admin in chat.",
+    "moreDetailsTitle": "Additional Details",
+    "moreDetailsSubtitle": "Click here to learn more",
+    "topicInstantTitle": "Instant Booking Quota",
+    "topicInstantText": "Each member has an instant booking quota so everyone gets a fair turn. If you exceed your quota, your request is not rejected; it simply awaits admin approval.",
+    "topicInstantRenew": "This quota refreshes periodically",
+    "topicOutsideTitle": "Outside Church Bookings",
+    "topicOutsideText": "Requires admin approval first. After approval, open your reservation and click \"Pay Now\" to pay the amount via InstaPay and upload the transfer receipt to confirm.",
+    "topicBookingTypesTitle": "Single vs. Recurring Reservations",
+    "topicSingleDesc": "\"New Booking\": To reserve an instrument once on a single day.",
+    "topicRecurringDesc": "\"Recurring Booking\": To reserve the same instrument at the same time multiple times (e.g. every Saturday choir rehearsal).",
+    "topicRecurringTwoWays": "Recurring reservations offer two methods:",
+    "topicRecurringWeekly": "Weekly: Repeats every week on the same day and time (e.g. every Saturday 6 to 8 PM).",
+    "topicRecurringCustom": "Custom Dates: You choose the specific dates yourself, with the same time slot across all dates.",
+    "reopenNotice": "You can reopen this guide anytime from the \"Booking Guide\" button.",
+    "startBtn": "Got It, Get Started"
   },
   "notifications": {
     "title": "Notifications",
@@ -609,7 +666,15 @@
     "updateSelectedButton": "Update {{count}} Selected Sessions",
     "applyToAllHelp": "Changes will apply to all {{count}} upcoming sessions in this series.",
     "applyToSelectedHelp": "Changes will apply to the {{count}} checked sessions below.",
-    "applyToSingleHelp": "Changes will apply only to this single session (#{{index}})."
+    "applyToSingleHelp": "Changes will apply only to this single session (#{{index}}).",
+    "errCompletedLocked": "Completed reservations cannot be edited.",
+    "errNoOccurrencesSelected": "Please select at least one session to update.",
+    "lockedTitle": "Reservation Completed",
+    "lockedSubtitle": "This reservation can no longer be edited.",
+    "lockedBody": "Completed reservations are locked for record integrity. If you need to make changes, please contact church administration.",
+    "scopeSelectedTitle": "Edit Selected Occurrences",
+    "editingSelectedBanner": "Editing {{count}} of {{total}} occurrences",
+    "chooseOccurrencesToUpdate": "Sessions in this series:"
   },
   "instrumentDetail": {
     "headerSubtitle": "Instrument details and dedicated availability",
@@ -898,7 +963,9 @@
     "savePaidSuccess": "Payment confirmed. Church administration has been notified.",
     "savePaidError": "Failed to confirm payment.",
     "mustUploadBeforeSave": "Please upload a payment screenshot first.",
-    "paidSaved": "Paid — Saved"
+    "paidSaved": "Paid — Saved",
+    "requestedCategory": "Requested Category",
+    "paymentAfterApproval": "Payment will be confirmed after approval"
   },
   "admin": {
     "consoleTitle": "Super Admin Console",
@@ -1059,7 +1126,11 @@
       "transformFullDayTooltip": "Transform to Full Day (09:00 - 22:00) & Approve",
       "transformFullDayTitle": "Transform to Full Day Reservation",
       "transformFullDayDesc": "Transform reservation for \"{{service}}\" on {{date}} into a Full Day booking (09:00 AM – 10:00 PM)? Any overlapping pending requests will be rejected.",
-      "transformFullDaySuccess": "Reservation transformed to Full Day successfully!"
+      "transformFullDaySuccess": "Reservation transformed to Full Day successfully!",
+      "activeFilters": "Active Filters:",
+      "resetFilters": "Reset Filters",
+      "actionNeeded": "Action Needed",
+      "freeCount": "{{count}} free"
     },
     "approvals": {
       "pendingBadge": "{{count}} Pending",
@@ -1126,7 +1197,24 @@
       "visibilitiesSelected_plural": "{{count}} visibilities selected",
       "bookingModesSelected": "{{count}} booking mode selected",
       "bookingModesSelected_plural": "{{count}} booking modes selected",
-      "restoreSuccess": "{{name}} restored successfully."
+      "restoreSuccess": "{{name}} restored successfully.",
+      "visMusician": "Musicians Only",
+      "visRoomStock": "Room Stock",
+      "visPublic": "Public",
+      "visibilityLevel": "Visibility Level",
+      "visibilityPublic": "Public (Everyone can book)",
+      "visibilityMusician": "Musician Only (Musicians & Admins)",
+      "visibilityRoomStock": "Room Stock (Admin assignment only)",
+      "outOfServiceToggle": "Out of Service (Unavailable)",
+      "outOfServiceNotice": "Cannot be booked directly or assigned to requests.",
+      "outOfServiceBadge": "Out of Service",
+      "noMatchingInstruments": "No instruments match these filters.",
+      "typeSettingsTitle": "Category / Type Request Settings",
+      "typeSettingsDesc": "Toggle which categories members can request, and set the flat fee charged for outside use.",
+      "noTypes": "No category settings available.",
+      "activeUnitsShort": "units",
+      "requestableToggle": "Requestable",
+      "outsideFlatFee": "Outside Fee"
     },
     "users": {
       "deactivateAccount": "Deactivate Account",
@@ -1205,7 +1293,7 @@
       "colActions": "Actions",
       "superAdminBadge": "👑 Super Admin",
       "adminBadge": "🛡️ Admin",
-      "demote": "Demote",
+      "demoteAction": "Demote",
       "delete": "Delete",
       "protectedAccount": "Protected Account",
       "currentSession": "Current Session"
@@ -1224,7 +1312,9 @@
       "granted": "GRANTED",
       "revoked": "REVOKED",
       "grantedReason": "Administrator granted Trusted Member status",
-      "revokedReason": "Administrator revoked Trusted Member status"
+      "revokedReason": "Administrator revoked Trusted Member status",
+      "tabTrusted": "Trusted Logs",
+      "tabMusician": "Musician Logs"
     },
     "hardLimits": {
       "title": "System Hard Limits & Abuse Prevention",
@@ -1343,7 +1433,8 @@
         "deleteHint": "Need to remove a mistaken or typo entry instead? Close this modal and click Delete instead to completely erase the row from the database.",
         "confirmCheckbox": "I understand and confirm marking this instrument Not Available.",
         "cancel": "Cancel",
-        "confirm": "Confirm Mark Unavailable"
+        "confirm": "Confirm Mark Unavailable",
+        "retireSuccess": "Instrument \"{{name}}\" marked as not available."
       },
       "deleteInstrument": {
         "title": "Delete Instrument from Database",
@@ -1445,8 +1536,13 @@
         "superAdminTitle": "Super Administrator",
         "superAdminDesc": "Full Administrator access, plus managing other admins, Trusted status, system hard limits, and payment settings.",
         "cancel": "Cancel",
-        "confirm": "Confirm"
+        "confirm": "Confirm",
+        "confirmButton": "Confirm Promotion"
       }
+    },
+    "musicianStatus": {
+      "title": "Musician Status Audit Log",
+      "subtitle": "Audit history of musician role grants and revocations by Super Admins."
     }
   },
   "analytics": {
@@ -1590,7 +1686,6 @@
     "memberKbComma2": ", or when an admin",
     "memberKbReplies": "replies",
     "memberPromptSuffix": ".",
-
     "adminPromptPrefix": "To notify you when",
     "adminKbBooking": "a new booking arrives",
     "adminKbComma1": ",",
@@ -1598,7 +1693,6 @@
     "adminKbComma2": ", or",
     "adminKbReplies": "a member replies",
     "adminPromptSuffix": ".",
-
     "whatsappDesc": "Open this link in Chrome or Safari — alerts don't work inside WhatsApp.",
     "iosDesc": "Add the site to your Home Screen first — then alerts work like a real app.",
     "blockedWhy": "Turn alerts back on in your browser so you don't miss any booking updates.",
@@ -1666,5 +1760,87 @@
     "subscribedSuccess": "Device subscribed successfully!",
     "subscribeFailed": "Failed to subscribe device.",
     "prefSaveFailed": "Failed to save push preferences."
+  },
+  "status": {
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "completed": "Completed",
+    "expired": "Expired",
+    "no_show": "No-Show",
+    "ongoing": "Ongoing",
+    "active": "Active",
+    "inactive": "Inactive",
+    "retired": "Retired",
+    "in_service": "In Service",
+    "out_of_service": "Out of Service",
+    "available": "Available",
+    "booked": "Booked",
+    "assigned": "Assigned",
+    "awaiting_assignment": "Awaiting Assignment",
+    "draft": "Draft",
+    "archived": "Archived"
+  },
+  "reservations": {
+    "awaitingAssignment": "Awaiting assignment",
+    "assignedTypeRequest": "Type Request (Assigned)",
+    "typeRequestPending": "Type Request",
+    "adminAssignment": "Admin Assignment",
+    "typeRequestExplanation": "Admin will assign an available instrument from inventory."
+  },
+  "auth": {
+    "appName": "St. Mark Music & Instruments",
+    "appSubtitle": "Reserve instruments for church use",
+    "signIn": "Sign In",
+    "createAccount": "Create an Account",
+    "newRegistration": "New Registration",
+    "signInDesc": "Access church instrument schedules with your email and password",
+    "registerDesc": "Register with your email and contact information to request instruments",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "e.g. Samuel Mark",
+    "emailAddress": "Email Address",
+    "emailPlaceholder": "e.g. membername@gmail.com",
+    "emailHelp": "You'll receive emails for reservation approvals at this address.",
+    "phoneNumber": "WhatsApp / Phone Number",
+    "phonePlaceholder": "e.g. 010xxxxxxxx or 012xxxxxxxx",
+    "phoneHelp": "Used for instant confirmation messages and outside-church coordination.",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "forgotPassword": "Forgot Password?",
+    "completeRegistration": "Complete Registration",
+    "securityFooter": "Automatic 15-minute lock after 5 failed attempts",
+    "lockedTitle": "Account Temporarily Locked",
+    "lockedDesc": "5 consecutive failed login attempts detected. For security, logins for this account are locked for 15 minutes.",
+    "lockoutExpiresIn": "Lockout expires in: {{time}}",
+    "regSubmittedTitle": "Registration Submitted",
+    "defaultPendingNotice": "Your account is awaiting admin approval before you can log in.",
+    "resetPasswordTitle": "Reset Account Password",
+    "resetPasswordSubtitle": "Verify your email to continue",
+    "resetStep1Desc": "Enter your registered account email. A 6-digit one-time verification code (OTP) will be dispatched to your inbox.",
+    "sendCode": "Send 6-Digit Code",
+    "resetStep2Desc": "Enter the 6-digit verification code sent to {{email}}.",
+    "simulatedOtp": "Simulated Email OTP (Development Mode):",
+    "simulatedOtpDesc": "Use code {{code}} to verify",
+    "enterOtp": "Enter 6-Digit Verification Code",
+    "otpPlaceholder": "123456",
+    "verifyCode": "Verify Code",
+    "resendOtp": "Resend Code",
+    "resendIn": "Resend in {{seconds}}s",
+    "resetStep3Desc": "Enter a new secure password for your account (minimum 6 characters).",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter new password (min. 6 characters)",
+    "confirmPassword": "Confirm New Password",
+    "confirmPasswordPlaceholder": "Re-enter new password",
+    "saveNewPassword": "Save New Password",
+    "resetSuccessTitle": "Password Reset Successfully",
+    "resetSuccessDesc": "Your password has been updated. You can now sign in with your new credentials.",
+    "backToSignIn": "Back to Sign In",
+    "close": "Close",
+    "errEnterEmail": "Please enter your email address.",
+    "errEnterOtp": "Please enter the 6-digit code.",
+    "errPasswordMin": "Password must be at least 6 characters.",
+    "errPasswordMismatch": "Passwords do not match.",
+    "errGeneric": "An unexpected error occurred. Please try again."
   }
 }

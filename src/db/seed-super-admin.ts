@@ -2,8 +2,8 @@ import dotenv from "dotenv";
 import path from "path";
 
 // Load environment variables from .env.local and .env
-dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
-dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local"), quiet: true });
+dotenv.config({ quiet: true });
 
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
@@ -118,12 +118,18 @@ export async function seedSuperAdmin(): Promise<void> {
   );
 }
 
+import { fileURLToPath } from "url";
+
 // Allow standalone CLI execution: tsx src/db/seed-super-admin.ts
-const isMainModule =
-  typeof process !== "undefined" &&
-  process.argv[1] &&
-  (process.argv[1].endsWith("seed-super-admin.ts") ||
-    process.argv[1].endsWith("seed-super-admin.js"));
+const isMainModule = (() => {
+  try {
+    if (typeof process === "undefined" || !process.argv || !process.argv[1]) return false;
+    const currentFile = fileURLToPath(import.meta.url);
+    return path.resolve(process.argv[1]) === currentFile;
+  } catch {
+    return false;
+  }
+})();
 
 if (isMainModule) {
   seedSuperAdmin()

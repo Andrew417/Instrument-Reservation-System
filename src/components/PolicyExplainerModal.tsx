@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   X,
   Calendar,
@@ -12,6 +13,7 @@ import {
   AlertCircle,
   Church,
   ArrowRight,
+  ArrowLeft,
   Repeat,
   Bell,
 } from "lucide-react";
@@ -25,6 +27,8 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
   const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
 
   React.useEffect(() => {
@@ -45,12 +49,12 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
     <div
       id="policy-explainer-modal-backdrop"
       className="fixed inset-0 bottom-[4.25rem] lg:bottom-0 z-[100] bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
-      dir="rtl"
+      dir={isAr ? "rtl" : "ltr"}
     >
       <div
         id="policy-explainer-modal"
         className="bg-stone-50 rounded-3xl border border-stone-200 shadow-2xl max-w-2xl w-full h-full max-h-[82vh] lg:max-h-[85vh] flex flex-col font-sans overflow-hidden animate-in fade-in zoom-in-95 duration-150"
-        dir="rtl"
+        dir={isAr ? "rtl" : "ltr"}
       >
         {/* Header - Fixed at top of modal */}
         <div className="bg-stone-900 text-white px-5 sm:px-6 py-4 sm:py-5 flex items-center justify-between border-b border-stone-800 shrink-0">
@@ -60,10 +64,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
-                دليل حجز الآلات
+                {t("policyExplainer.guideTitle")}
               </h2>
               <p className="text-xs text-amber-200/80 mt-0.5 font-medium">
-                خطوات سهلة لحجز الآلة لخدمتك
+                {t("policyExplainer.guideSubtitle")}
               </p>
             </div>
           </div>
@@ -72,7 +76,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             type="button"
             onClick={onClose}
             className="w-9 h-9 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 flex items-center justify-center transition cursor-pointer border border-stone-700 shrink-0"
-            aria-label="إغلاق الدليل"
+            aria-label={t("policyExplainer.closeGuide")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -80,26 +84,25 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
 
         {/* Scrollable Content Inside Modal */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-1 min-h-0 text-stone-800">
-          
           {/* 3 Step Visual Guide */}
           <div className="space-y-3">
             <h3 className="text-xs sm:text-sm font-bold text-stone-900 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-600 inline-block"></span>
-              <span>كيف تحجز الآلة؟ (٣ خطوات سهلة فقط)</span>
+              <span>{t("policyExplainer.stepsTitle")}</span>
             </h3>
 
             {/* Step 1 */}
             <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-2xs flex items-start gap-3 sm:gap-4 transition hover:border-amber-300">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-100 text-amber-900 font-extrabold text-base sm:text-lg flex items-center justify-center shrink-0 border border-amber-200">
-                ١
+                {isAr ? "١" : "1"}
               </div>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-stone-900">
                   <Calendar className="w-4 h-4 text-amber-700" />
-                  <span>اختر الآلة والموعد من الجدول</span>
+                  <span>{t("policyExplainer.step1Header")}</span>
                 </div>
                 <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                  اضغط على أي وقت غير محجوز في الجدول، أو اضغط على اسم الآلة. أو اضغط زر <span className="inline-block px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-900 font-bold border border-amber-200 text-xs">"حجز جديد"</span> أعلى صفحة "حجوزاتي".
+                  {t("policyExplainer.step1Text")}
                 </p>
               </div>
             </div>
@@ -107,15 +110,15 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             {/* Step 2 */}
             <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-2xs flex items-start gap-3 sm:gap-4 transition hover:border-amber-300">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-100 text-amber-900 font-extrabold text-base sm:text-lg flex items-center justify-center shrink-0 border border-amber-200">
-                ٢
+                {isAr ? "٢" : "2"}
               </div>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-stone-900">
                   <FileText className="w-4 h-4 text-amber-700" />
-                  <span>اكتب اسم الخدمة واسم العازف ثم اضغط "تأكيد الحجز"</span>
+                  <span>{t("policyExplainer.step2Header")}</span>
                 </div>
                 <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                  اكتب اسم الخدمة (مثل بروفة كورال إعدادي أو اجتماع صلاة). واكتب اسم العازف. اكتب البيانات بوضوح، حتى تتم الموافقة على حجزك. حدد عدد الساعات، ثم اضغط زر <span className="inline-block px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-900 font-bold border border-emerald-200 text-xs">"تأكيد الحجز"</span>.
+                  {t("policyExplainer.step2Text")}
                 </p>
               </div>
             </div>
@@ -123,15 +126,15 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             {/* Step 3 */}
             <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-2xs flex items-start gap-3 sm:gap-4 transition hover:border-amber-300">
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-amber-100 text-amber-900 font-extrabold text-base sm:text-lg flex items-center justify-center shrink-0 border border-amber-200">
-                ٣
+                {isAr ? "٣" : "3"}
               </div>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-stone-900">
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  <span>استلم الآلة في موعدك</span>
+                  <span>{t("policyExplainer.step3Header")}</span>
                 </div>
                 <p className="text-xs sm:text-sm text-stone-600 leading-relaxed">
-                  سيصلك تنبيه فوري على شاشة هاتفك وجرس الموقع والإيميل عند الموافقة على حجزك أو استلام أي رد. بعدها، توجه للكنيسة في الوقت المحجوز لاستلام الآلة.
+                  {t("policyExplainer.step3Text")}
                 </p>
               </div>
             </div>
@@ -143,9 +146,9 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               </div>
               <div className="flex-1 text-xs sm:text-sm leading-relaxed text-amber-950">
                 <span className="font-bold text-amber-900 block mb-0.5">
-                  🔔 تفعيل إشعارات الهاتف:
+                  🔔 {t("policyExplainer.notifTipTitle")}
                 </span>
-                احرص على الضغط على زر <span className="font-bold text-amber-800">"تفعيل الإشعارات"</span> بأعلى الموقع بعد تسجيل الدخول، لتصلك تنبيهات سريعة على شاشة هاتفك مثل برامج الموبايل حتى لو كان الموقع مغلقاً.
+                {t("policyExplainer.notifTipText")}
               </div>
             </div>
           </div>
@@ -154,7 +157,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
           <div className="space-y-3 pt-1">
             <h3 className="text-xs sm:text-sm font-bold text-stone-900 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>
-              <span>معلومات هامة:</span>
+              <span>{t("policyExplainer.importantInfoTitle")}</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -162,10 +165,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               <div className="bg-white p-3.5 rounded-2xl border border-sky-100 bg-sky-50/20 shadow-2xs space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-sky-950">
                   <Clock className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span>الموافقة على الحجز</span>
+                  <span>{t("policyExplainer.cardApprovalTitle")}</span>
                 </div>
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  الآلات المكتوب عليها <span className="inline-block px-1 rounded bg-emerald-100 text-emerald-900 font-bold text-[11px] border border-emerald-300">"Instant"</span> تتم الموافقة عليها فوراً، بشرط أن تكون داخل الحد المسموح لك من الحجوزات. أما الآلات المكتوب عليها <span className="inline-block px-1 rounded bg-amber-100 text-amber-950 font-bold text-[11px] border border-amber-300">"Manual"</span> فتنتظر موافقة الادمن.
+                  {t("policyExplainer.cardApprovalText")}
                 </p>
               </div>
 
@@ -173,10 +176,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               <div className="bg-white p-3.5 rounded-2xl border border-purple-100 bg-purple-50/20 shadow-2xs space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-purple-950">
                   <Church className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span>داخل الكنيسة مجاناً دائماً</span>
+                  <span>{t("policyExplainer.cardFreeTitle")}</span>
                 </div>
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  الحجز <span className="font-semibold text-emerald-800">داخل الكنيسة مجاني تماماً</span>. وخارج الكنيسة له رسم يومي موضح بجانب الآلة.
+                  {t("policyExplainer.cardFreeText")}
                 </p>
               </div>
 
@@ -184,10 +187,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               <div className="bg-white p-3.5 rounded-2xl border border-amber-100 bg-amber-50/20 shadow-2xs space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-amber-950">
                   <PhoneCall className="w-4 h-4 text-amber-700 shrink-0" />
-                  <span>تحتاج مساعدة؟</span>
+                  <span>{t("policyExplainer.cardHelpTitle")}</span>
                 </div>
                 <p className="text-xs text-stone-600 leading-relaxed">
-                  افتح حجزك واكتب للادمن في المحادثة.
+                  {t("policyExplainer.cardHelpText")}
                 </p>
               </div>
             </div>
@@ -199,18 +202,18 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
               type="button"
               id="btn-toggle-advanced-policy"
               onClick={() => setShowAdvancedDetails((prev) => !prev)}
-              className="w-full flex items-center justify-between gap-3 p-3.5 sm:p-4 bg-stone-50 hover:bg-stone-100/80 transition cursor-pointer text-right"
+              className="w-full flex items-center justify-between gap-3 p-3.5 sm:p-4 bg-stone-50 hover:bg-stone-100/80 transition cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100/80 text-amber-900 border border-amber-200 flex items-center justify-center shrink-0 font-bold">
                   <HelpCircle className="w-4 h-4" />
                 </div>
-                <div>
+                <div className={isAr ? "text-right" : "text-left"}>
                   <div className="text-xs sm:text-sm font-bold text-stone-900">
-                    تفاصيل إضافية
+                    {t("policyExplainer.moreDetailsTitle")}
                   </div>
                   <div className="text-[11px] sm:text-xs text-stone-500">
-                    اضغط هنا لمعرفة تفاصيل أكثر
+                    {t("policyExplainer.moreDetailsSubtitle")}
                   </div>
                 </div>
               </div>
@@ -227,12 +230,12 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 <div className="p-3.5 bg-amber-50/40 rounded-xl space-y-1.5 border border-amber-200/60">
                   <div className="font-bold text-stone-900 flex items-center gap-1.5">
                     <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                    <span className="text-amber-950 font-bold">الحد المسموح للحجوزات في وضع "Instant"</span>
+                    <span className="text-amber-950 font-bold">{t("policyExplainer.topicInstantTitle")}</span>
                   </div>
                   <p className="text-stone-700 leading-relaxed text-[11px] sm:text-xs">
-                    لكل شخص عدد محدد من الحجوزات تتم الموافقة عليها فوراً على آلات <span className="font-semibold text-emerald-800">"Instant"</span>، حتى يأخذ الجميع دورهم. إذا زاد عددك، لا يُرفض طلبك. بل ينتظر موافقة الادمن.
+                    {t("policyExplainer.topicInstantText")}
                     <br />
-                    <span className="inline-block mt-1 text-stone-500 font-medium">يتجدد هذا الحد كل فترة معينة</span>
+                    <span className="inline-block mt-1 text-stone-500 font-medium">{t("policyExplainer.topicInstantRenew")}</span>
                   </p>
                 </div>
 
@@ -240,10 +243,10 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 <div className="p-3.5 bg-purple-50/40 rounded-xl space-y-1.5 border border-purple-200/60">
                   <div className="font-bold text-stone-900 flex items-center gap-1.5">
                     <Church className="w-4 h-4 text-purple-700 shrink-0" />
-                    <span className="text-purple-950 font-bold">الحجز خارج الكنيسة</span>
+                    <span className="text-purple-950 font-bold">{t("policyExplainer.topicOutsideTitle")}</span>
                   </div>
                   <p className="text-stone-700 leading-relaxed text-[11px] sm:text-xs">
-                    يجب أن يوافق الادمن أولاً. بعد الموافقة، افتح حجزك وستجد زر <span className="inline-block px-1 py-0.5 rounded bg-purple-100 text-purple-900 font-bold text-[11px] border border-purple-300">"ادفع الآن"</span>. سيظهر لك المبلغ المطلوب، وتدفعه عبر انستاباي من الرابط الموجود في الحجز. بعد الدفع، ارفع صورة التحويل لتأكيد العملية.
+                    {t("policyExplainer.topicOutsideText")}
                   </p>
                 </div>
 
@@ -251,23 +254,19 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
                 <div className="p-3.5 bg-sky-50/40 rounded-xl space-y-2 border border-sky-200/60">
                   <div className="font-bold text-stone-900 flex items-center gap-1.5">
                     <Repeat className="w-4 h-4 text-sky-700 shrink-0" />
-                    <span className="text-sky-950 font-bold">الحجز الجديد والحجز المتكرر</span>
+                    <span className="text-sky-950 font-bold">{t("policyExplainer.topicBookingTypesTitle")}</span>
                   </div>
                   <div className="text-stone-700 leading-relaxed text-[11px] sm:text-xs space-y-1.5">
-                    <p>
-                      زر <span className="font-bold text-stone-900">"حجز جديد"</span>: لحجز آلة مرة واحدة في يوم واحد.
-                    </p>
-                    <p>
-                      زر <span className="font-bold text-stone-900">"حجز متكرر"</span>: لحجز نفس الآلة في نفس الوقت أكثر من مرة. مثل بروفة كل سبت.
-                    </p>
+                    <p>{t("policyExplainer.topicSingleDesc")}</p>
+                    <p>{t("policyExplainer.topicRecurringDesc")}</p>
                     <div className="pt-1 border-t border-sky-100">
-                      <p className="font-bold text-sky-950 mb-1">في الحجز المتكرر توجد طريقتان:</p>
-                      <ul className="list-disc list-inside space-y-1 pr-1 text-stone-600">
+                      <p className="font-bold text-sky-950 mb-1">{t("policyExplainer.topicRecurringTwoWays")}</p>
+                      <ul className="list-disc list-inside space-y-1 text-stone-600">
                         <li>
-                          <span className="font-semibold text-stone-800">الأسبوعي:</span> يتكرر الحجز كل أسبوع في نفس اليوم ونفس الوقت. مثال: كل سبت من ٦ إلى ٨ مساءً.
+                          <span className="font-semibold text-stone-800">{t("policyExplainer.topicRecurringWeekly")}</span>
                         </li>
                         <li>
-                          <span className="font-semibold text-stone-800">تواريخ مخصصة:</span> أنت تختار التواريخ بنفسك. الوقت نفسه في كل التواريخ.
+                          <span className="font-semibold text-stone-800">{t("policyExplainer.topicRecurringCustom")}</span>
                         </li>
                       </ul>
                     </div>
@@ -281,7 +280,7 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
         {/* Footer - Fixed at bottom of modal */}
         <div className="p-3 sm:p-4 bg-stone-100 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
           <div className="text-xs text-stone-500 text-center sm:text-right hidden sm:block">
-            يمكنك فتح الدليل لاحقًا من زر "دليل الحجز".
+            {t("policyExplainer.reopenNotice")}
           </div>
           <button
             type="button"
@@ -289,8 +288,12 @@ export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = ({
             onClick={onClose}
             className="w-full sm:w-auto px-5 py-2 sm:py-2.5 bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-bold rounded-2xl transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:bg-stone-950"
           >
-            <span>فهمت، ابدأ الاستخدام</span>
-            <ArrowRight className="w-4 h-4 rotate-180" />
+            <span>{t("policyExplainer.startBtn")}</span>
+            {isAr ? (
+              <ArrowLeft className="w-4 h-4" />
+            ) : (
+              <ArrowRight className="w-4 h-4" />
+            )}
           </button>
         </div>
       </div>

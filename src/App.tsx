@@ -442,8 +442,8 @@ const UserPortalMain: React.FC = () => {
                 type="button"
                 onClick={() => setIsAdminSidebarOpen(true)}
                 className="lg:hidden p-2 -ml-1 rounded-xl text-stone-700 hover:text-amber-900 hover:bg-amber-50 active:bg-amber-100 transition cursor-pointer shrink-0"
-                title="Open admin menu"
-                aria-label="Open admin menu"
+                title={t("common.openAdminMenu")}
+                aria-label={t("common.openAdminMenu")}
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -1152,7 +1152,7 @@ const UserPortalMain: React.FC = () => {
                       : "-translate-x-full lg:translate-x-0"
                   }`
             }`}
-            aria-label="Admin navigation"
+            aria-label={t("common.adminNav")}
           >
             {/* Header inside sidebar */}
             <div
@@ -1196,7 +1196,7 @@ const UserPortalMain: React.FC = () => {
                 type="button"
                 onClick={() => setIsAdminSidebarOpen(false)}
                 className="lg:hidden shrink-0 p-2 -mr-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition cursor-pointer"
-                aria-label="Close admin menu"
+                aria-label={t("common.closeAdminMenu")}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1546,6 +1546,7 @@ export default function App() {
 }
 
 const AppRoot: React.FC = () => {
+  const { t } = useTranslation();
   const { firebaseUser, loading } = useAuth();
 
   if (loading) {
@@ -1554,7 +1555,7 @@ const AppRoot: React.FC = () => {
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-3 border-amber-800/20 border-t-amber-800 rounded-full animate-spin" />
           <div className="text-xs font-semibold text-stone-600">
-            Loading Church Portal...
+            {t("common.loadingPortal")}
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 export interface ConfirmModalState {
@@ -19,6 +20,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
   modal,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!modal || !modal.isOpen) return null;
@@ -67,7 +69,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
             disabled={isProcessing}
             className="px-3.5 py-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold cursor-pointer border border-stone-200 disabled:opacity-60"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -80,7 +82,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
             }`}
           >
             {isProcessing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {isProcessing ? "Processing..." : modal.confirmLabel}
+            {isProcessing ? t("common.processing") : modal.confirmLabel}
           </button>
         </div>
       </div>

@@ -492,13 +492,13 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                   {userData.isMusician && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border bg-indigo-50 text-indigo-800 border-indigo-200">
                       <Music2 className="w-2.5 h-2.5" />
-                      <span>Musician</span>
+                      <span>{t("common.musician")}</span>
                     </span>
                   )}
                   {userData.isTrusted && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border bg-amber-50 text-amber-800 border-amber-200">
                       <Sparkles className="w-2.5 h-2.5" />
-                      <span>Trusted</span>
+                      <span>{t("common.trusted")}</span>
                     </span>
                   )}
                 </div>

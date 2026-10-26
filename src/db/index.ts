@@ -99,9 +99,12 @@ export async function withRetry<T>(
         msg.includes("Connection terminated") ||
         msg.includes("timeout") ||
         msg.includes("ECONNREFUSED") ||
+        msg.includes("ENOENT") ||
         msg.includes("57P01") || // admin_shutdown
         err?.code === "ECONNRESET" ||
         err?.code === "ETIMEDOUT" ||
+        err?.code === "ECONNREFUSED" ||
+        err?.code === "ENOENT" ||
         err?.code === "57P01";
 
       if (!isTransient || attempt === retries) {
