@@ -429,15 +429,6 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                       <span>{isAr ? "طلب حسب النوع" : "Type request"}</span>
                     </span>
                   )}
-                  {primary.free_instruments_count !== undefined && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 shrink-0">
-                      <span>
-                        {isAr
-                          ? `${primary.free_instruments_count} متاحة بكل التواريخ`
-                          : `${primary.free_instruments_count} free on all dates`}
-                      </span>
-                    </span>
-                  )}
                 </div>
                 {renderOwner(primary, () =>
                   handleToggleSelectSeries(occurrences),
