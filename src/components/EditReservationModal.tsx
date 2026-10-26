@@ -87,15 +87,9 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
   const isLocked = reservation?.status === "completed";
 
   const seriesId = reservation.series_id || reservation.seriesId || null;
-  const [scope, setScope] = useState<"chooser" | "series">(
-    initialScope === "chooser"
-      ? "chooser"
-      : initialScope === "single" || initialScope === "series"
-        ? "series"
-        : seriesId
-          ? "chooser"
-          : "series",
-  );
+  // ✅ Always open directly on the Series edit tab — the intermediate
+  // "chooser" screen has been removed.
+  const [scope, setScope] = useState<"chooser" | "series">("series");
 
   const startUtc = new Date(reservation.start_time || reservation.startTime);
   const endUtc = new Date(reservation.end_time || reservation.endTime);
@@ -709,98 +703,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
           </button>
         </div>
 
-        {/* ── SCOPE CHOOSER VIEW ── */}
-        {scope === "chooser" ? (
-          <div className="p-6 sm:p-8 space-y-5 max-w-md w-full mx-auto my-auto text-center flex-1 flex flex-col justify-center">
-            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center mx-auto shadow-xs">
-              <Repeat className="w-7 h-7" />
-            </div>
-            <div>
-              <h3 className="text-[15px] sm:text-base font-bold text-stone-900">
-                {t("editReservation.scopeChooserTitle", {
-                  defaultValue: "Edit Recurring Reservation",
-                })}
-              </h3>
-              <p className="text-xs sm:text-sm text-stone-500 mt-1.5 leading-relaxed">
-                {t("editReservation.scopeChooserSubtitle", {
-                  defaultValue:
-                    "This booking is part of a recurring series. Choose whether to update only this single occurrence or customize multiple dates across the series.",
-                })}
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2 text-start">
-              <button
-                type="button"
-                onClick={() => {
-                  setScope("series");
-                  setApplySelectionMode("selected");
-                  if (selectedOccurrenceIds.length === 0) {
-                    if (activeReservation?.id) {
-                      setSelectedOccurrenceIds([activeReservation.id]);
-                    } else if (upcomingOccurrences.length > 0) {
-                      setSelectedOccurrenceIds([upcomingOccurrences[0].id]);
-                    }
-                  }
-                }}
-                className="w-full p-4 rounded-2xl border border-stone-200 hover:border-amber-400 hover:bg-amber-50/20 active:bg-amber-50/40 flex items-start gap-3 transition cursor-pointer group touch-manipulation shadow-2xs"
-              >
-                <div className="w-10 h-10 rounded-xl bg-stone-100 group-hover:bg-amber-100 text-stone-700 group-hover:text-amber-800 flex items-center justify-center shrink-0 transition">
-                  <CheckSquare className="w-5 h-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs sm:text-sm font-bold text-stone-900 group-hover:text-amber-900">
-                    {t("editReservation.tabSelected", {
-                      defaultValue: "Selected Sessions",
-                    })}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-snug">
-                    {t("editReservation.scopeSelectedSubtitle", {
-                      defaultValue:
-                        "Edit this session or choose specific occurrences across the series.",
-                    })}
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setScope("series");
-                  setApplySelectionMode("all");
-                }}
-                className="w-full p-4 rounded-2xl border border-stone-200 hover:border-amber-400 hover:bg-amber-50/20 active:bg-amber-50/40 flex items-start gap-3 transition cursor-pointer group touch-manipulation shadow-2xs"
-              >
-                <div className="w-10 h-10 rounded-xl bg-stone-100 group-hover:bg-amber-100 text-stone-700 group-hover:text-amber-800 flex items-center justify-center shrink-0 transition">
-                  <Repeat className="w-5 h-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs sm:text-sm font-bold text-stone-900 group-hover:text-amber-900">
-                    {t("editReservation.scopeSeriesTitle", {
-                      defaultValue: "Edit entire series (all upcoming)",
-                    })}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-stone-500 mt-0.5 leading-snug">
-                    {t("editReservation.scopeSeriesDesc", {
-                      defaultValue:
-                        "Shift dates, change instrument/service, or update all upcoming sessions in this series.",
-                    })}
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs sm:text-[13px] font-bold transition cursor-pointer touch-manipulation min-h-[44px]"
-              >
-                {t("common.cancel")}
-              </button>
-            </div>
-          </div>
-        ) : (
+        {
           /* ── FORM VIEW ── */
           <form
             id="edit-reservation-form"
@@ -1333,7 +1236,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                       ? t("reservationForm.instantApprovalBadge")
                       : t("reservationForm.manualApprovalBadge")}
                   </span>
-                  {profile?.isTrusted && (
+                  {profile?.isTrusted && !isAdmin && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-200 whitespace-nowrap">
                       <Sparkles className="w-3 h-3 shrink-0" />
                       {t("reservationForm.trustedUserBadge")}
@@ -1726,7 +1629,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
               </button>
             </div>
           </form>
-        )}
+        }
       </div>
     </div>
   );
