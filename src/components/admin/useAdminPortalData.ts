@@ -1422,24 +1422,41 @@ export function useAdminPortalData({
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      const res = await adminFetch(`/users/${userId}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (data.success) {
-        showNotice("User account deleted successfully");
-        setInternalSelectedUserId(null);
-        fetchUsers();
-        fetchApprovals();
-        refreshAllStats();
-      } else {
-        showNotice(data.error || "Failed to delete user", "error");
-      }
-    } catch {
-      showNotice("Failed to delete user", "error");
-    }
+  const handleDeleteUser = (userId: string, userName?: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: t("admin.users.confirmDeleteTitle", {
+        defaultValue: "Delete Account Permanently?",
+      }),
+      description: t("admin.users.confirmDeleteMessage", {
+        name: userName || "this user",
+        defaultValue: `Permanently delete the account for "${userName || "this user"}"? This action cannot be undone and will remove all their reservation history.`,
+      }),
+      confirmLabel: t("admin.users.confirmDeleteButton", {
+        defaultValue: "Yes, Delete Permanently",
+      }),
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const res = await adminFetch(`/users/${userId}`, {
+            method: "DELETE",
+          });
+          const data = await res.json();
+          if (data.success) {
+            showNotice("User account deleted successfully");
+            setConfirmModal(null);
+            setInternalSelectedUserId(null);
+            fetchUsers();
+            fetchApprovals();
+            refreshAllStats();
+          } else {
+            showNotice(data.error || "Failed to delete user", "error");
+          }
+        } catch {
+          showNotice("Failed to delete user", "error");
+        }
+      },
+    });
   };
 
   const handleSaveHardLimits = async () => {

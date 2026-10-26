@@ -148,6 +148,30 @@ const groupReservations = (reservations: any[]): ReviewItem[] => {
     group.pendingCount = group.occurrences.filter(
       (o) => o.status === "pending",
     ).length;
+
+    // ✅ Compute the ACTIVE status of the series (ignoring past/terminal occurrences).
+    // Rule:
+    //   - If any occurrence is pending → series is "pending"
+    //   - Else if any occurrence is approved → series is "approved"
+    //   - Else → fall back to the primary's status
+    const nonTerminal = group.occurrences.filter(
+      (o) =>
+        o.status === "pending" ||
+        o.status === "approved" ||
+        o.status === "ongoing",
+    );
+    const activeStatus =
+      nonTerminal.length > 0
+        ? nonTerminal.some((o) => o.status === "pending")
+          ? "pending"
+          : nonTerminal.some((o) => o.status === "approved")
+            ? "approved"
+            : nonTerminal[0].status
+        : group.primary.status;
+
+    // Attach for the renderer to use
+    (group as any).activeStatus = activeStatus;
+    (group as any).hasActiveOccurrence = nonTerminal.length > 0;
   });
 
   return items;
@@ -339,6 +363,11 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
     const { seriesId, primary, occurrences, pendingCount, totalCount } = item;
     const isExpanded = expandedSeriesIds.has(seriesId);
     const hasPending = pendingCount > 0;
+    // ✅ Prefer the computed active status; fall back to primary for safety.
+    const activeStatus =
+      (item as any).activeStatus || (item as any).hasActiveOccurrence
+        ? (item as any).activeStatus || primary.status
+        : primary.status;
     const occIds = occurrences.map((o) => o.id);
     const allOccsSelected = occIds.every((id) =>
       selectedReservationIds.includes(id),
@@ -440,12 +469,16 @@ export const ReviewTab: React.FC<ReviewTabProps> = ({
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
                     hasPending
                       ? "bg-amber-100 text-amber-900 border border-amber-300"
-                      : getStatusColor(primary.status)
+                      : getStatusColor(
+                          (item as any).activeStatus || primary.status,
+                        )
                   }`}
                 >
                   {hasPending
                     ? `${translateStatus("pending")} (${pendingCount}/${totalCount})`
-                    : translateStatus(primary.status)}
+                    : translateStatus(
+                        (item as any).activeStatus || primary.status,
+                      )}
                 </span>
                 {renderTypeBadge(primary)}
               </div>
