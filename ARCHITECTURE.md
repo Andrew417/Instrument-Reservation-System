@@ -44,12 +44,13 @@
 │   │   ├── NotificationsModal.tsx            # Bell notification dropdown modal with inline approve/reject
 │   │   ├── PolicyExplainerModal.tsx          # Senior-friendly 3-step Arabic guide ("كيف تحجز؟") with streamlined compact footer
 │   │   ├── PushNotificationPrompt.tsx        # Native browser push notification permission & subscription prompt
-│   │   ├── QuickRebookCard.tsx               # 1-Tap routine service re-booking card ("The WhatsApp Killer")
+│   │   ├── ReservationChatView.tsx           # Two-pane desktop / single-pane mobile reservation messenger: decoupled top back nav, active slot pill, auto-grow composer & grace period
 │   │   ├── ReservationDetailModal.tsx        # Unified reservation sheet: metadata, type request indicator, chat tab, condition checks, Instapay
 │   │   ├── ReservationFiltersPopover.tsx     # Timetable filter popover: instrument type, date range, status
 │   │   ├── ReservationFormModal.tsx          # Single-slot & Band Pack form: Direct booking vs Category Type Request switcher, 2-column grid, outside flat fee acknowledgment
 │   │   ├── ReservationUsageTypeSelector.tsx  # In-church (free) vs Outside-church (paid) selector with fee notice
 │   │   ├── SeriesBuilderModal.tsx            # Recurring weekly / custom date series builder with type request support & conflict skip
+│   │   ├── UserChatView.tsx                  # User Portal chat tab wrapper for ReservationChatView (with role detection)
 │   │   ├── UserDetailModal.tsx               # Admin user profile modal: active bookings, no-show counters, Super Admin Musician toggle, role actions
 │   │   └── admin/                            # Modular sub-components extracted from AdminPortal
 │   │       ├── useAdminPortalData.ts         # Controller hook: approvals filtering (pending/approved/rejected/all), live search, musician audit logs, pre-formatted reject/assign state
@@ -191,6 +192,8 @@
 14. **📸 Pre-Handover Condition Inspection:** Structured flow capturing inspector name upfront, instrument summary, condition status, quick tags, notes, photo evidence, and tamper-evident Cairo timestamp.
 15. **🚨 Floating Alert Overlay System:** Form validation and policy limits render as an elevated fixed alert banner (`z-[220]`) with actionable recovery instructions, screen-reader alert attributes, and dismiss button.
 16. **🛡️ Transactional Resilience (`withRetry`):** Backend user approval, rejection, and session revocation are wrapped in `withRetry<T>` to guarantee zero orphaned sessions and protect against transient database connection drops.
+17. **💬 In-App Messaging Architecture (`ReservationChatView`):** Two-pane desktop / single-pane mobile layout. On mobile, the `[ < Back ]` button is decoupled into the top Chat Header, reserving 100% of the active thread subheader for participant avatars, names, status badges, and booking slot pills. Features a 48-hour post-event grace period for completed/rejected bookings, quick inquiry chips, auto-expanding composer (40px–120px) with `text-sm sm:text-xs` (prevents iOS auto-zoom), floating scroll-to-latest button, and date-aware timestamps.
+18. **🔔 Multi-Device Web Push & Deep-Linking:** Browser Push API via Service Worker (`/public/sw.js`) and VAPID. Notification clicks deep-link directly into targeted reservation modals or active chat threads (`tab=chat`), with real-time sync to the in-app notification bell.
 
 ---
 

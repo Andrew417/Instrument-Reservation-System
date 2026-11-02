@@ -248,35 +248,97 @@ Specifically designed for the church sexton / key-holder holding the instrument 
 
 ---
 
-## 10. 💬 Two-Way In-System Messaging & Gmail SMTP
+## 10. 💬 Two-Way In-System Messaging (`ReservationChatView`) & Gmail SMTP
 
-### 10.1 Scoped Conversation Threads
-- Every reservation has a dedicated conversation thread in the Reservation Detail modal.
-- Admins and members can communicate directly regarding setup requirements, pickup logistics, or cable needs.
+### 10.1 Multi-Surface Architecture & Two-Pane Layout
+- **Two Distinct Surfaces:**
+  1. **Full-Featured Chat Tab (`ReservationChatView`):** Accessible via the main navigation (for Members as `Chat` and for Admins in `AdminPortal` under `Messages`), providing a unified messenger experience across all conversations.
+  2. **In-Modal Chat Tab:** Scoped to an individual booking within `ReservationDetailModal` for immediate slot-specific coordination.
+- **Responsive Screen Adaptation:**
+  - **Desktop (`>= 1024px`):** 5:7 split pane layout. The left column (41%) hosts the searchable, filterable conversation list with real-time badges; the right column (59%) hosts the full active message thread with sticky booking header.
+  - **Mobile (`< 1024px`):** Focused single-pane experience with smooth transitions between the conversation list and active thread.
+  - **Mobile Back Navigation:** The `[ < Back ]` button is placed directly in the main top **Chat Header** bar rather than inside the conversation subheader. This ensures 100% of the active thread subheader width is preserved for the member/admin avatar, full participant name, status badge, instrument, service name, and booking slot info, preventing truncation or overlapping.
+  - **Dynamic Mobile Header:** The top header automatically collapses redundant total count indicators on mobile when a chat is open (`hidden sm:flex`), keeping the mobile bar uncluttered.
+  - **Safe-Area Inset Handling:** Container uses `h-[calc(100dvh-130px)]` with `pb-[env(safe-area-inset-bottom)]` on the composer to avoid collisions with the mobile bottom navigation bar (`z-[75]`) and iOS home bar.
 
-### 10.2 Bi-directional Email Dispatch (via Gmail SMTP)
+### 10.2 Conversation List & Intelligent Filtering
+- **Multi-Attribute Search:** Real-time search across service name, instrument name, member name, phone number, email address, and latest message snippet content.
+- **Filter Tabs with Live Counters:**
+  - `[ All ]`: All user/admin bookings.
+  - `[ Unread ]`: Threads with unread messages.
+  - `[ Active ]`: Currently active/pending bookings.
+  - `[ Closed ]`: Concluded or cancelled bookings.
+- **Rich Card Information:**
+  - Single Booking (`Music` icon) vs. Recurring Series (`Repeat` icon) visual indicators.
+  - Live status badges (`approved`, `pending`, `ongoing`, `completed`, `cancelled`).
+  - Snippet previews with bold speaker prefix (`You:`, `Admin:`, `Member:`).
+  - High-visibility unread count badges (`1 New`) and pulsing dots.
+  - Relative recency timestamps (`2m ago`, `Yesterday`).
+
+### 10.3 Active Thread Header & Quick Action Buttons
+- **Permanent Booking Context:** Pinned at the top of the active thread displaying participant avatar, participant name, closure lock badge, and status pill.
+- **Booking Slot Pill:** Pinned calendar row showing formatted date and Cairo start-end time range.
+- **Touch-Friendly Quick Actions:**
+  - **Call Member (`tel:`):** 1-tap phone dialing link for administrators.
+  - **View Profile (`User` icon):** Opens member ministry stats and history in `UserDetailModal`.
+  - **Reservation Details (`ExternalLink` icon):** Opens full reservation details sheet in `ReservationDetailModal`.
+
+### 10.4 Messaging Experience & Ergonomics
+- **Intelligent Timestamps:**
+  - Messages sent **today** display Cairo time only (`10:45 AM` / `١٠:٤٥ ص`).
+  - Messages sent on **prior days** automatically prefix the short month and day (`Oct 28, 10:45 AM` / `٢٨ أكتوبر، ١٠:٤٥ ص`), eliminating ambiguity during multi-day coordination.
+- **Live Read Receipts:**
+  - Sent: Single checkmark (`Check` in stone-400).
+  - Read: Double checkmark (`CheckCheck` in emerald-700) with "Read by Admin" / "Read by Member" caption.
+- **Horizontally Swipeable Quick Inquiries:**
+  - Member templates: Early rehearsal pickup, equipment room keys, outside payment receipt upload, schedule changes.
+  - Admin templates: Setup instructions, key pickup location, instrument maintenance note, confirmation.
+  - 1-tap populates and focuses the composer textarea.
+- **Dynamic Auto-Expanding Composer:**
+  - Starts as a compact 40px single line and dynamically expands up to 120px as text wraps, returning to single-line upon sending.
+  - Styled with `text-sm sm:text-xs` to strictly prevent iOS Safari viewport auto-zooming.
+  - Keyboard shortcut: `Enter` sends message on desktop, `Shift+Enter` inserts newline.
+- **Floating Scroll-to-Latest Button:**
+  - Dynamically appears with a gentle bouncing down arrow whenever the user scrolls up past 160px. Tapping it smoothly scrolls to the latest message.
+- **Grace Period Lifecycle:**
+  - Pending, approved, and ongoing bookings remain open.
+  - Completed bookings remain open for a **48-hour post-event grace period** after end-time, then automatically lock.
+  - Rejected bookings remain open for a **48-hour grace period** after creation, then automatically lock.
+  - Cancelled and expired bookings lock immediately.
+  - Closed banner displays clear explanation and provides members with a 1-tap **"Book an Instrument"** shortcut to the calendar.
+
+### 10.5 Bi-directional Email Dispatch (via Gmail SMTP)
 - **Admin sends message:** Member receives an automated email with reservation slot context and a direct link to the portal.
 - **Member sends reply:** Automated email dispatched to all active church administrators with member name, instrument, and quick-reply link.
 - In-app unread badges update in real-time on both the Messages tab and top navigation bell.
 
 ---
 
-## 11. 🔔 Multi-Device Web Push Notifications
+## 11. 🔔 Multi-Device Web Push Notifications & Deep Linking
 
-### 11.1 Infrastructure
+### 11.1 Infrastructure & Service Worker
 - Standard Web Push API powered by `web-push` npm package and standard VAPID public/private keys stored in `.vapid.json`.
-- Service worker registered at `/public/sw.js`.
+- Service worker registered at `/public/sw.js` with background notification display, vibration patterns, and action button support.
+- User permission prompt modal (`PushNotificationPrompt.tsx`) with clear explanation of benefits.
 
-### 11.2 Trigger Events
+### 11.2 Trigger Events & Scenarios
 - **For Members:**
   - Reservation approved or rejected.
-  - Admin message received.
+  - Admin message received in reservation chat.
   - Reservation cancelled with admin reason.
+  - Unassigned type request auto-expired.
 - **For Admins:**
   - New member registration awaiting approval.
   - New reservation request submitted.
-  - Member replies to a message.
-- **Per-Admin Push Preferences:** Admins can independently toggle whether they receive pushes for new registrations, new requests, or member messages.
+  - Member replies to a reservation message.
+- **Per-Admin Push Preferences:** Admins can independently toggle whether they receive pushes for new registrations, new requests, or member messages in `NotificationSettingsTab.tsx`.
+
+### 11.3 Notification Click Deep-Linking
+- Clicking an OS push notification automatically focuses the browser window and navigates directly to the target item:
+  - If a `reservationId` is provided with `tab=chat`, opens directly to the active chat thread in `ReservationChatView`.
+  - If a `reservationId` is provided for booking review, immediately opens `ReservationDetailModal` to the specific reservation.
+  - If an admin registration alert, opens `AdminPortal` to the Approvals tab.
+- Integrates with in-app bell modal (`NotificationsModal.tsx`) for centralized history and inline approval/rejection.
 
 ---
 

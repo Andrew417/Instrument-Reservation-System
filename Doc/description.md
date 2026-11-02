@@ -373,8 +373,8 @@ Same flow used for both user and admin portals.
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Forgot password                      | SMS OTP flow (3 steps)                                                                                                                 |
 | Login brute-force protection         | 15-min lockout after 5 failed password attempts (mirrors OTP lockout)                                                                  |
-| Notification delivery                | On-site bell + automated transactional emails (Gmail SMTP) for chat messages, pending requests & approvals                             |
-| Admin-to-user contact                | Two-way in-system messaging scoped to reservation with automated bi-directional email dispatch & bell alerts                           |
+| Notification delivery                | Web Push API (Service Worker, VAPID) with notification click deep-linking + on-site bell modal + automated transactional emails (Gmail SMTP) for chat messages, pending requests & approvals |
+| Admin-to-user contact                | Real-time two-way in-system messaging (`ReservationChatView`) with Two-Pane desktop / single-pane mobile layout, decoupled header back navigation, active booking slot context, quick inquiry suggestion chips, auto-expanding composer, intelligent timestamps, read receipts, and 48-hour post-event grace period |
 | Recurring series in manual mode      | Admin sees series as grouped card; approves/rejects all or individually                                                                |
 | Booking mode scope                   | Per-instrument (not global) — but overridden entirely by Trusted status when present                                                   |
 | Calendar on mobile                   | Horizontal scroll; instrument detail has Daily/Weekly/Monthly toggle                                                                   |

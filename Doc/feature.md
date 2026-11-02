@@ -40,14 +40,22 @@
 
 ---
 
-## Messaging
+## Messaging (`ReservationChatView`)
 
-- **Two-way in-system conversation** — Admin and user can communicate in a conversation thread scoped to a specific reservation.
+- **Two-way in-system conversation** — Admin and user can communicate in a conversation thread scoped to a specific reservation, accessible via both the dedicated `Chat` tab (`ReservationChatView`) and inside the `ReservationDetailModal`.
+- **Responsive mobile & desktop layout** — Two-pane 5:7 split on desktop; clean single-pane with smooth transitions on mobile. On mobile, the Back button is situated in the main top Chat Header, leaving 100% of the active thread subheader for full reservation details, member identity, status badges, and booking slot pills without truncation.
+- **Active reservation context** — Pinned header displaying participant name, role avatar, status badge, instrument, service name, and formatted date/time slot pill.
+- **Admin quick actions** — 1-tap phone dialing link (`tel:`) for admins, member ministry profile modal link, and reservation details sheet link.
+- **Intelligent timestamps** — Displays Cairo time only for messages sent today (`10:45 AM`), and prefixes month & day for messages from prior days (`Oct 28, 10:45 AM`).
+- **Live read receipts** — Sent checkmark (`Check`) and emerald read receipt (`CheckCheck`) showing "Read by Admin" or "Read by Member".
+- **Quick inquiry chips** — Horizontally swipeable chips for common scheduling questions (keys, early pickup, receipt upload, confirmations).
+- **Auto-expanding composer** — Dynamic expanding textarea (40px to 120px) with `text-sm sm:text-xs` preventing iOS Safari viewport auto-zoom.
+- **Floating scroll button** — Bouncing arrow pill button appears when scrolled up past 160px for 1-tap return to latest messages.
+- **Grace Period Lifecycle** — Threads remain open for 48 hours post-event for completed bookings and 48 hours post-creation for rejected bookings; cancelled and expired bookings lock immediately with a courteous notice and 1-tap rebooking button.
 - **Bi-directional email dispatch (via Gmail SMTP)**:
     - Admin message → automated email sent to the reservation owner's email address with reservation slot context and link to portal.
     - Member reply → automated email sent to all approved administrator emails with sender name, instrument, slot, and quick link to admin portal.
-- **On-site bell notifications** — Messages fire on-site bell notifications in addition to the unread badge on the Messages tab.
-- **Reservation Detail Chat Tab** — Full conversation view with message history, sender identification (admin/member), timestamps, and quick reply suggestions when a reservation is rejected.
+- **Multi-Device Web Push & on-site bell notifications** — Messages trigger native push notifications (with deep link to active chat thread) and increment live unread count badges.
 
 ---
 

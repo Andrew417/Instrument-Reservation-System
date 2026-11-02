@@ -100,6 +100,23 @@ The application will start on **`http://localhost:3000`** with full Vite HMR, Ex
   - Prioritizes Room Stock first, Musician second, Public third.
   - Conflict checking and out-of-service prevention for single and recurring series.
   - Reassignment of approved bookings and automatic reset upon date/time/duration edits.
+- **Real-Time & Mobile-First In-App Messaging (`ReservationChatView`)**:
+  - Two-pane desktop layout (5:7 split) / seamless single-pane mobile layout with smooth transitions.
+  - Mobile header with decoupled `[ < Back ]` navigation button, freeing 100% of the active thread subheader for full reservation details, member identity, status badges, and booking slot pills.
+  - Quick action shortcuts: 1-tap phone dialing (`tel:`) for admins, profile modal link, and reservation details modal link.
+  - Intelligent date-aware message timestamps (`10:45 AM` today vs. `Oct 28, 10:45 AM` for prior days) with emerald `CheckCheck` read receipts.
+  - Horizontally swipeable quick inquiry chips for common scheduling questions (keys, early pickup, payment receipt).
+  - Dynamic auto-expanding composer textarea (`min-h-[40px] max-h-[120px]`) with `text-sm sm:text-xs` preventing iOS Safari auto-zoom.
+  - Floating bounce button to scroll to latest messages when reading history.
+  - Grace Period Lifecycle: 48-hour post-event communication grace period for completed and rejected bookings; immediate locking for cancelled/expired bookings with a 1-tap "Book an Instrument" rebooking shortcut.
+- **Multi-Device Web Push Notifications & Deep Linking**:
+  - Native browser Push API integration via Service Worker (`/public/sw.js`) and VAPID keys.
+  - Direct deep linking: clicking push notifications immediately opens the targeted reservation modal or switches to the active chat thread.
+  - Synchronized in-app notification bell with live unread count badges and inline approval/rejection actions.
+  - Independent per-admin push notification toggles for registrations, new booking requests, and member chat messages.
+- **Pre-Handover Condition Inspection & Key-Holder Exports**:
+  - Structured condition inspection flow capturing inspector name, condition status, quick tags, notes, photo evidence, and tamper-evident Cairo timestamps.
+  - Key-holder handover sheet exports to styled XLSX, CSV, and WhatsApp formatted text with directional Unicode isolation (`\u2066`).
 
 ---
 
