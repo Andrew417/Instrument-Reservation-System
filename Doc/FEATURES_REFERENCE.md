@@ -377,17 +377,18 @@ Specifically designed for the church sexton / key-holder holding the instrument 
 
 ---
 
-## 13. 📖 Policy Explainer ("كيف تحجز؟")
+## 13. 📖 Policy Explainer ("دليل حجز الآلات الموسيقية")
 
-- Specially crafted for older church members and users unfamiliar with complex apps.
-- Presented in welcoming, warm Egyptian Arabic (`dir="rtl"`).
-- Automatically pops up on first login, and accessible anytime via the top header.
-- **3 Simple Steps:**
-  1. **اختر الآلة والموعد من الجدول** — Pick the instrument and desired slot.
-  2. **اكتب اسم الخدمة ثم اضغط "تأكيد"** — Enter service name and confirm.
-  3. **استلم الآلة في موعدك المحدد** — Notice of approval and smooth pickup at church.
-- Collapsible section for advanced rules (fair usage limits and outside-church Instapay guidelines).
-- **Streamlined Footer:** Compact dismiss button ("فهمت، ابدأ الاستخدام") with helpful reminder note to revisit the guide anytime from the header button.
+- Specially crafted for older church members, youth, and users unfamiliar with complex apps.
+- **Always in Arabic (`dir="rtl"`):** Consistently presented in warm, welcoming, crystal-clear Egyptian church Arabic regardless of general language selection.
+- Automatically pops up on first login, and accessible anytime via the top header ("دليل الحجز").
+- **Simplified to 2 Clear Steps:**
+  1. **الخطوة ١: اختر الآلة والميعاد المناسب** — اضغط على أي ميعاد متاح (فترة بيضاء) في جدول الآلات، أو اضغط زر «حجز جديد».
+  2. **الخطوة ٢: اكتب اسم الخدمة واضغط «تأكيد الحجز»** — اكتب اسم خدمتك مع اسم العازف والمدة، واضغط تأكيد... ويتم حجز وتثبيت الآلة باسمك فوراً.
+- **Post-Booking Reassurance Card:** Reassures members that they will receive an immediate confirmation and pick up the instrument smoothly from the music room at service time.
+- **3 Quick Key Points:** 100% free inside church, instant direct confirmation for most instruments, and in-app direct chat for help.
+- **Collapsible Section for Special Scenarios:** Easy-to-read cards explaining weekly recurring bookings, outside-church usage with Instapay, and enabling mobile push notifications.
+- **Streamlined Footer:** Compact dismiss button ("فهمت، ابدأ الحجز الآن") with helpful reminder note to revisit the guide anytime from the header button.
 
 ---
 

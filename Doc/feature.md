@@ -78,14 +78,12 @@
 
 ## Policy Explainer (User-Facing)
 
-- In-app modal designed specifically for older members and users unfamiliar with technology, always presented in simple, welcoming Arabic (`dir="rtl"`).
-- Automatically opens as a pop-up after authentication/login on each session to guide users immediately, and remains accessible anytime from the top header ("دليل الحجز (كيف تحجز؟)").
-- Plain 3-step visual guide:
-    1. **اختر الآلة والموعد من الجدول** — Pick the instrument and desired slot from the calendar or tap "حجز جديد".
-    2. **اكتب اسم الخدمة ثم اضغط "تأكيد"** — Enter service name, duration in hours, and confirm.
-    3. **استلم الآلة في موعدك المحدد** — Notice of approval/review, and peaceful handover at church on service day.
-- Covers key reassurance points: approved slots are reserved exclusively, services inside church are 100% free, and in-app chat/WhatsApp is available for help.
-- Includes a collapsible section for advanced details (fair usage policy, outside church Instapay/cash arrangements) without cluttering the primary user journey.
+- In-app modal designed specifically for older members, youth, and users unfamiliar with technology, always presented in simple, welcoming Arabic (`dir="rtl"`).
+- Automatically opens as a pop-up after authentication/login on each session to guide users immediately, and remains accessible anytime from the top header ("دليل الحجز").
+- Plain **2-step visual guide**:
+    1. **الخطوة ١: اختر الآلة والميعاد المناسب** — اضغط على أي ميعاد متاح (فترة بيضاء) في جدول الآلات، أو اضغط زر «حجز جديد».
+    2. **الخطوة ٢: اكتب اسم الخدمة واضغط «تأكيد الحجز»** — اكتب اسم خدمتك والعازف والمدة واضغط تأكيد... وهيتم حجز الآلة باسمك فوراً.
+- Includes a post-booking reassurance banner explaining smooth pickup at church, 3 quick key points (free inside church, instant direct booking, in-app support chat), and a collapsible section for recurring weekly bookings and outside church Instapay arrangements.
 
 ---
 
