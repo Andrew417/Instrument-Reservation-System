@@ -421,6 +421,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
             handleApproveRegistration={admin.handleApproveRegistration}
             triggerRejectUser={admin.triggerRejectUser}
             setBookOnBehalfUser={admin.setBookOnBehalfUser}
+            isSuperAdmin={Boolean(admin.isSuperAdmin)}
+            onPromoteUser={admin.handleOpenPromoteModal}
           />
         )}
 
@@ -470,7 +472,15 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
               });
               admin.setShowNewAdminModal(true);
             }}
-            onDemoteAdmin={admin.handleDemoteAdmin}
+            onChangeRole={(adminId, adminName, isSuperAdmin) => {
+              admin.handleOpenPromoteModal(
+                adminId,
+                adminName,
+                false,
+                true,
+                isSuperAdmin,
+              );
+            }}
             onRemoveAdmin={admin.handleRemoveAdmin}
           />
         )}

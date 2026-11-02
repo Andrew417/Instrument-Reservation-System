@@ -10,6 +10,7 @@ import {
   Check,
   Plus,
   Music2,
+  ShieldCheck,
 } from "lucide-react";
 import { getStatusColor } from "../../../lib/status-colors";
 import { LoadingSpinner } from "../../shared/LoadingSpinner";
@@ -30,6 +31,14 @@ export interface UsersTabProps {
   handleApproveRegistration: (userId: string, userName: string) => void;
   triggerRejectUser: (user: any) => void;
   setBookOnBehalfUser: (user: any) => void;
+  isSuperAdmin?: boolean;
+  onPromoteUser?: (
+    userId: string,
+    userName: string,
+    isMusician?: boolean,
+    isCurrentlyAdmin?: boolean,
+    isCurrentlySuperAdmin?: boolean,
+  ) => void;
 }
 
 export const UsersTab: React.FC<UsersTabProps> = ({
@@ -41,6 +50,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({
   handleApproveRegistration,
   triggerRejectUser,
   setBookOnBehalfUser,
+  isSuperAdmin,
+  onPromoteUser,
 }) => {
   const { t, i18n } = useTranslation();
   const [showUserFilters, setShowUserFilters] = useState(false);
@@ -312,6 +323,32 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                           <Plus className="w-3 h-3 text-amber-800 shrink-0" />
                           <span>{t("admin.users.bookFor")}</span>
                         </button>
+
+                        {isSuperAdmin && onPromoteUser && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onPromoteUser(
+                                u.id,
+                                u.name,
+                                Boolean(u.isMusician),
+                                false,
+                                false,
+                              )
+                            }
+                            className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 touch-manipulation"
+                            title={t("admin.userModal.promote", {
+                              defaultValue: "Promote / Change Role",
+                            })}
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            <span>
+                              {t("admin.userModal.promote", {
+                                defaultValue: "Promote",
+                              })}
+                            </span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

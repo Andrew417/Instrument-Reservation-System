@@ -3614,7 +3614,7 @@ router.post(
           type: "role_changed",
           message:
             finalRole === "musician"
-              ? 'Your account has been updated. You now have the "Church Musician" role.'
+              ? 'Your account has been updated. You now have the "Musician" role.'
               : "Your account has been updated. You are now a regular member.",
         });
       } catch {
@@ -3991,17 +3991,17 @@ router.post(
             ? "musician_status_granted"
             : "musician_status_revoked",
           message: isMusician
-            ? 'Congratulations! You have been granted the "Church Musician" role by church administration. You can now view and book musician-level instruments directly.'
-            : 'Notice: Your "Church Musician" role has been updated by church administration. Your existing approved bookings remain valid.',
+            ? 'Congratulations! You have been granted the "Musician" role by church administration. You can now view and book musician-level instruments directly.'
+            : 'Notice: Your "Musician" role has been updated by church administration. Your existing approved bookings remain valid.',
         });
 
         sendPushToUser(userId, {
           titleAr: isMusician
-            ? "تم تعيينك كعازف بالكنيسة 🎵"
+            ? "تم تعيينك كعازف 🎵"
             : "تحديث صفة العازف 🎵",
           titleEn: isMusician
-            ? "Church Musician Role Granted 🎵"
-            : "Church Musician Role Updated 🎵",
+            ? "Musician Role Granted 🎵"
+            : "Musician Role Updated 🎵",
           bodyAr: isMusician
             ? "يمكنك الآن حجز الآلات المخصصة للعازفين مباشرة."
             : "تم تحديث صفة العازف لحسابك — الحجوزات السابقة سارية.",

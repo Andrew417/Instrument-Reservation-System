@@ -365,7 +365,7 @@ Specifically designed for the church sexton / key-holder holding the instrument 
 5. **Users Tab:** Member directory, account approval/rejection with automatic session revocation on rejection, active booking counts, no-show counts, deactivation/reactivation, and Super Admin Trusted toggle.
 6. **Messaging Tab:** Unified inbox of all reservation chat threads with unread indicators and quick replies.
 7. **Super Admin Controls:**
-   - *Admin Accounts:* Create, demote, or delete admin accounts.
+   - *Admin Accounts:* Create, change role (using the shared role change modal with prefilled current role: Super Admin, Admin, Musician, Member), or delete admin accounts.
    - *Hard Limits Configuration:* Adjust all 6 limits with inline documentation tooltips.
    - *Payment Settings:* Configure Instapay account details and payment URLs.
    - *Notification Settings:* Mute/unmute registration and reservation emails.

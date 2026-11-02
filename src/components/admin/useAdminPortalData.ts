@@ -1327,7 +1327,7 @@ export function useAdminPortalData({
   ) => {
     const labelMap: Record<string, string> = {
       user: "Regular Member",
-      musician: "Church Musician",
+      musician: "Musician",
       admin: "Admin",
       super_admin: "Super Admin",
     };
@@ -1441,7 +1441,7 @@ export function useAdminPortalData({
         if (data.success) {
           const labelMap: Record<string, string> = {
             user: "Regular Member",
-            musician: "Church Musician",
+            musician: "Musician",
             admin: "Admin",
             super_admin: "Super Admin",
           };
@@ -1480,7 +1480,7 @@ export function useAdminPortalData({
         if (data.success) {
           showNotice(
             nextMusician
-              ? `Granted Church Musician role to ${promoteModal.userName} 🎵`
+              ? `Granted Musician role to ${promoteModal.userName} 🎵`
               : `Returned ${promoteModal.userName} to the regular member role`,
           );
           setPromoteModal(null);

@@ -567,7 +567,7 @@ export async function evaluateReservationSubmission(
     !cleanAdminId
   ) {
     throw new Error(
-      "This instrument is restricted to registered church musicians.",
+      "This instrument is restricted to registered musicians.",
     );
   }
 

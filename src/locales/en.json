@@ -1581,26 +1581,21 @@
         "cancelling": "Cancelling..."
       },
       "promote": {
-        "userTitle": "Regular Member",
-        "userDesc": "Standard member. No musician privileges, no admin access.",
-        "musicianTitleGrant": "Grant Musician Status",
-        "musicianTitleRevoke": "Revoke Musician Status",
-        "musicianDescGrant": "Enable direct viewing and booking of musician-only instruments.",
-        "musicianDescRevoke": "Remove musician privileges. They return to standard category-based requests.",
-        "setUser": "Set as User",
-        "setAdmin": "Set as Admin",
-        "setSuperAdmin": "Set as Super Admin",
-        "grantMusician": "Grant Musician Status",
-        "revokeMusician": "Revoke Musician Status",
-        "title": "Promote {{name}}",
-        "subtitle": "Choose the role to grant this member",
+        "userTitle": "Member",
+        "userDesc": "Standard church member with basic instrument reservation capabilities.",
+        "musicianTitle": "Musician",
+        "musicianDesc": "Can directly view and book musician-only instruments and equipment on the calendar.",
         "adminTitle": "Administrator",
         "adminDesc": "Manages instruments, reviews reservations, and messages members. Cannot manage other admins, hard limits, or payment settings.",
         "superAdminTitle": "Super Administrator",
         "superAdminDesc": "Full Administrator access, plus managing other admins, Trusted status, system hard limits, and payment settings.",
+        "promoteTo": "Promote to {{role}}",
+        "demoteTo": "Demote to {{role}}",
+        "title": "Change Role for {{name}}",
+        "subtitle": "Select role or privileges to apply",
         "cancel": "Cancel",
         "confirm": "Confirm",
-        "confirmButton": "Confirm Promotion"
+        "confirmButton": "Confirm Role Change"
       }
     },
     "musicianStatus": {

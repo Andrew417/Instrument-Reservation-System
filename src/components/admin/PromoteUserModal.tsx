@@ -75,7 +75,7 @@ const OptionCard = React.memo(
       >
         <RoleRadio current={isSelected} />
         <div className="min-w-0 flex-1">
-          <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
+          <div className="font-bold text-stone-900 text-xs flex items-center gap-1.5 truncate">
             {icon}
             <span>{title}</span>
           </div>
@@ -87,6 +87,13 @@ const OptionCard = React.memo(
 );
 OptionCard.displayName = "OptionCard";
 
+const ROLE_RANKS: Record<PromoteRoleOption, number> = {
+  user: 0,
+  musician: 1,
+  admin: 2,
+  super_admin: 3,
+};
+
 export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
   modal,
   onClose,
@@ -95,7 +102,19 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const isCurrentSuperAdmin = Boolean(modal?.isCurrentlySuperAdmin);
+  const isCurrentAdmin = Boolean(modal?.isCurrentlyAdmin);
   const isCurrentMusician = Boolean(modal?.isMusician);
+
+  const currentRole: PromoteRoleOption = isCurrentSuperAdmin
+    ? "super_admin"
+    : isCurrentAdmin
+      ? "admin"
+      : isCurrentMusician
+        ? "musician"
+        : "user";
+
+  const isSameRole = modal?.role === currentRole;
 
   const handleSelectUser = useCallback(
     () => onSelectRole("user"),
@@ -114,32 +133,74 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
     [onSelectRole],
   );
 
+  const getRoleTitle = useCallback(
+    (role: PromoteRoleOption) => {
+      switch (role) {
+        case "super_admin":
+          return t("admin.modals.promote.superAdminTitle", {
+            defaultValue: "Super Administrator",
+          });
+        case "admin":
+          return t("admin.modals.promote.adminTitle", {
+            defaultValue: "Administrator",
+          });
+        case "musician":
+          return t("admin.modals.promote.musicianTitle", {
+            defaultValue: "Musician",
+          });
+        case "user":
+        default:
+          return t("admin.modals.promote.userTitle", {
+            defaultValue: "Member",
+          });
+      }
+    },
+    [t],
+  );
+
   const buttonLabel = useMemo(() => {
     if (!modal) return "";
-    if (modal.role === "musician") {
-      return isCurrentMusician
-        ? "Revoke Musician Status"
-        : "Grant Musician Status";
-    }
-    if (modal.role === "user") return "Set as User";
-    if (modal.role === "admin")
+    if (isSameRole) {
       return t("admin.modals.promote.confirmButton", {
-        defaultValue: "Confirm Promotion",
+        defaultValue: "Confirm Role Change",
       });
+    }
+
+    const currentRank = ROLE_RANKS[currentRole];
+    const targetRank = ROLE_RANKS[modal.role];
+    const targetTitle = getRoleTitle(modal.role);
+
+    if (targetRank > currentRank) {
+      return t("admin.modals.promote.promoteTo", {
+        role: targetTitle,
+        defaultValue: `Promote to ${targetTitle}`,
+      });
+    }
+
+    if (targetRank < currentRank) {
+      return t("admin.modals.promote.demoteTo", {
+        role: targetTitle,
+        defaultValue: `Demote to ${targetTitle}`,
+      });
+    }
+
     return t("admin.modals.promote.confirmButton", {
-      defaultValue: "Confirm Promotion",
+      defaultValue: "Confirm Role Change",
     });
-  }, [modal, isCurrentMusician, t]);
+  }, [modal, isSameRole, currentRole, getRoleTitle, t]);
 
   const buttonTone = useMemo(() => {
     if (!modal) return "";
-    if (modal.role === "musician") {
-      return isCurrentMusician
-        ? "bg-rose-700 hover:bg-rose-800"
-        : "bg-indigo-700 hover:bg-indigo-800";
+    if (isSameRole) {
+      return "bg-stone-300 text-stone-500 cursor-not-allowed";
+    }
+    const currentRank = ROLE_RANKS[currentRole];
+    const targetRank = ROLE_RANKS[modal.role];
+    if (targetRank < currentRank) {
+      return "bg-rose-700 hover:bg-rose-800";
     }
     return "bg-amber-800 hover:bg-amber-900";
-  }, [modal, isCurrentMusician]);
+  }, [modal, isSameRole, currentRole]);
 
   if (!modal) return null;
 
@@ -152,12 +213,12 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
             <h3 className="font-bold text-stone-900 text-sm truncate">
               {t("admin.modals.promote.title", {
                 name: modal.userName,
-                defaultValue: `Role & Privileges for ${modal.userName}`,
+                defaultValue: `Change Role for ${modal.userName}`,
               })}
             </h3>
             <p className="text-xs text-stone-500 truncate">
               {t("admin.modals.promote.subtitle", {
-                defaultValue: "Select role promotion or privileges to apply",
+                defaultValue: "Select role or privileges to apply",
               })}
             </p>
           </div>
@@ -172,14 +233,19 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
 
         {/* Options */}
         <div className="space-y-2.5 overflow-y-auto min-h-0 py-1">
-          {/* Regular User Option */}
+          {/* Regular Member Option */}
           <OptionCard
             role="user"
             icon={
               <span className="w-4 h-4 rounded-full bg-yellow-100 border border-yellow-300 shrink-0" />
             }
-            title="User"
-            desc="Remove musician status and return this member to the regular user role."
+            title={t("admin.modals.promote.userTitle", {
+              defaultValue: "Member",
+            })}
+            desc={t("admin.modals.promote.userDesc", {
+              defaultValue:
+                "Standard church member with basic instrument reservation capabilities.",
+            })}
             tone="yellow"
             isSelected={modal.role === "user"}
             onSelect={handleSelectUser}
@@ -189,16 +255,13 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
           <OptionCard
             role="musician"
             icon={<Music2 className="w-4 h-4 text-indigo-700 shrink-0" />}
-            title={
-              isCurrentMusician
-                ? "Revoke Musician Status"
-                : "Grant Musician Status"
-            }
-            desc={
-              isCurrentMusician
-                ? "Remove musician status. The user returns to standard category-based requests."
-                : "Enable direct viewing and booking of musician-only instruments on the calendar."
-            }
+            title={t("admin.modals.promote.musicianTitle", {
+              defaultValue: "Musician",
+            })}
+            desc={t("admin.modals.promote.musicianDesc", {
+              defaultValue:
+                "Can directly view and book musician-only instruments and equipment on the calendar.",
+            })}
             tone="indigo"
             isSelected={modal.role === "musician"}
             onSelect={handleSelectMusician}
@@ -213,7 +276,7 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
             })}
             desc={t("admin.modals.promote.adminDesc", {
               defaultValue:
-                "Can review, approve, assign instruments, and manage church reservations.",
+                "Manages instruments, reviews reservations, and messages members. Cannot manage other admins, hard limits, or payment settings.",
             })}
             tone="amber"
             isSelected={modal.role === "admin"}
@@ -229,7 +292,7 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
             })}
             desc={t("admin.modals.promote.superAdminDesc", {
               defaultValue:
-                "Full access including fair usage limits, payments, category fees, and role grants.",
+                "Full Administrator access, plus managing other admins, Trusted status, system hard limits, and payment settings.",
             })}
             tone="amber"
             isSelected={modal.role === "super_admin"}
@@ -248,8 +311,9 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
           </button>
           <button
             type="button"
+            disabled={isSameRole}
             onClick={() => onConfirm(modal.role)}
-            className={`px-4 py-2 rounded-xl text-white font-bold cursor-pointer shadow-xs text-xs transition touch-manipulation active:scale-95 ${buttonTone}`}
+            className={`px-4 py-2 rounded-xl text-white font-bold shadow-xs text-xs transition touch-manipulation active:scale-95 cursor-pointer ${buttonTone}`}
           >
             {buttonLabel}
           </button>

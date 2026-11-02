@@ -91,7 +91,7 @@ export const MusicianMinistryProfileModal: React.FC<
 
   const getShareMessage = () => {
     if (!stats) return "";
-    const name = stats.userName || profile?.name || (isAr ? "خادم التسبيح" : "Church Musician");
+    const name = stats.userName || profile?.name || (isAr ? "خادم التسبيح" : "Musician");
     const hours = stats.totalHours || 0;
     const services = stats.totalServices || 0;
     const reliability = stats.reliabilityScore || 100;
