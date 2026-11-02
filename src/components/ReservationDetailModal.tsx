@@ -62,6 +62,27 @@ function formatMessageTime(dateInput: any): string {
   return `${formatDisplayDate(iso)} • ${formatHhmmTo12Hour(time)}`;
 }
 
+function formatRelativeMessageTime(dateInput: any, isRTL = false): string {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return isRTL ? "الآن" : "Just now";
+  if (diffMins < 60) return isRTL ? `منذ ${diffMins} د` : `${diffMins}m ago`;
+  if (diffHours < 24) return isRTL ? `منذ ${diffHours} س` : `${diffHours}h ago`;
+  if (diffDays === 1) return isRTL ? "أمس" : "1d ago";
+  if (diffDays < 30) return isRTL ? `منذ ${diffDays} يوم` : `${diffDays}d ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  if (diffMonths < 12) return isRTL ? `منذ ${diffMonths} شهر` : `${diffMonths}mo ago`;
+  const diffYears = Math.floor(diffDays / 365);
+  return isRTL ? `منذ ${diffYears} سنة` : `${diffYears}y ago`;
+}
+
 export interface ReservationDetailModalProps {
   reservationId: string;
   allInstruments: Instrument[];
@@ -1997,9 +2018,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                               ? t("reservationDetail.member")
                               : t("reservationDetail.churchAdministration"))}
                         </span>
-                        <span className="text-[10px] text-stone-400">
-                          {formatMessageTime(
+                        <span className="text-[10px] font-bold text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-md shrink-0">
+                          {formatRelativeMessageTime(
                             lastMsg.created_at || lastMsg.createdAt,
+                            isRTL,
                           )}
                         </span>
                       </div>

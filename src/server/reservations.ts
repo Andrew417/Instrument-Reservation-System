@@ -568,6 +568,157 @@ router.get(
 );
 
 /**
+ * 12b. User Conversations (Chat with Church Administration scoped strictly to user's reservations)
+ */
+router.get(
+  "/user-conversations",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const sessionIdentity = await extractSessionIdentity(req);
+      if (!sessionIdentity?.userId && !sessionIdentity?.adminId) {
+        res.status(401).json({ success: false, error: "Authentication required" });
+        return;
+      }
+
+      const actorId = sessionIdentity.userId || sessionIdentity.adminId;
+      const isMember = Boolean(sessionIdentity.userId);
+
+      const rows = await db.execute(sql`
+        WITH msg_agg AS (
+          SELECT 
+            reservation_id,
+            COUNT(*)::int AS total_messages,
+            COUNT(CASE WHEN sender_role = 'admin' AND is_read = false THEN 1 END)::int AS unread_count,
+            MAX(created_at) AS latest_message_at
+          FROM messages
+          GROUP BY reservation_id
+        ),
+        latest_msg AS (
+          SELECT DISTINCT ON (reservation_id)
+            reservation_id,
+            content AS latest_message_content,
+            sender_role AS latest_sender_role,
+            sender_name AS latest_sender_name,
+            created_at AS latest_message_created_at
+          FROM messages
+          ORDER BY reservation_id, created_at DESC
+        )
+        SELECT 
+          r.id,
+          r.service_name,
+          r.service_location,
+          r.musician_name,
+          r.status,
+          r.reservation_type,
+          r.series_id,
+          r.is_type_request,
+          r.requested_type,
+          lower(r.time_range) AS start_time,
+          upper(r.time_range) AS end_time,
+          to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+          to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+          r.created_at AS reservation_created_at,
+          COALESCE(i.name, r.requested_type, 'Instrument') AS instrument_name,
+          i.type AS instrument_type,
+          i.photo_url AS instrument_photo_url,
+          COALESCE(ma.total_messages, 0) AS total_messages,
+          COALESCE(ma.unread_count, 0) AS unread_count,
+          lm.latest_message_content,
+          lm.latest_sender_role,
+          lm.latest_sender_name,
+          lm.latest_message_created_at AS latest_message_at,
+          COALESCE(ma.latest_message_at, r.created_at) AS sort_time
+        FROM reservations r
+        LEFT JOIN instruments i ON r.instrument_id = i.id
+        LEFT JOIN msg_agg ma ON r.id = ma.reservation_id
+        LEFT JOIN latest_msg lm ON r.id = lm.reservation_id
+        WHERE (${isMember ? sql`r.user_id = ${actorId}` : sql`(r.admin_id = ${actorId} AND r.user_id IS NULL)`})
+        ORDER BY
+          COALESCE(ma.unread_count, 0) > 0 DESC,
+          COALESCE(ma.latest_message_at, r.created_at) DESC
+      `);
+
+      const conversations = (rows as any).rows || [];
+      res.json({ success: true, conversations });
+    } catch (err: any) {
+      console.error("User conversations fetch error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 12c. Overall unread count of Admin messages across all user's reservations
+ */
+router.get(
+  "/user-conversations/unread-count",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const sessionIdentity = await extractSessionIdentity(req);
+      if (!sessionIdentity?.userId && !sessionIdentity?.adminId) {
+        res.json({ success: true, unreadCount: 0 });
+        return;
+      }
+
+      const actorId = sessionIdentity.userId || sessionIdentity.adminId;
+      const isMember = Boolean(sessionIdentity.userId);
+
+      const result = await db.execute(sql`
+        SELECT COUNT(*)::int AS unread_count
+        FROM messages m
+        JOIN reservations r ON m.reservation_id = r.id
+        WHERE m.sender_role = 'admin' 
+          AND m.is_read = false
+          AND (${isMember ? sql`r.user_id = ${actorId}` : sql`(r.admin_id = ${actorId} AND r.user_id IS NULL)`})
+      `);
+
+      const count = Number((result as any).rows?.[0]?.unread_count || 0);
+      res.json({ success: true, unreadCount: count });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 12d. Mark admin messages in a reservation thread as read by the member
+ */
+router.post(
+  "/:id/mark-user-read",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const sessionIdentity = await extractSessionIdentity(req);
+      const actorId = sessionIdentity?.userId || sessionIdentity?.adminId;
+
+      const updateRes = await db.execute(sql`
+        UPDATE messages
+        SET is_read = true
+        WHERE reservation_id = ${id}
+          AND sender_role = 'admin'
+          AND is_read = false
+        RETURNING id
+      `);
+
+      if (actorId) {
+        await db.execute(sql`
+          UPDATE notifications
+          SET is_read = true
+          WHERE reservation_id = ${id}
+            AND (user_id = ${actorId} OR admin_id = ${actorId})
+            AND is_read = false
+        `).catch(() => {});
+      }
+
+      const markedCount = (updateRes as any).rows?.length || 0;
+      res.json({ success: true, markedCount });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
  * 13. Get single reservation messages (scoped to this reservation)
  */
 router.get(
@@ -892,6 +1043,8 @@ router.post(
           r.user_id,
           r.service_name,
           r.musician_name,
+          r.status,
+          r.created_at,
           lower(r.time_range) as start_time,
           upper(r.time_range) as end_time,
           u.name as user_name,
@@ -904,6 +1057,44 @@ router.post(
       `);
       const resRows = (resInfo as any).rows || [];
       const resRecord = resRows[0];
+
+      if (!resRecord) {
+        res.status(404).json({ success: false, error: "Reservation not found." });
+        return;
+      }
+
+      // Option A Grace Period enforcement:
+      // - Pending, Approved, Ongoing: Open
+      // - Completed: Open for 48 hours after end_time, then closed
+      // - Rejected / Auto-rejected: Open for 48 hours after creation, then closed
+      // - Cancelled / Expired: Closed immediately
+      const nowMs = Date.now();
+      const GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;
+      let isThreadClosed = false;
+      const resStatus = resRecord.status;
+
+      if (resStatus === "cancelled" || resStatus === "expired") {
+        isThreadClosed = true;
+      } else if (resStatus === "completed") {
+        const endTimeMs = resRecord.end_time ? new Date(resRecord.end_time).getTime() : 0;
+        if (endTimeMs && nowMs - endTimeMs > GRACE_PERIOD_MS) {
+          isThreadClosed = true;
+        }
+      } else if (resStatus === "rejected" || resStatus === "auto_rejected") {
+        const createdAtMs = resRecord.created_at ? new Date(resRecord.created_at).getTime() : 0;
+        if (createdAtMs && nowMs - createdAtMs > GRACE_PERIOD_MS) {
+          isThreadClosed = true;
+        }
+      }
+
+      if (isThreadClosed) {
+        res.status(403).json({
+          success: false,
+          error: "This conversation has concluded. New messages can no longer be sent for this reservation.",
+          isThreadClosed: true,
+        });
+        return;
+      }
 
       if (!senderRole) {
         if (userId || (!adminId && resRecord?.user_id)) {
@@ -1014,8 +1205,13 @@ router.post(
               bodyAr: `${resTitle}: "${snippet}"`,
               bodyEn: `${resTitle}: "${snippet}"`,
               tag: `chat-${id}`,
-              url: `/?reservationId=${id}&tab=chat`,
-              data: { reservationId: id, tab: "chat", type: "chat_message" },
+              url: `/?reservationId=${id}&adminTab=messaging&tab=chat`,
+              data: {
+                reservationId: id,
+                adminTab: "messaging",
+                tab: "chat",
+                type: "chat_message",
+              },
             },
             "member_messages",
           ).catch((e) =>

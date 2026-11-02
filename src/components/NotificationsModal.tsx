@@ -20,10 +20,17 @@ import {
   Info,
   User,
   ExternalLink,
-  Inbox,
   ChevronDown,
   Zap,
+  Send,
+  Inbox,
 } from "lucide-react";
+import {
+  isPushSupported,
+  getNotificationPermission,
+  sendTestNotification,
+  subscribeToPush,
+} from "../lib/push-client.ts";
 
 export interface AppNotification {
   id: string;
@@ -201,6 +208,43 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       onUnreadCountChange?.(remainingUnread);
     } catch (e: any) {
       console.warn("Could not mark notification as read:", e.message);
+    }
+  };
+
+  const [testPushSending, setTestPushSending] = useState(false);
+
+  const handleSendTestPush = async () => {
+    if (!sessionToken) return;
+    if (!isPushSupported()) {
+      setActionNotice(t("pushPrompt.unsupported", "Push notifications are not supported in this browser."));
+      setTimeout(() => setActionNotice(null), 4000);
+      return;
+    }
+
+    setTestPushSending(true);
+    try {
+      // First ensure device has permission/subscription
+      if (getNotificationPermission() !== "granted") {
+        const subRes = await subscribeToPush(sessionToken, i18n.language || "ar");
+        if (!subRes.success) {
+          setActionNotice(subRes.error || t("pushPrompt.permissionDenied", "Please grant notification permission."));
+          setTimeout(() => setActionNotice(null), 4000);
+          setTestPushSending(false);
+          return;
+        }
+      }
+
+      const res = await sendTestNotification(sessionToken, i18n.language || "ar");
+      if (res.success) {
+        setActionNotice(t("notifications.testDelivered", "Test notification delivered to your device screen! 📲"));
+      } else {
+        setActionNotice(res.error || t("adminPush.testFailed", "Could not deliver test notification."));
+      }
+    } catch {
+      setActionNotice(t("adminPush.testFailed", "Could not deliver test notification."));
+    } finally {
+      setTestPushSending(false);
+      setTimeout(() => setActionNotice(null), 4000);
     }
   };
 
@@ -967,6 +1011,24 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 </span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={handleSendTestPush}
+              disabled={testPushSending}
+              title={t("adminPush.sendTestBtn", "Test Push Notification")}
+              aria-label={t("adminPush.sendTestBtn", "Test Push Notification")}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-amber-900 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 border border-amber-200/80 transition text-[10px] font-bold touch-manipulation cursor-pointer whitespace-nowrap disabled:opacity-50"
+            >
+              {testPushSending ? (
+                <RefreshCw className="w-3 h-3 shrink-0 animate-spin text-amber-700" />
+              ) : (
+                <Send className="w-3 h-3 shrink-0 text-amber-700" />
+              )}
+              <span className="hidden sm:inline">
+                {t("adminPush.sendTestBtn", "Test Push")}
+              </span>
+            </button>
 
             <button
               type="button"

@@ -16,6 +16,7 @@ import { EditReservationModal } from "./components/EditReservationModal.tsx";
 import { AssignInstrumentModal } from "./components/AssignInstrumentModal.tsx";
 import { NotificationsModal } from "./components/NotificationsModal.tsx";
 import { AdminPortal } from "./components/AdminPortal.tsx";
+import { UserChatView } from "./components/UserChatView.tsx";
 import { getTodayDateString } from "./lib/date-utils";
 import { PolicyExplainerModal } from "./components/PolicyExplainerModal.tsx";
 import { UserDetailModal } from "./components/UserDetailModal.tsx";
@@ -34,6 +35,7 @@ import {
   Menu,
   LayoutDashboard,
   CalendarCheck,
+  MessageSquare,
   MessageSquare as MessageSquareIcon,
   ShieldCheck,
   Sliders,
@@ -157,9 +159,9 @@ const UserPortalMain: React.FC = () => {
       setIsPolicyModalOpen(false);
     }
   }, [profile?.id, profile?.role, isAdminOrSuperAdmin]);
-  // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'admin_portal'
+  // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'chat' | 'admin_portal'
   const [currentView, setCurrentView] = useState<
-    "calendar" | "my_reservations" | "admin_portal" | "notifications"
+    "calendar" | "my_reservations" | "chat" | "admin_portal" | "notifications"
   >("calendar");
   const [initialAdminTab, setInitialAdminTab] = useState<
     | "dashboard"
@@ -211,13 +213,14 @@ const UserPortalMain: React.FC = () => {
     any | null
   >(null);
 
-  // Screen 7: Notifications
+  // Screen 7: Notifications & Chat Unread
   const [isNotificationsOpen, setIsNotificationsOpen] =
     useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   // Bottom nav — which tab is visually active
   const [activeMobileTab, setActiveMobileTab] = useState<
-    "calendar" | "my_reservations" | "notifications" | "admin_portal"
+    "calendar" | "my_reservations" | "chat" | "notifications" | "admin_portal"
   >("calendar");
   // Admin sidebar (left menu) — opens as drawer on mobile, fixed on desktop
   const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState<boolean>(false);
@@ -303,16 +306,29 @@ const UserPortalMain: React.FC = () => {
 
         if (resId) {
           setSelectedReservationDetailId(resId);
-          setReservationDetailInitialTab(tab || "details");
-          setReservationDetailFromNotifications(true);
+          if (adminTab === "messaging") {
+            setCurrentView("chat");
+            setActiveMobileTab("chat");
+          } else if (tab === "chat" && !isAdminOrSuperAdmin) {
+            setCurrentView("chat");
+            setActiveMobileTab("chat");
+          } else {
+            setReservationDetailInitialTab(tab || "details");
+            setReservationDetailFromNotifications(true);
+          }
           window.history.replaceState(
             {},
             document.title,
             window.location.pathname,
           );
         } else if (adminTab && isAdminOrSuperAdmin) {
-          setInitialAdminTab(adminTab as any);
-          setCurrentView("admin_portal");
+          if (adminTab === "messaging") {
+            setCurrentView("chat");
+            setActiveMobileTab("chat");
+          } else {
+            setInitialAdminTab(adminTab as any);
+            setCurrentView("admin_portal");
+          }
           window.history.replaceState(
             {},
             document.title,
@@ -331,8 +347,13 @@ const UserPortalMain: React.FC = () => {
         const payload = e.data.payload;
         if (payload.reservationId) {
           setSelectedReservationDetailId(payload.reservationId);
-          setReservationDetailInitialTab(payload.tab || "details");
-          setReservationDetailFromNotifications(true);
+          if (payload.adminTab === "messaging" || payload.tab === "chat") {
+            setCurrentView("chat");
+            setActiveMobileTab("chat");
+          } else {
+            setReservationDetailInitialTab(payload.tab || "details");
+            setReservationDetailFromNotifications(true);
+          }
         } else if (payload.action === "approvals" && isAdminOrSuperAdmin) {
           setInitialAdminTab("approvals");
           setCurrentView("admin_portal");
@@ -353,6 +374,7 @@ const UserPortalMain: React.FC = () => {
     if (
       currentView === "calendar" ||
       currentView === "my_reservations" ||
+      currentView === "chat" ||
       currentView === "notifications" ||
       currentView === "admin_portal"
     ) {
@@ -360,24 +382,38 @@ const UserPortalMain: React.FC = () => {
     }
   }, [currentView]);
 
-  // Initial fetch for notifications count
+  // Initial fetch and periodic polling for notifications and chat unread counts
   useEffect(() => {
     const checkUnread = async () => {
+      if (!sessionToken) return;
       try {
-        const res = await fetch("/api/notifications", {
-          headers: {
-            Authorization: `Bearer ${sessionToken || ""}`,
-          },
-        });
-        const data = await res.json();
-        if (data.success) {
-          setUnreadCount(data.unreadCount || 0);
+        const [notifRes, chatRes] = await Promise.all([
+          fetch("/api/notifications", {
+            headers: {
+              Authorization: `Bearer ${sessionToken}`,
+            },
+          }),
+          fetch("/api/reservations/user-conversations/unread-count", {
+            headers: {
+              Authorization: `Bearer ${sessionToken}`,
+            },
+          }),
+        ]);
+        const notifData = await notifRes.json();
+        if (notifData.success) {
+          setUnreadCount(notifData.unreadCount || 0);
+        }
+        const chatData = await chatRes.json();
+        if (chatData.success && typeof chatData.unreadCount === "number") {
+          setUnreadChatCount(chatData.unreadCount);
         }
       } catch {
         // silent fail
       }
     };
     checkUnread();
+    const interval = setInterval(checkUnread, 12000);
+    return () => clearInterval(interval);
   }, [sessionToken, refreshTrigger]);
 
   useEffect(() => {
@@ -500,6 +536,26 @@ const UserPortalMain: React.FC = () => {
               <span>{t("nav.myReservations")}</span>
             </button>
 
+            <button
+              id="nav-btn-chat"
+              type="button"
+              onClick={() => {
+                setIsNotificationsOpen(false);
+                setCurrentView("chat");
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                currentView === "chat"
+                  ? "bg-white text-amber-950 shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-amber-800" />
+              <span>{t("nav.chat", "Chat")}</span>
+              {unreadChatCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse ring-1 ring-yellow-500/50" />
+              )}
+            </button>
+
             {isAdminOrSuperAdmin && (
               <button
                 id="nav-btn-admin-portal"
@@ -537,6 +593,8 @@ const UserPortalMain: React.FC = () => {
                 </span>
               </button>
             )}
+
+
             {/* Screen 7: Notifications Bell Button */}
             <button
               id="header-notifications-bell-btn"
@@ -661,9 +719,27 @@ const UserPortalMain: React.FC = () => {
             }}
           />
         )}
+        {currentView === "chat" && (
+          <UserChatView
+            onOpenReservationDetail={(reservationId) => {
+              setSelectedReservationDetailId(reservationId);
+              setReservationDetailInitialTab("details");
+              setReservationDetailFromNotifications(false);
+              setReservationDetailFromUserProfile(false);
+              setModalStackOrder("reservation_over_user");
+            }}
+            onNavigateToCalendar={() => {
+              setCurrentView("calendar");
+              setActiveMobileTab("calendar");
+            }}
+            onUnreadChatCountChange={(cnt) => setUnreadChatCount(cnt)}
+            preselectedReservationId={selectedReservationDetailId}
+          />
+        )}
         {currentView === "admin_portal" && isAdminOrSuperAdmin && (
           <AdminPortal
             initialTab={initialAdminTab}
+            initialReservationId={selectedReservationDetailId}
             onBackToMemberView={() => setCurrentView("calendar")}
             onOpenReservationDetail={(id) => {
               setSelectedReservationDetailId(id);
@@ -1033,6 +1109,55 @@ const UserPortalMain: React.FC = () => {
               }`}
             >
               {t("nav.bookingsShort")}
+            </span>
+          </button>
+
+          {/* User Reservation Chat (Beside Notifications) */}
+          <button
+            type="button"
+            id="bottom-nav-chat"
+            onClick={() => {
+              setIsNotificationsOpen(false);
+              setActiveMobileTab("chat");
+              setCurrentView("chat");
+            }}
+            aria-current={activeMobileTab === "chat" ? "page" : undefined}
+            className="relative flex-1 flex flex-col items-center justify-center gap-0.5 pt-2 pb-1.5 px-1 transition-all duration-200 cursor-pointer touch-manipulation active:scale-95 group"
+          >
+            <div
+              className={`relative flex items-center justify-center w-12 h-7 rounded-full transition-all duration-200 ${
+                activeMobileTab === "chat"
+                  ? "bg-amber-800 shadow-sm"
+                  : "bg-transparent group-hover:bg-stone-100"
+              }`}
+            >
+              <MessageSquare
+                className={`w-[18px] h-[18px] transition-colors ${
+                  activeMobileTab === "chat"
+                    ? "text-white"
+                    : "text-stone-500 group-hover:text-stone-700"
+                }`}
+              />
+              {unreadChatCount > 0 && (
+                <span
+                  className={`absolute -top-1 -right-0.5 min-w-[16px] h-[16px] px-1 text-yellow-950 font-black text-[9px] rounded-full flex items-center justify-center ring-2 transition-colors ${
+                    activeMobileTab === "chat"
+                      ? "bg-yellow-400 ring-amber-800"
+                      : "bg-yellow-400 ring-white"
+                  }`}
+                >
+                  {unreadChatCount > 9 ? "9+" : unreadChatCount}
+                </span>
+              )}
+            </div>
+            <span
+              className={`text-[10px] font-semibold leading-none mt-0.5 transition-colors ${
+                activeMobileTab === "chat"
+                  ? "text-amber-900"
+                  : "text-stone-500 group-hover:text-stone-700"
+              }`}
+            >
+              {t("nav.chatShort", "Chat")}
             </span>
           </button>
 

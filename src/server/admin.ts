@@ -3165,7 +3165,193 @@ router.patch(
    ========================================================================= */
 
 /**
- * Send one-way message scoped to a specific reservation
+ * 5.1 Get all reservation conversations with latest messages and unread counts
+ */
+router.get(
+  "/conversations",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const search = ((req.query.search as string) || "").trim().toLowerCase();
+      const filter = ((req.query.filter as string) || "all").trim().toLowerCase();
+
+      const rows = await db.execute(sql`
+        WITH msg_agg AS (
+          SELECT
+            reservation_id,
+            COUNT(*)::int AS total_messages,
+            COUNT(*) FILTER (WHERE sender_role = 'user' AND is_read = false)::int AS unread_count,
+            MAX(created_at) AS latest_message_at
+          FROM messages
+          GROUP BY reservation_id
+        ),
+        latest_msg AS (
+          SELECT DISTINCT ON (reservation_id)
+            reservation_id,
+            id AS latest_message_id,
+            content AS latest_message_content,
+            sender_role AS latest_sender_role,
+            sender_name AS latest_sender_name,
+            created_at AS latest_message_created_at
+          FROM messages
+          ORDER BY reservation_id, created_at DESC
+        )
+        SELECT
+          r.id,
+          r.service_name,
+          r.service_location,
+          r.musician_name,
+          r.status,
+          r.reservation_type,
+          r.series_id,
+          r.is_type_request,
+          r.requested_type,
+          lower(r.time_range) AS start_time,
+          upper(r.time_range) AS end_time,
+          r.created_at AS reservation_created_at,
+          u.id AS user_id,
+          u.name AS user_name,
+          u.email AS user_email,
+          u.phone_number AS user_phone,
+          i.id AS instrument_id,
+          i.name AS instrument_name,
+          i.type AS instrument_type,
+          i.photo_url AS instrument_photo_url,
+          COALESCE(ma.total_messages, 0) AS total_messages,
+          COALESCE(ma.unread_count, 0) AS unread_count,
+          lm.latest_message_content,
+          lm.latest_sender_role,
+          lm.latest_sender_name,
+          lm.latest_message_created_at AS latest_message_at,
+          COALESCE(ma.latest_message_at, r.created_at) AS sort_time
+        FROM reservations r
+        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN instruments i ON r.instrument_id = i.id
+        LEFT JOIN msg_agg ma ON r.id = ma.reservation_id
+        LEFT JOIN latest_msg lm ON r.id = lm.reservation_id
+        ORDER BY
+          COALESCE(ma.unread_count, 0) > 0 DESC,
+          COALESCE(ma.latest_message_at, r.created_at) DESC
+      `);
+
+      let conversations = (rows as any).rows || [];
+
+      if (search) {
+        conversations = conversations.filter((c: any) =>
+          c.service_name?.toLowerCase().includes(search) ||
+          c.user_name?.toLowerCase().includes(search) ||
+          c.user_phone?.toLowerCase().includes(search) ||
+          c.user_email?.toLowerCase().includes(search) ||
+          c.instrument_name?.toLowerCase().includes(search) ||
+          c.latest_message_content?.toLowerCase().includes(search)
+        );
+      }
+
+      if (filter === "unread") {
+        conversations = conversations.filter(
+          (c: any) => Number(c.unread_count) > 0,
+        );
+      } else if (filter === "has_messages" || filter === "active") {
+        const now = Date.now();
+        const GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;
+        conversations = conversations.filter((c: any) => {
+          const status = c.status;
+          if (status === "cancelled" || status === "expired") return false;
+          if (status === "completed") {
+            const endMs = c.end_time ? new Date(c.end_time).getTime() : 0;
+            return !endMs || now - endMs <= GRACE_PERIOD_MS;
+          }
+          if (status === "rejected" || status === "auto_rejected") {
+            const createdMs = c.reservation_created_at ? new Date(c.reservation_created_at).getTime() : 0;
+            return !createdMs || now - createdMs <= GRACE_PERIOD_MS;
+          }
+          return true; // pending, approved, ongoing
+        });
+      } else if (filter === "closed") {
+        const now = Date.now();
+        const GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;
+        conversations = conversations.filter((c: any) => {
+          const status = c.status;
+          if (status === "cancelled" || status === "expired") return true;
+          if (status === "completed") {
+            const endMs = c.end_time ? new Date(c.end_time).getTime() : 0;
+            return endMs && now - endMs > GRACE_PERIOD_MS;
+          }
+          if (status === "rejected" || status === "auto_rejected") {
+            const createdMs = c.reservation_created_at ? new Date(c.reservation_created_at).getTime() : 0;
+            return createdMs && now - createdMs > GRACE_PERIOD_MS;
+          }
+          return false;
+        });
+      }
+
+      res.json({
+        success: true,
+        conversations,
+        totalCount: conversations.length,
+      });
+    } catch (err: any) {
+      console.error("Fetch conversations error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 5.2 Get overall unread message count across all reservation threads
+ */
+router.get(
+  "/conversations/unread-count",
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*)::int AS unread_count 
+        FROM messages 
+        WHERE sender_role = 'user' AND is_read = false
+      `);
+      const count = Number((result as any).rows?.[0]?.unread_count || 0);
+      res.json({ success: true, unreadCount: count });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 5.3 Mark all member messages in a reservation thread as read
+ */
+router.post(
+  "/conversations/:id/mark-read",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const updateRes = await db.execute(sql`
+        UPDATE messages
+        SET is_read = true
+        WHERE reservation_id = ${id}
+          AND sender_role = 'user'
+          AND is_read = false
+        RETURNING id
+      `);
+
+      // Also clear any unread notifications for admin regarding this reservation
+      await db.execute(sql`
+        UPDATE notifications
+        SET is_read = true
+        WHERE reservation_id = ${id}
+          AND admin_id IS NOT NULL
+          AND is_read = false
+      `).catch(() => {});
+
+      const markedCount = (updateRes as any).rows?.length || 0;
+      res.json({ success: true, markedCount });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 5.4 Send message scoped to a specific reservation
  */
 router.post(
   "/reservations/:id/message",
@@ -3175,6 +3361,8 @@ router.post(
       const { content } = req.body;
       const adminId =
         (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+      const adminName =
+        (req as any).adminUser?.name || "Church Administration";
 
       if (!content || !content.trim()) {
         res
@@ -3184,8 +3372,8 @@ router.post(
       }
 
       const inserted = await db.execute(sql`
-      INSERT INTO messages (reservation_id, admin_id, content, is_read, created_at)
-      VALUES (${id}, ${adminId}, ${content.trim()}, false, NOW())
+      INSERT INTO messages (reservation_id, admin_id, sender_role, sender_name, content, is_read, created_at)
+      VALUES (${id}, ${adminId || null}, 'admin', ${adminName}, ${content.trim()}, false, NOW())
       RETURNING *
     `);
 
@@ -3206,6 +3394,19 @@ router.post(
           NOW()
         )
       `);
+
+        // Send push notification to user if subscribed
+        sendPushToUser(userRows[0].user_id, {
+          titleAr: "رسالة جديدة من إدارة الكنيسة",
+          titleEn: "New Message from Church Admin",
+          bodyAr: `${userRows[0].service_name || "الحجز"}: "${content.trim()}"`,
+          bodyEn: `${userRows[0].service_name || "Reservation"}: "${content.trim()}"`,
+          tag: `chat-${id}`,
+          url: `/?reservationId=${id}&tab=chat`,
+          data: { reservationId: id, tab: "chat", type: "chat_message" },
+        }).catch((e) =>
+          console.warn("[Push chat admin->member error]:", e.message),
+        );
       }
 
       res.json({
@@ -3214,7 +3415,7 @@ router.post(
         notice: "Message sent to member.",
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
+      console.error("Reservations message error:", err);
       res.status(500).json({
         success: false,
         error: err.message,

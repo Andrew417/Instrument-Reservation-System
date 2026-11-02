@@ -5,6 +5,21 @@ declare global {
   var _postgresPool: Pool | undefined;
 }
 
+function handleIdleClientError(err: any) {
+  const msg = err?.message || String(err);
+  // Normal idle socket closures by Cloud SQL proxy / PostgreSQL are auto-recycled by pg pool
+  const isExpectedIdleClose =
+    msg.includes("Connection terminated") ||
+    msg.includes("ECONNRESET") ||
+    msg.includes("57P01") ||
+    msg.includes("socket closed") ||
+    err?.code === "ECONNRESET";
+
+  if (!isExpectedIdleClose && process.env.NODE_ENV !== "production") {
+    console.log("[DB Pool Notice] Client recycled:", msg);
+  }
+}
+
 export const createPool = () => {
   if (!global._postgresPool) {
     const isServerless =
@@ -19,16 +34,14 @@ export const createPool = () => {
         password: process.env.SQL_PASSWORD,
         database: process.env.SQL_DB_NAME,
         max: isServerless ? 1 : 10,
-        idleTimeoutMillis: 30000,
+        idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 45000,
         keepAlive: true,
         keepAliveInitialDelayMillis: 10000,
       });
 
       // Prevent unhandled pool-level errors from crashing the application
-      global._postgresPool.on("error", (err) => {
-        console.warn("[DB Pool Notice] Idle SQL client error (handled gracefully):", err?.message || err);
-      });
+      global._postgresPool.on("error", handleIdleClientError);
     } else if (process.env.DATABASE_URL) {
       // In Vercel / Neon / standalone production environments
       const isLocalhost =
@@ -41,16 +54,14 @@ export const createPool = () => {
       global._postgresPool = new Pool({
         connectionString: process.env.DATABASE_URL,
         max: isServerless ? 1 : 10,
-        idleTimeoutMillis: 30000,
+        idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 45000,
         keepAlive: true,
         keepAliveInitialDelayMillis: 10000,
         ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
       });
 
-      global._postgresPool.on("error", (err) => {
-        console.warn("[DB Pool Notice] Idle SQL client error (handled gracefully):", err?.message || err);
-      });
+      global._postgresPool.on("error", handleIdleClientError);
     } else {
       global._postgresPool = new Pool({
         host: "127.0.0.1",
@@ -58,15 +69,13 @@ export const createPool = () => {
         password: "",
         database: "postgres",
         max: isServerless ? 1 : 10,
-        idleTimeoutMillis: 30000,
+        idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 45000,
         keepAlive: true,
         keepAliveInitialDelayMillis: 10000,
       });
 
-      global._postgresPool.on("error", (err) => {
-        console.warn("[DB Pool Notice] Idle SQL client error (handled gracefully):", err?.message || err);
-      });
+      global._postgresPool.on("error", handleIdleClientError);
     }
   }
   return global._postgresPool;

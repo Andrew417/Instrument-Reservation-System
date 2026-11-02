@@ -43,23 +43,7 @@ export function getVapidKeys(): VapidKeys | null {
     return cachedKeys;
   }
 
-  const isProd =
-    process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-
-  if (isProd) {
-    if (!productionMissingWarned) {
-      productionMissingWarned = true;
-      console.error(
-        "🚨 [CRITICAL CONFIGURATION ERROR] Web Push is DISABLED in production: " +
-          "VAPID_PUBLIC_KEY and/or VAPID_PRIVATE_KEY environment variables are missing! " +
-          "Web Push notifications cannot be delivered. " +
-          "Please configure VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT in Vercel project environment variables.",
-      );
-    }
-    return null;
-  }
-
-  // Non-production fallback (local dev only): check .vapid.json if present
+  // Fallback: check .vapid.json if present
   const vapidFilePath = path.join(process.cwd(), ".vapid.json");
   if (fs.existsSync(vapidFilePath)) {
     try {
@@ -78,32 +62,38 @@ export function getVapidKeys(): VapidKeys | null {
         return cachedKeys;
       }
     } catch {
-      // Ignored in dev
+      // Ignored
     }
   }
 
-  // Auto-generate keys in non-production if not present
-  if (!isProd) {
+  // Auto-generate keys if not present
+  try {
+    const generated = webpush.generateVAPIDKeys();
+    const newKeys = {
+      publicKey: generated.publicKey,
+      privateKey: generated.privateKey,
+      subject: envSubject,
+    };
     try {
-      const generated = webpush.generateVAPIDKeys();
-      const newKeys = {
-        publicKey: generated.publicKey,
-        privateKey: generated.privateKey,
-        subject: envSubject,
-      };
-      try {
-        fs.writeFileSync(vapidFilePath, JSON.stringify(newKeys, null, 2), "utf-8");
-      } catch {}
-      cachedKeys = newKeys;
-      webpush.setVapidDetails(
-        cachedKeys.subject,
-        cachedKeys.publicKey,
-        cachedKeys.privateKey,
-      );
-      return cachedKeys;
-    } catch (err: any) {
-      console.warn("[Push VAPID Warning] Failed to auto-generate keys:", err?.message || err);
+      fs.writeFileSync(vapidFilePath, JSON.stringify(newKeys, null, 2), "utf-8");
+    } catch {
+      // File write might fail in read-only environment, keep in memory
     }
+    cachedKeys = newKeys;
+    webpush.setVapidDetails(
+      cachedKeys.subject,
+      cachedKeys.publicKey,
+      cachedKeys.privateKey,
+    );
+    if (!productionMissingWarned) {
+      productionMissingWarned = true;
+      console.log(
+        "[Push VAPID Info] Auto-generated VAPID keys for Web Push notifications.",
+      );
+    }
+    return cachedKeys;
+  } catch (err: any) {
+    console.warn("[Push VAPID Warning] Failed to initialize keys:", err?.message || err);
   }
 
   return null;

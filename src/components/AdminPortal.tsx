@@ -426,6 +426,17 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
 
         {admin.activeTab === "messaging" && (
           <MessagingTab
+            conversations={admin.conversations}
+            loadingConversations={admin.loadingConversations}
+            activeConversationMessages={admin.activeConversationMessages}
+            loadingConversationMessages={admin.loadingConversationMessages}
+            unreadMessageCount={admin.unreadMessageCount}
+            conversationFilter={admin.conversationFilter}
+            setConversationFilter={admin.setConversationFilter}
+            selectConversation={admin.selectConversation}
+            sendChatMessage={admin.sendChatMessage}
+            onOpenReservationDetail={props.onOpenReservationDetail}
+            onOpenUserProfile={admin.openUserProfile}
             reservations={admin.reservations}
             messagingReservations={admin.messagingReservations}
             loadingMessagingReservations={admin.loadingMessagingReservations}

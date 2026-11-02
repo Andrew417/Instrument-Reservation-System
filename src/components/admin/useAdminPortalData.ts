@@ -50,6 +50,7 @@ export interface UseAdminPortalDataProps {
   onInstrumentsChanged?: () => void;
   onOpenUserProfile?: (userId: string) => void;
   initialTab?: AdminTab;
+  initialReservationId?: string | null;
 }
 
 export const ADMIN_TABS_EVENT = "admin-tabs:update";
@@ -59,6 +60,7 @@ export function useAdminPortalData({
   onInstrumentsChanged,
   onOpenUserProfile,
   initialTab,
+  initialReservationId,
 }: UseAdminPortalDataProps) {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
@@ -336,6 +338,16 @@ export function useAdminPortalData({
   const [messageText, setMessageText] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [msgReservationSearch, setMsgReservationSearch] = useState("");
+
+  // Enhanced Admin Messaging states
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState<boolean>(false);
+  const [activeConversationMessages, setActiveConversationMessages] = useState<any[]>([]);
+  const [loadingConversationMessages, setLoadingConversationMessages] = useState<boolean>(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
+  const [conversationFilter, setConversationFilter] = useState<
+    "all" | "unread" | "active" | "closed" | "has_messages"
+  >("all");
 
   const [hardLimitsState, setHardLimitsState] = useState(() =>
     normalizeHardLimitsState(null),
@@ -691,28 +703,99 @@ export function useAdminPortalData({
     }
   };
 
-  const fetchMessagingReservations = async (term: string = "") => {
+  const fetchUnreadMessageCount = async () => {
+    try {
+      const res = await adminFetch("/conversations/unread-count");
+      const data = await res.json();
+      if (data.success && typeof data.unreadCount === "number") {
+        setUnreadMessageCount(data.unreadCount);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const fetchConversations = async (
+    searchTerm: string = msgReservationSearch,
+    filter:
+      | "all"
+      | "unread"
+      | "active"
+      | "closed"
+      | "has_messages" = conversationFilter,
+  ) => {
+    setLoadingConversations(true);
     setLoadingMessagingReservations(true);
     try {
       const params = new URLSearchParams();
-      if (term.trim()) params.append("search", term.trim());
-      const res = await fetch(`/api/reservations?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${sessionToken || ""}` },
-      });
+      if (searchTerm.trim()) params.append("search", searchTerm.trim());
+      if (filter && filter !== "all") params.append("filter", filter);
+      const res = await adminFetch(`/conversations?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
-        setMessagingReservations(data.reservations || []);
+        const convList = data.conversations || [];
+        setConversations(convList);
+        setMessagingReservations(convList);
+        if (initialReservationId && !selectedMsgReservation) {
+          const matched = convList.find((c: any) => c.id === initialReservationId);
+          if (matched) {
+            selectConversation(matched);
+          }
+        }
       }
     } catch {
       // silent
     } finally {
+      setLoadingConversations(false);
       setLoadingMessagingReservations(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageText.trim() || !selectedMsgReservation) return;
+  const fetchConversationMessages = async (reservationId: string) => {
+    if (!reservationId) return;
+    setLoadingConversationMessages(true);
+    try {
+      const res = await fetch(`/api/reservations/${reservationId}/messages`, {
+        headers: { Authorization: `Bearer ${sessionToken || ""}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setActiveConversationMessages(data.messages || []);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingConversationMessages(false);
+    }
+  };
+
+  const selectConversation = async (conv: any) => {
+    setSelectedMsgReservation(conv);
+    if (!conv?.id) return;
+    fetchConversationMessages(conv.id);
+    if (conv.unread_count && Number(conv.unread_count) > 0) {
+      try {
+        await adminFetch(`/conversations/${conv.id}/mark-read`, {
+          method: "POST",
+        });
+        setConversations((prev) =>
+          prev.map((c) => (c.id === conv.id ? { ...c, unread_count: 0 } : c)),
+        );
+        setMessagingReservations((prev) =>
+          prev.map((c) => (c.id === conv.id ? { ...c, unread_count: 0 } : c)),
+        );
+        setUnreadMessageCount((prev) =>
+          Math.max(0, prev - Number(conv.unread_count || 1)),
+        );
+      } catch {
+        // silent
+      }
+    }
+  };
+
+  const sendChatMessage = async (customText?: string) => {
+    const textToSend = (customText !== undefined ? customText : messageText).trim();
+    if (!textToSend || !selectedMsgReservation) return;
     setSendingMessage(true);
     try {
       const res = await fetch(
@@ -723,13 +806,19 @@ export function useAdminPortalData({
             "Content-Type": "application/json",
             Authorization: `Bearer ${sessionToken || ""}`,
           },
-          body: JSON.stringify({ content: messageText.trim() }),
+          body: JSON.stringify({
+            content: textToSend,
+            senderRole: "admin",
+            senderName: profile?.name || "Church Administration",
+          }),
         },
       );
       const data = await res.json();
       if (data.success) {
         setMessageText("");
-        showNotice("Message sent successfully!");
+        fetchConversationMessages(selectedMsgReservation.id);
+        fetchConversations(msgReservationSearch, conversationFilter);
+        showNotice(t("admin.messaging.sendSuccess", "Message sent successfully!"));
       } else {
         showNotice(data.error || "Failed to send message", "error");
       }
@@ -738,6 +827,15 @@ export function useAdminPortalData({
     } finally {
       setSendingMessage(false);
     }
+  };
+
+  const fetchMessagingReservations = async (term: string = "") => {
+    await fetchConversations(term, conversationFilter);
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendChatMessage();
   };
 
   const handleApprove = async (reservationId: string) => {
@@ -1519,9 +1617,13 @@ export function useAdminPortalData({
   };
 
   const handleAdminTestPush = async () => {
+    if (!sessionToken) {
+      showNotice(t("adminPush.subscribeFailed"), "error");
+      return;
+    }
     setTestPushSending(true);
     setTestPushStatus(null);
-    const res = await sendTestNotification(sessionToken || undefined);
+    const res = await sendTestNotification(sessionToken, i18n.language || "ar");
     setTestPushSending(false);
     if (res.success) {
       setTestPushStatus(t("adminPush.testDelivered"));
@@ -1690,7 +1792,8 @@ export function useAdminPortalData({
     ) {
       fetchNotificationSettings();
     } else if (activeTab === "messaging") {
-      fetchMessagingReservations();
+      fetchConversations();
+      fetchUnreadMessageCount();
     }
   }, [
     activeTab,
@@ -1701,7 +1804,23 @@ export function useAdminPortalData({
     userFilterStatus,
     userSearch,
     dashboardSubTab,
+    conversationFilter,
   ]);
+
+  // Polling unread chat count & active conversation messages
+  useEffect(() => {
+    fetchUnreadMessageCount();
+    const interval = setInterval(() => {
+      fetchUnreadMessageCount();
+      if (activeTab === "messaging") {
+        fetchConversations();
+        if (selectedMsgReservation?.id) {
+          fetchConversationMessages(selectedMsgReservation.id);
+        }
+      }
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [activeTab, selectedMsgReservation?.id, conversationFilter, msgReservationSearch]);
 
   // Push prefs on entering push tab
   useEffect(() => {
@@ -1780,7 +1899,6 @@ export function useAdminPortalData({
         count: stats.activeUsers,
       },
       { id: "analytics" as const, label: t("admin.tabAnalytics"), count: 0 },
-      { id: "messaging" as const, label: t("admin.tabMessaging"), count: 0 },
       {
         id: "notification_settings" as const,
         label: t("admin.tabNotificationSettings"),
@@ -1952,6 +2070,18 @@ export function useAdminPortalData({
     sendingMessage,
     msgReservationSearch,
     setMsgReservationSearch,
+    conversations,
+    loadingConversations,
+    activeConversationMessages,
+    loadingConversationMessages,
+    unreadMessageCount,
+    conversationFilter,
+    setConversationFilter,
+    fetchConversations,
+    fetchUnreadMessageCount,
+    fetchConversationMessages,
+    selectConversation,
+    sendChatMessage,
     hardLimitsState,
     setHardLimitsState,
     loadingLimits,
