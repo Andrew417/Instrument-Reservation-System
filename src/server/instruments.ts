@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db, withRetry } from "../db/index.js";
-import { instruments, reservations } from "../db/schema.js";
+import { instruments, reservations, services, userServices } from "../db/schema.js";
 import { eq, and, sql, asc } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
 import { ensureCurrentReservationStatuses } from "../services/reservation-logic.js";
@@ -257,25 +257,59 @@ router.get("/types", async (_req: Request, res: Response): Promise<void> => {
   }
 });
 
+function buildInstrumentVisibilityFilter(
+  isAdmin: boolean,
+  isMusician: boolean,
+  userId: string | null,
+) {
+  const baseWhere = sql`${instruments.isRemoved} = false`;
+  if (isAdmin) {
+    return sql`${baseWhere} AND (${instruments.visibilityLevel} IN ('public', 'musician', 'room_stock') OR (${instruments.visibilityLevel} = 'service' AND EXISTS (SELECT 1 FROM services s WHERE s.id = ${instruments.serviceId} AND s.is_archived = false)))`;
+  }
+
+  const serviceCondition = userId
+    ? sql`(${instruments.visibilityLevel} = 'service' AND EXISTS (SELECT 1 FROM user_services us JOIN services s ON us.service_id = s.id WHERE us.user_id = ${userId}::uuid AND us.service_id = ${instruments.serviceId} AND s.is_archived = false))`
+    : sql`FALSE`;
+
+  if (isMusician) {
+    return sql`${baseWhere} AND (${instruments.visibilityLevel} IN ('public', 'musician') OR ${serviceCondition})`;
+  }
+
+  return sql`${baseWhere} AND (${instruments.visibilityLevel} = 'public' OR ${serviceCondition})`;
+}
+
 /**
  * 1. Get all active instruments (filtered by role visibility)
  */
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { isAdmin, isMusician } = await resolveUserRoleFromRequest(req);
+    const { isAdmin, isMusician, userId } = await resolveUserRoleFromRequest(req);
 
-    let whereClause = sql`${instruments.isRemoved} = false`;
-    if (!isAdmin) {
-      if (isMusician) {
-        whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} IN ('public', 'musician')`;
-      } else {
-        whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} = 'public'`;
-      }
-    }
+    const whereClause = buildInstrumentVisibilityFilter(
+      isAdmin,
+      isMusician,
+      userId,
+    );
 
     const list = await db
-      .select()
+      .select({
+        id: instruments.id,
+        name: instruments.name,
+        type: instruments.type,
+        photoUrl: instruments.photoUrl,
+        description: instruments.description,
+        outsideFeePerDay: instruments.outsideFeePerDay,
+        bookingMode: instruments.bookingMode,
+        visibilityLevel: instruments.visibilityLevel,
+        serviceId: instruments.serviceId,
+        serviceName: services.name,
+        isOutOfService: instruments.isOutOfService,
+        isRemoved: instruments.isRemoved,
+        isReservePool: instruments.isReservePool,
+        createdAt: instruments.createdAt,
+      })
       .from(instruments)
+      .leftJoin(services, eq(instruments.serviceId, services.id))
       .where(whereClause)
       .orderBy(asc(instruments.type), asc(instruments.name));
 
@@ -284,6 +318,9 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       booking_mode: inst.bookingMode,
       outside_fee_per_day: inst.outsideFeePerDay,
       visibility_level: inst.visibilityLevel,
+      service_id: inst.serviceId,
+      service_name: inst.serviceName,
+      serviceName: inst.serviceName,
       is_out_of_service: inst.isOutOfService,
       photo_url: inst.photoUrl,
       is_removed: inst.isRemoved,
@@ -307,22 +344,35 @@ router.get(
       await ensureCurrentReservationStatuses().catch(() => {});
       const dateStr = (req.query.date as string) || getCairoDateString();
 
-      const { isAdmin, isMusician, userId: currentUserId } =
+      const { isAdmin, isMusician, userId } =
         await resolveUserRoleFromRequest(req);
 
       // Filter visible instruments
-      let whereClause = sql`${instruments.isRemoved} = false`;
-      if (!isAdmin) {
-        if (isMusician) {
-          whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} IN ('public', 'musician')`;
-        } else {
-          whereClause = sql`${whereClause} AND ${instruments.visibilityLevel} = 'public'`;
-        }
-      }
+      const whereClause = buildInstrumentVisibilityFilter(
+        isAdmin,
+        isMusician,
+        userId,
+      );
 
       const allInstruments = await db
-        .select()
+        .select({
+          id: instruments.id,
+          name: instruments.name,
+          type: instruments.type,
+          photoUrl: instruments.photoUrl,
+          description: instruments.description,
+          outsideFeePerDay: instruments.outsideFeePerDay,
+          bookingMode: instruments.bookingMode,
+          visibilityLevel: instruments.visibilityLevel,
+          serviceId: instruments.serviceId,
+          serviceName: services.name,
+          isOutOfService: instruments.isOutOfService,
+          isRemoved: instruments.isRemoved,
+          isReservePool: instruments.isReservePool,
+          createdAt: instruments.createdAt,
+        })
         .from(instruments)
+        .leftJoin(services, eq(instruments.serviceId, services.id))
         .where(whereClause)
         .orderBy(asc(instruments.type), asc(instruments.name));
 
@@ -333,6 +383,9 @@ router.get(
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,
+        service_id: inst.serviceId,
+        service_name: inst.serviceName,
+        serviceName: inst.serviceName,
         is_out_of_service: inst.isOutOfService,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,
@@ -425,19 +478,72 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const [inst] = await db
-      .select()
+    const instList = await db
+      .select({
+        id: instruments.id,
+        name: instruments.name,
+        type: instruments.type,
+        photoUrl: instruments.photoUrl,
+        description: instruments.description,
+        outsideFeePerDay: instruments.outsideFeePerDay,
+        bookingMode: instruments.bookingMode,
+        visibilityLevel: instruments.visibilityLevel,
+        serviceId: instruments.serviceId,
+        serviceName: services.name,
+        isOutOfService: instruments.isOutOfService,
+        isRemoved: instruments.isRemoved,
+        isReservePool: instruments.isReservePool,
+        createdAt: instruments.createdAt,
+      })
       .from(instruments)
+      .leftJoin(services, eq(instruments.serviceId, services.id))
       .where(and(eq(instruments.id, id), eq(instruments.isRemoved, false)))
       .limit(1);
 
+    const inst = instList[0];
     if (!inst) {
       res.status(404).json({ success: false, error: "Instrument not found" });
       return;
     }
 
-    const { isAdmin, isMusician } = await resolveUserRoleFromRequest(req);
-    if (!isAdmin) {
+    const { isAdmin, isMusician, userId } = await resolveUserRoleFromRequest(req);
+    if (inst.visibilityLevel === "service") {
+      // service instruments of archived services are hidden from booking for everyone
+      if (!inst.serviceId) {
+        res.status(404).json({ success: false, error: "Instrument not found" });
+        return;
+      }
+      const [srv] = await db
+        .select({ isArchived: services.isArchived })
+        .from(services)
+        .where(eq(services.id, inst.serviceId))
+        .limit(1);
+      if (!srv || srv.isArchived) {
+        res.status(404).json({ success: false, error: "Instrument not found" });
+        return;
+      }
+
+      if (!isAdmin) {
+        if (!userId) {
+          res.status(404).json({ success: false, error: "Instrument not found" });
+          return;
+        }
+        const [us] = await db
+          .select()
+          .from(userServices)
+          .where(
+            and(
+              eq(userServices.userId, userId),
+              eq(userServices.serviceId, inst.serviceId),
+            ),
+          )
+          .limit(1);
+        if (!us) {
+          res.status(404).json({ success: false, error: "Instrument not found" });
+          return;
+        }
+      }
+    } else if (!isAdmin) {
       if (inst.visibilityLevel === "room_stock") {
         res.status(404).json({ success: false, error: "Instrument not found" });
         return;
@@ -455,6 +561,9 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,
+        service_id: inst.serviceId,
+        service_name: inst.serviceName,
+        serviceName: inst.serviceName,
         is_out_of_service: inst.isOutOfService,
         photo_url: inst.photoUrl,
         is_removed: inst.isRemoved,

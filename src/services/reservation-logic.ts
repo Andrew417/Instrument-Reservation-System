@@ -14,8 +14,11 @@ import {
   notifications,
   hardLimits,
   messages,
+  services,
+  userServices,
+  serviceAssignmentAuditLog,
 } from "../db/schema.js";
-import { eq, and, sql, inArray, gte, lte, desc } from "drizzle-orm";
+import { eq, and, ne, sql, inArray, gte, lte, desc } from "drizzle-orm";
 import {
   addDaysToDateString,
   cairoDateTimeToDate,
@@ -569,6 +572,50 @@ export async function evaluateReservationSubmission(
     throw new Error(
       "This instrument is restricted to registered musicians.",
     );
+  }
+
+  if (instrument.visibilityLevel === "service") {
+    if (!instrument.serviceId) {
+      throw new Error("This service instrument is not linked to an active service.");
+    }
+
+    // service instruments of archived services are hidden from booking for everyone
+    const [srv] = await db
+      .select({ id: services.id, isArchived: services.isArchived })
+      .from(services)
+      .where(eq(services.id, instrument.serviceId))
+      .limit(1);
+
+    if (!srv || srv.isArchived) {
+      throw new Error(
+        "Instruments belonging to an archived service cannot be booked.",
+      );
+    }
+
+    if (!isAdmin && !cleanAdminId) {
+      if (!cleanUserId) {
+        throw new Error(
+          "This instrument is restricted to members of the assigned service.",
+        );
+      }
+
+      const [holdsService] = await db
+        .select()
+        .from(userServices)
+        .where(
+          and(
+            eq(userServices.userId, cleanUserId),
+            eq(userServices.serviceId, instrument.serviceId),
+          ),
+        )
+        .limit(1);
+
+      if (!holdsService) {
+        throw new Error(
+          "This instrument is restricted to members of the assigned service.",
+        );
+      }
+    }
   }
 
   // Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
@@ -3720,6 +3767,7 @@ export async function getTypeRequestCandidates(reservationId: string) {
     .where(
       and(
         eq(instruments.isRemoved, false),
+        ne(instruments.visibilityLevel, "service"),
         sql`${instruments.type} ILIKE ${res.requestedType.trim()}`,
       ),
     );
@@ -3873,6 +3921,7 @@ export async function getReassignCandidates(reservationId: string) {
     .where(
       and(
         eq(instruments.isRemoved, false),
+        ne(instruments.visibilityLevel, "service"),
         sql`${instruments.type} ILIKE ${targetType.trim()}`,
       ),
     );
@@ -4017,6 +4066,7 @@ export async function getSeriesTypeRequestCandidates(seriesId: string) {
     .where(
       and(
         eq(instruments.isRemoved, false),
+        ne(instruments.visibilityLevel, "service"),
         sql`${instruments.type} ILIKE ${series.requestedType.trim()}`,
       ),
     );
@@ -4101,6 +4151,9 @@ export async function adminAssignTypeRequest(
   }
   if (instrument.isOutOfService) {
     throw new Error("Cannot assign: This instrument is marked Out of service.");
+  }
+  if (instrument.visibilityLevel === "service") {
+    throw new Error("Service instruments cannot be assigned to category type requests.");
   }
 
   const boundsRes: any = await db.execute(

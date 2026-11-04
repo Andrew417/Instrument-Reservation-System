@@ -412,3 +412,29 @@ export const roleAuditLog = pgTable("role_audit_log", {
     .defaultNow()
     .notNull(),
 });
+
+export const services = pgTable("services", {
+  id: uuid().defaultRandom().notNull(),
+  name: text().notNull(),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+    .defaultNow()
+    .notNull(),
+});
+
+export const userServices = pgTable("user_services", {
+  userId: uuid("user_id").notNull(),
+  serviceId: uuid("service_id").notNull(),
+});
+
+export const serviceAssignmentAuditLog = pgTable("service_assignment_audit_log", {
+  id: uuid().defaultRandom().notNull(),
+  targetUserId: uuid("target_user_id").notNull(),
+  serviceId: uuid("service_id").notNull(),
+  grantedByAdminId: uuid("granted_by_admin_id").notNull(),
+  action: text().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+    .defaultNow()
+    .notNull(),
+});
+

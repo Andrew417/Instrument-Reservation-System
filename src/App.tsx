@@ -28,6 +28,7 @@ import {
   Sparkles,
   Phone,
   Church,
+  Layers,
   Calendar,
   CheckCircle2,
   Bell,
@@ -102,6 +103,8 @@ const getAdminTabIcon = (
       return UserCheck;
     case "instruments":
       return Church;
+    case "services":
+      return Layers;
     case "users":
       return UsersIcon;
     case "analytics":

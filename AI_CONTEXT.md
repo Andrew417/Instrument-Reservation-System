@@ -2,11 +2,11 @@
 
 > This auto-generated index contains the signatures, types, and routes of the application without full function bodies. Feed this to AI assistants along with ARCHITECTURE.md.
 
-**Total Files Scanned:** 92
+**Total Files Scanned:** 93
 
 ## Components (UI)
 
-### `src/components/AdminPortal.tsx` (545 lines)
+### `src/components/AdminPortal.tsx` (568 lines)
 ```typescript
 export interface AdminPortalProps extends UseAdminPortalDataProps {}
 export const AdminPortal: React.FC<AdminPortalProps> = (props)
@@ -30,7 +30,7 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = (
 export const AuthScreen: React.FC = ()
 ```
 
-### `src/components/AvailabilityCalendar.tsx` (1258 lines)
+### `src/components/AvailabilityCalendar.tsx` (1265 lines)
 ```typescript
 export interface Instrument
 export interface ReservedSlot
@@ -58,7 +58,7 @@ export interface HandoverSheetModalProps
 export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = (
 ```
 
-### `src/components/InstrumentDetailModal.tsx` (1303 lines)
+### `src/components/InstrumentDetailModal.tsx` (1309 lines)
 ```typescript
 export interface InstrumentDetailModalProps
 export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = (
@@ -89,7 +89,7 @@ export interface NotificationsModalProps
 export const NotificationsModal: React.FC<NotificationsModalProps> = (
 ```
 
-### `src/components/PolicyExplainerModal.tsx` (303 lines)
+### `src/components/PolicyExplainerModal.tsx` (262 lines)
 ```typescript
 export interface PolicyExplainerModalProps
 export const PolicyExplainerModal: React.FC<PolicyExplainerModalProps> = (
@@ -160,13 +160,13 @@ export type UserChatViewProps = Omit<ReservationChatViewProps, "mode">;
 export const UserChatView: React.FC<UserChatViewProps> = (props)
 ```
 
-### `src/components/UserDetailModal.tsx` (998 lines)
+### `src/components/UserDetailModal.tsx` (1275 lines)
 ```typescript
 export interface UserDetailModalProps
 export const UserDetailModal: React.FC<UserDetailModalProps> = (props)
 ```
 
-### `src/components/admin/AdminAccountsTab.tsx` (286 lines)
+### `src/components/admin/AdminAccountsTab.tsx` (200 lines)
 ```typescript
 export interface AdminAccountItem
 export const AdminAccountsTab: React.FC<AdminAccountsTabProps> = (
@@ -219,7 +219,7 @@ export interface HardLimitsFormState
 export const HardLimitsTab: React.FC<HardLimitsTabProps> = (
 ```
 
-### `src/components/admin/InstrumentFormModal.tsx` (523 lines)
+### `src/components/admin/InstrumentFormModal.tsx` (622 lines)
 ```typescript
 export interface InstrumentFormState
 export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = (
@@ -244,7 +244,7 @@ export interface PaymentSettingsState
 export const PaymentSettingsTab: React.FC<PaymentSettingsTabProps> = (
 ```
 
-### `src/components/admin/PromoteUserModal.tsx` (261 lines)
+### `src/components/admin/PromoteUserModal.tsx` (325 lines)
 ```typescript
 export type PromoteRoleOption = "user" | "admin" | "super_admin" | "musician";
 export interface PromoteModalState
@@ -263,7 +263,7 @@ export interface RetireInstrumentItem
 export const RetireInstrumentModal: React.FC<RetireInstrumentModalProps> = (
 ```
 
-### `src/components/admin/TrustedStatusTab.tsx` (219 lines)
+### `src/components/admin/TrustedStatusTab.tsx` (277 lines)
 ```typescript
 export interface TrustedStatusAuditLogItem
 export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = (
@@ -281,7 +281,7 @@ export interface DashboardTabProps
 export const DashboardTab: React.FC<DashboardTabProps> = (
 ```
 
-### `src/components/admin/tabs/InstrumentsTab.tsx` (606 lines)
+### `src/components/admin/tabs/InstrumentsTab.tsx` (618 lines)
 ```typescript
 export interface InstrumentsTabProps
 export const InstrumentsTab: React.FC<InstrumentsTabProps> = (
@@ -299,13 +299,20 @@ export interface ReviewTabProps
 export const ReviewTab: React.FC<ReviewTabProps> = (
 ```
 
-### `src/components/admin/tabs/UsersTab.tsx` (327 lines)
+### `src/components/admin/tabs/ServicesTab.tsx` (625 lines)
+```typescript
+export interface ServiceItem
+export interface ServicesTabProps
+export const ServicesTab: React.FC<ServicesTabProps> = (
+```
+
+### `src/components/admin/tabs/UsersTab.tsx` (364 lines)
 ```typescript
 export interface UsersTabProps
 export const UsersTab: React.FC<UsersTabProps> = (
 ```
 
-### `src/components/admin/useAdminPortalData.ts` (2175 lines)
+### `src/components/admin/useAdminPortalData.ts` (2195 lines)
 ```typescript
 export type AdminTab =
 export interface UseAdminPortalDataProps
@@ -345,12 +352,14 @@ export const ReservationStatusBadge: React.FC<ReservationStatusBadgeProps> = (
 
 ## Server Routes (API)
 
-### `src/server/admin.ts` (4395 lines)
+### `src/server/admin.ts` (5121 lines)
 ```typescript
 Route: GET /analytics
 Route: GET /types
 Route: GET /users
 Route: GET /approvals
+Route: GET /services
+Route: POST /services
 Route: GET /types
 ```
 
@@ -362,7 +371,7 @@ Route: GET /me
 Route: POST /logout
 ```
 
-### `src/server/instruments.ts` (542 lines)
+### `src/server/instruments.ts` (651 lines)
 ```typescript
 export async function ensureSampleInstruments(): Promise<void>
 Route: GET /types
@@ -414,7 +423,7 @@ export async function withUserContext<T>(
 
 ## Services & Business Logic
 
-### `src/services/reservation-logic.ts` (4487 lines)
+### `src/services/reservation-logic.ts` (4540 lines)
 ```typescript
 export interface TimeSlot
 export interface ReservationSubmissionInput
@@ -594,7 +603,7 @@ export const getReservationTypeColor = (type: string)
 ### `src/db/drizzle.config.ts` (27 lines)
 *No top-level exports or routes detected*
 
-### `src/db/index.ts` (188 lines)
+### `src/db/index.ts` (236 lines)
 ```typescript
 export const createPool = ()
 export const pool = createPool();
@@ -602,13 +611,16 @@ export const db = drizzle(pool,
 export async function withRetry<T>(
 export async function ensureEnhancedColumns(): Promise<void>
 export async function ensurePushTables(): Promise<void>
+export async function ensureServiceVisibilitySchema(): Promise<void>
 ```
 
-### `src/db/schema.ts` (545 lines)
+### `src/db/schema.ts` (649 lines)
 ```typescript
 export const tstzrange = customType<
 export const users = pgTable(
 export const admins = pgTable(
+export const services = pgTable("services",
+export const userServices = pgTable(
 export const instruments = pgTable(
 export const instrumentTypeSettings = pgTable("instrument_type_settings",
 export const reservationSeries = pgTable(
@@ -619,9 +631,7 @@ export const hardLimits = pgTable("hard_limits",
 export const paymentSettings = pgTable("payment_settings",
 export const notificationSettings = pgTable("notification_settings",
 export const trustedStatusAuditLog = pgTable(
-export const musicianStatusAuditLog = pgTable(
-export const failedLoginAttempts = pgTable("failed_login_attempts",
-// ... +14 more signatures
+// ... +20 more signatures
 ```
 
 ### `src/db/seed-super-admin.ts` (145 lines)
@@ -631,7 +641,7 @@ export async function seedSuperAdmin(): Promise<void>
 
 ## Contexts & Core
 
-### `src/App.tsx` (1707 lines)
+### `src/App.tsx` (1710 lines)
 *No top-level exports or routes detected*
 
 ### `src/contexts/AuthContext.tsx` (404 lines)

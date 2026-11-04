@@ -6,6 +6,7 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -64,6 +65,32 @@ export const admins = pgTable(
   (table) => [unique("admins_email_key").on(table.email)],
 );
 
+// 2.5 Services Table
+export const services = pgTable("services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  isArchived: boolean("is_archived").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// 2.6 User Services Join Table (Many-to-Many)
+export const userServices = pgTable(
+  "user_services",
+  {
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    serviceId: uuid("service_id")
+      .references(() => services.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.serviceId] }),
+  ],
+);
+
 // 3. Instruments Table
 export const instruments = pgTable(
   "instruments",
@@ -75,7 +102,10 @@ export const instruments = pgTable(
     description: text("description"),
     outsideFeePerDay: numeric("outside_fee_per_day").default("0").notNull(),
     bookingMode: text("booking_mode").notNull(), // 'manual' | 'instant'
-    visibilityLevel: text("visibility_level").default("public").notNull(), // 'public' | 'musician' | 'room_stock'
+    visibilityLevel: text("visibility_level").default("public").notNull(), // 'public' | 'musician' | 'room_stock' | 'service'
+    serviceId: uuid("service_id").references(() => services.id, {
+      onDelete: "set null",
+    }),
     isOutOfService: boolean("is_out_of_service").default(false).notNull(),
     isRemoved: boolean("is_removed").default(false).notNull(),
     isReservePool: boolean("is_reserve_pool").default(false).notNull(),
@@ -89,8 +119,12 @@ export const instruments = pgTable(
       sql`${table.bookingMode} IN ('manual', 'instant')`,
     ),
     check(
-      "visibility_level_check",
-      sql`${table.visibilityLevel} IN ('public', 'musician', 'room_stock')`,
+      "instrument_visibility_level_check",
+      sql`${table.visibilityLevel} IN ('public', 'musician', 'room_stock', 'service')`,
+    ),
+    check(
+      "service_visibility_check",
+      sql`(${table.visibilityLevel} = 'service' AND ${table.serviceId} IS NOT NULL) OR (${table.visibilityLevel} <> 'service' AND ${table.serviceId} IS NULL)`,
     ),
   ],
 );
@@ -324,7 +358,34 @@ export const musicianStatusAuditLog = pgTable(
   ],
 );
 
-// 11. Failed Login Attempts Table
+// 12. Service Assignment Audit Log Table
+export const serviceAssignmentAuditLog = pgTable(
+  "service_assignment_audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    targetUserId: uuid("target_user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    serviceId: uuid("service_id")
+      .references(() => services.id, { onDelete: "cascade" })
+      .notNull(),
+    grantedByAdminId: uuid("granted_by_admin_id")
+      .references(() => admins.id, { onDelete: "cascade" })
+      .notNull(),
+    action: text("action").notNull(), // 'granted' | 'revoked'
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "service_assignment_action_check",
+      sql`${table.action} IN ('granted', 'revoked')`,
+    ),
+  ],
+);
+
+// 13. Failed Login Attempts Table
 export const failedLoginAttempts = pgTable("failed_login_attempts", {
   email: text("email").primaryKey(),
   consecutiveFailures: integer("consecutive_failures").default(0).notNull(),
@@ -435,12 +496,31 @@ export const adminPushPreferences = pgTable("admin_push_preferences", {
 });
 
 // Drizzle Relations
+export const servicesRelations = relations(services, ({ many }) => ({
+  instruments: many(instruments),
+  userServices: many(userServices),
+  auditLogs: many(serviceAssignmentAuditLog),
+}));
+
+export const userServicesRelations = relations(userServices, ({ one }) => ({
+  user: one(users, {
+    fields: [userServices.userId],
+    references: [users.id],
+  }),
+  service: one(services, {
+    fields: [userServices.serviceId],
+    references: [services.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   reservations: many(reservations),
   series: many(reservationSeries),
   notifications: many(notifications),
   auditLogs: many(trustedStatusAuditLog),
   musicianAuditLogs: many(musicianStatusAuditLog),
+  serviceAuditLogs: many(serviceAssignmentAuditLog),
+  userServices: many(userServices),
   messages: many(messages),
   pushSubscriptions: many(pushSubscriptions),
 }));
@@ -451,6 +531,7 @@ export const adminsRelations = relations(admins, ({ one, many }) => ({
   messages: many(messages),
   grantedAudits: many(trustedStatusAuditLog),
   grantedMusicianAudits: many(musicianStatusAuditLog),
+  grantedServiceAudits: many(serviceAssignmentAuditLog),
   pushSubscriptions: many(pushSubscriptions),
   pushPreferences: one(adminPushPreferences, {
     fields: [admins.id],
@@ -458,7 +539,11 @@ export const adminsRelations = relations(admins, ({ one, many }) => ({
   }),
 }));
 
-export const instrumentsRelations = relations(instruments, ({ many }) => ({
+export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
+  service: one(services, {
+    fields: [instruments.serviceId],
+    references: [services.id],
+  }),
   reservations: many(reservations),
   series: many(reservationSeries),
 }));
@@ -542,3 +627,22 @@ export const musicianStatusAuditLogRelations = relations(
     }),
   }),
 );
+
+export const serviceAssignmentAuditLogRelations = relations(
+  serviceAssignmentAuditLog,
+  ({ one }) => ({
+    targetUser: one(users, {
+      fields: [serviceAssignmentAuditLog.targetUserId],
+      references: [users.id],
+    }),
+    service: one(services, {
+      fields: [serviceAssignmentAuditLog.serviceId],
+      references: [services.id],
+    }),
+    grantedByAdmin: one(admins, {
+      fields: [serviceAssignmentAuditLog.grantedByAdminId],
+      references: [admins.id],
+    }),
+  }),
+);
+

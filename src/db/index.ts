@@ -185,3 +185,51 @@ export async function ensurePushTables(): Promise<void> {
     console.warn("[DB Warning] Push tables check notice:", err?.message || err);
   }
 }
+
+/**
+ * Idempotently ensures service-specific instrument visibility schema, tables and constraints exist.
+ */
+export async function ensureServiceVisibilitySchema(): Promise<void> {
+  try {
+    await withRetry(
+      async () => {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS "services" (
+            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+            "name" text NOT NULL,
+            "is_archived" boolean DEFAULT false NOT NULL,
+            "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+            CONSTRAINT "services_name_unique" UNIQUE("name")
+          );
+
+          CREATE TABLE IF NOT EXISTS "user_services" (
+            "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE cascade,
+            "service_id" uuid NOT NULL REFERENCES "services"("id") ON DELETE cascade,
+            CONSTRAINT "user_services_user_id_service_id_pk" PRIMARY KEY("user_id","service_id")
+          );
+
+          CREATE TABLE IF NOT EXISTS "service_assignment_audit_log" (
+            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+            "target_user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE cascade,
+            "service_id" uuid NOT NULL REFERENCES "services"("id") ON DELETE cascade,
+            "granted_by_admin_id" uuid NOT NULL REFERENCES "admins"("id") ON DELETE cascade,
+            "action" text NOT NULL,
+            "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+            CONSTRAINT "service_assignment_action_check" CHECK ("action" IN ('granted', 'revoked'))
+          );
+
+          DO $$ BEGIN 
+            ALTER TABLE "instruments" ADD COLUMN IF NOT EXISTS "service_id" uuid REFERENCES "services"("id") ON DELETE set null;
+          EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+        `);
+
+        console.log("[DB] Service visibility tables and columns verified.");
+      },
+      { retries: 5, delayMs: 2000, label: "Service Visibility Tables Setup" },
+    );
+  } catch (err: any) {
+    console.warn("[DB Warning] Service visibility tables check notice:", err?.message || err);
+  }
+}
+
+

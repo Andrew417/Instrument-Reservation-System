@@ -141,7 +141,10 @@
 |---|---|---|
 | `users` | Church members / musicians | `id`, `name`, `email`, `phoneNumber`, `passwordHash`, `isTrusted` (bool), `isMusician` (bool), `approvalStatus` (`pending`\|`approved`\|`rejected`), `isActive` |
 | `admins` | Church administrators | `id`, `name`, `email`, `phoneNumber`, `passwordHash`, `isSuperAdmin` (bool), `role` (`admin`), `approvalStatus` |
-| `instruments` | Individual physical musical gear | `id`, `name`, `type` (e.g. Drums, Keyboard), `photoUrl`, `outsideFeePerDay`, `bookingMode` (`manual`\|`instant`), `visibilityLevel` (`public`\|`musician`\|`room_stock`), `isOutOfService` (bool), `isRemoved` |
+| `instruments` | Individual physical musical gear | `id`, `name`, `type` (e.g. Drums, Keyboard), `photoUrl`, `outsideFeePerDay`, `bookingMode` (`manual`\|`instant`), `visibilityLevel` (`public`\|`musician`\|`room_stock`\|`service`), `serviceId` (FK services), `isOutOfService` (bool), `isRemoved` |
+| `services` | Church services/ministries | `id`, `name` (unique), `isArchived` (bool), `createdAt` |
+| `user_services` | Member-to-service assignments | `userId` (FK users), `serviceId` (FK services), composite PK |
+| `service_assignment_audit_log` | Audit history of service assignments/revocations | `id`, `targetUserId`, `serviceId`, `grantedByAdminId`, `action` (`granted`\|`revoked`), `createdAt` |
 | `instrument_type_settings` | Category requests & flat fee config | `type` (PK), `canBeRequested` (bool), `flatFeeOutside` (numeric), `updatedAt` |
 | `reservations` | Individual booked slots & type requests | `id`, `seriesId`, `userId`, `adminId`, `instrumentId` (nullable for unassigned type requests), `isTypeRequest` (bool), `requestedType` (text), `serviceName`, `musicianName`, `timeRange` (`tstzrange`), `reservationType` (`in_church`\|`outside_church`), `feeSnapshot`, `status` (`pending`\|`approved`\|`rejected`\|`auto_rejected`\|`cancelled`\|`ongoing`\|`completed`\|`expired`), `rejectionReason`, `cancellationReason`, `bandPackId`, `conditionStatus`, `paymentScreenshotUrl`, `isNoShow` |
 | `reservation_series` | Recurring series header | `id`, `userId`, `adminId`, `instrumentId`, `isTypeRequest` (bool), `requestedType` (text), `patternType` (`weekly`\|`custom`), `serviceLocation`, `note` |
@@ -164,6 +167,7 @@
    - `public`: Everyone sees and books directly.
    - `musician`: Visible and bookable directly by Musicians and Admins only. Regular users cannot see them anywhere (filtered at DB query level).
    - `room_stock`: Visible to Admins only. Nobody books directly; admins assign them to type requests.
+   - `service`: Visible and bookable only by assigned members of that service + Admins/Super Admins. Hidden from booking for everyone if service is archived. Excluded from type request assignment candidates. Requires valid non-null `serviceId`.
    - `out_of_service`: Unavailable/broken; cannot be booked or assigned to anyone. Disabled across calendar and forms.
 4. **Musician Status (`is_musician`):** Independent boolean flag, separate from `is_trusted`. Only Super Admins can grant or revoke it (via User Profile or Promote modal). Each change is recorded in `musician_status_audit_log`. Musicians book visible instruments directly and do not use type requests.
 5. **Category Type Requests:**

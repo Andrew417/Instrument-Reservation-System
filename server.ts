@@ -4,7 +4,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import { createExpressApp } from "./src/server-app";
 import { seedSuperAdmin } from "./src/db/seed-super-admin";
-import { ensureEnhancedColumns, ensurePushTables } from "./src/db/index";
+import { ensureEnhancedColumns, ensurePushTables, ensureServiceVisibilitySchema } from "./src/db/index";
 import { runStatusTransitions } from "./src/services/reservation-logic";
 
 export async function createServer() {
@@ -22,6 +22,10 @@ export async function createServer() {
 
   ensurePushTables().catch((err: any) => {
     console.warn("[DB Push Tables Check Notice]:", err.message || err);
+  });
+
+  ensureServiceVisibilitySchema().catch((err: any) => {
+    console.warn("[DB Service Visibility Check Notice]:", err.message || err);
   });
 
   // Vite middleware for development vs static build in production

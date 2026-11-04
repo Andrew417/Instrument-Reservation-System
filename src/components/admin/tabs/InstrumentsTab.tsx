@@ -323,31 +323,43 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
                             })}
                           </span>
                         )}
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
-                            (inst.visibilityLevel || inst.visibility_level) ===
+                        {(inst.visibilityLevel || inst.visibility_level) ===
+                        "service" ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap bg-teal-50 text-teal-800 border border-teal-200">
+                            {t("admin.instruments.visService", {
+                              defaultValue: "Service",
+                            })}
+                            {inst.serviceName || inst.service_name
+                              ? `: ${inst.serviceName || inst.service_name}`
+                              : ""}
+                          </span>
+                        ) : (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                              (inst.visibilityLevel ||
+                                inst.visibility_level) === "musician"
+                                ? "bg-indigo-50 text-indigo-800 border border-indigo-200"
+                                : (inst.visibilityLevel ||
+                                      inst.visibility_level) === "room_stock"
+                                  ? "bg-purple-50 text-purple-800 border border-purple-200"
+                                  : "bg-blue-50 text-blue-800 border border-blue-200"
+                            }`}
+                          >
+                            {(inst.visibilityLevel || inst.visibility_level) ===
                             "musician"
-                              ? "bg-indigo-50 text-indigo-800 border border-indigo-200"
+                              ? t("admin.instruments.visMusician", {
+                                  defaultValue: "Musicians Only",
+                                })
                               : (inst.visibilityLevel ||
                                     inst.visibility_level) === "room_stock"
-                                ? "bg-purple-50 text-purple-800 border border-purple-200"
-                                : "bg-blue-50 text-blue-800 border border-blue-200"
-                          }`}
-                        >
-                          {(inst.visibilityLevel || inst.visibility_level) ===
-                          "musician"
-                            ? t("admin.instruments.visMusician", {
-                                defaultValue: "Musicians Only",
-                              })
-                            : (inst.visibilityLevel ||
-                                  inst.visibility_level) === "room_stock"
-                              ? t("admin.instruments.visRoomStock", {
-                                  defaultValue: "Room Stock",
-                                })
-                              : t("admin.instruments.visPublic", {
-                                  defaultValue: "Public",
-                                })}
-                        </span>
+                                ? t("admin.instruments.visRoomStock", {
+                                    defaultValue: "Room Stock",
+                                  })
+                                : t("admin.instruments.visPublic", {
+                                    defaultValue: "Public",
+                                  })}
+                          </span>
+                        )}
                         <span
                           id={`admin-instrument-mode-badge-${inst.id}`}
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${

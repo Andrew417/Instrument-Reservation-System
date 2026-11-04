@@ -22,6 +22,7 @@ import {
   Trash2,
   ArrowUpCircle,
   Plus,
+  Church,
 } from "lucide-react";
 import {
   formatDisplayDate,
@@ -115,79 +116,112 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
   const [standing, setStanding] = useState<any | null>(null);
   const [reservations, setReservations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
+  const [userServices, setUserServices] = useState<any[]>([]);
+  const [allServices, setAllServices] = useState<any[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [isAssigningService, setIsAssigningService] = useState<boolean>(false);
+  const [serviceActionError, setServiceActionError] = useState<string | null>(null);
+  const [serviceActionSuccess, setServiceActionSuccess] = useState<string | null>(null);
+  const [serviceToRevoke, setServiceToRevoke] = useState<{ id: string; name: string } | null>(null);
+  const [isRevokingService, setIsRevokingService] = useState<boolean>(false);
+
   const [isTogglingTrust, setIsTogglingTrust] = useState<boolean>(false);
   const [confirmToggleTrust, setConfirmToggleTrust] = useState<boolean>(false);
   const [isTogglingActive, setIsTogglingActive] = useState<boolean>(false);
   const [confirmToggleActive, setConfirmToggleActive] =
     useState<boolean>(false);
 
+  const fetchUserProfile = React.useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const token =
+        sessionToken ||
+        localStorage.getItem("admin_session_token") ||
+        localStorage.getItem("auth_token") ||
+        "";
+
+      const endpoint =
+        entityType === "admin"
+          ? `/api/admin/admins/${userId}`
+          : `/api/admin/users/${userId}/profile`;
+
+      const res = await fetch(endpoint, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        if (entityType === "admin") {
+          const a = data.admin;
+          setUserData({
+            id: a.id,
+            name: a.name,
+            email: a.email,
+            phoneNumber: a.phone_number,
+            isTrusted: false,
+            isActive: true,
+            approvalStatus: a.approval_status || "approved",
+            createdAt: a.created_at,
+            role: a.role,
+            isSuperAdmin: a.is_super_admin,
+            isAdmin: true,
+          });
+          setStanding(null);
+          setReservations([]);
+          setMessages([]);
+          setUserServices([]);
+        } else {
+          setUserData(data.user);
+          setStanding(data.standing);
+          setReservations(data.reservations || []);
+          setMessages(data.messages || []);
+          setUserServices(data.services || []);
+        }
+      } else {
+        setError(data.error || t("admin.userDetail.notFound"));
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load user profile");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, entityType, sessionToken, t]);
+
   useEffect(() => {
     if (!isOpen || !userId) {
       setUserData(null);
       setError(null);
+      setUserServices([]);
+      setServiceActionError(null);
+      setServiceActionSuccess(null);
+      setServiceToRevoke(null);
       return;
     }
 
-    const fetchUserProfile = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const token =
-          sessionToken ||
-          localStorage.getItem("admin_session_token") ||
-          localStorage.getItem("auth_token") ||
-          "";
-
-        const endpoint =
-          entityType === "admin"
-            ? `/api/admin/admins/${userId}`
-            : `/api/admin/users/${userId}/profile`;
-
-        const res = await fetch(endpoint, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          if (entityType === "admin") {
-            const a = data.admin;
-            setUserData({
-              id: a.id,
-              name: a.name,
-              email: a.email,
-              phoneNumber: a.phone_number,
-              isTrusted: false,
-              isActive: true,
-              approvalStatus: a.approval_status || "approved",
-              createdAt: a.created_at,
-              role: a.role,
-              isSuperAdmin: a.is_super_admin,
-              isAdmin: true,
-            });
-            setStanding(null);
-            setReservations([]);
-            setMessages([]);
-          } else {
-            setUserData(data.user);
-            setStanding(data.standing);
-            setReservations(data.reservations || []);
-            setMessages(data.messages || []);
-          }
-        } else {
-          setError(data.error || t("admin.userDetail.notFound"));
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to load user profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchUserProfile();
-  }, [isOpen, userId, sessionToken]);
+
+    // Fetch all active services for assignment
+    const token =
+      sessionToken ||
+      localStorage.getItem("admin_session_token") ||
+      localStorage.getItem("auth_token") ||
+      "";
+    fetch("/api/admin/services", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((sData) => {
+        if (sData.success && Array.isArray(sData.services)) {
+          setAllServices(sData.services);
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, userId, fetchUserProfile, sessionToken]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -275,6 +309,89 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
       alert(err.message || "Failed to update account status");
     } finally {
       setIsTogglingActive(false);
+    }
+  };
+
+  const handleAssignService = async () => {
+    if (!selectedServiceId || !userId) return;
+    setIsAssigningService(true);
+    setServiceActionError(null);
+    setServiceActionSuccess(null);
+    try {
+      const token =
+        sessionToken ||
+        localStorage.getItem("admin_session_token") ||
+        localStorage.getItem("auth_token") ||
+        "";
+      const res = await fetch(`/api/admin/users/${userId}/services/assign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ serviceId: selectedServiceId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setServiceActionSuccess(
+          t("admin.userDetail.serviceAssignedSuccess", {
+            defaultValue: "Service assigned successfully",
+          }),
+        );
+        setSelectedServiceId("");
+        await fetchUserProfile();
+        if (onUserUpdated) onUserUpdated();
+      } else {
+        setServiceActionError(data.error || "Failed to assign service");
+      }
+    } catch (err: any) {
+      setServiceActionError(err.message || "Failed to assign service");
+    } finally {
+      setIsAssigningService(false);
+    }
+  };
+
+  const handleRevokeService = async () => {
+    if (!serviceToRevoke || !userId) return;
+    setIsRevokingService(true);
+    setServiceActionError(null);
+    setServiceActionSuccess(null);
+    try {
+      const token =
+        sessionToken ||
+        localStorage.getItem("admin_session_token") ||
+        localStorage.getItem("auth_token") ||
+        "";
+      const res = await fetch(`/api/admin/users/${userId}/services/revoke`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ serviceId: serviceToRevoke.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setServiceActionSuccess(
+          data.cancelledReservationsCount > 0
+            ? t("admin.userDetail.serviceRevokedWithCancellations", {
+                count: data.cancelledReservationsCount,
+                defaultValue: `Service revoked. ${data.cancelledReservationsCount} future reservation(s) cancelled.`,
+              })
+            : t("admin.userDetail.serviceRevokedSuccess", {
+                defaultValue: "Service revoked successfully",
+              }),
+        );
+        setServiceToRevoke(null);
+        await fetchUserProfile();
+        if (onUserUpdated) onUserUpdated();
+      } else {
+        setServiceActionError(data.error || "Failed to revoke service");
+      }
+    } catch (err: any) {
+      setServiceActionError(err.message || "Failed to revoke service");
+    } finally {
+      setIsRevokingService(false);
     }
   };
 
@@ -760,6 +877,117 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                 )}
               </div>
 
+              {/* Assigned Church Services — users only */}
+              {entityType === "user" && (
+                <div className="bg-stone-50/70 border border-stone-200 rounded-2xl p-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                      <Church className="w-4 h-4 text-amber-800 shrink-0" />
+                      <span>{t("admin.userDetail.assignedServicesTitle")}</span>
+                    </h4>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                      {userServices.length}{" "}
+                      {t("admin.userDetail.servicesCount", {
+                        defaultValue: "services",
+                      })}
+                    </span>
+                  </div>
+
+                  {serviceActionError && (
+                    <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{serviceActionError}</span>
+                    </div>
+                  )}
+
+                  {serviceActionSuccess && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                      <span>{serviceActionSuccess}</span>
+                    </div>
+                  )}
+
+                  {/* Badges of current services */}
+                  <div className="flex flex-wrap gap-2">
+                    {userServices.length === 0 ? (
+                      <p className="text-xs text-stone-500 italic">
+                        {t("admin.userDetail.noServicesAssigned")}
+                      </p>
+                    ) : (
+                      userServices.map((service) => (
+                        <div
+                          key={service.id}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-teal-200 text-teal-900 shadow-2xs"
+                        >
+                          <Church className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                          <span>{service.name}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setServiceToRevoke({
+                                id: service.id,
+                                name: service.name,
+                              })
+                            }
+                            title={t("admin.userDetail.revokeServiceTitle", {
+                              service: service.name,
+                            })}
+                            className="ml-1 w-4 h-4 rounded-full flex items-center justify-center text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Assign new service dropdown & button */}
+                  {(() => {
+                    const assignableServices = allServices.filter(
+                      (s) =>
+                        !s.isArchived &&
+                        !userServices.some((us) => us.id === s.id),
+                    );
+                    if (assignableServices.length === 0) return null;
+                    return (
+                      <div className="pt-2 border-t border-stone-200/60 flex items-center gap-2">
+                        <select
+                          value={selectedServiceId}
+                          onChange={(e) => setSelectedServiceId(e.target.value)}
+                          className="flex-1 text-xs py-2 px-2.5 rounded-xl border border-stone-300 bg-white text-stone-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600"
+                        >
+                          <option value="">
+                            {t("admin.userDetail.selectServiceToAssign")}
+                          </option>
+                          {assignableServices.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleAssignService}
+                          disabled={!selectedServiceId || isAssigningService}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-800 hover:bg-amber-900 text-white transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shrink-0"
+                        >
+                          {isAssigningService ? (
+                            <span>...</span>
+                          ) : (
+                            <>
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>
+                                {t("admin.userDetail.assignServiceBtn")}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* Standing & Limits Summary — users only */}
               {entityType === "user" && (
                 <div className="space-y-2">
@@ -978,6 +1206,55 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Revoke Service Confirmation Dialog */}
+      {serviceToRevoke && (
+        <div className="fixed inset-0 z-60 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 border border-stone-200 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-stone-900">
+                  {t("admin.userDetail.confirmRevokeTitle", {
+                    service: serviceToRevoke.name,
+                  })}
+                </h3>
+                <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
+                  {t("admin.userDetail.confirmRevokeWarning", {
+                    name: userData?.name,
+                    service: serviceToRevoke.name,
+                  })}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setServiceToRevoke(null)}
+                disabled={isRevokingService}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleRevokeService}
+                disabled={isRevokingService}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-700 hover:bg-rose-800 transition cursor-pointer disabled:opacity-50"
+              >
+                {isRevokingService
+                  ? "..."
+                  : t("admin.userDetail.confirmRevokeBtn", {
+                      defaultValue: "Revoke Access",
+                    })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

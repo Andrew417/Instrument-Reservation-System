@@ -56,7 +56,17 @@
   - **`public`**: Visible and bookable by all registered users.
   - **`musician`**: Visible and directly bookable by Musicians and Admins only. Completely hidden from regular users (enforced via server-side queries).
   - **`room_stock`**: Visible to Admins only. Cannot be booked directly; reserved for administrator assignment to type requests.
+  - **`service`**: Dedicated to a specific church ministry/service (e.g. Youth, Choir). Visible and bookable only by users assigned to that service + Admins. Excluded from type request candidates. Requires a linked non-archived service.
   - **`out_of_service`**: Broken or unavailable instruments. Clearly badged across admin and calendar views; slot booking and type assignment are strictly disabled.
+
+### 2.2 Church Services & Access Management
+- **Services System (`services`, `user_services`):**
+  - Admins can create, rename, archive, restore, and delete church services.
+  - A user can be assigned to multiple services from their Member Profile (`UserDetailModal`).
+  - **Archive/Restore:** Archiving blocks new assignments and hides all instruments of that service from booking for all users. Existing reservations remain valid. Restore reverses it.
+  - **Delete Guard:** Deleting a service is permitted only if 0 members and 0 instruments use it; otherwise it returns a descriptive error with the exact usage counts.
+  - **Revoke Cascade & Audit:** Revoking a service from a member atomically cancels all future `pending` and `approved` reservations on that service's instruments with the cancellation reason `"Service access revoked"`. Notifies the user via Web Push, in-app bell, and email. Logs both grants and revokes in `service_assignment_audit_log` with an interactive sub-tab in `TrustedStatusTab`.
+
 
 ### 2.2 Category Type Requests (Regular Members)
 - **Concept:** Regular members can choose to submit a request for an instrument category/type (e.g., "any Keyboard") instead of selecting a specific physical unit.

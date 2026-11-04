@@ -40,7 +40,9 @@ export interface Instrument {
   description: string | null;
   outsideFeePerDay: string;
   bookingMode: "manual" | "instant";
-  visibilityLevel?: "public" | "musician" | "room_stock";
+  visibilityLevel?: "public" | "musician" | "room_stock" | "service";
+  serviceId?: string | null;
+  serviceName?: string | null;
   isOutOfService?: boolean;
   isRemoved: boolean;
   createdAt: string;
@@ -1011,7 +1013,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                 </span>
                               )}
 
-                              {/* Visibility Level Chip (if musician or room_stock) */}
+                              {/* Visibility Level Chip (if musician or room_stock or service) */}
                               {inst.visibilityLevel === "musician" && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                                   <span>{t("common.musicians")}</span>
@@ -1020,6 +1022,11 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               {inst.visibilityLevel === "room_stock" && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                                   <span>{t("common.roomStock")}</span>
+                                </span>
+                              )}
+                              {inst.visibilityLevel === "service" && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                                  <span>{inst.serviceName || t("common.service")}</span>
                                 </span>
                               )}
 

@@ -50,6 +50,13 @@
       "when": 1792952712197,
       "tag": "0006_burly_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793952712197,
+      "tag": "0007_service_visibility",
+      "breakpoints": true
     }
   ]
 }

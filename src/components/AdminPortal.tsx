@@ -18,6 +18,7 @@ import { DashboardTab } from "./admin/tabs/DashboardTab";
 import { ReviewTab } from "./admin/tabs/ReviewTab";
 import { ApprovalsTab } from "./admin/tabs/ApprovalsTab";
 import { InstrumentsTab } from "./admin/tabs/InstrumentsTab";
+import { ServicesTab } from "./admin/tabs/ServicesTab";
 import { UsersTab } from "./admin/tabs/UsersTab";
 import { MessagingTab } from "./admin/tabs/MessagingTab";
 
@@ -73,6 +74,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
       outsideFeePerDay: "0",
       bookingMode: "manual",
       visibilityLevel: "public",
+      serviceId: null,
       isOutOfService: false,
     });
     setShowInstrumentModal(true);
@@ -92,6 +94,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
         bookingMode: (inst.bookingMode ?? inst.booking_mode) || "manual",
         visibilityLevel:
           (inst.visibilityLevel ?? inst.visibility_level) || "public",
+        serviceId: inst.serviceId ?? inst.service_id ?? null,
         isOutOfService: Boolean(inst.isOutOfService ?? inst.is_out_of_service),
       });
       setShowInstrumentModal(true);
@@ -411,6 +414,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
+        {admin.activeTab === "services" && (
+          <ServicesTab
+            onServiceUpdated={() => {
+              admin.fetchInstruments();
+              admin.fetchUsers();
+              admin.refreshAllStats();
+            }}
+          />
+        )}
+
         {admin.activeTab === "users" && (
           <UsersTab
             usersList={admin.usersList}
@@ -489,6 +502,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           <TrustedStatusTab
             trustedAuditLogs={admin.trustedAuditLogs}
             musicianAuditLogs={admin.musicianAuditLogs}
+            serviceAuditLogs={admin.serviceAuditLogs}
             loadingAuditLogs={admin.loadingAuditLogs}
           />
         )}

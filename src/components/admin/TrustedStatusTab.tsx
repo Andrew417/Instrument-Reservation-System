@@ -9,6 +9,7 @@ export interface TrustedStatusAuditLogItem {
   action: string;
   target_user_name: string;
   granted_by_admin_name: string;
+  service_name?: string;
   reason?: string;
 }
 
@@ -17,6 +18,7 @@ type SortKey =
   | "action"
   | "target_user_name"
   | "granted_by_admin_name"
+  | "service_name"
   | "reason";
 
 interface SortState {
@@ -27,22 +29,31 @@ interface SortState {
 interface TrustedStatusTabProps {
   trustedAuditLogs: TrustedStatusAuditLogItem[];
   musicianAuditLogs?: TrustedStatusAuditLogItem[];
+  serviceAuditLogs?: TrustedStatusAuditLogItem[];
   loadingAuditLogs: boolean;
 }
 
 export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
   trustedAuditLogs,
   musicianAuditLogs = [],
+  serviceAuditLogs = [],
   loadingAuditLogs,
 }) => {
   const { t } = useTranslation();
-  const [activeLogType, setActiveLogType] = React.useState<"trusted" | "musician">("trusted");
+  const [activeLogType, setActiveLogType] = React.useState<
+    "trusted" | "musician" | "service"
+  >("trusted");
   const [sort, setSort] = React.useState<SortState>({
     key: "created_at",
     direction: "desc",
   });
 
-  const currentLogs = activeLogType === "trusted" ? trustedAuditLogs : musicianAuditLogs;
+  const currentLogs =
+    activeLogType === "trusted"
+      ? trustedAuditLogs
+      : activeLogType === "musician"
+        ? musicianAuditLogs
+        : serviceAuditLogs;
 
   const sortedAuditLogs = React.useMemo(() => {
     return [...currentLogs].sort((left, right) => {
@@ -82,7 +93,7 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
     <button
       type="button"
       onClick={() => handleSort(key)}
-      className="inline-flex items-center gap-1 text-left hover:text-stone-900"
+      className="inline-flex items-center gap-1 text-left hover:text-stone-900 cursor-pointer"
       aria-label={t("admin.trustedStatus.sortBy", { column: label })}
     >
       {label}
@@ -97,18 +108,30 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
           <h2 className="font-bold text-stone-900 text-sm">
             {activeLogType === "trusted"
               ? t("admin.trustedStatus.title")
-              : t("admin.musicianStatus.title", { defaultValue: "Musician Status Audit Log" })}
+              : activeLogType === "musician"
+                ? t("admin.musicianStatus.title", {
+                    defaultValue: "Musician Status Audit Log",
+                  })
+                : t("admin.trustedStatus.serviceTitle", {
+                    defaultValue: "Service Assignment Audit Log",
+                  })}
           </h2>
           <p className="text-xs text-stone-500">
             {activeLogType === "trusted"
               ? t("admin.trustedStatus.subtitle")
-              : t("admin.musicianStatus.subtitle", {
-                  defaultValue: "Audit history of musician role grants and revocations by Super Admins.",
-                })}
+              : activeLogType === "musician"
+                ? t("admin.musicianStatus.subtitle", {
+                    defaultValue:
+                      "Audit history of musician role grants and revocations by Super Admins.",
+                  })
+                : t("admin.trustedStatus.serviceSubtitle", {
+                    defaultValue:
+                      "Audit history of service grants and revocations by Church Administrators.",
+                  })}
           </p>
         </div>
 
-        <div className="flex p-1 bg-stone-100 rounded-xl text-xs font-semibold gap-1 shrink-0">
+        <div className="flex p-1 bg-stone-100 rounded-xl text-xs font-semibold gap-1 shrink-0 flex-wrap">
           <button
             type="button"
             onClick={() => setActiveLogType("trusted")}
@@ -118,7 +141,9 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
                 : "text-stone-500 hover:text-stone-900"
             }`}
           >
-            {t("admin.trustedStatus.tabTrusted", { defaultValue: "Trusted Logs" })}
+            {t("admin.trustedStatus.tabTrusted", {
+              defaultValue: "Trusted Logs",
+            })}
           </button>
           <button
             type="button"
@@ -129,7 +154,22 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
                 : "text-stone-500 hover:text-stone-900"
             }`}
           >
-            {t("admin.trustedStatus.tabMusician", { defaultValue: "Musician Logs" })}
+            {t("admin.trustedStatus.tabMusician", {
+              defaultValue: "Musician Logs",
+            })}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveLogType("service")}
+            className={`py-1.5 px-3 rounded-lg transition cursor-pointer ${
+              activeLogType === "service"
+                ? "bg-white text-teal-950 shadow-2xs font-bold"
+                : "text-stone-500 hover:text-stone-900"
+            }`}
+          >
+            {t("admin.trustedStatus.tabServices", {
+              defaultValue: "Service Assignments",
+            })}
           </button>
         </div>
       </div>
@@ -170,7 +210,17 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
                   )}
                 </th>
                 <th className="py-2.5 px-3">
-                  {sortableHeader("reason", t("admin.trustedStatus.colNote"))}
+                  {activeLogType === "service"
+                    ? sortableHeader(
+                        "service_name",
+                        t("admin.trustedStatus.colService", {
+                          defaultValue: "Service",
+                        }),
+                      )
+                    : sortableHeader(
+                        "reason",
+                        t("admin.trustedStatus.colNote"),
+                      )}
                 </th>
               </tr>
             </thead>
@@ -199,13 +249,21 @@ export const TrustedStatusTab: React.FC<TrustedStatusTabProps> = ({
                   <td className="py-3 px-3 text-stone-700">
                     {log.granted_by_admin_name}
                   </td>
-                  <td className="py-3 px-3 text-stone-500">
-                    {log.reason ||
-                      t(
-                        log.action === "granted"
-                          ? "admin.trustedStatus.grantedReason"
-                          : "admin.trustedStatus.revokedReason",
-                      )}
+                  <td className="py-3 px-3">
+                    {activeLogType === "service" ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                        {log.service_name || "-"}
+                      </span>
+                    ) : (
+                      <span className="text-stone-500">
+                        {log.reason ||
+                          t(
+                            log.action === "granted"
+                              ? "admin.trustedStatus.grantedReason"
+                              : "admin.trustedStatus.revokedReason",
+                          )}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -17,8 +17,11 @@ import {
   sessions,
   notificationSettings,
   pushSubscriptions,
+  services,
+  userServices,
+  serviceAssignmentAuditLog,
 } from "../db/schema.js";
-import { eq, and, sql, desc, asc, inArray } from "drizzle-orm";
+import { eq, ne, and, sql, desc, asc, inArray } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
 import { getCairoDateString } from "../lib/date-utils.js";
 import {
@@ -26,7 +29,7 @@ import {
   normalizeEmail,
   isValidEmail,
 } from "../lib/auth-helpers.js";
-import { sendAccountApprovedEmail } from "../lib/mailer.js";
+import { sendAccountApprovedEmail, sendReservationRejectedEmail } from "../lib/mailer.js";
 import { sendPushToUser, safeWaitUntil } from "../lib/push-service.js";
 import {
   adminApproveReservation,
@@ -629,6 +632,7 @@ router.get(
             FROM instruments ci
             WHERE ci.is_removed = false
               AND ci.is_out_of_service = false
+              AND ci.visibility_level <> 'service'
               AND ci.type ILIKE r.requested_type
               AND NOT EXISTS (
                 SELECT 1 FROM reservations cr
@@ -1790,6 +1794,9 @@ router.get(
         i.outside_fee_per_day,
         i.booking_mode,
         i.visibility_level,
+        i.service_id,
+        s.name as service_name,
+        s.is_archived as service_is_archived,
         i.is_out_of_service,
         i.is_removed,
         i.is_reserve_pool,
@@ -1797,9 +1804,10 @@ router.get(
         COUNT(r.id)::int as total_reservations,
         COUNT(CASE WHEN r.status IN ('pending', 'approved', 'ongoing') THEN 1 END)::int as active_reservations
       FROM instruments i
+      LEFT JOIN services s ON i.service_id = s.id
       LEFT JOIN reservations r ON i.id = r.instrument_id
       ${includeRemoved === "true" ? sql`` : sql`WHERE i.is_removed = false`}
-      GROUP BY i.id
+      GROUP BY i.id, s.name, s.is_archived
       ORDER BY i.type ASC, i.name ASC
     `;
 
@@ -1817,6 +1825,12 @@ router.get(
         booking_mode: inst.booking_mode,
         visibilityLevel: inst.visibility_level || "public",
         visibility_level: inst.visibility_level || "public",
+        serviceId: inst.service_id || null,
+        service_id: inst.service_id || null,
+        serviceName: inst.service_name || null,
+        service_name: inst.service_name || null,
+        serviceIsArchived: Boolean(inst.service_is_archived),
+        service_is_archived: Boolean(inst.service_is_archived),
         isOutOfService: Boolean(inst.is_out_of_service),
         is_out_of_service: Boolean(inst.is_out_of_service),
         isRemoved: inst.is_removed,
@@ -1887,6 +1901,46 @@ router.post(
 
       const mode = bookingMode === "manual" ? "manual" : "instant";
 
+      const vLevel = ["public", "musician", "room_stock", "service"].includes(
+        req.body.visibilityLevel,
+      )
+        ? req.body.visibilityLevel
+        : "public";
+
+      let targetServiceId = req.body.serviceId || req.body.service_id || null;
+      let serviceName: string | null = null;
+
+      if (vLevel === "service") {
+        if (!targetServiceId) {
+          res.status(400).json({
+            success: false,
+            error: "A service must be selected when visibility is set to service.",
+          });
+          return;
+        }
+        const [srv] = await db
+          .select()
+          .from(services)
+          .where(eq(services.id, targetServiceId))
+          .limit(1);
+        if (!srv) {
+          res
+            .status(400)
+            .json({ success: false, error: "Selected service not found." });
+          return;
+        }
+        if (srv.isArchived) {
+          res.status(400).json({
+            success: false,
+            error: "Cannot assign an instrument to an archived service.",
+          });
+          return;
+        }
+        serviceName = srv.name;
+      } else {
+        targetServiceId = null;
+      }
+
       const inserted = await db
         .insert(instruments)
         .values({
@@ -1896,11 +1950,8 @@ router.post(
           description: description?.trim() || null,
           outsideFeePerDay: fee,
           bookingMode: mode,
-          visibilityLevel: ["public", "musician", "room_stock"].includes(
-            req.body.visibilityLevel,
-          )
-            ? req.body.visibilityLevel
-            : "public",
+          visibilityLevel: vLevel,
+          serviceId: targetServiceId,
           isOutOfService: Boolean(req.body.isOutOfService),
           isReservePool: false,
           isRemoved: false,
@@ -1914,6 +1965,10 @@ router.post(
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,
         visibilityLevel: inst.visibilityLevel,
+        service_id: inst.serviceId,
+        serviceId: inst.serviceId,
+        service_name: serviceName,
+        serviceName: serviceName,
         is_out_of_service: inst.isOutOfService,
         isOutOfService: inst.isOutOfService,
         photo_url: inst.photoUrl,
@@ -1948,6 +2003,8 @@ router.put(
         outsideFeePerDay,
         bookingMode,
         visibilityLevel,
+        serviceId,
+        service_id,
         isOutOfService,
       } = req.body;
 
@@ -1963,12 +2020,80 @@ router.put(
       if (bookingMode !== undefined) {
         updates.bookingMode = bookingMode === "manual" ? "manual" : "instant";
       }
-      if (
-        visibilityLevel !== undefined &&
-        ["public", "musician", "room_stock"].includes(visibilityLevel)
-      ) {
-        updates.visibilityLevel = visibilityLevel;
+
+      if (visibilityLevel !== undefined) {
+        if (
+          ["public", "musician", "room_stock", "service"].includes(
+            visibilityLevel,
+          )
+        ) {
+          updates.visibilityLevel = visibilityLevel;
+          if (visibilityLevel === "service") {
+            const targetSrvId = serviceId || service_id;
+            if (!targetSrvId) {
+              res.status(400).json({
+                success: false,
+                error:
+                  "A service must be selected when visibility is set to service.",
+              });
+              return;
+            }
+            const [srv] = await db
+              .select()
+              .from(services)
+              .where(eq(services.id, targetSrvId))
+              .limit(1);
+            if (!srv) {
+              res
+                .status(400)
+                .json({ success: false, error: "Selected service not found." });
+              return;
+            }
+            if (srv.isArchived) {
+              res.status(400).json({
+                success: false,
+                error: "Cannot assign an instrument to an archived service.",
+              });
+              return;
+            }
+            updates.serviceId = targetSrvId;
+          } else {
+            updates.serviceId = null;
+          }
+        }
+      } else if (serviceId !== undefined || service_id !== undefined) {
+        // If visibility not changed, check current visibility
+        const [curr] = await db
+          .select()
+          .from(instruments)
+          .where(eq(instruments.id, id))
+          .limit(1);
+        if (curr?.visibilityLevel === "service") {
+          const targetSrvId = serviceId || service_id;
+          if (!targetSrvId) {
+            res.status(400).json({
+              success: false,
+              error:
+                "A service must be selected when visibility is set to service.",
+            });
+            return;
+          }
+          const [srv] = await db
+            .select()
+            .from(services)
+            .where(eq(services.id, targetSrvId))
+            .limit(1);
+          if (!srv || srv.isArchived) {
+            res.status(400).json({
+              success: false,
+              error: "Valid non-archived service is required.",
+            });
+            return;
+          }
+          updates.serviceId = targetSrvId;
+        }
       }
+
       if (isOutOfService !== undefined) {
         updates.isOutOfService = Boolean(isOutOfService);
       }
@@ -1987,12 +2112,27 @@ router.put(
       }
 
       const inst = updated[0];
+
+      let serviceName: string | null = null;
+      if (inst.serviceId) {
+        const [srv] = await db
+          .select({ name: services.name })
+          .from(services)
+          .where(eq(services.id, inst.serviceId))
+          .limit(1);
+        serviceName = srv?.name || null;
+      }
+
       const formatted = {
         ...inst,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,
         visibilityLevel: inst.visibilityLevel,
+        service_id: inst.serviceId,
+        serviceId: inst.serviceId,
+        service_name: serviceName,
+        serviceName: serviceName,
         is_out_of_service: inst.isOutOfService,
         isOutOfService: inst.isOutOfService,
         photo_url: inst.photoUrl,
@@ -2321,7 +2461,16 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
         COUNT(r.id)::int as total_reservations,
         COUNT(CASE WHEN r.status = 'approved' THEN 1 END)::int as approved_reservations,
         COUNT(CASE WHEN r.status = 'pending' THEN 1 END)::int as pending_reservations,
-        COUNT(CASE WHEN r.is_no_show = true THEN 1 END)::int as no_show_count
+        COUNT(CASE WHEN r.is_no_show = true THEN 1 END)::int as no_show_count,
+        COALESCE(
+          (
+            SELECT json_agg(json_build_object('id', s.id, 'name', s.name, 'isArchived', s.is_archived) ORDER BY s.name)
+            FROM user_services us
+            JOIN services s ON us.service_id = s.id
+            WHERE us.user_id = u.id
+          ),
+          '[]'::json
+        ) AS services
       FROM users u
       LEFT JOIN reservations r ON u.id = r.user_id
       WHERE 1=1
@@ -2363,6 +2512,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
       approvedReservations: row.approved_reservations,
       pendingReservations: row.pending_reservations,
       noShowCount: row.no_show_count || 0,
+      services: row.services || [],
     }));
     res.json({ success: true, users: transformedUsers });
   } catch (err: any) {
@@ -2390,6 +2540,7 @@ router.get(
           u.email,
           u.phone_number,
           u.is_trusted,
+          u.is_musician,
           u.is_active,
           u.approval_status,
           u.created_at,
@@ -2406,6 +2557,16 @@ router.get(
         res.status(404).json({ success: false, error: "User not found." });
         return;
       }
+
+      // 1b. Fetch user assigned services
+      const userServicesRes = await db.execute(sql`
+        SELECT s.id, s.name, s.is_archived
+        FROM user_services us
+        JOIN services s ON us.service_id = s.id
+        WHERE us.user_id = ${id}
+        ORDER BY s.name ASC
+      `);
+      const userServicesList = (userServicesRes as any).rows || [];
 
       // 2. Ensure current reservation statuses and fetch current hard limits
       await ensureCurrentReservationStatuses().catch(() => {});
@@ -2496,12 +2657,18 @@ router.get(
           email: userRow.email,
           phoneNumber: userRow.phone_number,
           isTrusted: Boolean(userRow.is_trusted),
+          isMusician: Boolean(userRow.is_musician),
           isActive: Boolean(userRow.is_active),
           approvalStatus: userRow.approval_status,
           createdAt: userRow.created_at,
           role: userRow.role || "user",
           isSuperAdmin: Boolean(userRow.is_super_admin),
         },
+        services: userServicesList.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          isArchived: Boolean(s.is_archived),
+        })),
         standing: {
           noShowCount: userRow.no_show_count || 0,
           activeReservations: {
@@ -4059,6 +4226,646 @@ router.get(
         success: false,
         error: err.message,
       });
+    }
+  },
+);
+
+/**
+ * 6.6 Services Management (Admin & Super Admin)
+ */
+router.get("/services", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db.execute(sql`
+      SELECT 
+        s.id,
+        s.name,
+        s.is_archived,
+        s.created_at,
+        COUNT(DISTINCT us.user_id)::int as members_count,
+        COUNT(DISTINCT i.id)::int as instruments_count
+      FROM services s
+      LEFT JOIN user_services us ON s.id = us.service_id
+      LEFT JOIN instruments i ON s.id = i.service_id AND i.is_removed = false
+      GROUP BY s.id
+      ORDER BY s.is_archived ASC, s.name ASC
+    `);
+
+    const formatted = ((result as any).rows || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      isArchived: Boolean(row.is_archived),
+      createdAt: row.created_at,
+      membersCount: Number(row.members_count || 0),
+      instrumentsCount: Number(row.instruments_count || 0),
+    }));
+
+    res.json({ success: true, services: formatted });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/services", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      res
+        .status(400)
+        .json({ success: false, error: "Service name is required." });
+      return;
+    }
+
+    const trimmedName = name.trim();
+    const [existing] = await db
+      .select({ id: services.id })
+      .from(services)
+      .where(sql`LOWER(${services.name}) = LOWER(${trimmedName})`)
+      .limit(1);
+
+    if (existing) {
+      res.status(400).json({
+        success: false,
+        error: "A service with this name already exists.",
+      });
+      return;
+    }
+
+    const [created] = await db
+      .insert(services)
+      .values({
+        name: trimmedName,
+        isArchived: false,
+      })
+      .returning();
+
+    res.status(201).json({
+      success: true,
+      service: {
+        id: created.id,
+        name: created.name,
+        isArchived: created.isArchived,
+        createdAt: created.createdAt,
+        membersCount: 0,
+        instrumentsCount: 0,
+      },
+      message: `Service "${created.name}" created successfully.`,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.put(
+  "/services/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+
+      if (!name || !name.trim()) {
+        res
+          .status(400)
+          .json({ success: false, error: "Service name is required." });
+        return;
+      }
+
+      const trimmedName = name.trim();
+      const [existing] = await db
+        .select({ id: services.id })
+        .from(services)
+        .where(
+          and(
+            sql`LOWER(${services.name}) = LOWER(${trimmedName})`,
+            ne(services.id, id),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        res.status(400).json({
+          success: false,
+          error: "Another service with this name already exists.",
+        });
+        return;
+      }
+
+      const [updated] = await db
+        .update(services)
+        .set({ name: trimmedName })
+        .where(eq(services.id, id))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ success: false, error: "Service not found." });
+        return;
+      }
+
+      res.json({
+        success: true,
+        service: updated,
+        message: `Service renamed to "${updated.name}".`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.post(
+  "/services/:id/archive",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const [updated] = await db
+        .update(services)
+        .set({ isArchived: true })
+        .where(eq(services.id, id))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ success: false, error: "Service not found." });
+        return;
+      }
+
+      res.json({
+        success: true,
+        service: updated,
+        message: `Service "${updated.name}" has been archived.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.post(
+  "/services/:id/restore",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const [updated] = await db
+        .update(services)
+        .set({ isArchived: false })
+        .where(eq(services.id, id))
+        .returning();
+
+      if (!updated) {
+        res.status(404).json({ success: false, error: "Service not found." });
+        return;
+      }
+
+      res.json({
+        success: true,
+        service: updated,
+        message: `Service "${updated.name}" has been restored.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.delete(
+  "/services/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      const countRes = await db.execute(sql`
+        SELECT 
+          s.name,
+          COUNT(DISTINCT us.user_id)::int as members_count,
+          COUNT(DISTINCT i.id)::int as instruments_count
+        FROM services s
+        LEFT JOIN user_services us ON s.id = us.service_id
+        LEFT JOIN instruments i ON s.id = i.service_id
+        WHERE s.id = ${id}
+        GROUP BY s.id, s.name
+      `);
+
+      const row = (countRes as any).rows?.[0];
+      if (!row) {
+        res.status(404).json({ success: false, error: "Service not found." });
+        return;
+      }
+
+      const membersCount = Number(row.members_count || 0);
+      const instrumentsCount = Number(row.instruments_count || 0);
+
+      if (membersCount > 0 || instrumentsCount > 0) {
+        res.status(400).json({
+          success: false,
+          error: `Cannot delete service: ${instrumentsCount} instrument(s) and ${membersCount} member(s) use this service.`,
+          membersCount,
+          instrumentsCount,
+        });
+        return;
+      }
+
+      await db.delete(services).where(eq(services.id, id));
+
+      res.json({
+        success: true,
+        message: `Service "${row.name}" was permanently deleted.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 6.6b Get all users for a specific service (with assignment status)
+ */
+router.get(
+  "/services/:id/users",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { search } = req.query;
+
+      const [srv] = await db
+        .select()
+        .from(services)
+        .where(eq(services.id, id))
+        .limit(1);
+
+      if (!srv) {
+        res.status(404).json({ success: false, error: "Service not found." });
+        return;
+      }
+
+      let querySql = sql`
+        SELECT 
+          u.id,
+          u.name,
+          u.email,
+          u.phone_number,
+          u.is_musician,
+          u.is_trusted,
+          u.is_active,
+          u.approval_status,
+          CASE WHEN us.service_id IS NOT NULL THEN true ELSE false END as is_assigned
+        FROM users u
+        LEFT JOIN user_services us ON u.id = us.user_id AND us.service_id = ${id}
+        WHERE u.approval_status = 'approved' AND u.is_active = true
+      `;
+
+      if (search && typeof search === "string" && search.trim()) {
+        const term = `%${search.trim()}%`;
+        querySql = sql`${querySql} AND (u.name ILIKE ${term} OR u.email ILIKE ${term} OR u.phone_number ILIKE ${term})`;
+      }
+
+      querySql = sql`${querySql} ORDER BY is_assigned DESC, u.name ASC`;
+
+      const usersResult = await db.execute(querySql);
+
+      res.json({
+        success: true,
+        service: {
+          id: srv.id,
+          name: srv.name,
+          isArchived: Boolean(srv.isArchived),
+        },
+        users: ((usersResult as any).rows || []).map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phoneNumber: row.phone_number,
+          isMusician: Boolean(row.is_musician),
+          isTrusted: Boolean(row.is_trusted),
+          isActive: Boolean(row.is_active),
+          approvalStatus: row.approval_status,
+          isAssigned: Boolean(row.is_assigned),
+        })),
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 6.7 User Services Assignment & Revocation (Admin & Super Admin)
+ */
+router.get(
+  "/users/:userId/services",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+      const result = await db.execute(sql`
+        SELECT s.id, s.name, s.is_archived
+        FROM user_services us
+        JOIN services s ON us.service_id = s.id
+        WHERE us.user_id = ${userId}
+        ORDER BY s.name ASC
+      `);
+
+      res.json({
+        success: true,
+        services: ((result as any).rows || []).map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          isArchived: Boolean(row.is_archived),
+        })),
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.post(
+  "/users/:userId/services/assign",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+      const { serviceId } = req.body;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+
+      if (!serviceId) {
+        res
+          .status(400)
+          .json({ success: false, error: "Service ID is required." });
+        return;
+      }
+
+      const [u] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!u) {
+        res.status(404).json({ success: false, error: "User not found." });
+        return;
+      }
+
+      const [srv] = await db
+        .select()
+        .from(services)
+        .where(eq(services.id, serviceId))
+        .limit(1);
+      if (!srv) {
+        res.status(404).json({ success: false, error: "Service not found." });
+        return;
+      }
+      if (srv.isArchived) {
+        res
+          .status(400)
+          .json({
+            success: false,
+            error: "Cannot assign an archived service.",
+          });
+        return;
+      }
+
+      // Check if already assigned
+      const [existing] = await db
+        .select()
+        .from(userServices)
+        .where(
+          and(
+            eq(userServices.userId, userId),
+            eq(userServices.serviceId, serviceId),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        res.json({
+          success: true,
+          message: `User is already assigned to "${srv.name}".`,
+        });
+        return;
+      }
+
+      await withRetry(
+        async () => {
+          await db.transaction(async (tx) => {
+            await tx.insert(userServices).values({
+              userId,
+              serviceId,
+            });
+
+            await tx.insert(serviceAssignmentAuditLog).values({
+              targetUserId: userId,
+              serviceId,
+              grantedByAdminId: adminId,
+              action: "granted",
+            });
+          });
+        },
+        { label: "Assign service to user" },
+      );
+
+      // Notify user
+      try {
+        await db.insert(notifications).values({
+          userId,
+          type: "service_assigned",
+          message: `You have been assigned to service "${srv.name}". You can now view and reserve instruments belonging to this service.`,
+        });
+
+        sendPushToUser(userId, {
+          titleAr: `تمت إضافتك لخدمة: ${srv.name} ⛪`,
+          titleEn: `Assigned to Service: ${srv.name} ⛪`,
+          bodyAr: `يمكنك الآن حجز الآلات المخصصة لهذه الخدمة.`,
+          bodyEn: `You can now book instruments dedicated to this service.`,
+          tag: `service-assign-${serviceId}`,
+          url: "/?view=calendar",
+          data: { type: "service_assigned", serviceId },
+        }).catch(() => {});
+      } catch {
+        // non-fatal
+      }
+
+      res.json({
+        success: true,
+        message: `Assigned "${srv.name}" to ${u.name}.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+router.post(
+  "/users/:userId/services/revoke",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.params;
+      const { serviceId } = req.body;
+      const adminId =
+        (req as any).adminSession?.adminId || (req as any).adminUser?.id || "";
+
+      if (!serviceId) {
+        res
+          .status(400)
+          .json({ success: false, error: "Service ID is required." });
+        return;
+      }
+
+      const { cancelledReservations, targetUser, targetService } =
+        await withRetry(
+          async () => {
+            return await db.transaction(async (tx) => {
+              const [u] = await tx
+                .select()
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+              const [s] = await tx
+                .select()
+                .from(services)
+                .where(eq(services.id, serviceId))
+                .limit(1);
+              if (!u || !s) {
+                throw new Error("User or Service not found.");
+              }
+
+              // Delete membership
+              await tx
+                .delete(userServices)
+                .where(
+                  and(
+                    eq(userServices.userId, userId),
+                    eq(userServices.serviceId, serviceId),
+                  ),
+                );
+
+              // Find future Pending and Approved reservations on this service's instruments
+              const futureBookings = await tx.execute(sql`
+            SELECT 
+              r.id, 
+              r.service_name, 
+              lower(r.time_range) as start_time, 
+              upper(r.time_range) as end_time, 
+              i.name as instrument_name,
+              i.type as instrument_type
+            FROM reservations r
+            JOIN instruments i ON r.instrument_id = i.id
+            WHERE r.user_id = ${userId}
+              AND i.service_id = ${serviceId}
+              AND r.status IN ('pending', 'approved')
+              AND upper(r.time_range) > NOW()
+          `);
+
+              const cancelledRows = (futureBookings as any).rows || [];
+
+              if (cancelledRows.length > 0) {
+                const resIds = cancelledRows.map((r: any) => r.id);
+                await tx
+                  .update(reservations)
+                  .set({
+                    status: "cancelled",
+                    cancellationReason: "Service access revoked",
+                    rejectionReason: "Service access revoked",
+                  })
+                  .where(inArray(reservations.id, resIds));
+              }
+
+              // Log in audit log
+              await tx.insert(serviceAssignmentAuditLog).values({
+                targetUserId: userId,
+                serviceId,
+                grantedByAdminId: adminId,
+                action: "revoked",
+              });
+
+              return {
+                cancelledReservations: cancelledRows,
+                targetUser: u,
+                targetService: s,
+              };
+            });
+          },
+          { label: "Revoke service from user" },
+        );
+
+      // Notify user via in-app bell, Web Push, and email
+      try {
+        const cancelMsg =
+          cancelledReservations.length > 0
+            ? ` (${cancelledReservations.length} future reservation(s) were cancelled)`
+            : "";
+
+        await db.insert(notifications).values({
+          userId,
+          type: "service_revoked",
+          message: `Your access to service "${targetService.name}" was revoked by administration${cancelMsg}. Reason: Service access revoked.`,
+        });
+
+        sendPushToUser(userId, {
+          titleAr: `تم إلغاء صلاحية الخدمة: ${targetService.name}`,
+          titleEn: `Service Access Revoked: ${targetService.name}`,
+          bodyAr: `تم إلغاء صلاحية الخدمة${cancelledReservations.length > 0 ? ` وإلغاء ${cancelledReservations.length} حجز مرتبط بها` : ""}.`,
+          bodyEn: `Your access to ${targetService.name} has been revoked${cancelledReservations.length > 0 ? ` and ${cancelledReservations.length} future reservation(s) cancelled` : ""}.`,
+          tag: `service-revoke-${serviceId}`,
+          url: "/?tab=reservations",
+          data: { type: "service_revoked", serviceId },
+        }).catch(() => {});
+
+        // Send rejection/cancellation email for each cancelled reservation
+        if (targetUser.email && cancelledReservations.length > 0) {
+          for (const resItem of cancelledReservations) {
+            sendReservationRejectedEmail({
+              email: targetUser.email,
+              name: targetUser.name,
+              instrumentName: resItem.instrument_name,
+              serviceName: resItem.service_name || targetService.name,
+              startTime: resItem.start_time,
+              rejectionReason: "Service access revoked",
+            }).catch((err) =>
+              console.warn(
+                "Failed to send service revoke rejection email:",
+                err,
+              ),
+            );
+          }
+        }
+      } catch {
+        // non-fatal
+      }
+
+      res.json({
+        success: true,
+        cancelledCount: cancelledReservations.length,
+        message: `Revoked "${targetService.name}" from ${targetUser.name}. ${cancelledReservations.length} future booking(s) cancelled.`,
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  },
+);
+
+/**
+ * 6.8 Get Service Assignment Audit Logs
+ */
+router.get(
+  ["/service-audit-logs", "/audit-logs/services"],
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await db.execute(sql`
+        SELECT 
+          l.id,
+          l.action,
+          l.created_at,
+          u.name as target_user_name,
+          u.phone_number as user_phone,
+          a.name as granted_by_admin_name,
+          s.name as service_name
+        FROM service_assignment_audit_log l
+        JOIN users u ON l.target_user_id = u.id
+        JOIN admins a ON l.granted_by_admin_id = a.id
+        JOIN services s ON l.service_id = s.id
+        ORDER BY l.created_at DESC
+        LIMIT 150
+      `);
+
+      res.json({ success: true, auditLogs: (result as any).rows || [] });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
     }
   },
 );

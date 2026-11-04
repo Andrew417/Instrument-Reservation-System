@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
+import { adminFetch } from "../../lib/auth-helpers";
+import { INSTRUMENT_CATEGORIES } from "../../constants/instruments";
 
 export interface InstrumentFormState {
   name: string;
@@ -16,7 +18,8 @@ export interface InstrumentFormState {
   description: string;
   outsideFeePerDay: string;
   bookingMode: "instant" | "manual";
-  visibilityLevel: "public" | "musician" | "room_stock";
+  visibilityLevel: "public" | "musician" | "room_stock" | "service";
+  serviceId?: string | null;
   isOutOfService: boolean;
 }
 
@@ -24,11 +27,10 @@ interface InstrumentFormModalProps {
   isOpen: boolean;
   editingInstrument: any | null;
   initialForm: InstrumentFormState;
+  services?: Array<{ id: string; name: string; isArchived?: boolean }>;
   onClose: () => void;
   onSave: (form: InstrumentFormState) => void;
 }
-
-import { INSTRUMENT_CATEGORIES } from "../../constants/instruments";
 
 const CATEGORIES = INSTRUMENT_CATEGORIES;
 
@@ -36,6 +38,7 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
   isOpen,
   editingInstrument,
   initialForm,
+  services: propServices,
   onClose,
   onSave,
 }) => {
@@ -47,12 +50,33 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [isDraggingPhoto, setIsDraggingPhoto] = useState<boolean>(false);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState<boolean>(false);
+  const [servicesList, setServicesList] = useState<
+    Array<{ id: string; name: string; isArchived?: boolean }>
+  >(propServices || []);
+  const [serviceError, setServiceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (propServices && propServices.length > 0) {
+      setServicesList(propServices.filter((s) => !s.isArchived));
+      return;
+    }
+    if (!isOpen) return;
+    adminFetch("/services")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.services)) {
+          setServicesList(data.services.filter((s: any) => !s.isArchived));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, propServices]);
 
   useEffect(() => {
     if (!isOpen) return;
     setForm(initialForm);
     setShowUrlInput(false);
     setPhotoUploadError(null);
+    setServiceError(null);
     setIsDraggingPhoto(false);
     setIsProcessingPhoto(false);
     if (fileInputRef.current) {
@@ -123,7 +147,7 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
       img.src = reader.result as string;
     };
     reader.onerror = () => {
-      setPhotoUploadError("Failed to read file.");
+      setPhotoUploadError("Failed to read image file.");
       setIsProcessingPhoto(false);
     };
     reader.readAsDataURL(file);
@@ -168,6 +192,15 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setServiceError(null);
+    if (form.visibilityLevel === "service" && !form.serviceId) {
+      setServiceError(
+        t("admin.instruments.serviceRequiredError", {
+          defaultValue: "Please select a service for this instrument.",
+        }),
+      );
+      return;
+    }
     onSave(form);
   };
 
@@ -255,47 +288,113 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
             </div>
           </div>
 
-          {/* Visibility Level & Out of Service */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-stone-100/70 rounded-xl border border-stone-200">
-            <div>
-              <label className="block font-bold text-stone-700 mb-1">
-                {t("admin.instruments.visibilityLevel", {
-                  defaultValue: "Visibility Level",
-                })}
-              </label>
-              <select
-                value={form.visibilityLevel || "public"}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    visibilityLevel: e.target.value as
+          {/* Visibility Level & Service & Out of Service */}
+          <div className="space-y-3 p-3 bg-stone-100/70 rounded-xl border border-stone-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">
+                  {t("admin.instruments.visibilityLevel", {
+                    defaultValue: "Visibility Level",
+                  })}
+                </label>
+                <select
+                  value={form.visibilityLevel || "public"}
+                  onChange={(e) => {
+                    const newLevel = e.target.value as
                       | "public"
                       | "musician"
-                      | "room_stock",
-                  })
-                }
-                className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-              >
-                <option value="public">
-                  {t("admin.instruments.visibilityPublic", {
-                    defaultValue: "Public (Everyone can book)",
+                      | "room_stock"
+                      | "service";
+                    setForm({
+                      ...form,
+                      visibilityLevel: newLevel,
+                      serviceId: newLevel === "service" ? form.serviceId : null,
+                    });
+                    if (newLevel !== "service") {
+                      setServiceError(null);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+                >
+                  <option value="public">
+                    {t("admin.instruments.visibilityPublic", {
+                      defaultValue: "Public (Everyone can book)",
+                    })}
+                  </option>
+                  <option value="musician">
+                    {t("admin.instruments.visibilityMusician", {
+                      defaultValue: "Musician Only (Musicians & Admins)",
+                    })}
+                  </option>
+                  <option value="room_stock">
+                    {t("admin.instruments.visibilityRoomStock", {
+                      defaultValue: "Room Stock (Admin assignment only)",
+                    })}
+                  </option>
+                  <option value="service">
+                    {t("admin.instruments.visibilityService", {
+                      defaultValue: "Service (Assigned Members Only)",
+                    })}
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-700 mb-1">
+                  {t("admin.instruments.assignedService", {
+                    defaultValue: "Assigned Service",
                   })}
-                </option>
-                <option value="musician">
-                  {t("admin.instruments.visibilityMusician", {
-                    defaultValue: "Musician Only (Musicians & Admins)",
-                  })}
-                </option>
-                <option value="room_stock">
-                  {t("admin.instruments.visibilityRoomStock", {
-                    defaultValue: "Room Stock (Admin assignment only)",
-                  })}
-                </option>
-              </select>
+                  {form.visibilityLevel === "service" && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </label>
+                <select
+                  disabled={form.visibilityLevel !== "service"}
+                  required={form.visibilityLevel === "service"}
+                  value={
+                    form.visibilityLevel === "service"
+                      ? form.serviceId || ""
+                      : ""
+                  }
+                  onChange={(e) => {
+                    setForm({
+                      ...form,
+                      serviceId: e.target.value || null,
+                    });
+                    setServiceError(null);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl text-stone-900 focus:outline-none transition ${
+                    form.visibilityLevel === "service"
+                      ? "bg-white border border-stone-200 focus:border-amber-700 cursor-pointer"
+                      : "bg-stone-200/60 border border-stone-200 text-stone-400 cursor-not-allowed"
+                  }`}
+                >
+                  <option value="">
+                    {form.visibilityLevel === "service"
+                      ? t("admin.instruments.selectService", {
+                          defaultValue: "-- Select a Service --",
+                        })
+                      : t("admin.instruments.selectServiceDisabled", {
+                          defaultValue:
+                            "Enabled only when Visibility is Service",
+                        })}
+                  </option>
+                  {servicesList.map((srv) => (
+                    <option key={srv.id} value={srv.id}>
+                      {srv.name}
+                    </option>
+                  ))}
+                </select>
+                {serviceError && (
+                  <p className="text-[11px] text-red-600 font-semibold mt-1">
+                    {serviceError}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center gap-2 cursor-pointer py-1.5">
+            <div className="pt-2 border-t border-stone-200/60 flex flex-col justify-end">
+              <label className="flex items-center gap-2 cursor-pointer py-1">
                 <input
                   type="checkbox"
                   checked={Boolean(form.isOutOfService)}

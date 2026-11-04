@@ -33,6 +33,7 @@ export type AdminTab =
   | "review"
   | "approvals"
   | "instruments"
+  | "services"
   | "users"
   | "analytics"
   | "messaging"
@@ -280,7 +281,12 @@ export function useAdminPortalData({
     description: "",
     outsideFeePerDay: "0.00",
     bookingMode: "instant" as "instant" | "manual",
-    visibilityLevel: "public" as "public" | "musician" | "room_stock",
+    visibilityLevel: "public" as
+      | "public"
+      | "musician"
+      | "room_stock"
+      | "service",
+    serviceId: null as string | null,
     isOutOfService: false,
   });
   const [removingInstrument, setRemovingInstrument] = useState<any | null>(
@@ -327,6 +333,7 @@ export function useAdminPortalData({
 
   const [trustedAuditLogs, setTrustedAuditLogs] = useState<any[]>([]);
   const [musicianAuditLogs, setMusicianAuditLogs] = useState<any[]>([]);
+  const [serviceAuditLogs, setServiceAuditLogs] = useState<any[]>([]);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState<boolean>(false);
 
   const [messagingReservations, setMessagingReservations] = useState<any[]>([]);
@@ -621,19 +628,24 @@ export function useAdminPortalData({
   const fetchAuditLogs = async () => {
     setLoadingAuditLogs(true);
     try {
-      const [trustedRes, musicianRes] = await Promise.all([
+      const [trustedRes, musicianRes, serviceRes] = await Promise.all([
         adminFetch("/trusted-audit-logs"),
         adminFetch("/musician-audit-logs"),
+        adminFetch("/service-audit-logs"),
       ]);
-      const [trustedData, musicianData] = await Promise.all([
+      const [trustedData, musicianData, serviceData] = await Promise.all([
         trustedRes.json(),
         musicianRes.json(),
+        serviceRes.json(),
       ]);
       if (trustedData.success) {
         setTrustedAuditLogs(trustedData.auditLogs || trustedData.logs || []);
       }
       if (musicianData.success) {
         setMusicianAuditLogs(musicianData.auditLogs || musicianData.logs || []);
+      }
+      if (serviceData.success) {
+        setServiceAuditLogs(serviceData.auditLogs || serviceData.logs || []);
       }
     } catch {
       showNotice("Failed to load audit logs", "error");
@@ -1088,6 +1100,7 @@ export function useAdminPortalData({
       outsideFeePerDay: "0",
       bookingMode: "manual",
       visibilityLevel: "public",
+      serviceId: null,
       isOutOfService: false,
     });
     setShowInstrumentModal(true);
@@ -1106,6 +1119,7 @@ export function useAdminPortalData({
       bookingMode: (inst.bookingMode ?? inst.booking_mode) || "manual",
       visibilityLevel:
         (inst.visibilityLevel ?? inst.visibility_level) || "public",
+      serviceId: inst.serviceId ?? inst.service_id ?? null,
       isOutOfService: Boolean(inst.isOutOfService ?? inst.is_out_of_service),
     });
     setShowInstrumentModal(true);
@@ -1894,6 +1908,11 @@ export function useAdminPortalData({
         count: stats.totalInstruments,
       },
       {
+        id: "services" as const,
+        label: t("admin.tabServices", { defaultValue: "Services" }),
+        count: 0,
+      },
+      {
         id: "users" as const,
         label: t("admin.tabUsers"),
         count: stats.activeUsers,
@@ -2060,6 +2079,7 @@ export function useAdminPortalData({
     approvalCounts,
     trustedAuditLogs,
     musicianAuditLogs,
+    serviceAuditLogs,
     loadingAuditLogs,
     messagingReservations,
     loadingMessagingReservations,

@@ -664,6 +664,12 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                     </span>
                   )}
 
+                  {currentInstrument.visibilityLevel === "service" && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-900 border border-teal-300">
+                      <span>{currentInstrument.serviceName || t("common.service")}</span>
+                    </span>
+                  )}
+
                   {modeNotice && (
                     <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md animate-fade-in break-words">
                       {modeNotice}

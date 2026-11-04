@@ -11,6 +11,7 @@ import {
   Plus,
   Music2,
   ShieldCheck,
+  Church,
 } from "lucide-react";
 import { getStatusColor } from "../../../lib/status-colors";
 import { LoadingSpinner } from "../../shared/LoadingSpinner";
@@ -147,7 +148,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
         />
       ) : (
         <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
-          <table className="w-full text-left text-xs border-collapse min-w-[560px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[680px]">
             <thead>
               <tr className="border-b border-stone-200 bg-stone-50/80 text-[11px] font-bold text-stone-600">
                 <th className="py-2.5 px-2.5 whitespace-nowrap w-[180px]">
@@ -161,6 +162,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                 </th>
                 <th className="py-2.5 px-2.5 whitespace-nowrap w-[150px]">
                   {t("admin.users.colBadges")}
+                </th>
+                <th className="py-2.5 px-2.5 whitespace-nowrap min-w-[140px]">
+                  {t("admin.users.colServices", { defaultValue: "Services" })}
                 </th>
                 <th className="py-2.5 px-2.5 text-right whitespace-nowrap w-[160px]">
                   {t("admin.users.colActions")}
@@ -283,6 +287,36 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                           </span>
                         )}
                       </div>
+                    </td>
+
+                    {/* Services */}
+                    <td className="py-3 px-2.5">
+                      {u.services && u.services.length > 0 ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {u.services.map((srv: any) => (
+                            <span
+                              key={srv.id}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                                srv.isArchived
+                                  ? "bg-stone-100 text-stone-500 border-stone-200 line-through"
+                                  : "bg-teal-50 text-teal-800 border-teal-200"
+                              }`}
+                              title={
+                                srv.isArchived
+                                  ? `${srv.name} (Archived)`
+                                  : srv.name
+                              }
+                            >
+                              <Church className="w-2.5 h-2.5 text-teal-600 shrink-0" />
+                              <span className="truncate max-w-[120px]">
+                                {srv.name}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-stone-400 text-[11px]">—</span>
+                      )}
                     </td>
 
                     {/* Actions */}
