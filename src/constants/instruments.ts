@@ -3,17 +3,14 @@
  */
 
 export const INSTRUMENT_CATEGORIES: string[] = [
-  "Keyboards",
+  "Piano",
   "Drums",
-  "Acoustic Guitars",
-  "Electric Guitars",
-  "Bass Guitars",
-  "Wind & Brass",
-  "Strings",
+  "Percussion",
+  "Violin",
   "Audio Equipment",
 ];
 
-export const DEFAULT_INSTRUMENT_TYPE = "Keyboards";
+export const DEFAULT_INSTRUMENT_TYPE = "Piano";
 
 export const BOOKING_MODES = {
   INSTANT: "instant",

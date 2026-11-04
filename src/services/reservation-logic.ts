@@ -87,7 +87,9 @@ export interface EvaluationResult {
  */
 export function getMaskedInstrumentName(type?: string | null): string {
   const cleanType = (type || "").trim();
-  if (/keyboard/i.test(cleanType)) return "Church Assigned Keyboard";
+  if (/keyboard/i.test(cleanType) || /piano/i.test(cleanType)) {
+    return "Church Assigned Piano";
+  }
   if (/drum/i.test(cleanType)) return "Church Assigned Drum Kit";
   if (/guitar/i.test(cleanType)) return "Church Assigned Guitar";
   if (/violin/i.test(cleanType)) return "Church Assigned Violin";

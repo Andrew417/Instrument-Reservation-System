@@ -318,6 +318,43 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     allInstruments.find((i) => i.id === selectedInstrumentId) ||
     initialInstrument;
 
+  const sortedInstruments = useMemo(() => {
+    const categoryOrder = new Map<string, number>();
+    allInstruments.forEach((instrument, index) => {
+      const category = instrument.type.trim().toLowerCase();
+      if (!categoryOrder.has(category)) {
+        categoryOrder.set(category, index);
+      }
+    });
+
+    const getVisibilityRank = (instrument: Instrument): number => {
+      const visibility =
+        instrument.visibilityLevel ||
+        (instrument as any).visibility_level ||
+        "public";
+      if (visibility === "room_stock") return 1;
+      if (visibility === "service") return 2;
+      if (visibility === "public") return 0;
+      return 3;
+    };
+
+    return allInstruments
+      .map((instrument, index) => ({ instrument, index }))
+      .sort((a, b) => {
+        const categoryCompare =
+          (categoryOrder.get(a.instrument.type.trim().toLowerCase()) ?? 0) -
+          (categoryOrder.get(b.instrument.type.trim().toLowerCase()) ?? 0);
+        if (categoryCompare !== 0) return categoryCompare;
+
+        const visibilityCompare =
+          getVisibilityRank(a.instrument) - getVisibilityRank(b.instrument);
+        if (visibilityCompare !== 0) return visibilityCompare;
+
+        return a.index - b.index;
+      })
+      .map(({ instrument }) => instrument);
+  }, [allInstruments]);
+
   const [startH, startM] = startTime.split(":").map(Number);
   const startTotalMinutes = startH * 60 + startM;
   const endTotalMinutes = startTotalMinutes + Math.round(duration * 60);
@@ -881,24 +918,31 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             {t("reservationForm.selectedInstrumentLabel")}
                           </span>
                         </span>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
-                            currentInstrument.bookingMode === "instant"
-                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                              : "bg-amber-100 text-amber-900 border border-amber-200"
-                          }`}
-                        >
-                          {currentInstrument.bookingMode === "instant" ? (
-                            <>
-                              <Zap className="w-2.5 h-2.5" />
-                              <span>{t("common.instant")}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Shield className="w-2.5 h-2.5" />
-                              <span>{t("common.manual")}</span>
-                            </>
+                        <span className="inline-flex items-center gap-1">
+                          {currentInstrument.serviceName?.trim() && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold text-blue-900 bg-blue-100 border border-blue-200">
+                              {currentInstrument.serviceName.trim()}
+                            </span>
                           )}
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
+                              currentInstrument.bookingMode === "instant"
+                                ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                                : "bg-amber-100 text-amber-900 border border-amber-200"
+                            }`}
+                          >
+                            {currentInstrument.bookingMode === "instant" ? (
+                              <>
+                                <Zap className="w-2.5 h-2.5" />
+                                <span>{t("common.instant")}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Shield className="w-2.5 h-2.5" />
+                                <span>{t("common.manual")}</span>
+                              </>
+                            )}
+                          </span>
                         </span>
                       </div>
 
@@ -926,13 +970,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               }
                               className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
                             >
-                              {allInstruments.map((inst) => {
+                              {sortedInstruments.map((inst) => {
                                 const vis =
                                   inst.visibilityLevel ||
                                   (inst as any).visibility_level;
                                 const isOOS =
                                   inst.isOutOfService ||
                                   (inst as any).is_out_of_service;
+                                const serviceName =
+                                  inst.serviceName?.trim() ||
+                                  (inst as any).service_name?.trim();
                                 const tag = isOOS
                                   ? " — [Out of Service]"
                                   : vis === "room_stock"
@@ -940,9 +987,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                     : vis === "musician"
                                       ? " — [Musicians Only]"
                                       : "";
+                                const serviceTag = serviceName
+                                  ? ` — [${serviceName}]`
+                                  : "";
                                 return (
                                   <option key={inst.id} value={inst.id}>
                                     {inst.name} ({inst.type}){tag}
+                                    {serviceTag}
                                   </option>
                                 );
                               })}

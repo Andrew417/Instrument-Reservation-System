@@ -5,10 +5,11 @@ import { eq, and, sql, asc } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
 import { ensureCurrentReservationStatuses } from "../services/reservation-logic.js";
 import { getCairoDateString } from "../lib/date-utils.js";
+import { INSTRUMENT_CATEGORIES } from "../constants/instruments.js";
 
 const router = Router();
 
-const MANUAL_TYPE_ORDER: string[] = ["Piano", "Drums", "Percussion", "Violin"];
+const MANUAL_TYPE_ORDER = INSTRUMENT_CATEGORIES;
 const MANUAL_INSTRUMENT_ORDER_BY_TYPE: Record<string, string[]> = {
   Piano: [
     "Yamaha E-443",

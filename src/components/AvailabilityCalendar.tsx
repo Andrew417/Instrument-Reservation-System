@@ -80,20 +80,9 @@ interface AvailabilityCalendarProps {
 }
 
 import { TIME_SLOTS } from "../constants/reservationTimes";
+import { INSTRUMENT_CATEGORIES } from "../constants/instruments";
 
-const MANUAL_TYPE_ORDER: string[] = [
-  "Piano",
-  "Keyboard",
-  "Drums",
-  "Percussion",
-  "Strings",
-  "Guitar",
-  "Violin",
-  "Bass",
-  "Brass",
-  "Wind",
-  "Vocals",
-];
+const MANUAL_TYPE_ORDER = INSTRUMENT_CATEGORIES;
 const MANUAL_INSTRUMENT_ORDER_BY_TYPE: Record<string, string[]> = {
   Piano: [
     "Yamaha E-443",
@@ -132,10 +121,29 @@ const getInstrumentOrderIndex = (
   return nameIndex >= 0 ? nameIndex : matchingOrder.length;
 };
 
+const getVisibilityOrderIndex = (instrument: Instrument): number => {
+  const visibility =
+    instrument.visibilityLevel ||
+    (instrument as any).visibility_level ||
+    "public";
+  if (visibility === "public") return 0;
+  if (visibility === "room_stock") return 1;
+  if (visibility === "service") return 2;
+  return 3;
+};
+
 const sortInstrumentsByManualOrder = (items: Instrument[]): Instrument[] => {
   return [...items].sort((a, b) => {
     const typeCompare = getTypeOrderIndex(a.type) - getTypeOrderIndex(b.type);
     if (typeCompare !== 0) return typeCompare;
+
+    const visibilityCompare =
+      getVisibilityOrderIndex(a) - getVisibilityOrderIndex(b);
+    if (visibilityCompare !== 0) return visibilityCompare;
+
+    if (a.bookingMode !== b.bookingMode) {
+      return a.bookingMode === "instant" ? -1 : 1;
+    }
 
     const instrumentCompare =
       getInstrumentOrderIndex(a.type, a.name) -
