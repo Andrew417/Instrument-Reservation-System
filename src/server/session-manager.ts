@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { db } from "../db/index.js";
+import { db, withRetry } from "../db/index.js";
 import { sessions, users, admins } from "../db/schema.js";
 import { eq, and, gt, sql } from "drizzle-orm";
 import { Request, Response, NextFunction } from "express";
@@ -136,11 +136,10 @@ export async function validateSession(
   }
 
   const now = new Date();
-  const sessionRecords = await db
-    .select()
-    .from(sessions)
-    .where(eq(sessions.token, token))
-    .limit(1);
+  const sessionRecords = await withRetry(
+    () => db.select().from(sessions).where(eq(sessions.token, token)).limit(1),
+    { retries: 3, delayMs: 500, label: "Session validation" },
+  );
 
   if (sessionRecords.length === 0) {
     return { valid: false, error: "Invalid session token" };

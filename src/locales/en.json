@@ -1297,7 +1297,7 @@
       "visibilityService": "Service (Assigned Members Only)",
       "assignedService": "Assigned Service",
       "selectService": "-- Select a Service --",
-      "selectServiceDisabled": "Enabled only when Visibility is Service",
+      "selectServiceDisabled": "Enabled For 'Service' Visibility",
       "outOfServiceToggle": "Out of Service (Unavailable)",
       "outOfServiceNotice": "Cannot be booked directly or assigned to requests.",
       "outOfServiceBadge": "Out of Service",

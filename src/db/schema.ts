@@ -11,6 +11,7 @@ import {
   timestamp,
   unique,
   uuid,
+  index,
 } from "drizzle-orm/pg-core";
 
 // Custom type for PostgreSQL tstzrange
@@ -39,6 +40,11 @@ export const users = pgTable(
   },
   (table) => [
     unique("users_email_key").on(table.email),
+    index("users_status_created_at_idx").on(
+      table.approvalStatus,
+      table.isActive,
+      table.createdAt,
+    ),
     check(
       "user_approval_status_check",
       sql`${table.approvalStatus} IN ('pending', 'approved', 'rejected')`,
@@ -88,6 +94,7 @@ export const userServices = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.serviceId] }),
+    index("user_services_service_id_idx").on(table.serviceId),
   ],
 );
 
@@ -114,6 +121,10 @@ export const instruments = pgTable(
       .notNull(),
   },
   (table) => [
+    index("instruments_service_removed_idx").on(
+      table.serviceId,
+      table.isRemoved,
+    ),
     check(
       "booking_mode_check",
       sql`${table.bookingMode} IN ('manual', 'instant')`,
@@ -203,7 +214,9 @@ export const reservations = pgTable(
     conditionNotes: text("condition_notes"),
     conditionPhotoUrl: text("condition_photo_url"),
     conditionTags: text("condition_tags"),
-    conditionCheckedAt: timestamp("condition_checked_at", { withTimezone: true }),
+    conditionCheckedAt: timestamp("condition_checked_at", {
+      withTimezone: true,
+    }),
     conditionCheckedBy: text("condition_checked_by"),
     note: text("note"),
     isNoShow: boolean("is_no_show").default(false),
@@ -220,6 +233,11 @@ export const reservations = pgTable(
       .notNull(),
   },
   (table) => [
+    index("reservations_instrument_status_idx").on(
+      table.instrumentId,
+      table.status,
+    ),
+    index("reservations_user_status_idx").on(table.userId, table.status),
     check(
       "reservation_type_check",
       sql`${table.reservationType} IN ('in_church', 'outside_church')`,
@@ -354,7 +372,10 @@ export const musicianStatusAuditLog = pgTable(
       .notNull(),
   },
   (table) => [
-    check("musician_audit_action_check", sql`${table.action} IN ('granted', 'revoked')`),
+    check(
+      "musician_audit_action_check",
+      sql`${table.action} IN ('granted', 'revoked')`,
+    ),
   ],
 );
 
@@ -484,9 +505,7 @@ export const adminPushPreferences = pgTable("admin_push_preferences", {
   notifyNewRegistrations: boolean("notify_new_registrations")
     .default(true)
     .notNull(),
-  notifyNewRequests: boolean("notify_new_requests")
-    .default(true)
-    .notNull(),
+  notifyNewRequests: boolean("notify_new_requests").default(true).notNull(),
   notifyMemberMessages: boolean("notify_member_messages")
     .default(true)
     .notNull(),
@@ -645,4 +664,3 @@ export const serviceAssignmentAuditLogRelations = relations(
     }),
   }),
 );
-

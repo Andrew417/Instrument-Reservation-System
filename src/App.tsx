@@ -32,6 +32,7 @@ import {
   Calendar,
   CheckCircle2,
   Bell,
+  Guitar,
   HelpCircle,
   Menu,
   LayoutDashboard,
@@ -102,9 +103,9 @@ const getAdminTabIcon = (
     case "approvals":
       return UserCheck;
     case "instruments":
-      return Church;
+      return Guitar;
     case "services":
-      return Layers;
+      return Church;
     case "users":
       return UsersIcon;
     case "analytics":
@@ -596,7 +597,6 @@ const UserPortalMain: React.FC = () => {
                 </span>
               </button>
             )}
-
 
             {/* Screen 7: Notifications Bell Button */}
             <button

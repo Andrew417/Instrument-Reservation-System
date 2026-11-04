@@ -321,6 +321,11 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
                       defaultValue: "Public (Everyone can book)",
                     })}
                   </option>
+                  <option value="service">
+                    {t("admin.instruments.visibilityService", {
+                      defaultValue: "Service (Assigned Members Only)",
+                    })}
+                  </option>
                   <option value="musician">
                     {t("admin.instruments.visibilityMusician", {
                       defaultValue: "Musician Only (Musicians & Admins)",
@@ -329,11 +334,6 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
                   <option value="room_stock">
                     {t("admin.instruments.visibilityRoomStock", {
                       defaultValue: "Room Stock (Admin assignment only)",
-                    })}
-                  </option>
-                  <option value="service">
-                    {t("admin.instruments.visibilityService", {
-                      defaultValue: "Service (Assigned Members Only)",
                     })}
                   </option>
                 </select>

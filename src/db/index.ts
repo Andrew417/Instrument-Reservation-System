@@ -103,7 +103,13 @@ export async function withRetry<T>(
       return await operation();
     } catch (err: any) {
       lastError = err;
-      const msg = err?.message || String(err);
+      const msg = [
+        err?.message,
+        err?.cause?.message,
+        err?.cause?.cause?.message,
+      ]
+        .filter(Boolean)
+        .join(" ");
       const isTransient =
         msg.includes("Connection terminated") ||
         msg.includes("timeout") ||
@@ -177,7 +183,9 @@ export async function ensurePushTables(): Promise<void> {
           WHERE table_name IN ('push_subscriptions', 'admin_push_preferences');
         `);
         const found = res.rows.map((r: any) => r.table_name);
-        console.log(`[DB] Push notification tables verified (${found.length}/2 present).`);
+        console.log(
+          `[DB] Push notification tables verified (${found.length}/2 present).`,
+        );
       },
       { retries: 5, delayMs: 2000, label: "Push Notification Tables Check" },
     );
@@ -228,8 +236,9 @@ export async function ensureServiceVisibilitySchema(): Promise<void> {
       { retries: 5, delayMs: 2000, label: "Service Visibility Tables Setup" },
     );
   } catch (err: any) {
-    console.warn("[DB Warning] Service visibility tables check notice:", err?.message || err);
+    console.warn(
+      "[DB Warning] Service visibility tables check notice:",
+      err?.message || err,
+    );
   }
 }
-
-

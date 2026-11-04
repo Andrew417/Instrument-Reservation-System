@@ -348,9 +348,13 @@ export function useAdminPortalData({
 
   // Enhanced Admin Messaging states
   const [conversations, setConversations] = useState<any[]>([]);
-  const [loadingConversations, setLoadingConversations] = useState<boolean>(false);
-  const [activeConversationMessages, setActiveConversationMessages] = useState<any[]>([]);
-  const [loadingConversationMessages, setLoadingConversationMessages] = useState<boolean>(false);
+  const [loadingConversations, setLoadingConversations] =
+    useState<boolean>(false);
+  const [activeConversationMessages, setActiveConversationMessages] = useState<
+    any[]
+  >([]);
+  const [loadingConversationMessages, setLoadingConversationMessages] =
+    useState<boolean>(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
   const [conversationFilter, setConversationFilter] = useState<
     "all" | "unread" | "active" | "closed" | "has_messages"
@@ -749,7 +753,9 @@ export function useAdminPortalData({
         setConversations(convList);
         setMessagingReservations(convList);
         if (initialReservationId && !selectedMsgReservation) {
-          const matched = convList.find((c: any) => c.id === initialReservationId);
+          const matched = convList.find(
+            (c: any) => c.id === initialReservationId,
+          );
           if (matched) {
             selectConversation(matched);
           }
@@ -806,7 +812,9 @@ export function useAdminPortalData({
   };
 
   const sendChatMessage = async (customText?: string) => {
-    const textToSend = (customText !== undefined ? customText : messageText).trim();
+    const textToSend = (
+      customText !== undefined ? customText : messageText
+    ).trim();
     if (!textToSend || !selectedMsgReservation) return;
     setSendingMessage(true);
     try {
@@ -830,7 +838,9 @@ export function useAdminPortalData({
         setMessageText("");
         fetchConversationMessages(selectedMsgReservation.id);
         fetchConversations(msgReservationSearch, conversationFilter);
-        showNotice(t("admin.messaging.sendSuccess", "Message sent successfully!"));
+        showNotice(
+          t("admin.messaging.sendSuccess", "Message sent successfully!"),
+        );
       } else {
         showNotice(data.error || "Failed to send message", "error");
       }
@@ -1146,6 +1156,17 @@ export function useAdminPortalData({
             ? "Instrument updated successfully"
             : "Instrument created successfully",
         );
+        if (data.instrument) {
+          setInstrumentsList((prev) =>
+            editingInstrument
+              ? prev.map((instrument) =>
+                  instrument.id === data.instrument.id
+                    ? { ...instrument, ...data.instrument }
+                    : instrument,
+                )
+              : [data.instrument, ...prev],
+          );
+        }
         setShowInstrumentModal(false);
         setEditingInstrument(null);
         fetchInstruments();
@@ -1834,7 +1855,12 @@ export function useAdminPortalData({
       }
     }, 12000);
     return () => clearInterval(interval);
-  }, [activeTab, selectedMsgReservation?.id, conversationFilter, msgReservationSearch]);
+  }, [
+    activeTab,
+    selectedMsgReservation?.id,
+    conversationFilter,
+    msgReservationSearch,
+  ]);
 
   // Push prefs on entering push tab
   useEffect(() => {
