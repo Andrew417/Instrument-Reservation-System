@@ -276,6 +276,7 @@ export function useAdminPortalData({
   const [editingInstrument, setEditingInstrument] = useState<any | null>(null);
   const [instrumentForm, setInstrumentForm] = useState({
     name: "",
+    alias: "",
     type: DEFAULT_INSTRUMENT_TYPE,
     photoUrl: "",
     description: "",
@@ -1104,6 +1105,7 @@ export function useAdminPortalData({
     setEditingInstrument(null);
     setInstrumentForm({
       name: "",
+      alias: "",
       type: DEFAULT_INSTRUMENT_TYPE,
       photoUrl: "",
       description: "",
@@ -1120,6 +1122,7 @@ export function useAdminPortalData({
     setEditingInstrument(inst);
     setInstrumentForm({
       name: inst.name,
+      alias: inst.alias || "",
       type: inst.type,
       photoUrl: inst.photoUrl || inst.photo_url || "",
       description: inst.description || "",

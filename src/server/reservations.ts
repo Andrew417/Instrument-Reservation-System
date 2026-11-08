@@ -621,6 +621,7 @@ router.get(
           to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
           r.created_at AS reservation_created_at,
           COALESCE(i.name, r.requested_type, 'Instrument') AS instrument_name,
+          i.alias AS instrument_alias,
           i.type AS instrument_type,
           i.photo_url AS instrument_photo_url,
           COALESCE(ma.total_messages, 0) AS total_messages,
@@ -1572,6 +1573,7 @@ router.get(
           extract(dow from (lower(r.time_range) AT TIME ZONE 'Africa/Cairo'))::int as dow,
           ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
           i.name as instrument_name,
+          i.alias as instrument_alias,
           i.type as instrument_type
         FROM reservations r
         JOIN instruments i ON r.instrument_id = i.id
@@ -1737,6 +1739,7 @@ router.get(
         suggestionsList.push({
           instrumentId: routine.instrument_id,
           instrumentName: routine.instrument_name,
+          instrumentAlias: routine.instrument_alias || null,
           instrumentType: routine.instrument_type,
           serviceName: routine.service_name || "",
           musicianName: routine.musician_name || userName,
@@ -1861,6 +1864,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
         to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
         COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
+        i.alias as instrument_alias,
         COALESCE(i.type, r.requested_type) as instrument_type,
         i.booking_mode,
         i.visibility_level,
@@ -1908,6 +1912,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
           r2.status,
           r2.condition_status,
           i2.name as instrument_name,
+          i2.alias as instrument_alias,
           i2.type as instrument_type,
           i2.photo_url as instrument_photo_url,
           i2.is_removed as instrument_is_removed,
@@ -2017,6 +2022,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
         ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
         COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
+        i.alias as instrument_alias,
         COALESCE(i.type, r.requested_type) as instrument_type,
         i.booking_mode,
         i.visibility_level,

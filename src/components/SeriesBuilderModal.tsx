@@ -4,6 +4,10 @@ import { Instrument } from "./AvailabilityCalendar.tsx";
 import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import {
+  getInstrumentDisplayName,
+  formatInstrumentOptionLabel,
+} from "../lib/instrument-display";
+import {
   addDaysToDateString,
   cairoDateTimeToDate,
   getCairoDateString,
@@ -98,6 +102,11 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
+  );
 
   const DURATION_OPTIONS = [
     { labelKey: "reservationForm.duration30m", value: 0.5 },
@@ -528,7 +537,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                     ? isAr
                       ? `طلب نوع: ${requestedType}`
                       : `Type: ${requestedType}`
-                    : currentInstrument.name}
+                    : getInstrumentDisplayName(currentInstrument, isAdmin)}
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-stone-400 truncate mt-0.5">
@@ -682,7 +691,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                             })}
                           </span>
                           <span className="font-bold text-stone-900 text-xs block truncate">
-                            {currentInstrument.name}
+                            {getInstrumentDisplayName(currentInstrument, isAdmin)}
                           </span>
                           <span className="text-[10px] text-stone-500 block truncate">
                             {currentInstrument.type}
@@ -1017,24 +1026,36 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                           })}
                         </span>
                       </span>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
-                          currentInstrument.bookingMode === "instant"
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                            : "bg-amber-100 text-amber-900 border border-amber-200"
-                        }`}
-                      >
-                        {currentInstrument.bookingMode === "instant" ? (
-                          <>
-                            <Zap className="w-2.5 h-2.5" />
-                            <span>{t("common.instant")}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Shield className="w-2.5 h-2.5" />
-                            <span>{t("common.manual")}</span>
-                          </>
+                      <span className="inline-flex items-center gap-1">
+                        {currentInstrument.serviceName?.trim() && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold text-blue-900 bg-blue-100 border border-blue-200">
+                            {currentInstrument.serviceName.trim()}
+                          </span>
                         )}
+                        {currentInstrument.alias?.trim() && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold text-violet-800 bg-violet-50 border border-violet-200">
+                            {currentInstrument.alias.trim()}
+                          </span>
+                        )}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
+                            currentInstrument.bookingMode === "instant"
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                              : "bg-amber-100 text-amber-900 border border-amber-200"
+                          }`}
+                        >
+                          {currentInstrument.bookingMode === "instant" ? (
+                            <>
+                              <Zap className="w-2.5 h-2.5" />
+                              <span>{t("common.instant")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Shield className="w-2.5 h-2.5" />
+                              <span>{t("common.manual")}</span>
+                            </>
+                          )}
+                        </span>
                       </span>
                     </div>
 
@@ -1064,7 +1085,7 @@ export const SeriesBuilderModal: React.FC<SeriesBuilderModalProps> = ({
                           >
                             {allInstruments.map((inst) => (
                               <option key={inst.id} value={inst.id}>
-                                {inst.name} ({inst.type})
+                                {formatInstrumentOptionLabel(inst)}
                               </option>
                             ))}
                           </select>

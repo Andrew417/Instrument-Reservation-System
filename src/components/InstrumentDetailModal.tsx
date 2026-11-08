@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { getReservantColorTheme } from "../lib/reservant-colors";
+import { getInstrumentDisplayName } from "../lib/instrument-display";
 import {
   getLocalDateString,
   getTodayDateString,
@@ -609,8 +610,16 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <h1 className="text-lg font-bold text-stone-900 truncate">
-                    {currentInstrument.name}
+                    {getInstrumentDisplayName(
+                      currentInstrument,
+                      isAdminOrSuperAdmin,
+                    )}
                   </h1>
+                  {isAdminOrSuperAdmin && currentInstrument.alias && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-violet-50 text-violet-800 border border-violet-200">
+                      {currentInstrument.alias}
+                    </span>
+                  )}
 
                   {isAdminOrSuperAdmin ? (
                     <button

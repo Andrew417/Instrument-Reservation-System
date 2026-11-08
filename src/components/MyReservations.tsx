@@ -10,6 +10,7 @@ import {
   getCairoTimeString,
   isConditionCheckWindowOpen,
 } from "../lib/date-utils";
+import { getReservationInstrumentDisplayName } from "../lib/instrument-display";
 import { useWindowExpiryTimer } from "../hooks/useWindowExpiryTimer";
 import {
   Calendar,
@@ -87,6 +88,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
+  );
 
   const [activeTab, setActiveTab] = useState<"upcoming" | "pending" | "past">(
     "upcoming",
@@ -303,7 +309,7 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
           instrumentName:
             first.is_type_request && !first.instrument_id
               ? `${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })} (${first.requested_type || "Type Request"})`
-              : first.instrument_name || "Instrument",
+              : getReservationInstrumentDisplayName(first, isAdmin),
           instrumentType: first.requested_type || first.instrument_type || "General",
           bookingMode: first.booking_mode || "manual",
           serviceName:
@@ -711,7 +717,11 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                                     title: t(
                                       "myReservations.cancelSingleItemTitle",
                                       {
-                                        instrument: res.instrument_name,
+                                        instrument:
+                                          getReservationInstrumentDisplayName(
+                                            res,
+                                            isAdmin,
+                                          ),
                                         date: dateStr,
                                       },
                                     ),
@@ -803,12 +813,20 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                         )}
 
                         {/* Instrument + date/time */}
-                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="font-semibold text-stone-800 truncate max-w-full">
                             {res.is_type_request && !res.instrument_id
                               ? `${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })} (${res.requested_type || res.instrument_type || "Type Request"})`
-                              : res.instrument_name}
+                              : getReservationInstrumentDisplayName(
+                                  res,
+                                  isAdmin,
+                                )}
                           </span>
+                          {isAdmin && (res.instrument_alias || res.instrumentAlias) && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200 shrink-0">
+                              {res.instrument_alias || res.instrumentAlias}
+                            </span>
+                          )}
                           <span className="text-stone-500 font-medium whitespace-nowrap">
                             {dateStr} ({timeStr})
                           </span>
@@ -1017,10 +1035,15 @@ export const MyReservations: React.FC<MyReservationsProps> = ({
                       )}
 
                       {/* Instrument + first date/time */}
-                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="font-semibold text-stone-800 truncate max-w-full">
                           {sg.instrumentName}
                         </span>
+                        {isAdmin && (firstOcc?.instrument_alias || firstOcc?.instrumentAlias) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200 shrink-0">
+                            {firstOcc.instrument_alias || firstOcc.instrumentAlias}
+                          </span>
+                        )}
                         <span className="text-stone-500 font-medium whitespace-nowrap">
                           {firstDateStr} ({firstTimeStr})
                         </span>

@@ -283,6 +283,14 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
                         <div className="min-w-0">
                           <div className="font-bold text-stone-900 text-sm flex items-center gap-2 flex-wrap">
                             <span className="truncate">{inst.name}</span>
+                            {inst.alias && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200/90"
+                                title={`Alias: ${inst.alias}`}
+                              >
+                                {inst.alias}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-stone-500 font-medium flex items-center gap-1.5 flex-wrap">
                             <span>{inst.type}</span>

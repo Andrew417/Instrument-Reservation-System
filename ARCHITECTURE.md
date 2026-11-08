@@ -25,7 +25,7 @@
 ├── src/
 │   ├── server-app.ts                         # Express app factory: middleware, /api/* routers, 404 & error handlers
 │   ├── main.tsx                              # Client entry: React DOM root & strict render
-│   ├── App.tsx                               # Master client layout: navigation header, modals host, view routing
+│   ├── App.tsx                               # Master client layout: navigation header, modals host, view routing (role-based landing: My Reservations for members, Calendar for admins)
 │   │
 │   ├── components/
 │   │   ├── AdminPortal.tsx                   # Admin operations: tabs (Needs Attention, Overview, Approvals, Instruments, Users, Messages, SuperAdmin)
@@ -89,6 +89,7 @@
 │   │   ├── handover-templates.ts             # WhatsApp message formatter with directional Unicode isolation
 │   │   ├── hard-limits.ts                    # Client limit parsing and payload normalization
 │   │   ├── i18n.ts                           # i18next configuration, RTL/LTR body direction controller
+│   │   ├── instrument-display.ts             # Centralized instrument name, alias, and dropdown option label formatters
 │   │   ├── push-client.ts                    # Browser PushManager subscription & service worker registration
 │   │   ├── push-service.ts                   # Web-push server payload delivery with dead subscription cleanup
 │   │   ├── push-vapid.ts                     # VAPID keys loader and WebPush initialization

@@ -9,7 +9,20 @@ import { runStatusTransitions } from "./src/services/reservation-logic";
 
 export async function createServer() {
   const app = createExpressApp();
-  const PORT = 3000;
+
+  let PORT = 3000;
+  const portIdx = process.argv.indexOf("--port");
+  if (portIdx !== -1 && process.argv[portIdx + 1]) {
+    PORT = parseInt(process.argv[portIdx + 1], 10) || 3000;
+  } else if (process.env.PORT) {
+    PORT = parseInt(process.env.PORT, 10) || 3000;
+  }
+
+  let HOST = "0.0.0.0";
+  const hostIdx = process.argv.indexOf("--host");
+  if (hostIdx !== -1 && process.argv[hostIdx + 1]) {
+    HOST = process.argv[hostIdx + 1];
+  }
 
   // Run Super Admin DB-level idempotent seed & verify enhanced table columns lazily in background
   seedSuperAdmin().catch((err: any) => {
@@ -43,7 +56,7 @@ export async function createServer() {
     });
   }
 
-  return { app, PORT };
+  return { app, PORT, HOST };
 }
 
 // Global safety net to prevent transient background errors from crashing the dev server process
@@ -56,9 +69,9 @@ process.on("uncaughtException", (err) => {
 
 // Start listener for local development / Cloud Run environments
 async function startServer() {
-  const { app, PORT } = await createServer();
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  const { app, PORT, HOST } = await createServer();
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST}:${PORT}`);
   });
 
   server.on("error", (err: any) => {

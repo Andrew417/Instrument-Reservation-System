@@ -13,6 +13,7 @@ import { INSTRUMENT_CATEGORIES } from "../../constants/instruments";
 
 export interface InstrumentFormState {
   name: string;
+  alias?: string;
   type: string;
   photoUrl: string;
   description: string;
@@ -222,23 +223,55 @@ export const InstrumentFormModal: React.FC<InstrumentFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-          <div>
-            <label className="block font-bold text-stone-700 mb-1">
-              {t("admin.modals.instrumentForm.nameLabel")}
-            </label>
-            <input
-              type="text"
-              required
-              placeholder={t("admin.modals.instrumentForm.namePlaceholder")}
-              value={form.name}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  name: e.target.value,
-                })
-              }
-              className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-stone-700 mb-1">
+                {t("admin.modals.instrumentForm.nameLabel")}
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={t("admin.modals.instrumentForm.namePlaceholder")}
+                value={form.name}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    name: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-bold text-stone-700">
+                  {t("admin.modals.instrumentForm.aliasLabel", {
+                    defaultValue: "Alias",
+                  })}
+                </label>
+                <span className="text-[10px] text-stone-400 font-normal">
+                  {t("admin.modals.instrumentForm.aliasHelp", {
+                    defaultValue: "e.g. red piano",
+                  })}
+                </span>
+              </div>
+              <input
+                type="text"
+                id="instrument-alias-input"
+                placeholder={t("admin.modals.instrumentForm.aliasPlaceholder", {
+                  defaultValue: "e.g. red piano, big drum set",
+                })}
+                value={form.alias || ""}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    alias: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

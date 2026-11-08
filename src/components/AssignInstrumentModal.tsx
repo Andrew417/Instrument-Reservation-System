@@ -24,6 +24,7 @@ export interface CandidateItem {
   instrument: {
     id: string;
     name: string;
+    alias?: string | null;
     type: string;
     photoUrl?: string | null;
     photo_url?: string | null;
@@ -43,6 +44,7 @@ export interface SeriesAggregateCandidate {
   instrument: {
     id: string;
     name: string;
+    alias?: string | null;
     type: string;
     photoUrl?: string | null;
     photo_url?: string | null;
@@ -198,7 +200,8 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
         if (!q) return true;
         return (
           c.instrument.name.toLowerCase().includes(q) ||
-          c.instrument.type.toLowerCase().includes(q)
+          c.instrument.type.toLowerCase().includes(q) ||
+          (c.instrument.alias && c.instrument.alias.toLowerCase().includes(q))
         );
       });
     }
@@ -206,7 +209,8 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
       if (!q) return true;
       return (
         c.instrument.name.toLowerCase().includes(q) ||
-        c.instrument.type.toLowerCase().includes(q)
+        c.instrument.type.toLowerCase().includes(q) ||
+        (c.instrument.alias && c.instrument.alias.toLowerCase().includes(q))
       );
     });
   }, [candidates, seriesCandidates, effectiveIsSeries, searchQuery]);
@@ -655,6 +659,11 @@ export const AssignInstrumentModal: React.FC<AssignInstrumentModalProps> = ({
                                 <span className="min-w-0 break-words">
                                   {inst.name}
                                 </span>
+                                {inst.alias && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200 shrink-0">
+                                    {inst.alias}
+                                  </span>
+                                )}
                               </span>
                               <span className="shrink-0">
                                 {getVisibilityBadge(level)}

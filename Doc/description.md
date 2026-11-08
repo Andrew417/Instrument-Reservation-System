@@ -70,6 +70,7 @@ Internal field name suggestion: `is_trusted_user` (not `instant_role`, since it 
 Each instrument is a unique, individually bookable unit with:
 
 - Unique ID and name (e.g. "Drum #1", "Keyboard #2")
+- Alias (optional text field; e.g. "red piano", "acoustic stage 1") — shown to regular users as `${name} - ${alias}` throughout the app, while admins see the clean name with the alias badge. Both see the alias badge on the calendar.
 - Type / category (e.g. Drums, Keyboard)
 - Photo (optional — default placeholder shown if none uploaded)
 - Description
@@ -80,6 +81,10 @@ Multiple units of the same type exist and are each independently reservable.
 
 **Mode changes mid-flight:** changing an instrument's booking mode only affects future submissions. Existing Pending requests keep evaluating under the mode they were submitted under until an admin acts on them or the user edits the reservation (an edit re-triggers current rules per the Editing table below).
 
+**Default Landing Screen on Launch:**
+- Regular members open directly on the **My Reservations** screen.
+- Administrators and Super Administrators open directly on the **Availability Calendar** screen.
+
 ---
 
 ## Reservation Types
@@ -89,7 +94,7 @@ Multiple units of the same type exist and are each independently reservable.
 | In-church use       | Inside the church | Free                                   |
 | Outside performance | External venue    | Paid (per-day rate set per instrument) |
 
-The outside-church fee is displayed on the calendar view before the user opens the reservation form. When submitting an outside-church reservation, the user must check an acknowledgment checkbox confirming they agree to pay the specified fee.
+Outside-church fees are displayed during outside-church reservation workflows and in the instrument detail specifications (the calendar timetable columns remain uncluttered without price pills). When submitting an outside-church reservation, the user must check an acknowledgment checkbox confirming they agree to pay the specified fee.
 
 **Fee snapshot:** the fee is locked onto the reservation record at submission time (not a live reference to the instrument's current fee). If an admin later changes the instrument's fee, it only applies to new submissions — it never retroactively changes what an already-submitted reservation owes.
 

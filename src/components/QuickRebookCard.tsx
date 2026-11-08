@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import { formatHhmmTo12Hour, formatDisplayDate } from "../lib/date-utils";
+import { getReservationInstrumentDisplayName } from "../lib/instrument-display";
 import {
   Zap,
   CheckCircle2,
@@ -21,6 +22,7 @@ import {
 export interface QuickRebookSuggestion {
   instrumentId: string;
   instrumentName: string;
+  instrumentAlias?: string | null;
   instrumentType: string;
   serviceName: string;
   musicianName: string;
@@ -62,6 +64,11 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
+  );
 
   // Quick Rebook is available to ALL authenticated users, including admins
   // and super-admins, since admins are musicians too and make their own
@@ -75,6 +82,7 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
   const [confirmedBooking, setConfirmedBooking] = useState<{
     id: string;
     instrumentName: string;
+    instrumentAlias?: string | null;
     serviceName: string;
     musicianName: string;
     date: string;
@@ -241,6 +249,7 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
       setConfirmedBooking({
         id: resObj?.id || "quick",
         instrumentName: activeSuggestion.instrumentName,
+        instrumentAlias: activeSuggestion.instrumentAlias,
         serviceName: localizedActiveService,
         musicianName: activeSuggestion.musicianName || profile.name,
         date: activeSuggestion.date,
@@ -287,7 +296,7 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
             <div className="min-w-0">
               <h4 className="text-xs sm:text-sm font-bold text-stone-900 truncate">
                 {t("quickRebook.successTitle", "Reservation Confirmed!")} —{" "}
-                {confirmedBooking.instrumentName}
+                {getReservationInstrumentDisplayName(confirmedBooking, isAdmin)}
               </h4>
               <p className="text-[11px] text-stone-600 font-medium truncate mt-0.5">
                 {confirmedBooking.serviceName} · {confirmedBooking.dayName},{" "}
@@ -389,7 +398,10 @@ export const QuickRebookCard: React.FC<QuickRebookCardProps> = ({
                 <div className="flex items-center gap-1 font-bold text-stone-900 min-w-0">
                   <Music2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                   <span className="truncate">
-                    {activeSuggestion.instrumentName}
+                    {getReservationInstrumentDisplayName(
+                      activeSuggestion,
+                      isAdmin,
+                    )}
                   </span>
                 </div>
 

@@ -51,7 +51,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     const result = await db.execute(sql`
       SELECT n.id, n.user_id, n.admin_id, n.type, n.message, n.is_read, n.reservation_id, n.created_at,
-             r.status as reservation_status, r.service_name, r.rejection_reason, r.series_id, r.is_type_request, r.instrument_id, i.name as instrument_name,
+             r.status as reservation_status, r.service_name, r.rejection_reason, r.series_id, r.is_type_request, r.instrument_id, i.name as instrument_name, i.alias as instrument_alias,
              r.user_id as reservation_user_id,
              COALESCE(u.name, ru.name) as user_name,
              (lower(r.time_range) AT TIME ZONE 'Africa/Cairo')::date::text as reservation_date,

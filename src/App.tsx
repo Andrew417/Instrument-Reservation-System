@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
 import { LanguageProfileDropdown } from "./components/LanguageProfileDropdown.tsx";
@@ -166,7 +166,17 @@ const UserPortalMain: React.FC = () => {
   // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'chat' | 'admin_portal'
   const [currentView, setCurrentView] = useState<
     "calendar" | "my_reservations" | "chat" | "admin_portal" | "notifications"
-  >("calendar");
+  >(() => (isAdminOrSuperAdmin ? "calendar" : "my_reservations"));
+  const hasInitializedRoleViewRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.id && hasInitializedRoleViewRef.current !== profile.id) {
+      hasInitializedRoleViewRef.current = profile.id;
+      const targetView = isAdminOrSuperAdmin ? "calendar" : "my_reservations";
+      setCurrentView(targetView);
+      setActiveMobileTab(targetView);
+    }
+  }, [profile?.id, isAdminOrSuperAdmin]);
   const [initialAdminTab, setInitialAdminTab] = useState<
     | "dashboard"
     | "review"
@@ -225,7 +235,7 @@ const UserPortalMain: React.FC = () => {
   // Bottom nav — which tab is visually active
   const [activeMobileTab, setActiveMobileTab] = useState<
     "calendar" | "my_reservations" | "chat" | "notifications" | "admin_portal"
-  >("calendar");
+  >(() => (isAdminOrSuperAdmin ? "calendar" : "my_reservations"));
   // Admin sidebar (left menu) — opens as drawer on mobile, fixed on desktop
   const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -247,6 +257,20 @@ const UserPortalMain: React.FC = () => {
   };
   const [allInstruments, setAllInstruments] = useState<Instrument[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  useEffect(() => {
+    if (!sessionToken) return;
+    fetch("/api/instruments", {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.instruments)) {
+          setAllInstruments(data.instruments);
+        }
+      })
+      .catch(() => {});
+  }, [sessionToken, refreshTrigger]);
 
   // User Profile Modal with URL query param sync (?userId=<id>)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(() => {
@@ -678,7 +702,13 @@ const UserPortalMain: React.FC = () => {
         {currentView === "notifications" && (
           <NotificationsModal
             isOpen={true}
-            onClose={() => setCurrentView("calendar")}
+            onClose={() => {
+              const defaultView = isAdminOrSuperAdmin
+                ? "calendar"
+                : "my_reservations";
+              setCurrentView(defaultView);
+              setActiveMobileTab(defaultView);
+            }}
             onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
             onOpenAccountApprovals={() => {
               setInitialAdminTab("approvals");
@@ -769,7 +799,7 @@ const UserPortalMain: React.FC = () => {
           allInstruments={
             allInstruments.length > 0
               ? allInstruments
-              : [selectedSlot.instrument]
+              : (selectedSlot.instrument ? [selectedSlot.instrument] : [])
           }
           initialDate={selectedSlot.date}
           initialTimeHhmm={selectedSlot.timeHhmm}

@@ -17,6 +17,7 @@ import {
   Shield,
 } from "lucide-react";
 import { formatDisplayDate, formatHhmmTo12Hour } from "../lib/date-utils";
+import { getReservationInstrumentDisplayName } from "../lib/instrument-display";
 
 export interface ConditionCheckModalProps {
   isOpen: boolean;
@@ -77,6 +78,11 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
+  const isAdmin = Boolean(
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.isSuperAdmin,
+  );
 
   const [status, setStatus] = useState<"pristine" | "reported_issues">(
     reservation?.condition_status === "reported_issues"
@@ -305,7 +311,8 @@ export const ConditionCheckModal: React.FC<ConditionCheckModalProps> = ({
 
               <div className="flex items-center justify-between flex-wrap gap-2 pt-1 text-xs">
                 <div className="font-bold text-stone-900 text-sm">
-                  {reservation.instrument_name || "Instrument"}{" "}
+                  {getReservationInstrumentDisplayName(reservation, isAdmin) ||
+                    "Instrument"}{" "}
                   <span className="text-xs text-stone-500 font-normal">
                     ({reservation.instrument_type})
                   </span>

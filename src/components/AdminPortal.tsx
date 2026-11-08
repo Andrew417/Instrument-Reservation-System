@@ -68,6 +68,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
     setEditingInstrument(null);
     setInstrumentForm({
       name: "",
+      alias: "",
       type: DEFAULT_INSTRUMENT_TYPE,
       photoUrl: "",
       description: "",
@@ -85,6 +86,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
       setEditingInstrument(inst);
       setInstrumentForm({
         name: inst.name,
+        alias: inst.alias || "",
         type: inst.type,
         photoUrl: inst.photoUrl || inst.photo_url || "",
         description: inst.description || "",

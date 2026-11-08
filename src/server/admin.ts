@@ -1788,6 +1788,7 @@ router.get(
       SELECT 
         i.id,
         i.name,
+        i.alias,
         i.type,
         i.photo_url,
         i.description,
@@ -1815,6 +1816,7 @@ router.get(
       const formatted = (resDb.rows as any[]).map((inst) => ({
         id: inst.id,
         name: inst.name,
+        alias: inst.alias || null,
         type: inst.type,
         photoUrl: inst.photo_url,
         photo_url: inst.photo_url,
@@ -1870,6 +1872,7 @@ router.post(
     try {
       const {
         name,
+        alias,
         type,
         photoUrl,
         description,
@@ -1945,6 +1948,7 @@ router.post(
         .insert(instruments)
         .values({
           name: name.trim(),
+          alias: alias?.trim() || null,
           type: type.trim(),
           photoUrl: photoUrl?.trim() || null,
           description: description?.trim() || null,
@@ -1961,6 +1965,7 @@ router.post(
       const inst = inserted[0];
       const formatted = {
         ...inst,
+        alias: inst.alias || null,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,
@@ -1997,6 +2002,7 @@ router.put(
       const { id } = req.params;
       const {
         name,
+        alias,
         type,
         photoUrl,
         description,
@@ -2010,6 +2016,7 @@ router.put(
 
       const updates: any = {};
       if (name !== undefined) updates.name = name.trim();
+      if (alias !== undefined) updates.alias = alias ? alias.trim() : null;
       if (type !== undefined) updates.type = type.trim();
       if (photoUrl !== undefined) updates.photoUrl = photoUrl?.trim() || null;
       if (description !== undefined)
@@ -2125,6 +2132,7 @@ router.put(
 
       const formatted = {
         ...inst,
+        alias: inst.alias || null,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,

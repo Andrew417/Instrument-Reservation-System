@@ -296,6 +296,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       .select({
         id: instruments.id,
         name: instruments.name,
+        alias: instruments.alias,
         type: instruments.type,
         photoUrl: instruments.photoUrl,
         description: instruments.description,
@@ -316,6 +317,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     const formatted = sortInstrumentsByManualOrder(list).map((inst) => ({
       ...inst,
+      alias: inst.alias || null,
       booking_mode: inst.bookingMode,
       outside_fee_per_day: inst.outsideFeePerDay,
       visibility_level: inst.visibilityLevel,
@@ -359,6 +361,7 @@ router.get(
         .select({
           id: instruments.id,
           name: instruments.name,
+          alias: instruments.alias,
           type: instruments.type,
           photoUrl: instruments.photoUrl,
           description: instruments.description,
@@ -381,6 +384,7 @@ router.get(
         allInstruments,
       ).map((inst) => ({
         ...inst,
+        alias: inst.alias || null,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,
@@ -483,6 +487,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       .select({
         id: instruments.id,
         name: instruments.name,
+        alias: instruments.alias,
         type: instruments.type,
         photoUrl: instruments.photoUrl,
         description: instruments.description,
@@ -559,6 +564,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       success: true,
       instrument: {
         ...inst,
+        alias: inst.alias || null,
         booking_mode: inst.bookingMode,
         outside_fee_per_day: inst.outsideFeePerDay,
         visibility_level: inst.visibilityLevel,

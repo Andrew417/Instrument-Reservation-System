@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Zap,
   Info,
-  DollarSign,
   Music2,
   CalendarDays,
   Plus,
@@ -31,10 +30,12 @@ import {
   getCairoDateString,
   getCairoTimeString,
 } from "../lib/date-utils";
+import { getInstrumentDisplayName } from "../lib/instrument-display";
 
 export interface Instrument {
   id: string;
   name: string;
+  alias?: string | null;
   type: string;
   photoUrl: string | null;
   description: string | null;
@@ -697,8 +698,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                 className="w-3 h-3 accent-amber-700 cursor-pointer shrink-0"
                               />
                               <span className="truncate leading-none">
-                                {inst.name}
+                                {getInstrumentDisplayName(
+                                  inst,
+                                  isAdminOrSuperAdmin,
+                                )}
                               </span>
+                              {isAdminOrSuperAdmin && inst.alias && (
+                                <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-violet-50 text-violet-800 border border-violet-200/80 shrink-0">
+                                  {inst.alias}
+                                </span>
+                              )}
                             </label>
                           ))}
                         </div>
@@ -915,10 +924,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                     {t("calendar.slot30m")}
                   </th>
                   {Object.values(groupedInstruments).flatMap((typeInsts) =>
-                    typeInsts.map((inst) => {
-                      const hasFee =
-                        parseFloat(inst.outsideFeePerDay || "0") > 0;
-                      return (
+                    typeInsts.map((inst) => (
                         <th
                           key={inst.id}
                           id={`instrument-col-header-${inst.id}`}
@@ -953,6 +959,16 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   </span>
                                   <ChevronRight className="w-3.5 h-3.5 text-amber-600 group-hover:text-amber-800 group-hover:translate-x-0.5 shrink-0 transition-all rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
                                 </div>
+                                {inst.alias && (
+                                  <div className="mt-0.5 flex items-center">
+                                    <span
+                                      className="inline-block max-w-full truncate text-[10px] font-semibold px-1.5 py-0.5 bg-violet-50 text-violet-800 border border-violet-200/90 rounded-md shadow-2xs leading-tight"
+                                      title={inst.alias}
+                                    >
+                                      {inst.alias}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -1037,20 +1053,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                                   <span>{inst.serviceName || t("common.service")}</span>
                                 </span>
                               )}
-
-                              {hasFee && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
-                                  <span>
-                                    {t("common.egp")} {inst.outsideFeePerDay}
-                                    {t("common.perDay")}
-                                  </span>
-                                </span>
-                              )}
                             </div>
                           </div>
                         </th>
-                      );
-                    }),
+                      ))
                   )}
                 </tr>
               </thead>

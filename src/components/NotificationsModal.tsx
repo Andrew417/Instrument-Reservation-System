@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { REJECTION_REASON_PRESETS } from "../constants/reservationPresets.ts";
 import { getStatusColor } from "../lib/status-colors.ts";
+import { getReservationInstrumentDisplayName } from "../lib/instrument-display";
 import {
   Bell,
   CheckCircle2,
@@ -46,6 +47,7 @@ export interface AppNotification {
   service_name?: string | null;
   rejection_reason?: string | null;
   instrument_name?: string | null;
+  instrument_alias?: string | null;
   reservation_user_id?: string | null;
   user_name?: string | null;
   target_user_id?: string | null;
@@ -564,7 +566,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
     fallbackDate?: string,
   ): string => {
     const instrument = (
-      notif.instrument_name ||
+      getReservationInstrumentDisplayName(notif, isAdminViewer) ||
       fallbackInstrument ||
       (t("notifications.reservationFallback") as string) ||
       "Instrument"
@@ -1290,7 +1292,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                                 <Music2 className="w-2.5 h-2.5 text-stone-500 shrink-0" />
                                 <span className="truncate">
                                   {notif.service_name ||
-                                    notif.instrument_name ||
+                                    getReservationInstrumentDisplayName(
+                                      notif,
+                                      isAdminViewer,
+                                    ) ||
                                     t("notifications.reservationFallback")}
                                 </span>
                               </div>
@@ -1434,7 +1439,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   </h3>
                   <p className="text-[11px] text-stone-500 truncate max-w-[230px]">
                     {rejectingNotif.service_name ||
-                      rejectingNotif.instrument_name ||
+                      getReservationInstrumentDisplayName(
+                        rejectingNotif,
+                        isAdminViewer,
+                      ) ||
                       t("notifications.reservationFallback")}
                   </p>
                 </div>

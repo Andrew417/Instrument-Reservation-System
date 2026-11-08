@@ -50,14 +50,29 @@
 
 ## 2. Instrument Inventory, Visibility Levels & Type Requests
 
-### 2.1 Instrument Units & Visibility Levels
+### 2.1 Instrument Units, Aliases & Visibility Levels
 - Instruments represent individual physical assets (e.g., *Drum Kit #1*, *Yamaha Motif Keyboard #2*, *Bass Guitar #1*).
+- **Instrument Alias System (`alias`):**
+  - Admins can assign an optional text alias to each instrument (e.g., "red piano", "acoustic stage 1") via the Admin Portal (`InstrumentFormModal`).
+  - **Regular Member View:** Everywhere outside the calendar column headers, regular users see the combined display: `${name} - ${alias}` (e.g., `Yamaha E09 - red piano`).
+  - **Admin View:** Admins see the clean, precise inventory name (`Yamaha E09`) without the concatenated alias to maintain technical precision, and view the alias as a dedicated badge/tag.
+  - **Distinct Color Coding:** Alias badges use a dedicated **violet** palette (`bg-violet-50 text-violet-800 border-violet-200`) to guarantee zero visual confusion with Instant booking mode (emerald green) or Manual approval mode (amber/orange).
+  - **Dropdown Option Formatting:** In dropdown selects across reservation and series modals, instruments are cleanly formatted with the alias appended in brackets:
+    - Without dedicated service: `Acoustic Guitar #1 (Strings) - [Alias Name]`
+    - With dedicated service: `Grand Piano (Sanctuary) (Keyboard) — [Youth Fellowship] - [Alias Name]`
+  - **Modal Header Badge Placement:** In reservation modals (`ReservationFormModal`, `SeriesBuilderModal`, `EditReservationModal`), the violet alias badge appears in the service name position if no service is assigned, or sits directly beside the service name badge if both exist.
 - **Visibility Levels:**
   - **`public`**: Visible and bookable by all registered users.
   - **`musician`**: Visible and directly bookable by Musicians and Admins only. Completely hidden from regular users (enforced via server-side queries).
   - **`room_stock`**: Visible to Admins only. Cannot be booked directly; reserved for administrator assignment to type requests.
   - **`service`**: Dedicated to a specific church ministry/service (e.g. Youth, Choir). Visible and bookable only by users assigned to that service + Admins. Excluded from type request candidates. Requires a linked non-archived service.
   - **`out_of_service`**: Broken or unavailable instruments. Clearly badged across admin and calendar views; slot booking and type assignment are strictly disabled.
+- **Availability Calendar Display:**
+  - Column headers display the instrument name with the violet alias badge underneath.
+  - Price pill badges (`EGP /day`) are removed from column headers across the calendar to keep the timetable uncluttered; outside fees are displayed exclusively in outside-church reservation workflows, payment settings, and the Instrument Detail modal specs.
+- **Role-Based Default Landing View:**
+  - **Regular Members:** The application automatically opens on the **My Reservations** screen (`my_reservations`).
+  - **Admins & Super Admins:** The application opens on the master **Availability Calendar** (`calendar`).
 
 ### 2.2 Church Services & Access Management
 - **Services System (`services`, `user_services`):**
@@ -68,12 +83,17 @@
   - **Revoke Cascade & Audit:** Revoking a service from a member atomically cancels all future `pending` and `approved` reservations on that service's instruments with the cancellation reason `"Service access revoked"`. Notifies the user via Web Push, in-app bell, and email. Logs both grants and revokes in `service_assignment_audit_log` with an interactive sub-tab in `TrustedStatusTab`.
 
 
-### 2.2 Category Type Requests (Regular Members)
-- **Concept:** Regular members can choose to submit a request for an instrument category/type (e.g., "any Keyboard") instead of selecting a specific physical unit.
+### 2.2 Category & Specific Instrument Selection (Unified Reservation Form)
+- **Concept:** Specific instrument booking and category requests are unified into a single streamlined form without separate mode tabs.
+- **Connected Dropdown Interface:**
+  - **Category / Type Dropdown:** Displays available categories (e.g. Piano, Drums, Percussion, Strings), defaulting to **Piano**.
+  - **Instrument Dropdown:** Lists instruments filtered to the selected category, with the first option being `✨ Any available [Category] (Admin will assign)`.
+  - **Admin Assignment Mode:** If the user selects the "Any available" option or leaves the instrument unselected, the booking is submitted as a category type request (`isTypeRequest: true`, `instrumentId: null`). Church administration reviews the request and allocates an available instrument from church inventory.
+  - **Direct Booking Mode:** If the user selects a specific instrument from the dropdown, direct booking is submitted (`isTypeRequest: false`, `instrumentId` set), displaying the unit photo, alias tag, service badge, and booking mode.
 - **Category Configuration (`instrument_type_settings`):**
-  - **`can_be_requested`**: Admin-controlled boolean toggle per category (default `false`).
+  - **`can_be_requested`**: Admin-controlled boolean toggle per category.
   - **`flat_fee_outside`**: Fixed rental fee in EGP locked at submission time for outside-church usage.
-- **Behavioral Invariants:**
+- **Behavioral Invariants for Category Requests:**
   - Type requests **always start in `pending` status** (even for Trusted users).
   - Type requests do **not** block calendar slots and do not appear on public schedules until assigned.
   - Counts toward the user's active reservations limit (recurring series counts as 1).

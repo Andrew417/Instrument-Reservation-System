@@ -3,6 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { Instrument } from "./AvailabilityCalendar.tsx";
 import {
+  getInstrumentDisplayName,
+  formatInstrumentOptionLabel,
+} from "../lib/instrument-display";
+import {
   getCairoDateString,
   getCairoTimeString,
   formatHhmmTo12Hour,
@@ -1158,7 +1162,7 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-stone-900 truncate">
-                      {currentInstrument?.name}
+                      {getInstrumentDisplayName(currentInstrument, isAdmin)}
                     </div>
                     <div className="text-[10px] sm:text-[11px] text-stone-500 truncate">
                       {currentInstrument?.type} •{" "}
@@ -1199,10 +1203,13 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                     >
                       {allInstruments.map((inst) => (
                         <option key={inst.id} value={inst.id}>
-                          {inst.name} ({inst.type}) —{" "}
-                          {inst.bookingMode === "instant"
-                            ? t("common.instant")
-                            : t("common.manual")}
+                          {formatInstrumentOptionLabel(inst, {
+                            showBookingMode: true,
+                            bookingModeLabel:
+                              inst.bookingMode === "instant"
+                                ? t("common.instant")
+                                : t("common.manual"),
+                          })}
                         </option>
                       ))}
                     </select>
@@ -1219,6 +1226,16 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = ({
                 )}
 
                 <div className="flex flex-wrap items-center gap-1.5">
+                  {currentInstrument?.serviceName?.trim() && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-extrabold text-blue-900 bg-blue-100 border border-blue-200 whitespace-nowrap">
+                      {currentInstrument.serviceName.trim()}
+                    </span>
+                  )}
+                  {currentInstrument?.alias?.trim() && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-extrabold text-violet-800 bg-violet-50 border border-violet-200 whitespace-nowrap">
+                      {currentInstrument.alias.trim()}
+                    </span>
+                  )}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-semibold bg-stone-100 text-stone-700 border border-stone-200 whitespace-nowrap">
                     {t("reservationForm.typeBadgeLabel", {
                       type: currentInstrument?.type,

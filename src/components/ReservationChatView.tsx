@@ -26,6 +26,7 @@ import { useAuth } from "../contexts/AuthContext.tsx";
 import { LoadingSpinner } from "./shared/LoadingSpinner.tsx";
 import { formatDisplayDate, formatHhmmTo12Hour } from "../lib/date-utils.js";
 import { getStatusColor } from "../lib/status-colors.ts";
+import { getReservationInstrumentDisplayName } from "../lib/instrument-display";
 
 /**
  * Option A (Grace Period Lifecycle):
@@ -524,6 +525,7 @@ export const ReservationChatView: React.FC<ReservationChatViewProps> = ({
       list = list.filter((c) => {
         const sName = (c.service_name || "").toLowerCase();
         const iName = (c.instrument_name || c.requested_type || "").toLowerCase();
+        const iAlias = (c.instrument_alias || "").toLowerCase();
         const mName = (c.musician_name || c.user_name || "").toLowerCase();
         const uPhone = (c.user_phone || "").toLowerCase();
         const uEmail = (c.user_email || "").toLowerCase();
@@ -531,6 +533,7 @@ export const ReservationChatView: React.FC<ReservationChatViewProps> = ({
         return (
           sName.includes(term) ||
           iName.includes(term) ||
+          iAlias.includes(term) ||
           mName.includes(term) ||
           uPhone.includes(term) ||
           uEmail.includes(term) ||
@@ -1040,7 +1043,9 @@ export const ReservationChatView: React.FC<ReservationChatViewProps> = ({
                     "Church Service",
                   );
                 const instrumentName =
-                  conv.instrument_name || conv.requested_type || "Instrument";
+                  getReservationInstrumentDisplayName(conv, isAdmin) ||
+                  conv.requested_type ||
+                  "Instrument";
                 const dateTimeText = formatReservationDateTime(conv);
                 const memberName =
                   conv.user_name || conv.musician_name || "Member";
@@ -1111,6 +1116,11 @@ export const ReservationChatView: React.FC<ReservationChatViewProps> = ({
                           <span className="truncate text-stone-700 font-semibold">
                             {instrumentName}
                           </span>
+                          {isAdmin && conv.instrument_alias && (
+                            <span className="ms-1.5 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200 shrink-0">
+                              {conv.instrument_alias}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {getThreadClosureStatus(conv).isClosed && (
@@ -1263,9 +1273,16 @@ export const ReservationChatView: React.FC<ReservationChatViewProps> = ({
                       </div>
                       <div className="text-[10.5px] sm:text-xs text-stone-500 truncate flex items-center gap-1 font-medium mt-0.5">
                         <span className="text-stone-800 font-semibold truncate">
-                          {selectedReservation.instrument_name ||
-                            selectedReservation.requested_type}
+                          {getReservationInstrumentDisplayName(
+                            selectedReservation,
+                            isAdmin,
+                          ) || selectedReservation.requested_type}
                         </span>
+                        {isAdmin && selectedReservation.instrument_alias && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200 shrink-0">
+                            {selectedReservation.instrument_alias}
+                          </span>
+                        )}
                         <span>•</span>
                         <span className="truncate">
                           {selectedReservation.service_name}

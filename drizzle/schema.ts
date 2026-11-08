@@ -23,6 +23,7 @@ export const instruments = pgTable(
   {
     id: uuid().defaultRandom().notNull(),
     name: text().notNull(),
+    alias: text(),
     type: text().notNull(),
     photoUrl: text("photo_url"),
     description: text(),

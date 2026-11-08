@@ -406,11 +406,6 @@ export async function evaluateReservationSubmission(
 
   // BRANCH A: TYPE REQUEST
   if (isTypeRequest) {
-    if (isMusician && !isAdmin && !cleanAdminId) {
-      throw new Error(
-        "Musicians don't use type requests; they book visible instruments directly.",
-      );
-    }
     const cleanType = requestedType?.trim();
     if (!cleanType) {
       throw new Error("Requested instrument type is required.");
@@ -1176,12 +1171,6 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     await resolveUserAndAdminIds(userId, adminId);
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
-
-  if (input.isTypeRequest && isMusician && !isAdmin && !cleanAdminId) {
-    throw new Error(
-      "Musicians don't use type requests; they book visible instruments directly.",
-    );
-  }
 
   const cleanRequestedType = input.isTypeRequest
     ? input.requestedType?.trim()

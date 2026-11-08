@@ -13,6 +13,7 @@ import {
 } from "../lib/date-utils";
 import { useWindowExpiryTimer } from "../hooks/useWindowExpiryTimer";
 import { ConditionCheckModal } from "./ConditionCheckModal.tsx";
+import { getReservationInstrumentDisplayName } from "../lib/instrument-display";
 import {
   Calendar,
   Clock,
@@ -1031,8 +1032,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 {t("reservationDetail.title")}
               </h2>
               <p className="text-[10px] sm:text-[11px] text-stone-400 truncate">
-                {reservation.instrument_name || "Instrument"} · #
-                {reservation.id.substring(0, 6)}
+                {getReservationInstrumentDisplayName(
+                  reservation,
+                  isAdminViewer,
+                ) || "Instrument"}{" "}
+                · #{reservation.id.substring(0, 6)}
               </p>
             </div>
           </div>
@@ -1539,11 +1543,20 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           })
                         : t("reservationDetail.instrument")}
                     </div>
-                    <div className="font-bold text-stone-900 text-[13px] truncate">
-                      {reservation.is_type_request && !reservation.instrument_id
-                        ? `${reservation.requested_type || reservation.instrument_type} (${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })})`
-                        : reservation.instrument_name ||
-                          t("reservationDetail.instrument")}
+                    <div className="font-bold text-stone-900 text-[13px] flex items-center gap-1.5 flex-wrap">
+                      <span className="truncate">
+                        {reservation.is_type_request && !reservation.instrument_id
+                          ? `${reservation.requested_type || reservation.instrument_type} (${t("reservations.awaitingAssignment", { defaultValue: "Awaiting assignment" })})`
+                          : getReservationInstrumentDisplayName(
+                              reservation,
+                              isAdminViewer,
+                            ) || t("reservationDetail.instrument")}
+                      </span>
+                      {isAdminViewer && (reservation.instrument_alias || reservation.instrumentAlias) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200 shrink-0">
+                          {reservation.instrument_alias || reservation.instrumentAlias}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1556,6 +1569,18 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
 
               {showInstrumentDetails && (
                 <div className="px-3 pb-3 space-y-1.5 text-[11px] sm:text-xs border-t border-stone-200 pt-2.5">
+                  {reservation.instrument_alias && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-stone-500">
+                        {t("admin.modals.instrumentForm.aliasLabel", {
+                          defaultValue: "Alias",
+                        })}
+                      </span>
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-800 border border-violet-200">
+                        {reservation.instrument_alias}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-stone-500">
                       {t("reservationDetail.type")}
