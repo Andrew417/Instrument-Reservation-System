@@ -1499,82 +1499,57 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                   </div>
 
-                  {/* Reused Conflict Warning Panel from SeriesBuilderModal (adapted for single reservation) */}
+                  {/* Minimal Conflict Warning Card - Mobile Friendly & Structured */}
                   {hasConflict && (
                     <div
                       id="reservation-conflict-warning-panel"
-                      className="bg-red-50 border border-red-200 rounded-2xl p-3 space-y-2.5 animate-in fade-in shadow-2xs"
+                      className="rounded-xl border border-rose-200/90 bg-rose-50/80 p-3 sm:p-3.5 space-y-2.5 animate-in fade-in"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-red-950 font-bold text-[11px] sm:text-xs">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                          <span>
-                            {t("seriesBuilder.conflictsDetectedTitle", {
-                              count: conflictingReservations.length,
-                              defaultValue: `Conflicts Detected (${conflictingReservations.length} issue)`,
-                            })}{" "}
-                            {t("seriesBuilder.submissionDisabledSuffix", {
-                              defaultValue: "— Submission Disabled",
-                            })}
-                          </span>
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-rose-100 border border-rose-200/80 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+                          <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
                         </div>
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-semibold text-rose-950">
+                              {t("reservationForm.conflictLineWarning", {
+                                defaultValue: isAr ? "الآلة محجوزة بالفعل في هذا الوقت:" : "This instrument is already booked:",
+                              })}
+                            </span>
+                            <span className="inline-flex items-center font-mono font-bold text-rose-800 bg-white/90 border border-rose-200/90 px-2 py-0.5 rounded-md text-[11px] shadow-2xs">
+                              {conflictingTimesFormatted}
+                            </span>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-rose-800/90 leading-relaxed">
+                            {t("reservationForm.conflictResolutionHint", {
+                              defaultValue: isAr ? "يرجى تغيير الوقت أو اختيار آلة أخرى." : "Please change the time or choose another instrument.",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-rose-200/60 flex items-center justify-end">
                         <button
                           type="button"
                           onClick={() => setSelectedInstrumentId("")}
-                          className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-[11px] rounded-lg shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation"
-                          title={
-                            isAr
-                              ? `طلب تخصيص من الإدارة (أي ${selectedCategory})`
-                              : `Assign any available ${selectedCategory}`
-                          }
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-100/70 active:bg-rose-200/50 border border-rose-300 text-rose-900 font-semibold text-xs rounded-lg shadow-2xs transition cursor-pointer touch-manipulation"
                         >
-                          <Sparkles className="w-3 h-3" />
+                          <Sparkles className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                           <span>
-                            {isAr
-                              ? `طلب تخصيص من الإدارة (أي ${selectedCategory})`
-                              : `Let Admin Assign (Any ${selectedCategory})`}
+                            {t("reservationForm.conflictLetAdminAssign", {
+                              category: selectedCategory,
+                              defaultValue: isAr
+                                ? `طلب تخصيص تلقائي (أي ${selectedCategory})`
+                                : `Or let admin assign (Any ${selectedCategory})`,
+                            })}
                           </span>
                         </button>
-                      </div>
-                      <div className="space-y-1 pt-1">
-                        {conflictingReservations.map((conf, i) => {
-                          const resStartHhmm = conf.startHhmm || conf.start_hhmm;
-                          const resEndHhmm = conf.endHhmm || conf.end_hhmm;
-                          return (
-                            <div
-                              key={i}
-                              className="bg-white/80 border border-red-200 rounded-lg p-1.5 text-[11px] text-red-900 flex items-start gap-2"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0" />
-                              <span className="leading-snug">
-                                {isAr ? (
-                                  <>
-                                    الحجز في {date} ({formatHhmmTo12Hour(startTime)} ← {formatHhmmTo12Hour(endTimeStr)}) يتعارض مع حجز موجود ({formatHhmmTo12Hour(resStartHhmm)} ← {formatHhmmTo12Hour(resEndHhmm)}).
-                                  </>
-                                ) : (
-                                  <>
-                                    Reservation on {date} ({formatHhmmTo12Hour(startTime)} → {formatHhmmTo12Hour(endTimeStr)}) conflicts with existing reservation ({formatHhmmTo12Hour(resStartHhmm)} → {formatHhmmTo12Hour(resEndHhmm)}).
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Section 4: Usage Type */}
-                <ReservationUsageTypeSelector
-                  reservationType={reservationType}
-                  onReservationTypeChange={setReservationType}
-                  feeAcknowledged={feeAcknowledged}
-                  onFeeAcknowledgedChange={setFeeAcknowledged}
-                  feePerDay={feeNumber}
-                />
-
-                {/* Section 5: Recurring toggle */}
+                {/* Section 4: Recurring toggle */}
                 <div
                   className={`rounded-2xl p-2.5 sm:p-3 shadow-2xs transition border ${
                     isRecurring
@@ -1620,6 +1595,15 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* Section 5: Usage Type */}
+                <ReservationUsageTypeSelector
+                  reservationType={reservationType}
+                  onReservationTypeChange={setReservationType}
+                  feeAcknowledged={feeAcknowledged}
+                  onFeeAcknowledgedChange={setFeeAcknowledged}
+                  feePerDay={feeNumber}
+                />
               </div>
 
               {/* ── Footer ── */}
@@ -1721,60 +1705,77 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         </div>
       )}
 
-      {/* Schedule Conflict Popup Dialog */}
+      {/* Schedule Conflict Popup Dialog - Minimal & Actionable */}
       {showConflictPopup && (
         <div
           id="reservation-conflict-popup-backdrop"
-          className="fixed inset-0 z-[200] bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-[200] bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setShowConflictPopup(false)}
         >
           <div
             id="reservation-conflict-popup"
             role="dialog"
             aria-modal="true"
-            className="bg-white rounded-3xl border border-rose-200 shadow-2xl max-w-sm w-full p-4 sm:p-5 space-y-4 text-stone-800 animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl border border-stone-200/90 shadow-xl max-w-sm w-full p-5 space-y-4 text-stone-800 animate-in zoom-in-95 duration-150"
             dir={isAr ? "rtl" : "ltr"}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0 shadow-xs">
-                <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
+              <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-200/80 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-sm sm:text-base text-stone-900">
-                  {isAr ? "تعارض في المواعيد" : "Schedule Conflict"}
+                <h3 className="font-bold text-sm sm:text-base text-stone-900 leading-tight">
+                  {isAr ? "تعارض في الموعد" : "Schedule Conflict"}
                 </h3>
-                <p className="text-xs sm:text-[13px] text-stone-700 mt-1.5 leading-relaxed font-medium">
+                <p className="text-xs sm:text-[13px] text-stone-600 mt-1 leading-relaxed">
                   {t("reservationForm.conflictPopupText", {
                     defaultValue: isAr
-                      ? "يوجد تعارض، يرجى اختيار آلة أخرى أو تغيير الوقت لتجنب التعارض."
-                      : "There is a conflict, please choose another instrument or change time to avoid conflicting.",
+                      ? "هذه الآلة محجوزة بالفعل خلال هذا الوقت. يرجى تغيير الوقت أو اختيار آلة أخرى."
+                      : "This instrument is already booked during this time. Please change the time or choose another instrument.",
                   })}
                 </p>
               </div>
             </div>
 
             {conflictingTimesFormatted && (
-              <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-xs text-rose-900">
-                <span className="font-bold block text-[11px] text-rose-800 mb-0.5">
+              <div className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs flex items-center justify-between gap-2">
+                <span className="text-stone-500 font-medium">
                   {t("reservationForm.conflictingTimesLabel", {
-                    defaultValue: isAr ? "الأوقات المتعارضة:" : "Conflicting times:",
+                    defaultValue: isAr ? "الوقت المحجوز:" : "Booked time:",
                   })}
                 </span>
-                <span className="font-mono font-bold text-rose-950">
+                <span className="font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200/60">
                   {conflictingTimesFormatted}
                 </span>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-1 border-t border-stone-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedInstrumentId("");
+                  setShowConflictPopup(false);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl border border-stone-200 hover:bg-stone-50 active:bg-stone-100 text-stone-700 font-semibold text-xs transition cursor-pointer text-center inline-flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>
+                  {isAr
+                    ? `تخصيص تلقائي (${selectedCategory || "النوع"})`
+                    : `Auto-assign (${selectedCategory || "Any"})`}
+                </span>
+              </button>
               <button
                 type="button"
                 id="btn-close-conflict-popup"
                 onClick={() => setShowConflictPopup(false)}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-800 hover:bg-amber-900 active:scale-95 text-white font-bold text-xs sm:text-[13px] transition cursor-pointer shadow-sm"
+                className="flex-1 py-2 px-3 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white font-semibold text-xs transition cursor-pointer shadow-xs text-center"
               >
-                {isAr ? "حسناً، فهمت" : "OK, I understand"}
+                {t("reservationForm.conflictAdjustTime", {
+                  defaultValue: isAr ? "تعديل الموعد" : "Adjust Time",
+                })}
               </button>
             </div>
           </div>
