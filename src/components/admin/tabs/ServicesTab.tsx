@@ -30,9 +30,13 @@ export interface ServiceItem {
 
 export interface ServicesTabProps {
   onServiceUpdated?: () => void;
+  onOpenUserProfile: (userId: string) => void;
 }
 
-export const ServicesTab: React.FC<ServicesTabProps> = ({ onServiceUpdated }) => {
+export const ServicesTab: React.FC<ServicesTabProps> = ({
+  onServiceUpdated,
+  onOpenUserProfile,
+}) => {
   const { t } = useTranslation();
 
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -659,6 +663,7 @@ export const ServicesTab: React.FC<ServicesTabProps> = ({ onServiceUpdated }) =>
         isOpen={Boolean(selectedServiceForUsers)}
         service={selectedServiceForUsers}
         onClose={() => setSelectedServiceForUsers(null)}
+        onOpenUserProfile={onOpenUserProfile}
         onUpdated={() => {
           fetchServices();
           if (onServiceUpdated) onServiceUpdated();

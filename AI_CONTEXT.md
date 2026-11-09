@@ -2,7 +2,7 @@
 
 > This auto-generated index contains the signatures, types, and routes of the application without full function bodies. Feed this to AI assistants along with ARCHITECTURE.md.
 
-**Total Files Scanned:** 95
+**Total Files Scanned:** 98
 
 ## Components (UI)
 
@@ -56,6 +56,12 @@ export const EditReservationModal: React.FC<EditReservationModalProps> = (
 ```typescript
 export interface HandoverSheetModalProps
 export const HandoverSheetModal: React.FC<HandoverSheetModalProps> = (
+```
+
+### `src/components/InstallAppPrompt.tsx` (156 lines)
+```typescript
+export interface InstallAppPromptProps
+export const InstallAppPrompt: React.FC<InstallAppPromptProps> = (
 ```
 
 ### `src/components/InstrumentDetailModal.tsx` (1318 lines)
@@ -134,7 +140,7 @@ export interface ReservationFiltersPopoverProps
 export const ReservationFiltersPopover: React.FC<
 ```
 
-### `src/components/ReservationFormModal.tsx` (1395 lines)
+### `src/components/ReservationFormModal.tsx` (1794 lines)
 ```typescript
 export interface SeriesPrefill
 export interface ReservationFormProps
@@ -430,7 +436,7 @@ export async function withUserContext<T>(
 
 ## Services & Business Logic
 
-### `src/services/reservation-logic.ts` (4542 lines)
+### `src/services/reservation-logic.ts` (4531 lines)
 ```typescript
 export interface TimeSlot
 export interface ReservationSubmissionInput
@@ -528,7 +534,7 @@ export function buildHardLimitsPayload(state: any)
 ### `src/lib/i18n.ts` (53 lines)
 *No top-level exports or routes detected*
 
-### `src/lib/instrument-display.ts` (139 lines)
+### `src/lib/instrument-display.ts` (142 lines)
 ```typescript
 export function getInstrumentDisplayName(
 export function getReservationInstrumentDisplayName(
@@ -655,7 +661,7 @@ export async function seedSuperAdmin(): Promise<void>
 
 ## Contexts & Core
 
-### `src/App.tsx` (1726 lines)
+### `src/App.tsx` (1775 lines)
 *No top-level exports or routes detected*
 
 ### `src/contexts/AuthContext.tsx` (404 lines)

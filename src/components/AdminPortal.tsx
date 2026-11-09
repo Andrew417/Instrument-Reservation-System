@@ -418,6 +418,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
 
         {admin.activeTab === "services" && (
           <ServicesTab
+            onOpenUserProfile={admin.openUserProfile}
             onServiceUpdated={() => {
               admin.fetchInstruments();
               admin.fetchUsers();

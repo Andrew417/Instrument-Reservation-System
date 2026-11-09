@@ -109,6 +109,7 @@ export const AdminModalsHost: React.FC<AdminModalsHostProps> = ({
           }}
           isSuperAdmin={admin.isSuperAdmin}
           sessionToken={admin.sessionToken}
+          zIndexClass="z-[150]"
           onUserUpdated={() => {
             admin.fetchUsers();
             admin.fetchApprovals();

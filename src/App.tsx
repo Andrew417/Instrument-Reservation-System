@@ -23,6 +23,12 @@ import { UserDetailModal } from "./components/UserDetailModal.tsx";
 import { ConditionCheckModal } from "./components/ConditionCheckModal.tsx";
 import { MusicianMinistryProfileModal } from "./components/MusicianMinistryProfileModal.tsx";
 import { PushNotificationPrompt } from "./components/PushNotificationPrompt.tsx";
+import { InstallAppPrompt } from "./components/InstallAppPrompt.tsx";
+import {
+  InstallPromptState,
+  useInstallPrompt,
+} from "./hooks/useInstallPrompt.ts";
+import { useAppModalSequence } from "./hooks/useAppModalSequence.ts";
 import {
   LogOut,
   Sparkles,
@@ -54,7 +60,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Search,
   ArrowLeft,
 } from "lucide-react";
 
@@ -127,7 +132,13 @@ const getAdminTabIcon = (
   }
 };
 
-const UserPortalMain: React.FC = () => {
+const POLICY_EXPLAINER_SEEN_KEY = "policy_explainer_seen";
+
+interface UserPortalMainProps {
+  installPrompt: InstallPromptState;
+}
+
+const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
   // Admin tab list (published by AdminPortal via event bus)
   const [adminTabs, setAdminTabs] = useState<AdminTabInfo[]>([]);
   const [activeAdminTabId, setActiveAdminTabId] = useState<string>("dashboard");
@@ -158,11 +169,62 @@ const UserPortalMain: React.FC = () => {
   useEffect(() => {
     // Only automatically pop up for regular users, never for admins or superadmins
     if (profile && !isAdminOrSuperAdmin) {
-      setIsPolicyModalOpen(true);
+      let hasSeenPolicy = false;
+      try {
+        hasSeenPolicy =
+          localStorage.getItem(`${POLICY_EXPLAINER_SEEN_KEY}:${profile.id}`) ===
+          "true";
+      } catch {
+        hasSeenPolicy = false;
+      }
+      setIsPolicyModalOpen(!hasSeenPolicy);
     } else {
       setIsPolicyModalOpen(false);
     }
   }, [profile?.id, profile?.role, isAdminOrSuperAdmin]);
+
+  // Hook managing PWA installation state and native/iOS prompts
+  const {
+    isInstalled,
+    canPromptNatively,
+    isIOSManualInstall,
+    isAndroidManualInstall,
+    isInstallApplicable,
+    promptInstall,
+    dismiss: dismissInstallPrompt,
+  } = installPrompt;
+
+  // Enforce sequential popup display: PolicyExplainerModal -> InstallAppPrompt -> PushNotificationPrompt
+  const {
+    showInstallPrompt,
+    showPushPrompt,
+    handleInstallModalClose,
+  } = useAppModalSequence({
+    isPolicyModalOpen,
+    isInstallApplicable,
+  });
+
+  useEffect(() => {
+    console.log("[InstallPrompt] sequence", {
+      standalone: isInstalled,
+      cooldownActive: false,
+      policyResolved: !isPolicyModalOpen,
+      installStepActive: showInstallPrompt,
+      modalRendered:
+        showInstallPrompt &&
+        (!isInstalled &&
+          (canPromptNatively ||
+            isIOSManualInstall ||
+            isAndroidManualInstall)),
+    });
+  }, [
+    isInstalled,
+    isPolicyModalOpen,
+    showInstallPrompt,
+    canPromptNatively,
+    isIOSManualInstall,
+    isAndroidManualInstall,
+  ]);
   // Navigation View: 'calendar' (Screen 2) | 'my_reservations' (Screen 5) | 'chat' | 'admin_portal'
   const [currentView, setCurrentView] = useState<
     "calendar" | "my_reservations" | "chat" | "admin_portal" | "notifications"
@@ -244,8 +306,6 @@ const UserPortalMain: React.FC = () => {
     }
     return false;
   });
-  const [sidebarSearchTerm, setSidebarSearchTerm] = useState<string>("");
-
   const toggleSidebarCollapsed = () => {
     setIsSidebarCollapsed((prev) => {
       const next = !prev;
@@ -290,7 +350,8 @@ const UserPortalMain: React.FC = () => {
     conditionCheckReservation ||
     selectedUserId ||
     selectedInstrument ||
-    assigningReservation,
+    assigningReservation ||
+    showInstallPrompt,
   );
 
   const handleOpenUserProfile = (userId: string) => {
@@ -676,8 +737,8 @@ const UserPortalMain: React.FC = () => {
             : ""
         }`}
       >
-        {/* Friendly Web Push Notification Enable Prompt */}
-        <PushNotificationPrompt />
+        {/* Friendly Web Push Notification Enable Prompt - sequentially rendered after Policy and Install prompts */}
+        {showPushPrompt && <PushNotificationPrompt />}
 
         {currentView === "calendar" && (
           <AvailabilityCalendar
@@ -977,7 +1038,31 @@ const UserPortalMain: React.FC = () => {
 
       <PolicyExplainerModal
         isOpen={isPolicyModalOpen}
-        onClose={() => setIsPolicyModalOpen(false)}
+        onClose={() => {
+          if (profile?.id) {
+            try {
+              localStorage.setItem(
+                `${POLICY_EXPLAINER_SEEN_KEY}:${profile.id}`,
+                "true",
+              );
+            } catch {
+              console.warn("[InstallPrompt] Unable to persist policy state");
+            }
+          }
+          setIsPolicyModalOpen(false);
+        }}
+      />
+
+      {/* Add to Home Screen / Install App Prompt Modal */}
+      <InstallAppPrompt
+        isOpen={showInstallPrompt}
+        onClose={handleInstallModalClose}
+        isInstalled={isInstalled}
+        canPromptNatively={canPromptNatively}
+        isIOSManualInstall={isIOSManualInstall}
+        isAndroidManualInstall={isAndroidManualInstall}
+        promptInstall={promptInstall}
+        onDismiss={dismissInstallPrompt}
       />
 
       {/* Musician Ministry Profile Modal (Celebration of Service) */}
@@ -1295,7 +1380,7 @@ const UserPortalMain: React.FC = () => {
           {/* Backdrop (mobile only) */}
           {isAdminSidebarOpen && (
             <div
-              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in duration-150"
+              className="fixed inset-x-0 top-16 bottom-0 z-[60] bg-black/50 backdrop-blur-xs lg:hidden animate-in fade-in duration-150"
               onClick={() => setIsAdminSidebarOpen(false)}
               aria-hidden="true"
             />
@@ -1304,7 +1389,7 @@ const UserPortalMain: React.FC = () => {
           {/* Sidebar panel */}
           <aside
             dir={isRTL ? "rtl" : "ltr"}
-            className={`fixed top-0 z-[80] bg-white border-stone-200 shadow-2xl flex-col h-[100dvh] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transition-all duration-200 lg:flex ${
+            className={`fixed top-16 z-[80] bg-white border-stone-200 shadow-2xl flex-col h-[calc(100dvh-4rem)] pb-[env(safe-area-inset-bottom)] transition-all duration-200 lg:flex ${
               isRTL
                 ? "right-0 border-l lg:border-l"
                 : "left-0 border-r lg:border-r"
@@ -1403,54 +1488,13 @@ const UserPortalMain: React.FC = () => {
               </button>
             </div>
 
-            {/* Quick search input (only when expanded) */}
-            {!isSidebarCollapsed && (
-              <div className="px-3 pt-3 pb-1 shrink-0">
-                <div className="relative">
-                  <Search
-                    className={`w-3.5 h-3.5 text-stone-400 absolute top-1/2 -translate-y-1/2 ${
-                      isRTL ? "right-2.5" : "left-2.5"
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    value={sidebarSearchTerm}
-                    onChange={(e) => setSidebarSearchTerm(e.target.value)}
-                    placeholder={t("admin.sidebar.searchTabs")}
-                    className={`w-full text-xs rounded-xl bg-stone-50 border border-stone-200 py-1.5 text-stone-800 placeholder-stone-400 focus:outline-none focus:border-amber-700 focus:bg-white transition ${
-                      isRTL ? "pr-8 pl-6" : "pl-8 pr-6"
-                    }`}
-                  />
-                  {sidebarSearchTerm && (
-                    <button
-                      type="button"
-                      onClick={() => setSidebarSearchTerm("")}
-                      className={`absolute top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 ${
-                        isRTL ? "left-2" : "right-2"
-                      }`}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Tabs List */}
             <div className="flex-1 overflow-y-auto py-2 px-2 space-y-3">
               {/* Operations section */}
               {(() => {
-                const filteredOps = adminTabs
-                  .filter((tab) => tab.section === "operations")
-                  .filter(
-                    (tab) =>
-                      !sidebarSearchTerm ||
-                      tab.label
-                        .toLowerCase()
-                        .includes(sidebarSearchTerm.toLowerCase()),
-                  );
-
-                if (filteredOps.length === 0 && sidebarSearchTerm) return null;
+                const filteredOps = adminTabs.filter(
+                  (tab) => tab.section === "operations",
+                );
 
                 return (
                   <div>
@@ -1551,17 +1595,7 @@ const UserPortalMain: React.FC = () => {
               {(profile?.role === "super_admin" || profile?.isSuperAdmin) &&
                 (() => {
                   const filteredSuper = adminTabs
-                    .filter((tab) => tab.section === "super_admin")
-                    .filter(
-                      (tab) =>
-                        !sidebarSearchTerm ||
-                        tab.label
-                          .toLowerCase()
-                          .includes(sidebarSearchTerm.toLowerCase()),
-                    );
-
-                  if (filteredSuper.length === 0 && sidebarSearchTerm)
-                    return null;
+                    .filter((tab) => tab.section === "super_admin");
 
                   return (
                     <div className="pt-1">
@@ -1661,17 +1695,6 @@ const UserPortalMain: React.FC = () => {
                   );
                 })()}
 
-              {/* No search results fallback */}
-              {sidebarSearchTerm &&
-                adminTabs.filter((t) =>
-                  t.label
-                    .toLowerCase()
-                    .includes(sidebarSearchTerm.toLowerCase()),
-                ).length === 0 && (
-                  <div className="py-6 text-center text-xs text-stone-400">
-                    {t("admin.sidebar.noMatchingTabs")}
-                  </div>
-                )}
             </div>
 
             {/* Bottom Return to Member View quick link */}
@@ -1717,6 +1740,7 @@ export default function App() {
 const AppRoot: React.FC = () => {
   const { t } = useTranslation();
   const { firebaseUser, loading } = useAuth();
+  const installPrompt = useInstallPrompt();
 
   if (loading) {
     return (
@@ -1735,5 +1759,5 @@ const AppRoot: React.FC = () => {
     return <AuthScreen />;
   }
 
-  return <UserPortalMain />;
+  return <UserPortalMain installPrompt={installPrompt} />;
 };

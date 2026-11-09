@@ -8,6 +8,8 @@ import {
   Trash2,
   RefreshCw,
   Sliders,
+  Search,
+  X,
 } from "lucide-react";
 import { LoadingSpinner } from "../../shared/LoadingSpinner";
 import { useAuth } from "../../../contexts/AuthContext.tsx";
@@ -44,6 +46,7 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
   const [loadingTypes, setLoadingTypes] = useState<boolean>(false);
   const [savingType, setSavingType] = useState<string | null>(null);
   const [showInstrumentFilters, setShowInstrumentFilters] = useState(false);
+  const [instrumentSearch, setInstrumentSearch] = useState("");
   const [inventorySubTab, setInventorySubTab] = useState<
     "instruments" | "categories"
   >("instruments");
@@ -84,6 +87,16 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
     () =>
       instrumentsList
         .filter((instrument) => {
+          const searchTerm = instrumentSearch.trim().toLocaleLowerCase();
+          const searchableText = [
+            instrument.name,
+            instrument.alias,
+            instrument.type,
+            instrument.description,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLocaleLowerCase();
           const isRetired = Boolean(
             instrument.isRemoved ?? instrument.is_removed,
           );
@@ -107,6 +120,7 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
             !instrumentFilters.bookingModes.length ||
             instrumentFilters.bookingModes.includes(bookingMode);
           return (
+            (!searchTerm || searchableText.includes(searchTerm)) &&
             matchesStatus &&
             matchesType &&
             matchesVisibility &&
@@ -118,7 +132,7 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
           const bIsRetired = Boolean(b.isRemoved ?? b.is_removed);
           return Number(aIsRetired) - Number(bIsRetired);
         }),
-    [instrumentFilters, instrumentsList],
+    [instrumentFilters, instrumentSearch, instrumentsList],
   );
 
   const fetchTypes = async () => {
@@ -177,38 +191,37 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3 flex-wrap">
         {/* Sub-tab switcher (left) */}
-        <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200 shrink-0">
-          <button
-            type="button"
-            onClick={() => setInventorySubTab("instruments")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-              inventorySubTab === "instruments"
-                ? "bg-amber-800 text-white shadow-2xs"
-                : "text-stone-600 hover:text-stone-900"
-            }`}
-          >
-            {t("admin.instruments.tabInstruments", {
-              defaultValue: "Instruments",
-            })}
-          </button>
-          <button
-            type="button"
-            onClick={() => setInventorySubTab("categories")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
-              inventorySubTab === "categories"
-                ? "bg-amber-800 text-white shadow-2xs"
-                : "text-stone-600 hover:text-stone-900"
-            }`}
-          >
-            {t("admin.instruments.tabCategories", {
-              defaultValue: "Category Settings",
-            })}
-          </button>
-        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
+            <button
+              type="button"
+              onClick={() => setInventorySubTab("instruments")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                inventorySubTab === "instruments"
+                  ? "bg-amber-800 text-white shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              {t("admin.instruments.tabInstruments", {
+                defaultValue: "Instruments",
+              })}
+            </button>
+            <button
+              type="button"
+              onClick={() => setInventorySubTab("categories")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                inventorySubTab === "categories"
+                  ? "bg-amber-800 text-white shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              {t("admin.instruments.tabCategories", {
+                defaultValue: "Category Settings",
+              })}
+            </button>
+          </div>
 
-        {inventorySubTab === "instruments" && (
-          <div className="flex items-center justify-between gap-2 flex-1 min-w-[260px]">
-            {/* Filter (left) - Standard icon-only button */}
+          {inventorySubTab === "instruments" && (
             <ReservationFiltersPopover
               open={showInstrumentFilters}
               onToggle={() => setShowInstrumentFilters((open) => !open)}
@@ -219,8 +232,37 @@ export const InstrumentsTab: React.FC<InstrumentsTabProps> = ({
               isAr={false}
               context="instrument"
             />
+          )}
+        </div>
 
-            {/* Add Instrument (right) */}
+        {inventorySubTab === "instruments" && (
+          <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+            <div className="relative flex-1 min-w-0">
+              <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 rtl:left-auto rtl:right-3 pointer-events-none" />
+              <input
+                type="search"
+                aria-label={t("admin.instruments.searchPlaceholder", {
+                  defaultValue: "Search instruments...",
+                })}
+                placeholder={t("admin.instruments.searchPlaceholder", {
+                  defaultValue: "Search instruments...",
+                })}
+                value={instrumentSearch}
+                onChange={(event) => setInstrumentSearch(event.target.value)}
+                className="w-full pl-8 pr-8 rtl:pl-8 rtl:pr-8 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-amber-700 transition"
+              />
+              {instrumentSearch && (
+                <button
+                  type="button"
+                  aria-label={t("common.clear", { defaultValue: "Clear" })}
+                  onClick={() => setInstrumentSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 rtl:right-auto rtl:left-2.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             <button
               id="btn-add-new-instrument"
               onClick={onOpenCreateInstrument}

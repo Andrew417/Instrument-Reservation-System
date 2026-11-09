@@ -1270,6 +1270,7 @@
       "tabInstruments": "Instruments",
       "tabCategories": "Category Settings",
       "addButton": "Add Instrument",
+      "searchPlaceholder": "Search instruments...",
       "loading": "Loading instruments...",
       "bookingsCount": "{{count}} bookings",
       "retiredBadge": "Retired",
@@ -1996,5 +1997,16 @@
     "errPasswordMin": "Password must be at least 6 characters.",
     "errPasswordMismatch": "Passwords do not match.",
     "errGeneric": "An unexpected error occurred. Please try again."
+  },
+  "installPrompt": {
+    "title": "Add to Home Screen",
+    "benefit": "Open the app in one tap directly from your home screen for quick access.",
+    "installButton": "Add to Home screen",
+    "notNow": "Not now",
+    "iosTitle": "How to add on iPhone / iPad:",
+    "iosStep1": "Tap the Share button in the Safari toolbar.",
+    "iosStep2": "Scroll down and select \"Add to Home Screen\".",
+    "iosStep3": "Tap \"Add\" in the top right corner.",
+    "gotIt": "Got it"
   }
 }

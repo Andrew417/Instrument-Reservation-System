@@ -5,9 +5,11 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#1c1917",
   "theme_color": "#78350f",
-  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
   "icons": [
     {
       "src": "/logo.png",
@@ -19,7 +21,13 @@
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

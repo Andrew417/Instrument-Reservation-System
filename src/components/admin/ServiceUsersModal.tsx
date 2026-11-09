@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   Music2,
   Sparkles,
-  MessageCircle,
   CheckCircle2,
   Lock,
 } from "lucide-react";
@@ -36,6 +35,7 @@ export interface ServiceUsersModalProps {
   service: ServiceItem | null;
   onClose: () => void;
   onUpdated: () => void;
+  onOpenUserProfile: (userId: string) => void;
 }
 
 export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
@@ -43,6 +43,7 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
   service,
   onClose,
   onUpdated,
+  onOpenUserProfile,
 }) => {
   const { t } = useTranslation();
 
@@ -66,9 +67,9 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
   const [isRevoking, setIsRevoking] = useState<boolean>(false);
 
   // Multi-select for bulk assign
-  const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<
+    Set<string>
+  >(new Set());
   const [isBulkAssigning, setIsBulkAssigning] = useState<boolean>(false);
 
   const fetchServiceUsers = useCallback(async () => {
@@ -127,9 +128,7 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const matchesName = u.name.toLowerCase().includes(q);
-        const matchesEmail = (u.email || "").toLowerCase().includes(q);
-        const matchesPhone = (u.phoneNumber || "").includes(q);
-        return matchesName || matchesEmail || matchesPhone;
+        return matchesName;
       }
       return true;
     });
@@ -186,10 +185,13 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
     setIsRevoking(true);
     setStatusNotice(null);
     try {
-      const res = await adminFetch(`/users/${userToRevoke.id}/services/revoke`, {
-        method: "POST",
-        body: JSON.stringify({ serviceId: service.id }),
-      });
+      const res = await adminFetch(
+        `/users/${userToRevoke.id}/services/revoke`,
+        {
+          method: "POST",
+          body: JSON.stringify({ serviceId: service.id }),
+        },
+      );
       const data = await res.json();
       if (data.success) {
         setUsers((prev) =>
@@ -311,12 +313,16 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
                 {service.isArchived ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200">
                     <Lock className="w-2.5 h-2.5" />
-                    {t("admin.services.archivedBadge", { defaultValue: "Archived" })}
+                    {t("admin.services.archivedBadge", {
+                      defaultValue: "Archived",
+                    })}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
                     <CheckCircle2 className="w-2.5 h-2.5 text-teal-600" />
-                    {t("admin.services.activeBadge", { defaultValue: "Active" })}
+                    {t("admin.services.activeBadge", {
+                      defaultValue: "Active",
+                    })}
                   </span>
                 )}
               </div>
@@ -387,7 +393,7 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
               <input
                 type="text"
                 placeholder={t("admin.services.searchMembersPlaceholder", {
-                  defaultValue: "Search members by name, email, phone...",
+                  defaultValue: "Search members by name...",
                 })}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -415,7 +421,8 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
                     : "text-stone-500 hover:text-stone-900"
                 }`}
               >
-                {t("admin.services.filterAll", { defaultValue: "All" })} ({users.length})
+                {t("admin.services.filterAll", { defaultValue: "All" })} (
+                {users.length})
               </button>
               <button
                 type="button"
@@ -426,8 +433,10 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
                     : "text-stone-500 hover:text-stone-900"
                 }`}
               >
-                {t("admin.services.filterAssigned", { defaultValue: "Assigned" })} (
-                {assignedCount})
+                {t("admin.services.filterAssigned", {
+                  defaultValue: "Assigned",
+                })}{" "}
+                ({assignedCount})
               </button>
               <button
                 type="button"
@@ -438,8 +447,10 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
                     : "text-stone-500 hover:text-stone-900"
                 }`}
               >
-                {t("admin.services.filterUnassigned", { defaultValue: "Unassigned" })} (
-                {unassignedCount})
+                {t("admin.services.filterUnassigned", {
+                  defaultValue: "Unassigned",
+                })}{" "}
+                ({unassignedCount})
               </button>
             </div>
           </div>
@@ -510,16 +521,13 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
                           "No members are currently assigned to this service.",
                       })
                     : t("admin.services.allAssigned", {
-                        defaultValue: "All active members are already assigned.",
+                        defaultValue:
+                          "All active members are already assigned.",
                       })}
               </p>
             </div>
           ) : (
             filteredUsers.map((u) => {
-              const rawPhone = u.phoneNumber || "";
-              const whatsappNumber = rawPhone
-                .replace(/[^\d]/g, "")
-                .replace(/^0/, "20");
               const isBusy = actionUserId === u.id;
               const isSelected = selectedUnassignedIds.has(u.id);
 
@@ -557,9 +565,14 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-xs text-stone-900 truncate">
+                        <button
+                          type="button"
+                          onClick={() => onOpenUserProfile(u.id)}
+                          className="font-bold text-xs text-stone-900 hover:text-amber-900 hover:underline text-left truncate transition cursor-pointer"
+                          title="View User Profile"
+                        >
                           {u.name}
-                        </span>
+                        </button>
                         {u.isMusician && (
                           <span
                             className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-50 text-purple-800 border border-purple-200 shrink-0"
@@ -577,23 +590,6 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
                             <Sparkles className="w-2.5 h-2.5 text-amber-700" />
                             <span>{t("admin.users.trustedMember")}</span>
                           </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-0.5 truncate">
-                        {u.email && <span className="truncate">{u.email}</span>}
-                        {u.email && rawPhone && <span>•</span>}
-                        {rawPhone && (
-                          <a
-                            href={`https://wa.me/${whatsappNumber}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-emerald-700 hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MessageCircle className="w-3 h-3" />
-                            <span>{rawPhone}</span>
-                          </a>
                         )}
                       </div>
                     </div>
@@ -664,7 +660,10 @@ export const ServiceUsersModal: React.FC<ServiceUsersModalProps> = ({
             </span>
             <span className="text-stone-400">•</span>
             <span className="text-stone-500">
-              {users.length} {t("admin.services.totalMembers", { defaultValue: "Total Registered" })}
+              {users.length}{" "}
+              {t("admin.services.totalMembers", {
+                defaultValue: "Total Registered",
+              })}
             </span>
           </div>
 
