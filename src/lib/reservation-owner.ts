@@ -9,7 +9,9 @@ export const buildOwnerPayload = (
 ) => {
   if (onBehalfOf) return { onBehalfOfUserId: onBehalfOf.id };
   const isAdminRole =
-    profile?.role === "admin" || profile?.role === "super_admin";
+    profile?.role === "admin" ||
+    profile?.role === "super_admin" ||
+    profile?.role === "room_servant";
   return {
     userId: isAdminRole ? null : profile?.id,
     adminId: isAdminRole ? profile?.id : null,

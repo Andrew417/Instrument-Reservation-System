@@ -89,7 +89,17 @@ async function requireAdminAuth(req: Request, res: Response, next: () => void) {
       return;
     }
 
-    if (session.role !== "admin" && session.role !== "super_admin") {
+    const isFullAdmin =
+      session.role === "admin" || session.role === "super_admin";
+    const isRoomServant = session.role === "room_servant";
+    const isRoomServantAllowedRoute =
+      isRoomServant &&
+      req.method === "GET" &&
+      (req.path === "/reservations" ||
+        (/^\/reservations\/[^/]+$/.test(req.path) &&
+          req.path !== "/reservations/handover-sheet"));
+
+    if (!isFullAdmin && !isRoomServantAllowedRoute) {
       res.status(403).json({
         success: false,
         error: "Access denied. Administrator privileges required.",
@@ -672,6 +682,11 @@ router.get(
 
       if (req.query.upcoming === "true") {
         querySql = sql`${querySql} AND upper(r.time_range) > NOW()`;
+      } else if (req.query.past === "true") {
+        querySql = sql`${querySql} AND upper(r.time_range) <= NOW()`;
+        if (!status || status === "all") {
+          querySql = sql`${querySql} AND r.status IN ('approved', 'ongoing', 'completed')`;
+        }
       }
 
       if (
@@ -3638,6 +3653,13 @@ router.post(
         return;
       }
 
+      const resolvedRole: "super_admin" | "admin" | "room_servant" =
+        role === "super_admin"
+          ? "super_admin"
+          : role === "room_servant"
+            ? "room_servant"
+            : "admin";
+
       const [newAdmin] = await db
         .insert(admins)
         .values({
@@ -3645,8 +3667,8 @@ router.post(
           email: user.email,
           phoneNumber: user.phoneNumber,
           passwordHash: user.passwordHash,
-          isSuperAdmin: role === "super_admin",
-          role: role === "super_admin" ? "super_admin" : "admin",
+          isSuperAdmin: resolvedRole === "super_admin",
+          role: resolvedRole,
           approvalStatus: "approved",
         })
         .returning();
@@ -3684,9 +3706,21 @@ router.post(
     try {
       const { adminId } = req.params;
       const { targetRole } = req.body || {};
-      const validTargets = ["user", "musician", "admin", "super_admin"];
-      const finalRole: "user" | "musician" | "admin" | "super_admin" =
-        validTargets.includes(targetRole) ? targetRole : "user";
+      const validTargets = [
+        "user",
+        "musician",
+        "room_servant",
+        "admin",
+        "super_admin",
+      ];
+      const finalRole:
+        | "user"
+        | "musician"
+        | "room_servant"
+        | "admin"
+        | "super_admin" = validTargets.includes(targetRole)
+        ? targetRole
+        : "user";
 
       const [admin] = await db
         .select()
@@ -3712,8 +3746,12 @@ router.post(
         return;
       }
 
-      // Case A: Admin ↔ Super Admin (stay in `admins` table, just toggle role)
-      if (finalRole === "admin" || finalRole === "super_admin") {
+      // Case A: Room Servant ↔ Admin ↔ Super Admin (stay in `admins` table, update role & active sessions)
+      if (
+        finalRole === "room_servant" ||
+        finalRole === "admin" ||
+        finalRole === "super_admin"
+      ) {
         const [updated] = await db
           .update(admins)
           .set({
@@ -3723,13 +3761,21 @@ router.post(
           .where(eq(admins.id, admin.id))
           .returning();
 
+        await db
+          .update(sessions)
+          .set({ role: finalRole })
+          .where(eq(sessions.adminId, admin.id))
+          .catch(() => {});
+
         res.json({
           success: true,
           admin: updated,
           message:
             finalRole === "super_admin"
               ? `${admin.name} was promoted to Super Admin.`
-              : `${admin.name} was demoted to Admin.`,
+              : finalRole === "room_servant"
+                ? `${admin.name} was updated to Room Servant.`
+                : `${admin.name} was updated to Admin.`,
         });
         return;
       }
@@ -3887,7 +3933,8 @@ router.post(
   requireSuperAdminAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, email, phoneNumber, password, isSuperAdmin } = req.body;
+      const { name, email, phoneNumber, password, isSuperAdmin, role } =
+        req.body;
 
       if (!name || !name.trim()) {
         res
@@ -3934,6 +3981,12 @@ router.post(
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
+      const resolvedRole: "super_admin" | "admin" | "room_servant" =
+        role === "super_admin" || isSuperAdmin
+          ? "super_admin"
+          : role === "room_servant"
+            ? "room_servant"
+            : "admin";
 
       const [newAdmin] = await db
         .insert(admins)
@@ -3942,8 +3995,8 @@ router.post(
           email: normalizedEmail,
           phoneNumber: normalized,
           passwordHash,
-          isSuperAdmin: Boolean(isSuperAdmin),
-          role: isSuperAdmin ? "super_admin" : "admin",
+          isSuperAdmin: resolvedRole === "super_admin",
+          role: resolvedRole,
           approvalStatus: "approved",
         })
         .returning();

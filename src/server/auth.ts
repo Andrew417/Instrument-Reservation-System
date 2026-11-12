@@ -12,7 +12,7 @@ import {
   sessions,
   notifications,
 } from "../db/schema.js";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, and, gt, desc, ne } from "drizzle-orm";
 import {
   normalizeEmail,
   normalizePhoneNumber,
@@ -224,7 +224,10 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       ).catch(() => {});
     }
 
-    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    const allAdmins = await db
+      .select({ id: admins.id })
+      .from(admins)
+      .where(ne(admins.role, "room_servant"));
     for (const adm of allAdmins) {
       await db
         .insert(notifications)
@@ -353,7 +356,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     }
 
     let matchedAccount: any = matchedUser;
-    let accountRole: "user" | "admin" | "super_admin" = "user";
+    let accountRole: "user" | "room_servant" | "admin" | "super_admin" = "user";
 
     if (!matchedAccount) {
       // Lookup in admins table by email
@@ -365,7 +368,11 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
 
       if (matchedAdmin) {
         matchedAccount = matchedAdmin;
-        accountRole = matchedAdmin.isSuperAdmin ? "super_admin" : "admin";
+        accountRole = matchedAdmin.isSuperAdmin
+          ? "super_admin"
+          : matchedAdmin.role === "room_servant"
+            ? "room_servant"
+            : "admin";
       }
     }
 

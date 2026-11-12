@@ -1,8 +1,13 @@
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { X, ShieldCheck, Sparkles, Music2 } from "lucide-react";
+import { X, ShieldCheck, Sparkles, Music2, KeyRound } from "lucide-react";
 
-export type PromoteRoleOption = "user" | "admin" | "super_admin" | "musician";
+export type PromoteRoleOption =
+  | "user"
+  | "musician"
+  | "room_servant"
+  | "admin"
+  | "super_admin";
 
 export interface PromoteModalState {
   userId: string;
@@ -11,6 +16,7 @@ export interface PromoteModalState {
   isMusician?: boolean;
   isCurrentlyAdmin?: boolean;
   isCurrentlySuperAdmin?: boolean;
+  isCurrentlyRoomServant?: boolean;
 }
 
 interface PromoteUserModalProps {
@@ -37,7 +43,7 @@ interface OptionCardProps {
   icon: React.ReactNode;
   title: string;
   desc: string;
-  tone: "yellow" | "indigo" | "amber" | "stone";
+  tone: "yellow" | "indigo" | "teal" | "amber" | "stone";
   isSelected: boolean;
   onSelect: (role: PromoteRoleOption) => void;
 }
@@ -59,6 +65,9 @@ const OptionCard = React.memo(
       indigo: isSelected
         ? "border-indigo-400 bg-indigo-50/70 shadow-2xs"
         : "border-stone-200 hover:border-indigo-200 hover:bg-stone-50/80",
+      teal: isSelected
+        ? "border-teal-400 bg-teal-50/70 shadow-2xs"
+        : "border-stone-200 hover:border-teal-300 hover:bg-teal-50/30",
       amber: isSelected
         ? "border-amber-400 bg-amber-50 shadow-2xs"
         : "border-stone-200 hover:border-amber-400 hover:bg-amber-50/40",
@@ -90,8 +99,9 @@ OptionCard.displayName = "OptionCard";
 const ROLE_RANKS: Record<PromoteRoleOption, number> = {
   user: 0,
   musician: 1,
-  admin: 2,
-  super_admin: 3,
+  room_servant: 2,
+  admin: 3,
+  super_admin: 4,
 };
 
 export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
@@ -103,16 +113,19 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
   const { t } = useTranslation();
 
   const isCurrentSuperAdmin = Boolean(modal?.isCurrentlySuperAdmin);
+  const isCurrentRoomServant = Boolean(modal?.isCurrentlyRoomServant);
   const isCurrentAdmin = Boolean(modal?.isCurrentlyAdmin);
   const isCurrentMusician = Boolean(modal?.isMusician);
 
   const currentRole: PromoteRoleOption = isCurrentSuperAdmin
     ? "super_admin"
-    : isCurrentAdmin
-      ? "admin"
-      : isCurrentMusician
-        ? "musician"
-        : "user";
+    : isCurrentRoomServant
+      ? "room_servant"
+      : isCurrentAdmin
+        ? "admin"
+        : isCurrentMusician
+          ? "musician"
+          : "user";
 
   const isSameRole = modal?.role === currentRole;
 
@@ -122,6 +135,10 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
   );
   const handleSelectMusician = useCallback(
     () => onSelectRole("musician"),
+    [onSelectRole],
+  );
+  const handleSelectRoomServant = useCallback(
+    () => onSelectRole("room_servant"),
     [onSelectRole],
   );
   const handleSelectAdmin = useCallback(
@@ -143,6 +160,10 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
         case "admin":
           return t("admin.modals.promote.adminTitle", {
             defaultValue: "Administrator",
+          });
+        case "room_servant":
+          return t("admin.modals.promote.roomServantTitle", {
+            defaultValue: "Room Servant",
           });
         case "musician":
           return t("admin.modals.promote.musicianTitle", {
@@ -265,6 +286,22 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
             tone="indigo"
             isSelected={modal.role === "musician"}
             onSelect={handleSelectMusician}
+          />
+
+          {/* Room Servant Option */}
+          <OptionCard
+            role="room_servant"
+            icon={<KeyRound className="w-4 h-4 text-teal-700 shrink-0" />}
+            title={t("admin.modals.promote.roomServantTitle", {
+              defaultValue: "Room Servant",
+            })}
+            desc={t("admin.modals.promote.roomServantDesc", {
+              defaultValue:
+                "Can view today, upcoming, and past reservations in the Admin schedule tab plus service and reservant names on the calendar.",
+            })}
+            tone="teal"
+            isSelected={modal.role === "room_servant"}
+            onSelect={handleSelectRoomServant}
           />
 
           {/* Admin Option */}

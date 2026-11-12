@@ -48,6 +48,7 @@ export interface UserDetailModalProps {
     isMusician?: boolean,
     isCurrentlyAdmin?: boolean,
     isCurrentlySuperAdmin?: boolean,
+    isCurrentlyRoomServant?: boolean,
   ) => void;
   onDeleteUser?: (userId: string, name: string) => void;
   onBookOnBehalf?: (user: any) => void;
@@ -73,6 +74,11 @@ const RoleBadge: React.FC<{ role?: string; isSuperAdmin?: boolean }> = ({
     admin: {
       label: "Admin",
       classes: "bg-purple-50 text-purple-800 border-purple-200",
+      icon: <Shield className="w-3 h-3" />,
+    },
+    room_servant: {
+      label: "Room Servant",
+      classes: "bg-teal-50 text-teal-800 border-teal-200",
       icon: <Shield className="w-3 h-3" />,
     },
     user: {
@@ -839,11 +845,13 @@ const UserDetailModalInner: React.FC<UserDetailModalProps> = ({
                               entityType === "admin" ||
                                 Boolean(userData.isAdmin) ||
                                 userData.role === "admin" ||
-                                userData.role === "super_admin",
+                                userData.role === "super_admin" ||
+                                userData.role === "room_servant",
                               Boolean(
                                 userData.isSuperAdmin ||
                                 userData.is_super_admin,
                               ),
+                              userData.role === "room_servant",
                             )
                           }
                           title="Promote / Manage Role & Privileges"

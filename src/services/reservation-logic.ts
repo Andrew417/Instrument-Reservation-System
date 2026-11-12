@@ -262,13 +262,19 @@ export async function resolveUserAndAdminIds(
   if (adminId) {
     try {
       const adminRows = await db
-        .select({ id: admins.id })
+        .select({
+          id: admins.id,
+          role: admins.role,
+          isSuperAdmin: admins.isSuperAdmin,
+        })
         .from(admins)
         .where(eq(admins.id, adminId))
         .limit(1);
 
       if (adminRows.length > 0) {
-        isAdmin = true;
+        isAdmin = Boolean(
+          adminRows[0].isSuperAdmin || adminRows[0].role !== "room_servant",
+        );
       } else {
         const userRows = await db
           .select({
@@ -312,7 +318,11 @@ export async function resolveUserAndAdminIds(
         isMusician = Boolean(userRows[0].isMusician);
       } else {
         const adminRows = await db
-          .select({ id: admins.id })
+          .select({
+            id: admins.id,
+            role: admins.role,
+            isSuperAdmin: admins.isSuperAdmin,
+          })
           .from(admins)
           .where(eq(admins.id, userId))
           .limit(1);
@@ -320,7 +330,9 @@ export async function resolveUserAndAdminIds(
         if (adminRows.length > 0) {
           adminId = userId;
           userId = null;
-          isAdmin = true;
+          isAdmin = Boolean(
+            adminRows[0].isSuperAdmin || adminRows[0].role !== "room_servant",
+          );
         } else {
           userId = null;
         }
@@ -377,11 +389,16 @@ export async function evaluateReservationSubmission(
 
   const limits = options?.preloadedLimits || (await getHardLimits());
 
+  const ownerCondition = cleanUserId
+    ? eq(reservations.userId, cleanUserId)
+    : cleanAdminId
+      ? and(eq(reservations.adminId, cleanAdminId), sql`${reservations.userId} IS NULL`)
+      : null;
+
   // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled, or admin booking)
   if (
     !options?.skipRateLimitCheck &&
-    cleanUserId &&
-    !cleanAdminId &&
+    ownerCondition &&
     !isAdmin &&
     !limits.bypassHardLimits
   ) {
@@ -391,7 +408,7 @@ export async function evaluateReservationSubmission(
       .from(reservations)
       .where(
         and(
-          eq(reservations.userId, cleanUserId),
+          ownerCondition,
           gte(reservations.createdAt, oneHourAgo),
         ),
       );
@@ -428,7 +445,7 @@ export async function evaluateReservationSubmission(
     // Outside church fee check: flat fee per type locked at submission
     let outsideFeeSnapshot: string | null = null;
     if (reservationType === "outside_church") {
-      if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
+      if (!feeAcknowledged && !isAdmin) {
         throw new Error(
           `Outside church type request requires fee acknowledgment (flat fee: ${typeRow.flat_fee_outside || "0.00"} EGP).`,
         );
@@ -439,7 +456,7 @@ export async function evaluateReservationSubmission(
     // Limits check for type requests:
     // - Regular user cannot submit if active reservations limit reached (Pending type requests count, series counts as 1).
     // - Trusted users and admins bypass this limit.
-    if (!isTrustedOrAdmin && !limits.bypassHardLimits && cleanUserId) {
+    if (!isTrustedOrAdmin && !limits.bypassHardLimits && ownerCondition) {
       await ensureCurrentReservationStatuses().catch(() => {});
       const activeRes = await db
         .select({
@@ -448,7 +465,7 @@ export async function evaluateReservationSubmission(
         .from(reservations)
         .where(
           and(
-            eq(reservations.userId, cleanUserId),
+            ownerCondition,
             inArray(reservations.status, ["pending", "approved"]),
           ),
         );
@@ -464,15 +481,17 @@ export async function evaluateReservationSubmission(
     // Other limits (daily reservations, duration, concurrent same-type):
     // Accepted anyway, but marked in exceededLimits so the admin sees why.
     const exceededLimits: string[] = [];
-    if (!limits.bypassHardLimits && cleanUserId && !isAdmin && !cleanAdminId) {
+    if (!limits.bypassHardLimits && ownerCondition && !isAdmin) {
       const dateStr = getCairoDateString(start);
       const dayRes = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(reservations)
         .where(
-          sql`${reservations.userId} = ${cleanUserId}
-            AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
-            AND (lower(${reservations.timeRange}) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date`,
+          and(
+            ownerCondition,
+            sql`${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')`,
+            sql`(lower(${reservations.timeRange}) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date`,
+          ),
         );
       const dayCount = Number(dayRes[0]?.count || 0);
       if (dayCount >= limits.maxReservationsPerDay) {
@@ -487,11 +506,14 @@ export async function evaluateReservationSubmission(
         );
       }
 
+      const concurrentOwnerSql = cleanUserId
+        ? sql`r.user_id = ${cleanUserId}`
+        : sql`(r.admin_id = ${cleanAdminId} AND r.user_id IS NULL)`;
       const concurrentRes = await db.execute(sql`
         SELECT count(*)::int as count
         FROM reservations r
         LEFT JOIN instruments i ON r.instrument_id = i.id
-        WHERE r.user_id = ${cleanUserId}
+        WHERE ${concurrentOwnerSql}
           AND r.status IN ('pending', 'approved')
           AND (COALESCE(i.type, r.requested_type) ILIKE ${cleanType})
           AND r.time_range && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')
@@ -552,19 +574,14 @@ export async function evaluateReservationSubmission(
     );
   }
 
-  if (
-    instrument.visibilityLevel === "room_stock" &&
-    !isAdmin &&
-    !cleanAdminId
-  ) {
+  if (instrument.visibilityLevel === "room_stock" && !isAdmin) {
     throw new Error("Room stock instruments cannot be booked directly.");
   }
 
   if (
     instrument.visibilityLevel === "musician" &&
     !isMusician &&
-    !isAdmin &&
-    !cleanAdminId
+    !isAdmin
   ) {
     throw new Error(
       "This instrument is restricted to registered musicians.",
@@ -589,7 +606,7 @@ export async function evaluateReservationSubmission(
       );
     }
 
-    if (!isAdmin && !cleanAdminId) {
+    if (!isAdmin) {
       if (!cleanUserId) {
         throw new Error(
           "This instrument is restricted to members of the assigned service.",
@@ -635,7 +652,7 @@ export async function evaluateReservationSubmission(
   // Outside church fee requirement check
   let outsideFeeSnapshot: string | null = null;
   if (reservationType === "outside_church") {
-    if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
+    if (!feeAcknowledged && !isAdmin) {
       throw new Error(
         `Outside church reservation requires fee acknowledgment (fee: ${instrument.outsideFeePerDay} EGP/day).`,
       );
@@ -649,7 +666,7 @@ export async function evaluateReservationSubmission(
   const reasons: string[] = [];
 
   if (reservationType === "outside_church") {
-    if (isAdmin || cleanAdminId) {
+    if (isAdmin) {
       calculatedStatus = "approved";
       reasons.push(
         "Auto-approved via Administrator Privilege (Outside-church fee snapshotted)",
@@ -669,7 +686,7 @@ export async function evaluateReservationSubmission(
     let limitExceeded = false;
 
     if (!limits.bypassHardLimits) {
-      if (cleanUserId) {
+      if (ownerCondition) {
         const activeRes = await db
           .select({
             activeCount: sql<number>`COUNT(DISTINCT COALESCE(${reservations.seriesId}, ${reservations.id}))::int`,
@@ -677,7 +694,7 @@ export async function evaluateReservationSubmission(
           .from(reservations)
           .where(
             and(
-              eq(reservations.userId, cleanUserId),
+              ownerCondition,
               inArray(reservations.status, ["pending", "approved"]),
             ),
           );
@@ -691,15 +708,17 @@ export async function evaluateReservationSubmission(
         }
       }
 
-      if (cleanUserId) {
+      if (ownerCondition) {
         const dateStr = getCairoDateString(start);
         const dayRes = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(reservations)
           .where(
-            sql`${reservations.userId} = ${cleanUserId}
-              AND ${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')
-              AND (lower(${reservations.timeRange}) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date`,
+            and(
+              ownerCondition,
+              sql`${reservations.status} IN ('pending', 'approved', 'ongoing', 'completed')`,
+              sql`(lower(${reservations.timeRange}) AT TIME ZONE 'Africa/Cairo')::date = ${dateStr}::date`,
+            ),
           );
 
         const dayCount = Number(dayRes[0]?.count || 0);
@@ -718,14 +737,14 @@ export async function evaluateReservationSubmission(
         );
       }
 
-      if (cleanUserId) {
+      if (ownerCondition) {
         const concurrentRes = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(reservations)
           .innerJoin(instruments, eq(reservations.instrumentId, instruments.id))
           .where(
             and(
-              eq(reservations.userId, cleanUserId),
+              ownerCondition,
               inArray(reservations.status, ["pending", "approved"]),
               eq(instruments.type, instrument.type),
               sql`${reservations.timeRange} && tstzrange(${start.toISOString()}, ${end.toISOString()}, '[)')`,
@@ -820,10 +839,8 @@ export async function autoRejectOverlappingPending(
  */
 
 export async function createReservation(input: ReservationSubmissionInput) {
-  const { resolvedUserId, resolvedAdminId } = await resolveUserAndAdminIds(
-    input.userId,
-    input.adminId,
-  );
+  const { resolvedUserId, resolvedAdminId, isAdmin } =
+    await resolveUserAndAdminIds(input.userId, input.adminId);
 
   const evalResult = await evaluateReservationSubmission({
     ...input,
@@ -865,7 +882,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
     status: evalResult.status,
     rejectionReason: null,
     paymentScreenshotUrl: null,
-    bookedByAdmin: Boolean(cleanAdminId),
+    bookedByAdmin: Boolean(cleanAdminId && isAdmin),
     isTypeRequest: Boolean(input.isTypeRequest),
     requestedType: input.isTypeRequest
       ? input.requestedType?.trim() || null
@@ -884,7 +901,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
   // If requester provided a note, also record it as the initial message in the reservation thread
   if (cleanNote) {
     try {
-      const senderRole = cleanAdminId ? "admin" : "user";
+      const senderRole = isAdmin ? "admin" : "user";
       let senderName = null;
       if (cleanAdminId) {
         const [adm] = await db
@@ -892,7 +909,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
           .from(admins)
           .where(eq(admins.id, cleanAdminId))
           .limit(1);
-        senderName = adm?.name || "Administrator";
+        senderName = adm?.name || (isAdmin ? "Administrator" : "Room Servant");
       } else if (cleanUserId) {
         const [usr] = await db
           .select({ name: users.name })
@@ -927,10 +944,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
       newReservation.id,
     );
 
-    // 8. Notification for approved user
-    if (cleanUserId) {
+    // 8. Notification for approved requester
+    if (cleanUserId || (!isAdmin && cleanAdminId)) {
       await db.insert(notifications).values({
-        userId: cleanUserId,
+        ...(cleanUserId ? { userId: cleanUserId } : { adminId: cleanAdminId! }),
         reservationId: newReservation.id,
         type: "reservation_approved",
         message: `Your reservation on ${input.date} (${input.startTime} - ${getCairoTimeString(evalResult.endTimeUtc)}) has been approved.`,
@@ -943,7 +960,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
           reason.includes("Auto-approved via Instant Booking mode"),
         )
       ) {
-        const allAdmins = await db.select({ id: admins.id }).from(admins);
+        const allAdmins = await db
+          .select({ id: admins.id })
+          .from(admins)
+          .where(ne(admins.role, "room_servant"));
         for (const admin of allAdmins) {
           await db.insert(notifications).values({
             adminId: admin.id,
@@ -957,11 +977,17 @@ export async function createReservation(input: ReservationSubmissionInput) {
       // Send approval email for auto-approved booking (non-blocking)
       (async () => {
         try {
-          const [userInfo] = await db
-            .select({ name: users.name, email: users.email })
-            .from(users)
-            .where(eq(users.id, cleanUserId))
-            .limit(1);
+          const [requesterInfo] = cleanUserId
+            ? await db
+                .select({ name: users.name, email: users.email })
+                .from(users)
+                .where(eq(users.id, cleanUserId))
+                .limit(1)
+            : await db
+                .select({ name: admins.name, email: admins.email })
+                .from(admins)
+                .where(eq(admins.id, cleanAdminId!))
+                .limit(1);
 
           const [instInfo] = await db
             .select({ name: instruments.name })
@@ -969,10 +995,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
             .where(eq(instruments.id, input.instrumentId))
             .limit(1);
 
-          if (userInfo?.email) {
+          if (requesterInfo?.email) {
             await sendReservationApprovedEmail({
-              email: userInfo.email,
-              name: userInfo.name,
+              email: requesterInfo.email,
+              name: requesterInfo.name,
               instrumentName: instInfo?.name || "Instrument",
               musicianName: input.musicianName,
               serviceName: input.serviceName,
@@ -991,7 +1017,7 @@ export async function createReservation(input: ReservationSubmissionInput) {
         }
       })();
     }
-  } else if (cleanUserId) {
+  } else if (cleanUserId || (!isAdmin && cleanAdminId)) {
     // Notification for pending submission
     const targetTypeOrName = input.isTypeRequest
       ? input.requestedType || "Instrument"
@@ -1004,17 +1030,23 @@ export async function createReservation(input: ReservationSubmissionInput) {
         : `Your reservation request on ${input.date} (${input.startTime}) has been submitted and is pending administrator review.`;
 
     await db.insert(notifications).values({
-      userId: cleanUserId,
+      ...(cleanUserId ? { userId: cleanUserId } : { adminId: cleanAdminId! }),
       reservationId: newReservation.id,
       type: "reservation_submitted",
       message: pendingMsg,
     });
 
-    const [requester] = await db
-      .select({ name: users.name, phoneNumber: users.phoneNumber })
-      .from(users)
-      .where(eq(users.id, cleanUserId))
-      .limit(1);
+    const [requester] = cleanUserId
+      ? await db
+          .select({ name: users.name, phoneNumber: users.phoneNumber })
+          .from(users)
+          .where(eq(users.id, cleanUserId))
+          .limit(1)
+      : await db
+          .select({ name: admins.name, phoneNumber: admins.phoneNumber })
+          .from(admins)
+          .where(eq(admins.id, cleanAdminId!))
+          .limit(1);
 
     const [instrumentRow] = input.instrumentId
       ? await db
@@ -1064,7 +1096,10 @@ export async function createReservation(input: ReservationSubmissionInput) {
         ],
       ).catch(() => {});
     }
-    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    const allAdmins = await db
+      .select({ id: admins.id })
+      .from(admins)
+      .where(ne(admins.role, "room_servant"));
 
     let minimalRequestMsg = input.isTypeRequest
       ? `New type request from ${requester?.name || "a member"} for ${input.requestedType} on ${input.date}.`
@@ -1193,7 +1228,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       );
     }
     if (reservationType === "outside_church") {
-      if (!feeAcknowledged && !isAdmin && !cleanAdminId) {
+      if (!feeAcknowledged && !isAdmin) {
         throw new Error(
           `Outside church type request requires fee acknowledgment (flat fee: ${typeRow.flat_fee_outside || "0.00"} EGP).`,
         );
@@ -1203,6 +1238,14 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   }
 
   const limits = await getHardLimits();
+  const seriesOwnerCondition = cleanUserId
+    ? eq(reservations.userId, cleanUserId)
+    : cleanAdminId
+      ? and(
+          eq(reservations.adminId, cleanAdminId),
+          sql`${reservations.userId} IS NULL`,
+        )
+      : null;
 
   // Active reservations limit for type requests:
   // Pending type requests count toward this number, and a recurring series counts as one.
@@ -1212,7 +1255,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     !isTrusted &&
     !isAdmin &&
     !limits.bypassHardLimits &&
-    cleanUserId
+    seriesOwnerCondition
   ) {
     await ensureCurrentReservationStatuses().catch(() => {});
     const activeRes = await db
@@ -1222,7 +1265,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       .from(reservations)
       .where(
         and(
-          eq(reservations.userId, cleanUserId),
+          seriesOwnerCondition,
           inArray(reservations.status, ["pending", "approved"]),
         ),
       );
@@ -1319,14 +1362,14 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   }
 
   // 5. Rate limit check for the series submission (bypassed for admin)
-  if (cleanUserId && !cleanAdminId && !isAdmin && !limits.bypassHardLimits) {
+  if (seriesOwnerCondition && !isAdmin && !limits.bypassHardLimits) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentSubmissions = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(reservations)
       .where(
         and(
-          eq(reservations.userId, cleanUserId),
+          seriesOwnerCondition,
           gte(reservations.createdAt, oneHourAgo),
         ),
       );
@@ -1340,7 +1383,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
   }
 
   const cleanNote = toNullableString(input.note);
-  const isBookedByAdminOnBehalf = Boolean(cleanAdminId && cleanUserId);
+  const isBookedByAdminOnBehalf = Boolean(cleanAdminId && isAdmin && cleanUserId);
 
   // 6 & 7: Atomic Transaction for Series and all Occurrences
   const { newSeries, createdOccurrences } = await db.transaction(async (tx) => {
@@ -1375,7 +1418,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
           startTime: occ.startTime,
           duration: occ.duration,
           reservationType,
-          feeAcknowledged: cleanAdminId ? true : feeAcknowledged,
+          feeAcknowledged: isAdmin ? true : feeAcknowledged,
           isTypeRequest: input.isTypeRequest,
           requestedType: cleanRequestedType,
         },
@@ -1410,7 +1453,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         status: occurrenceStatus,
         rejectionReason: null,
         paymentScreenshotUrl: null,
-        bookedByAdmin: Boolean(cleanAdminId),
+        bookedByAdmin: Boolean(cleanAdminId && isAdmin),
         isTypeRequest: Boolean(input.isTypeRequest),
         requestedType: input.isTypeRequest ? cleanRequestedType || null : null,
         exceededLimits:
@@ -1427,7 +1470,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
       // If requester provided a note, also record it as the initial message in this occurrence's thread
       if (cleanNote) {
         try {
-          const senderRole = cleanAdminId ? "admin" : "user";
+          const senderRole = isAdmin ? "admin" : "user";
           let senderName = null;
           if (cleanAdminId) {
             const [adm] = await tx
@@ -1435,7 +1478,7 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
               .from(admins)
               .where(eq(admins.id, cleanAdminId))
               .limit(1);
-            senderName = adm?.name || "Administrator";
+            senderName = adm?.name || (isAdmin ? "Administrator" : "Room Servant");
           } else if (cleanUserId) {
             const [usr] = await tx
               .select({ name: users.name })
@@ -1516,20 +1559,20 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         type: "series_approved",
       },
     }).catch((e) => console.warn("[Push series error]:", e.message));
-  } else if (cleanUserId) {
+  } else if (cleanUserId || (!isAdmin && cleanAdminId)) {
     const approvedCount = createdOccurrences.filter(
       (c) => c.reservation.status === "approved",
     ).length;
     const pendingCount = createdOccurrences.length - approvedCount;
 
     await db.insert(notifications).values({
-      userId: cleanUserId,
+      ...(cleanUserId ? { userId: cleanUserId } : { adminId: cleanAdminId! }),
       reservationId: createdOccurrences[0]?.reservation?.id,
       type: "series_submitted",
       message: `Your recurring series (${createdOccurrences.length} occurrences) has been created (${approvedCount} approved, ${pendingCount} pending review).`,
     });
 
-    // If all occurrences were auto-approved, send approval email to user
+    // If all occurrences were auto-approved, send approval email to requester
     if (
       approvedCount > 0 &&
       pendingCount === 0 &&
@@ -1537,11 +1580,17 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     ) {
       (async () => {
         try {
-          const [userInfo] = await db
-            .select({ name: users.name, email: users.email })
-            .from(users)
-            .where(eq(users.id, cleanUserId))
-            .limit(1);
+          const [requesterInfo] = cleanUserId
+            ? await db
+                .select({ name: users.name, email: users.email })
+                .from(users)
+                .where(eq(users.id, cleanUserId))
+                .limit(1)
+            : await db
+                .select({ name: admins.name, email: admins.email })
+                .from(admins)
+                .where(eq(admins.id, cleanAdminId!))
+                .limit(1);
 
           const [instInfo] = await db
             .select({ name: instruments.name })
@@ -1550,10 +1599,10 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
             .limit(1);
 
           const firstOcc = createdOccurrences[0];
-          if (userInfo?.email) {
+          if (requesterInfo?.email) {
             await sendReservationApprovedEmail({
-              email: userInfo.email,
-              name: userInfo.name,
+              email: requesterInfo.email,
+              name: requesterInfo.name,
               instrumentName: instInfo?.name || "Instrument",
               musicianName: input.musicianName,
               serviceName: input.serviceName,
@@ -1576,11 +1625,17 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
 
     // If any occurrence is pending, broadcast to admins and notify super admin
     if (pendingCount > 0 && createdOccurrences.length > 0) {
-      const [requester] = await db
-        .select({ name: users.name, phoneNumber: users.phoneNumber })
-        .from(users)
-        .where(eq(users.id, cleanUserId))
-        .limit(1);
+      const [requester] = cleanUserId
+        ? await db
+            .select({ name: users.name, phoneNumber: users.phoneNumber })
+            .from(users)
+            .where(eq(users.id, cleanUserId))
+            .limit(1)
+        : await db
+            .select({ name: admins.name, phoneNumber: admins.phoneNumber })
+            .from(admins)
+            .where(eq(admins.id, cleanAdminId!))
+            .limit(1);
 
       const [instrumentRow] = await db
         .select({ name: instruments.name })
@@ -1619,7 +1674,10 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
         ).catch(() => {});
       }
 
-      const allAdmins = await db.select({ id: admins.id }).from(admins);
+      const allAdmins = await db
+        .select({ id: admins.id })
+        .from(admins)
+        .where(ne(admins.role, "room_servant"));
 
       let seriesMinimalMsg = `New recurring series request (${createdOccurrences.length} occurrences) from ${requester?.name || "a member"} for ${instrumentRow?.name || "an instrument"} starting ${occurrences[0]?.date}.`;
       try {
@@ -1708,6 +1766,24 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
  * 3. EDITING A RESERVATION
  * =========================================================================
  */
+export async function checkCallerAdminPrivilege(caller: {
+  adminId?: string | null;
+  isAdminPrivilege?: boolean;
+}): Promise<boolean> {
+  if (typeof caller.isAdminPrivilege === "boolean") {
+    return caller.isAdminPrivilege;
+  }
+  const cleanAdminId = toNullableString(caller.adminId);
+  if (!cleanAdminId) return false;
+  const [adm] = await db
+    .select({ role: admins.role, isSuperAdmin: admins.isSuperAdmin })
+    .from(admins)
+    .where(eq(admins.id, cleanAdminId))
+    .limit(1);
+  if (!adm) return false;
+  return Boolean(adm.isSuperAdmin || adm.role !== "room_servant");
+}
+
 export async function editReservation(
   reservationId: string,
   updates: {
@@ -1722,7 +1798,12 @@ export async function editReservation(
     reservationType?: "in_church" | "outside_church";
     feeAcknowledged?: boolean;
   },
-  caller: { userId?: string; adminId?: string; isSuperAdmin?: boolean },
+  caller: {
+    userId?: string;
+    adminId?: string;
+    isSuperAdmin?: boolean;
+    isAdminPrivilege?: boolean;
+  },
 ) {
   const existingRes = await db
     .select()
@@ -1735,18 +1816,23 @@ export async function editReservation(
   }
 
   const existing = existingRes[0];
+  const callerIsAdmin = await checkCallerAdminPrivilege(caller);
+  const cleanCallerAdminId = toNullableString(caller.adminId);
+  const cleanCallerUserId = toNullableString(caller.userId);
+  const isOwner =
+    (cleanCallerUserId && existing.userId === cleanCallerUserId) ||
+    (cleanCallerAdminId &&
+      existing.adminId === cleanCallerAdminId &&
+      !existing.userId);
 
   // Authorization check
-  if (
-    !caller.adminId &&
-    (!caller.userId || existing.userId !== caller.userId)
-  ) {
+  if (!callerIsAdmin && !isOwner) {
     throw new Error("You are not authorized to edit this reservation.");
   }
 
   // ✅ Admin callers must use the Reassign endpoint to change instruments.
   if (
-    caller.adminId &&
+    callerIsAdmin &&
     updates.instrumentId !== undefined &&
     updates.instrumentId !== existing.instrumentId
   ) {
@@ -1850,10 +1936,20 @@ export async function editReservation(
     }
 
     // Check Trusted or Admin status
-    let isTrustedOrAdmin = false;
-    if (existing.adminId || caller.adminId) {
-      isTrustedOrAdmin = true;
-    } else if (existing.userId) {
+    let isTrustedOrAdmin = callerIsAdmin;
+    if (!isTrustedOrAdmin && existing.adminId && !existing.userId) {
+      const [ownerAdm] = await db
+        .select({ role: admins.role, isSuperAdmin: admins.isSuperAdmin })
+        .from(admins)
+        .where(eq(admins.id, existing.adminId))
+        .limit(1);
+      if (
+        ownerAdm &&
+        (ownerAdm.isSuperAdmin || ownerAdm.role !== "room_servant")
+      ) {
+        isTrustedOrAdmin = true;
+      }
+    } else if (!isTrustedOrAdmin && existing.userId) {
       const [u] = await db
         .select()
         .from(users)
@@ -1889,13 +1985,21 @@ export async function editReservation(
 
         if (durationHours > limits.maxDurationHours) limitExceeded = true;
 
-        if (!limitExceeded && existing.userId) {
+        const editOwnerWhere = existing.userId
+          ? eq(reservations.userId, existing.userId)
+          : existing.adminId
+            ? and(
+                eq(reservations.adminId, existing.adminId),
+                sql`${reservations.userId} IS NULL`,
+              )
+            : null;
+        if (!limitExceeded && editOwnerWhere) {
           const activeRes = await db
             .select({ count: sql<number>`count(*)::int` })
             .from(reservations)
             .where(
               and(
-                eq(reservations.userId, existing.userId),
+                editOwnerWhere,
                 sql`${reservations.id} != ${reservationId}`,
                 inArray(reservations.status, ["pending", "approved"]),
               ),
@@ -1986,7 +2090,10 @@ export async function editReservation(
       }).catch(() => {});
     }
 
-    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    const allAdmins = await db
+      .select({ id: admins.id })
+      .from(admins)
+      .where(ne(admins.role, "room_servant"));
     for (const adm of allAdmins) {
       await db
         .insert(notifications)
@@ -2037,6 +2144,7 @@ export async function editReservationSeries(
     userId?: string | null;
     adminId?: string | null;
     isSuperAdmin?: boolean;
+    isAdminPrivilege?: boolean;
   },
 ) {
   const [series] = await db
@@ -2051,16 +2159,17 @@ export async function editReservationSeries(
 
   const cleanCallerAdminId = toNullableString(caller.adminId);
   const cleanCallerUserId = toNullableString(caller.userId);
+  const isAdmin = await checkCallerAdminPrivilege(caller);
+  const isSeriesOwner =
+    (cleanCallerUserId && series.userId === cleanCallerUserId) ||
+    (cleanCallerAdminId &&
+      series.adminId === cleanCallerAdminId &&
+      !series.userId);
 
   // Authorization check
-  if (
-    !cleanCallerAdminId &&
-    (!cleanCallerUserId || series.userId !== cleanCallerUserId)
-  ) {
+  if (!isAdmin && !isSeriesOwner) {
     throw new Error("You are not authorized to edit this reservation series.");
   }
-
-  const isAdmin = Boolean(cleanCallerAdminId);
 
   // Check if owner is trusted
   let isOwnerTrusted = false;
@@ -2433,7 +2542,10 @@ export async function editReservationSeries(
     }).catch(() => {});
   } else if (!isAdmin && pendingCount > 0) {
     // Notify admins of re-pended occurrences (ONE summary notification)
-    const allAdmins = await db.select({ id: admins.id }).from(admins);
+    const allAdmins = await db
+      .select({ id: admins.id })
+      .from(admins)
+      .where(ne(admins.role, "room_servant"));
     const summaryMsg = `Member updated a recurring series (${evaluatedOccurrences.length} occurrences, ${pendingCount} returned to pending review).`;
     for (const adm of allAdmins) {
       await db
@@ -2480,7 +2592,11 @@ export async function cancelReservation(
     cancelMode?: "single" | "series";
     cancellationReason?: string | null;
   },
-  caller: { userId?: string; adminId?: string },
+  caller: {
+    userId?: string;
+    adminId?: string;
+    isAdminPrivilege?: boolean;
+  },
 ) {
   const [target] = await db
     .select()
@@ -2493,12 +2609,15 @@ export async function cancelReservation(
   }
 
   // Authorization check
+  const callerIsAdmin = await checkCallerAdminPrivilege(caller);
   const cleanCallerAdminId = toNullableString(caller.adminId);
   const cleanCallerUserId = toNullableString(caller.userId);
-  if (
-    !cleanCallerAdminId &&
-    (!cleanCallerUserId || target.userId !== cleanCallerUserId)
-  ) {
+  const isOwner =
+    (cleanCallerUserId && target.userId === cleanCallerUserId) ||
+    (cleanCallerAdminId &&
+      target.adminId === cleanCallerAdminId &&
+      !target.userId);
+  if (!callerIsAdmin && !isOwner) {
     throw new Error("You are not authorized to cancel this reservation.");
   }
 
@@ -2508,7 +2627,7 @@ export async function cancelReservation(
   }
 
   // cancellation_reason only applies to admin-initiated cancellations
-  const cleanReason = cleanCallerAdminId
+  const cleanReason = callerIsAdmin
     ? toNullableString(options.cancellationReason)
     : null;
   const bellMessage = cleanReason
@@ -2528,7 +2647,7 @@ export async function cancelReservation(
       )
       .returning();
 
-    if (cleanCallerAdminId) {
+    if (callerIsAdmin && cleanCallerAdminId) {
       const userIds = Array.from(
         new Set(cancelled.map((r) => r.userId).filter(Boolean)),
       );
@@ -2574,6 +2693,7 @@ export async function cancelReservation(
     .returning();
 
   if (
+    callerIsAdmin &&
     cleanCallerAdminId &&
     cancelled.userId &&
     cancelled.userId !== cleanCallerAdminId

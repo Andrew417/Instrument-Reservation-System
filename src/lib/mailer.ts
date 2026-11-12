@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { admins } from "../db/schema.js";
 
@@ -846,7 +846,9 @@ export async function sendReservationPaidEmail(
     const adminRows = await db
       .select({ email: admins.email })
       .from(admins)
-      .where(eq(admins.approvalStatus, "approved"));
+      .where(
+        and(eq(admins.approvalStatus, "approved"), ne(admins.role, "room_servant")),
+      );
     const adminEmails = [
       ...new Set(
         adminRows
@@ -1106,7 +1108,9 @@ export async function sendNewMessageToAdminsEmail(
     const adminRows = await db
       .select({ email: admins.email })
       .from(admins)
-      .where(eq(admins.approvalStatus, "approved"));
+      .where(
+        and(eq(admins.approvalStatus, "approved"), ne(admins.role, "room_servant")),
+      );
     const adminEmails = [
       ...new Set(
         adminRows

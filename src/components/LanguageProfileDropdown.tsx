@@ -38,9 +38,13 @@ export const LanguageProfileDropdown: React.FC<
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin,
   );
+  const isRoomServant = profile?.role === "room_servant";
 
   const shouldShowMinistryProfile =
-    Boolean(onOpenMinistryProfile) && !hideMinistryProfile && !isAdmin;
+    Boolean(onOpenMinistryProfile) &&
+    !hideMinistryProfile &&
+    !isAdmin &&
+    !isRoomServant;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -76,6 +80,13 @@ export const LanguageProfileDropdown: React.FC<
       return (
         <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-stone-200 text-stone-800">
           {t("common.admin")}
+        </span>
+      );
+    }
+    if (profile?.role === "room_servant") {
+      return (
+        <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-teal-100 text-teal-900 border border-teal-200">
+          {t("common.roomServant", { defaultValue: "Room Servant" })}
         </span>
       );
     }

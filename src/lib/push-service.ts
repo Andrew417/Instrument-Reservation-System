@@ -127,6 +127,7 @@ export async function sendPushToAdmins(
         JOIN admins a ON s.admin_id = a.id
         LEFT JOIN admin_push_preferences p ON a.id = p.admin_id
         WHERE a.approval_status = 'approved'
+          AND a.role IN ('admin', 'super_admin')
           ${excludeAdminId ? sql`AND a.id != ${excludeAdminId}` : sql``}
           AND COALESCE(${prefColumn}, true) = true
       `;

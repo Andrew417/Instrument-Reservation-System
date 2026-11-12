@@ -144,6 +144,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
       phoneNumber: "",
       password: "",
       isSuperAdmin: false,
+      role: "admin",
     });
     setShowNewAdminModal(true);
   }, [setNewAdminForm, setShowNewAdminModal]);
@@ -234,58 +235,70 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
               <LayoutDashboard className="w-4 h-4" />
             </div>
             <h1 className="text-sm sm:text-base font-bold text-stone-900 leading-tight whitespace-nowrap">
-              {admin.isSuperAdmin
-                ? t("admin.consoleTitle")
-                : t("admin.adminTitle")}
+              {admin.isRoomServant
+                ? t("admin.roomServantTitle", { defaultValue: "Room Schedule" })
+                : admin.isSuperAdmin
+                  ? t("admin.consoleTitle")
+                  : t("admin.adminTitle")}
             </h1>
             <span
               className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider whitespace-nowrap ${
                 admin.isSuperAdmin
                   ? "bg-amber-100 text-amber-900 border border-amber-200"
-                  : "bg-stone-100 text-stone-700 border border-stone-200"
+                  : admin.isRoomServant
+                    ? "bg-teal-100 text-teal-900 border border-teal-200"
+                    : "bg-stone-100 text-stone-700 border border-stone-200"
               }`}
             >
-              {admin.isSuperAdmin ? t("common.superAdmin") : t("common.admin")}
+              {admin.isSuperAdmin
+                ? t("common.superAdmin")
+                : admin.isRoomServant
+                  ? t("common.roomServant", { defaultValue: "Room Servant" })
+                  : t("common.admin")}
             </span>
           </div>
 
-          <button
-            id="btn-admin-export-handover"
-            type="button"
-            onClick={() => {
-              admin.setHandoverDefaultMode("day");
-              admin.setHandoverDefaultDate(getTodayDateString());
-              admin.setHandoverDefaultFormat("xlsx");
-              admin.setShowHandoverModal(true);
-            }}
-            className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-            title="Export confirmed bookings handover sheet for key-holder (XLSX or CSV)"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">
-              {t("admin.exportHandover")}
-            </span>
-          </button>
+          {!admin.isRoomServant && (
+            <button
+              id="btn-admin-export-handover"
+              type="button"
+              onClick={() => {
+                admin.setHandoverDefaultMode("day");
+                admin.setHandoverDefaultDate(getTodayDateString());
+                admin.setHandoverDefaultFormat("xlsx");
+                admin.setShowHandoverModal(true);
+              }}
+              className="shrink-0 px-3 py-1.5 rounded-xl bg-amber-800 hover:bg-amber-900 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Export confirmed bookings handover sheet for key-holder (XLSX or CSV)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {t("admin.exportHandover")}
+              </span>
+            </button>
+          )}
         </div>
 
-        {/* Row 2 — 5 stat cards */}
-        <AdminStatCards
-          stats={admin.stats}
-          onSelectTab={admin.setActiveTab}
-          onSelectDashboardSubTab={(sub) => {
-            admin.setActiveTab("dashboard");
-            admin.setDashboardSubTab(sub);
-            if (sub === "upcoming") admin.fetchUpcomingReservations();
-          }}
-          onFilterPendingReview={() => {
-            admin.setActiveTab("review");
-            admin.setFilterQuickTab("pending");
-            admin.setReviewFilters((prev) => ({
-              ...prev,
-              statuses: ["pending"],
-            }));
-          }}
-        />
+        {/* Row 2 — 5 stat cards (admins/super admins only) */}
+        {!admin.isRoomServant && (
+          <AdminStatCards
+            stats={admin.stats}
+            onSelectTab={admin.setActiveTab}
+            onSelectDashboardSubTab={(sub) => {
+              admin.setActiveTab("dashboard");
+              admin.setDashboardSubTab(sub);
+              if (sub === "upcoming") admin.fetchUpcomingReservations();
+            }}
+            onFilterPendingReview={() => {
+              admin.setActiveTab("review");
+              admin.setFilterQuickTab("pending");
+              admin.setReviewFilters((prev) => ({
+                ...prev,
+                statuses: ["pending"],
+              }));
+            }}
+          />
+        )}
       </div>
 
       {/* Content Area for active tab */}
@@ -293,7 +306,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-[11px]">
           <span className="font-bold uppercase tracking-wider text-stone-400">
-            {admin.isSuperAdmin ? t("common.superAdmin") : t("common.admin")}
+            {admin.isSuperAdmin
+              ? t("common.superAdmin")
+              : admin.isRoomServant
+                ? t("common.roomServant", { defaultValue: "Room Servant" })
+                : t("common.admin")}
           </span>
           <span className="text-stone-300">/</span>
           <span className="font-bold text-stone-700">
@@ -301,12 +318,13 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           </span>
         </div>
 
-        {admin.activeTab === "dashboard" && (
+        {(admin.activeTab === "dashboard" || admin.isRoomServant) && (
           <DashboardTab
             dashboardSubTab={admin.dashboardSubTab}
             setDashboardSubTab={admin.setDashboardSubTab}
             fetchTodaysReservations={admin.fetchTodaysReservations}
             fetchUpcomingReservations={admin.fetchUpcomingReservations}
+            fetchPastReservations={admin.fetchPastReservations}
             showDashboardFilters={admin.showDashboardFilters}
             setShowDashboardFilters={admin.setShowDashboardFilters}
             dashboardFilters={admin.dashboardFilters}
@@ -319,6 +337,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
             todaysReservations={admin.todaysReservations}
             loadingUpcomingReservations={admin.loadingUpcomingReservations}
             upcomingReservations={admin.upcomingReservations}
+            loadingPastReservations={admin.loadingPastReservations}
+            pastReservations={admin.pastReservations}
             filterDashboardReservations={admin.filterDashboardReservations}
             onOpenReservationDetail={props.onOpenReservationDetail}
             isReservationAdminBooked={admin.isReservationAdminBooked}
@@ -326,7 +346,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "review" && (
+        {!admin.isRoomServant && admin.activeTab === "review" && (
           <ReviewTab
             reservations={admin.filteredReviewReservations}
             loadingReservations={admin.loadingReservations}
@@ -382,7 +402,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "approvals" && (
+        {!admin.isRoomServant && admin.activeTab === "approvals" && (
           <ApprovalsTab
             approvalsList={admin.approvalsList}
             loadingApprovals={admin.loadingApprovals}
@@ -404,7 +424,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "instruments" && (
+        {!admin.isRoomServant && admin.activeTab === "instruments" && (
           <InstrumentsTab
             instrumentsList={admin.instrumentsList}
             loadingInstruments={admin.loadingInstruments}
@@ -416,7 +436,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "services" && (
+        {!admin.isRoomServant && admin.activeTab === "services" && (
           <ServicesTab
             onOpenUserProfile={admin.openUserProfile}
             onServiceUpdated={() => {
@@ -427,7 +447,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "users" && (
+        {!admin.isRoomServant && admin.activeTab === "users" && (
           <UsersTab
             usersList={admin.usersList}
             loadingUsers={admin.loadingUsers}
@@ -442,7 +462,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "messaging" && (
+        {!admin.isRoomServant && admin.activeTab === "messaging" && (
           <MessagingTab
             conversations={admin.conversations}
             loadingConversations={admin.loadingConversations}
@@ -470,96 +490,111 @@ export const AdminPortal: React.FC<AdminPortalProps> = (props) => {
           />
         )}
 
-        {admin.activeTab === "analytics" && <AnalyticsTab />}
-
-        {admin.activeTab === "admin_accounts" && admin.isSuperAdmin && (
-          <AdminAccountsTab
-            adminAccountsList={admin.adminAccountsList}
-            loadingAdmins={admin.loadingAdmins}
-            currentProfile={admin.profile}
-            onOpenUserProfile={admin.openUserProfile}
-            onOpenCreateAdminModal={() => {
-              admin.setNewAdminForm({
-                name: "",
-                email: "",
-                phoneNumber: "",
-                password: "",
-                isSuperAdmin: false,
-              });
-              admin.setShowNewAdminModal(true);
-            }}
-            onChangeRole={(adminId, adminName, isSuperAdmin) => {
-              admin.handleOpenPromoteModal(
-                adminId,
-                adminName,
-                false,
-                true,
-                isSuperAdmin,
-              );
-            }}
-            onRemoveAdmin={admin.handleRemoveAdmin}
-          />
+        {!admin.isRoomServant && admin.activeTab === "analytics" && (
+          <AnalyticsTab />
         )}
 
-        {admin.activeTab === "trusted_status" && admin.isSuperAdmin && (
-          <TrustedStatusTab
-            trustedAuditLogs={admin.trustedAuditLogs}
-            musicianAuditLogs={admin.musicianAuditLogs}
-            serviceAuditLogs={admin.serviceAuditLogs}
-            loadingAuditLogs={admin.loadingAuditLogs}
-          />
-        )}
+        {!admin.isRoomServant &&
+          admin.activeTab === "admin_accounts" &&
+          admin.isSuperAdmin && (
+            <AdminAccountsTab
+              adminAccountsList={admin.adminAccountsList}
+              loadingAdmins={admin.loadingAdmins}
+              currentProfile={admin.profile}
+              onOpenUserProfile={admin.openUserProfile}
+              onOpenCreateAdminModal={() => {
+                admin.setNewAdminForm({
+                  name: "",
+                  email: "",
+                  phoneNumber: "",
+                  password: "",
+                  isSuperAdmin: false,
+                  role: "admin",
+                });
+                admin.setShowNewAdminModal(true);
+              }}
+              onChangeRole={(adminId, adminName, isSuperAdmin, role) => {
+                admin.handleOpenPromoteModal(
+                  adminId,
+                  adminName,
+                  false,
+                  true,
+                  isSuperAdmin,
+                  role === "room_servant",
+                );
+              }}
+              onRemoveAdmin={admin.handleRemoveAdmin}
+            />
+          )}
 
-        {admin.activeTab === "hard_limits" && admin.isSuperAdmin && (
-          <HardLimitsTab
-            hardLimitsState={admin.hardLimitsState}
-            setHardLimitsState={admin.setHardLimitsState}
-            loadingLimits={admin.loadingLimits}
-            savingLimits={admin.savingLimits}
-            onSave={admin.handleSaveHardLimits}
-          />
-        )}
+        {!admin.isRoomServant &&
+          admin.activeTab === "trusted_status" &&
+          admin.isSuperAdmin && (
+            <TrustedStatusTab
+              trustedAuditLogs={admin.trustedAuditLogs}
+              musicianAuditLogs={admin.musicianAuditLogs}
+              serviceAuditLogs={admin.serviceAuditLogs}
+              loadingAuditLogs={admin.loadingAuditLogs}
+            />
+          )}
 
-        {admin.activeTab === "payment_settings" && admin.isSuperAdmin && (
-          <PaymentSettingsTab
-            paymentSettingsState={admin.paymentSettingsState}
-            setPaymentSettingsState={admin.setPaymentSettingsState}
-            savingPayment={admin.savingPayment}
-            onSave={admin.handleSavePaymentSettings}
-          />
-        )}
+        {!admin.isRoomServant &&
+          admin.activeTab === "hard_limits" &&
+          admin.isSuperAdmin && (
+            <HardLimitsTab
+              hardLimitsState={admin.hardLimitsState}
+              setHardLimitsState={admin.setHardLimitsState}
+              loadingLimits={admin.loadingLimits}
+              savingLimits={admin.savingLimits}
+              onSave={admin.handleSaveHardLimits}
+            />
+          )}
 
-        {(admin.activeTab === "notification_settings" ||
-          admin.activeTab === "push_notifications") && (
-          <NotificationSettingsTab
-            isSuperAdmin={Boolean(admin.isSuperAdmin)}
-            adminDeviceSubscribed={admin.adminDeviceSubscribed}
-            savingPushPrefs={admin.savingPushPrefs}
-            loadingPushPrefs={admin.loadingPushPrefs}
-            testPushSending={admin.testPushSending}
-            testPushStatus={admin.testPushStatus}
-            adminPushPrefs={admin.adminPushPrefs}
-            notificationSettingsState={admin.notificationSettingsState}
-            savingNotificationSettings={admin.savingNotificationSettings}
-            onSubscribeDevice={admin.handleAdminSubscribeDevice}
-            onTestPush={admin.handleAdminTestPush}
-            onTogglePushPref={admin.handleTogglePushPref}
-            onToggleEmailSetting={admin.handleToggleEmailNotificationSetting}
-          />
-        )}
+        {!admin.isRoomServant &&
+          admin.activeTab === "payment_settings" &&
+          admin.isSuperAdmin && (
+            <PaymentSettingsTab
+              paymentSettingsState={admin.paymentSettingsState}
+              setPaymentSettingsState={admin.setPaymentSettingsState}
+              savingPayment={admin.savingPayment}
+              onSave={admin.handleSavePaymentSettings}
+            />
+          )}
+
+        {!admin.isRoomServant &&
+          (admin.activeTab === "notification_settings" ||
+            admin.activeTab === "push_notifications") && (
+            <NotificationSettingsTab
+              isSuperAdmin={Boolean(admin.isSuperAdmin)}
+              adminDeviceSubscribed={admin.adminDeviceSubscribed}
+              savingPushPrefs={admin.savingPushPrefs}
+              loadingPushPrefs={admin.loadingPushPrefs}
+              testPushSending={admin.testPushSending}
+              testPushStatus={admin.testPushStatus}
+              adminPushPrefs={admin.adminPushPrefs}
+              notificationSettingsState={admin.notificationSettingsState}
+              savingNotificationSettings={admin.savingNotificationSettings}
+              onSubscribeDevice={admin.handleAdminSubscribeDevice}
+              onTestPush={admin.handleAdminTestPush}
+              onTogglePushPref={admin.handleTogglePushPref}
+              onToggleEmailSetting={admin.handleToggleEmailNotificationSetting}
+            />
+          )}
       </main>
 
       {/* STICKY BOTTOM BAR — Bulk selection (mobile-first) */}
-      <BulkSelectionBottomBar
-        isOpen={admin.activeTab === "review" && admin.isSelectionMode}
-        reservations={admin.reservations}
-        selectedReservationIds={admin.selectedReservationIds}
-        isSuperAdmin={Boolean(admin.isSuperAdmin)}
-        onToggleSelectAll={admin.handleToggleSelectAllReservations}
-        onExitSelection={admin.exitSelectionMode}
-        onBulkCancel={admin.handleTriggerBulkCancel}
-        onBulkDelete={admin.handleTriggerBulkDelete}
-      />
+      {!admin.isRoomServant && (
+        <BulkSelectionBottomBar
+          isOpen={admin.activeTab === "review" && admin.isSelectionMode}
+          reservations={admin.reservations}
+          selectedReservationIds={admin.selectedReservationIds}
+          isSuperAdmin={Boolean(admin.isSuperAdmin)}
+          onToggleSelectAll={admin.handleToggleSelectAllReservations}
+          onExitSelection={admin.exitSelectionMode}
+          onBulkCancel={admin.handleTriggerBulkCancel}
+          onBulkDelete={admin.handleTriggerBulkDelete}
+        />
+      )}
 
       {/* Admin Modals Host */}
       <AdminModalsHost
