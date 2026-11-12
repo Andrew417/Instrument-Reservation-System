@@ -79,6 +79,8 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
     Boolean(profile?.isSuperAdmin);
+  const canViewReservantDetails =
+    isAdminOrSuperAdmin || profile?.role === "room_servant";
 
   const [currentInstrument, setCurrentInstrument] =
     useState<Instrument>(instrument);
@@ -873,7 +875,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="inline-block w-2.5 h-2.5 rounded-sm bg-stone-200 border border-stone-300" />
                   <span>{t("instrumentDetail.freeLegend")}</span>
-                  {isAdminOrSuperAdmin ? (
+                  {canViewReservantDetails ? (
                     <>
                       <span className="inline-block w-2.5 h-2.5 rounded-sm bg-indigo-950 border border-indigo-600" />
                       <span>{t("instrumentDetail.assignedColorLegend")}</span>
@@ -895,7 +897,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                   const slotRes = getSlotReservation(selectedDate, slotHhmm);
 
                   if (booked) {
-                    if (isAdminOrSuperAdmin) {
+                    if (canViewReservantDetails) {
                       const reservantKey =
                         slotRes?.user_id ||
                         slotRes?.userId ||
@@ -1074,7 +1076,7 @@ export const InstrumentDetailModal: React.FC<InstrumentDetailModalProps> = ({
                             );
 
                             if (booked) {
-                              if (isAdminOrSuperAdmin) {
+                              if (canViewReservantDetails) {
                                 const reservantKey =
                                   slotRes?.user_id ||
                                   slotRes?.userId ||

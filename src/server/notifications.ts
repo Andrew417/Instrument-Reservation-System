@@ -23,7 +23,9 @@ async function resolveAccountId(
         return { userId: session.userId, adminId: null };
       }
       if (
-        (session.role === "admin" || session.role === "super_admin") &&
+        (session.role === "admin" ||
+          session.role === "super_admin" ||
+          session.role === "room_servant") &&
         session.adminId
       ) {
         return { userId: null, adminId: session.adminId };

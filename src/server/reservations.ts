@@ -53,12 +53,14 @@ async function extractSessionIdentity(req: Request) {
   try {
     const sessionRes = await validateSession(token);
     if (sessionRes.valid && sessionRes.session) {
-      const isAdm =
-        sessionRes.session.role === "admin" ||
-        sessionRes.session.role === "super_admin";
+      const role = sessionRes.session.role;
+      const isAdminPrivilege = role === "admin" || role === "super_admin";
+      const hasAdminRow = isAdminPrivilege || role === "room_servant";
       return {
-        userId: isAdm ? null : sessionRes.session.userId,
-        adminId: isAdm ? sessionRes.session.adminId : null,
+        userId: hasAdminRow ? null : sessionRes.session.userId,
+        adminId: hasAdminRow ? sessionRes.session.adminId : null,
+        role,
+        isAdminPrivilege,
       };
     }
   } catch {
@@ -81,7 +83,7 @@ async function resolveBookingOwner(req: Request) {
       : {};
   }
 
-  if (!identity?.adminId) {
+  if (!identity?.isAdminPrivilege || !identity?.adminId) {
     throw new Error("Not authorized to book on behalf of a member.");
   }
 
@@ -98,11 +100,7 @@ async function resolveBookingOwner(req: Request) {
 /**
  * Resolve the calling user's OWN identity for "self-booking" features
  * like quick-rebook. Returns the users.id when a member session is present,
- * or the admins.id when an admin / super_admin session is present.
- *
- * Admins are musicians too and often book instruments for themselves
- * through the normal member flow — those bookings are stored with
- * r.admin_id set and r.user_id = NULL.
+ * or the admins.id when an admin / super_admin / room_servant session is present.
  */
 async function extractSelfBookingIdentity(
   req: Request,
@@ -114,8 +112,9 @@ async function extractSelfBookingIdentity(
     const { valid, session } = await validateSession(token);
     if (!valid || !session) return null;
     const role = (session as any).role;
-    const isAdminRole = role === "admin" || role === "super_admin";
-    if (isAdminRole) {
+    const hasAdminRow =
+      role === "admin" || role === "super_admin" || role === "room_servant";
+    if (hasAdminRow) {
       const adminId =
         (session as any).adminId ?? (session as any).admin?.id ?? null;
       if (!adminId) return null;
@@ -244,6 +243,10 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
     console.error("Reservation series create error:", err);
+    console.error(
+      "DB cause:",
+      err instanceof Error ? err.cause : err,
+    );
     const msg: string = err.message || "Failed to create reservation series.";
     const status =
       err.code === "SUBMISSION_BLOCKED"
@@ -260,7 +263,6 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
     res.status(status).json({
       success: false,
       error: msg,
-      cause: err.cause?.message,
     });
   }
 });
@@ -289,6 +291,10 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
     console.error("Reservation create error:", err);
+    console.error(
+      "DB cause:",
+      err instanceof Error ? err.cause : err,
+    );
     const msg: string = err.message || "Failed to create reservation.";
     const status =
       err.code === "SUBMISSION_BLOCKED"
@@ -303,7 +309,6 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     res.status(status).json({
       success: false,
       error: msg,
-      cause: err.cause?.message,
     });
   }
 });
@@ -324,11 +329,13 @@ router.patch(
             userId: sessionIdentity.userId,
             adminId: sessionIdentity.adminId,
             isSuperAdmin: await resolveIsSuperAdmin(req),
+            isAdminPrivilege: sessionIdentity.isAdminPrivilege,
           }
         : {
             userId: (rawBody.userId as string | undefined) ?? null,
             adminId: null,
             isSuperAdmin: false,
+            isAdminPrivilege: false,
           };
 
       const result = await editReservationSeries(seriesId, req.body, actor);
@@ -379,16 +386,19 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
       userId?: string | null;
       adminId?: string | null;
       isSuperAdmin?: boolean;
+      isAdminPrivilege?: boolean;
     } = sessionIdentity
       ? {
           userId: sessionIdentity.userId,
           adminId: sessionIdentity.adminId,
           isSuperAdmin: await resolveIsSuperAdmin(req),
+          isAdminPrivilege: sessionIdentity.isAdminPrivilege,
         }
       : {
           userId: (rawBody.userId as string | undefined) ?? null,
           adminId: null,
           isSuperAdmin: false,
+          isAdminPrivilege: false,
         };
 
     const updated = await editReservation(
@@ -426,7 +436,7 @@ router.put(
       const { status, notes, photoUrl, tags, checkedBy } = req.body;
 
       const lookup = await db.execute(sql`
-        SELECT id, user_id, musician_name, service_name, instrument_id
+        SELECT id, user_id, admin_id, musician_name, service_name, instrument_id
         FROM reservations WHERE id = ${id} LIMIT 1
       `);
       const rows = (lookup as any).rows || [];
@@ -438,6 +448,20 @@ router.put(
       }
 
       const resRecord = rows[0];
+      const sessionIdentity = await extractSessionIdentity(req);
+      if (sessionIdentity) {
+        const isAdminActor = Boolean(sessionIdentity.isAdminPrivilege);
+        const isOwner =
+          (sessionIdentity.userId &&
+            resRecord.user_id === sessionIdentity.userId) ||
+          (sessionIdentity.adminId &&
+            resRecord.admin_id === sessionIdentity.adminId &&
+            !resRecord.user_id);
+        if (!isAdminActor && !isOwner) {
+          res.status(403).json({ success: false, error: "Not authorized" });
+          return;
+        }
+      }
       const windowCheck = await db.execute(sql`
         SELECT status
         FROM reservations
@@ -504,7 +528,13 @@ router.post(
       const result = await cancelReservation(
         id,
         { cancelMode, cancellationReason },
-        sessionIdentity || { userId, adminId },
+        sessionIdentity
+          ? {
+              userId: sessionIdentity.userId || undefined,
+              adminId: sessionIdentity.adminId || undefined,
+              isAdminPrivilege: sessionIdentity.isAdminPrivilege,
+            }
+          : { userId, adminId },
       );
       res.json({ success: true, ...result });
     } catch (err: any) {
@@ -779,6 +809,38 @@ router.post(
         return;
       }
 
+      const sessionIdentity = await extractSessionIdentity(req);
+
+      const lookup = await db.execute(sql`
+        SELECT id, user_id, admin_id
+        FROM reservations
+        WHERE id = ${id}
+        LIMIT 1
+      `);
+      const lookupRows = (lookup as any).rows || [];
+      if (lookupRows.length === 0) {
+        res
+          .status(404)
+          .json({ success: false, error: "Reservation not found" });
+        return;
+      }
+
+      const existing = lookupRows[0];
+      if (sessionIdentity) {
+        const isAdminActor = Boolean(sessionIdentity.isAdminPrivilege);
+        const isOwner =
+          (sessionIdentity.userId &&
+            existing.user_id === sessionIdentity.userId) ||
+          (sessionIdentity.adminId &&
+            existing.admin_id === sessionIdentity.adminId &&
+            !existing.user_id);
+
+        if (!isAdminActor && !isOwner) {
+          res.status(403).json({ success: false, error: "Not authorized" });
+          return;
+        }
+      }
+
       const result = await db.execute(sql`
       UPDATE reservations
       SET payment_screenshot_url = ${screenshotUrl}
@@ -818,7 +880,7 @@ router.delete(
       const sessionIdentity = await extractSessionIdentity(req);
 
       const lookup = await db.execute(sql`
-        SELECT id, user_id, payment_screenshot_url
+        SELECT id, user_id, admin_id, payment_screenshot_url
         FROM reservations
         WHERE id = ${id}
         LIMIT 1
@@ -834,10 +896,13 @@ router.delete(
       const reservation = lookupRows[0];
 
       if (sessionIdentity) {
-        const isAdminActor = Boolean(sessionIdentity.adminId);
+        const isAdminActor = Boolean(sessionIdentity.isAdminPrivilege);
         const isOwner =
-          sessionIdentity.userId &&
-          reservation.user_id === sessionIdentity.userId;
+          (sessionIdentity.userId &&
+            reservation.user_id === sessionIdentity.userId) ||
+          (sessionIdentity.adminId &&
+            reservation.admin_id === sessionIdentity.adminId &&
+            !reservation.user_id);
 
         if (!isAdminActor && !isOwner) {
           res.status(403).json({ success: false, error: "Not authorized" });
@@ -887,6 +952,7 @@ router.post(
         SELECT
           r.id,
           r.user_id,
+          r.admin_id,
           r.service_name,
           r.musician_name,
           r.payment_screenshot_url,
@@ -915,9 +981,12 @@ router.post(
       const r = rows[0];
 
       if (sessionIdentity) {
-        const isAdminActor = Boolean(sessionIdentity.adminId);
+        const isAdminActor = Boolean(sessionIdentity.isAdminPrivilege);
         const isOwner =
-          sessionIdentity.userId && r.user_id === sessionIdentity.userId;
+          (sessionIdentity.userId && r.user_id === sessionIdentity.userId) ||
+          (sessionIdentity.adminId &&
+            r.admin_id === sessionIdentity.adminId &&
+            !r.user_id);
         if (!isAdminActor && !isOwner) {
           res.status(403).json({ success: false, error: "Not authorized" });
           return;
@@ -956,7 +1025,7 @@ router.post(
 
       try {
         const adminIdsRes = await db.execute(sql`
-          SELECT id FROM admins WHERE approval_status = 'approved'
+          SELECT id FROM admins WHERE approval_status = 'approved' AND role IN ('admin', 'super_admin')
         `);
         const adminIds = ((adminIdsRes as any).rows || []).map(
           (a: any) => a.id,
@@ -1020,9 +1089,19 @@ router.post(
       let senderName = bodyName || null;
 
       if (sessionIdentity) {
-        if (sessionIdentity.adminId) {
+        if (sessionIdentity.isAdminPrivilege && sessionIdentity.adminId) {
           adminId = sessionIdentity.adminId;
           senderRole = "admin";
+          const adm = await db.execute(
+            sql`SELECT name FROM admins WHERE id = ${adminId}`,
+          );
+          if ((adm as any).rows?.length > 0) {
+            senderName = (adm as any).rows[0].name;
+          }
+        } else if (sessionIdentity.adminId) {
+          adminId = sessionIdentity.adminId;
+          userId = null;
+          senderRole = "user";
           const adm = await db.execute(
             sql`SELECT name FROM admins WHERE id = ${adminId}`,
           );
@@ -1044,6 +1123,7 @@ router.post(
       const resInfo = await db.execute(sql`
         SELECT
           r.user_id,
+          r.admin_id,
           r.service_name,
           r.musician_name,
           r.status,
@@ -1064,6 +1144,22 @@ router.post(
       if (!resRecord) {
         res.status(404).json({ success: false, error: "Reservation not found." });
         return;
+      }
+
+      if (sessionIdentity && !sessionIdentity.isAdminPrivilege) {
+        const isMsgOwner =
+          (sessionIdentity.userId &&
+            resRecord.user_id === sessionIdentity.userId) ||
+          (sessionIdentity.adminId &&
+            resRecord.admin_id === sessionIdentity.adminId &&
+            !resRecord.user_id);
+        if (!isMsgOwner) {
+          res.status(403).json({
+            success: false,
+            error: "Not authorized to send messages on this reservation.",
+          });
+          return;
+        }
       }
 
       // Option A Grace Period enforcement:
@@ -1147,7 +1243,7 @@ router.post(
       try {
         if (senderRole === "user") {
           const adminList = await db.execute(
-            sql`SELECT id FROM admins WHERE approval_status = 'approved'`,
+            sql`SELECT id FROM admins WHERE approval_status = 'approved' AND role IN ('admin', 'super_admin')`,
           );
           const allAdmins = (adminList as any).rows || [];
           for (const adm of allAdmins) {
@@ -1965,6 +2061,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       : (req.headers["x-session-token"] as string);
 
     let isAdmin = false;
+    let isRoomServant = false;
     let isMusician = false;
     let currentUserId: string | null = null;
     if (token) {
@@ -1978,6 +2075,8 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
             session.user?.isSuperAdmin
           ) {
             isAdmin = true;
+          } else if (session.role === "room_servant") {
+            isRoomServant = true;
           }
           if (session.user?.isMusician) {
             isMusician = true;
@@ -1987,6 +2086,11 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         // Continue with guest/standard permissions
       }
     }
+
+    const canViewAdminRows = isAdmin;
+    const canViewSelfAdminRows =
+      (isAdmin || isRoomServant) &&
+      Boolean(userId && currentUserId && String(userId) === currentUserId);
 
     const result = await db.execute(sql`
       SELECT 
@@ -2048,9 +2152,9 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       WHERE 1=1
       ${
         userId
-          ? sql`AND (r.user_id = ${userId as string} OR ${isAdmin ? sql`(r.admin_id = ${userId as string} AND r.user_id IS NULL)` : sql`false`})`
+          ? sql`AND (r.user_id = ${userId as string} OR ${canViewAdminRows || canViewSelfAdminRows ? sql`(r.admin_id = ${userId as string} AND r.user_id IS NULL)` : sql`false`})`
           : sql`AND (r.is_type_request = false OR r.is_type_request IS NULL OR r.status = 'approved')
-                AND (${isAdmin ? sql`true` : isMusician ? sql`(i.visibility_level IN ('public', 'musician') OR i.visibility_level IS NULL)` : sql`(i.visibility_level = 'public' OR i.visibility_level IS NULL)`})`
+                AND (${isAdmin || isRoomServant ? sql`true` : isMusician ? sql`(i.visibility_level IN ('public', 'musician') OR i.visibility_level IS NULL)` : sql`(i.visibility_level = 'public' OR i.visibility_level IS NULL)`})`
       }
       ${instrumentId ? sql`AND r.instrument_id = ${instrumentId as string}` : sql``}
       ${status ? ((status as string).includes(",") ? sql`AND r.status = ANY(string_to_array(${status as string}, ','))` : sql`AND r.status = ${status as string}`) : sql``}
@@ -2065,7 +2169,8 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         Number(r.duration_hours) >= 13;
       const isOwn =
         currentUserId &&
-        (r.user_id === currentUserId || r.admin_id === currentUserId);
+        (r.user_id === currentUserId ||
+          (r.admin_id === currentUserId && !r.user_id));
 
       if (isAdmin) {
         return {
@@ -2090,6 +2195,19 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
           instrument_is_masked: shouldMask,
           is_full_day: isFullDay,
           isFullDay,
+        };
+      }
+      if (isRoomServant) {
+        return {
+          ...r,
+          instrument_name: maskedName,
+          instrument_description: maskedDesc,
+          instrument_photo_url: maskedPhoto,
+          instrument_is_masked: shouldMask,
+          is_full_day: isFullDay,
+          isFullDay,
+          user_phone: undefined,
+          payment_screenshot_url: undefined,
         };
       }
       return {

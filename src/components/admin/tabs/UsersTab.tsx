@@ -39,6 +39,7 @@ export interface UsersTabProps {
     isMusician?: boolean,
     isCurrentlyAdmin?: boolean,
     isCurrentlySuperAdmin?: boolean,
+    isCurrentlyRoomServant?: boolean,
   ) => void;
 }
 

@@ -11,10 +11,11 @@ import { LoadingSpinner } from "../../shared/LoadingSpinner";
 import { EmptyStateCard } from "../../shared/EmptyStateCard";
 
 export interface DashboardTabProps {
-  dashboardSubTab: "today" | "upcoming";
-  setDashboardSubTab: (sub: "today" | "upcoming") => void;
+  dashboardSubTab: "today" | "upcoming" | "past";
+  setDashboardSubTab: (sub: "today" | "upcoming" | "past") => void;
   fetchTodaysReservations: () => void;
   fetchUpcomingReservations: () => void;
+  fetchPastReservations: () => void;
   showDashboardFilters: boolean;
   setShowDashboardFilters: React.Dispatch<React.SetStateAction<boolean>>;
   dashboardFilters: ReservationFilterState;
@@ -27,6 +28,8 @@ export interface DashboardTabProps {
   todaysReservations: any[];
   loadingUpcomingReservations: boolean;
   upcomingReservations: any[];
+  loadingPastReservations: boolean;
+  pastReservations: any[];
   filterDashboardReservations: (list: any[]) => any[];
   onOpenReservationDetail?: (id: string) => void;
   isReservationAdminBooked: (r: any) => boolean;
@@ -38,6 +41,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   setDashboardSubTab,
   fetchTodaysReservations,
   fetchUpcomingReservations,
+  fetchPastReservations,
   showDashboardFilters,
   setShowDashboardFilters,
   dashboardFilters,
@@ -50,6 +54,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   todaysReservations,
   loadingUpcomingReservations,
   upcomingReservations,
+  loadingPastReservations,
+  pastReservations,
   filterDashboardReservations,
   onOpenReservationDetail,
   isReservationAdminBooked,
@@ -57,9 +63,132 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const renderGroupedSchedule = (
+    rows: any[],
+    emptyText: string,
+    sortDaysDescending = false,
+  ) => {
+    const filtered = [...filterDashboardReservations(rows)].sort(
+      (a, b) =>
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+    );
+    if (filtered.length === 0) {
+      return <EmptyStateCard description={emptyText} />;
+    }
+    const groups: Record<string, any[]> = {};
+    for (const r of filtered) {
+      const d = new Date(r.start_time);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        "0",
+      )}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    }
+    const dayKeys = Object.keys(groups).sort((a, b) =>
+      sortDaysDescending ? b.localeCompare(a) : a.localeCompare(b),
+    );
+    return (
+      <div className="space-y-5">
+        {dayKeys.map((dayKey) => {
+          const dayRows = groups[dayKey];
+          const d = new Date(dayRows[0].start_time);
+          const weekday = d.toLocaleDateString(isAr ? "ar-EG" : "en-US", {
+            weekday: "short",
+          });
+          const dd = String(d.getDate()).padStart(2, "0");
+          const mm = String(d.getMonth() + 1).padStart(2, "0");
+          const yyyy = d.getFullYear();
+          const dayLabel = `${weekday} - ${dd}/${mm}/${yyyy}`;
+          return (
+            <div key={dayKey} className="space-y-2">
+              <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xs py-1.5 flex items-center gap-2.5">
+                <CalendarDays className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                <span className="text-xs font-extrabold text-amber-950 tracking-wide whitespace-nowrap">
+                  {dayLabel}
+                </span>
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 shrink-0">
+                  {dayRows.length}
+                </span>
+                <span
+                  className="flex-1 h-0.5 rounded-full bg-amber-700"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="space-y-2">
+                {dayRows.map((r) => (
+                  <div
+                    key={r.id}
+                    role={onOpenReservationDetail ? "button" : undefined}
+                    tabIndex={onOpenReservationDetail ? 0 : undefined}
+                    onClick={
+                      onOpenReservationDetail
+                        ? () => onOpenReservationDetail(r.id)
+                        : undefined
+                    }
+                    onKeyDown={
+                      onOpenReservationDetail
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onOpenReservationDetail(r.id);
+                            }
+                          }
+                        : undefined
+                    }
+                    className={`flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50 transition ${
+                      onOpenReservationDetail
+                        ? "cursor-pointer hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-xs active:scale-[0.995] focus:outline-none focus:ring-2 focus:ring-amber-600/30"
+                        : ""
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="font-semibold text-stone-900 text-xs truncate">
+                        {r.instrument_name} — {r.service_name}
+                      </div>
+                      <div className="text-[11px] text-stone-500 flex items-center gap-1.5 flex-wrap">
+                        {isReservationAdminBooked(r) ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-amber-800">
+                            <Shield className="w-3 h-3 text-amber-700 shrink-0" />
+                            <span>{getAdminDisplayName(r)}</span>
+                          </span>
+                        ) : (
+                          <span>{r.user_name || "Member"}</span>
+                        )}
+                        <span className="text-stone-300">·</span>
+                        <span>
+                          {new Date(r.start_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          -{" "}
+                          {new Date(r.end_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
+                        r.status,
+                      )}`}
+                    >
+                      {translateStatus(r.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div>
-      {/* Schedule Card with Today / Upcoming tabs */}
+      {/* Schedule Card with Today / Upcoming / Past tabs */}
       <div className="bg-white border border-stone-200 rounded-2xl p-5 shadow-2xs space-y-4">
         <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-3 flex-wrap">
           <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-2xl border border-stone-200">
@@ -93,6 +222,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             >
               {t("admin.dashboard.tabUpcoming")}
             </button>
+            <button
+              type="button"
+              id="dashboard-subtab-past"
+              onClick={() => {
+                setDashboardSubTab("past");
+                fetchPastReservations();
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                dashboardSubTab === "past"
+                  ? "bg-amber-800 text-white shadow-2xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              {t("admin.dashboard.tabPast", { defaultValue: "Past" })}
+            </button>
           </div>
 
           <div className="flex items-center gap-2 relative">
@@ -110,7 +254,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               type="button"
               onClick={() => {
                 if (dashboardSubTab === "today") fetchTodaysReservations();
-                else fetchUpcomingReservations();
+                else if (dashboardSubTab === "upcoming")
+                  fetchUpcomingReservations();
+                else fetchPastReservations();
               }}
               className="shrink-0 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 text-stone-600 border border-stone-200 transition cursor-pointer"
               title={t("admin.dashboard.refreshTooltip")}
@@ -129,7 +275,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
         {dashboardSubTab === "today" ? (
           loadingTodaysReservations ? (
-            <LoadingSpinner centered label={t("admin.dashboard.loading") || "Loading today's schedule..."} />
+            <LoadingSpinner
+              centered
+              label={
+                t("admin.dashboard.loading") || "Loading today's schedule..."
+              }
+            />
           ) : (
             (() => {
               const todayApproved = filterDashboardReservations(
@@ -148,9 +299,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 );
               if (todayApproved.length === 0) {
                 return (
-                  <EmptyStateCard
-                    description={t("admin.dashboard.empty")}
-                  />
+                  <EmptyStateCard description={t("admin.dashboard.empty")} />
                 );
               }
               return (
@@ -158,9 +307,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   {todayApproved.map((r) => (
                     <div
                       key={r.id}
-                      role={
-                        onOpenReservationDetail ? "button" : undefined
-                      }
+                      role={onOpenReservationDetail ? "button" : undefined}
                       tabIndex={onOpenReservationDetail ? 0 : undefined}
                       onClick={
                         onOpenReservationDetail
@@ -198,13 +345,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           )}
                           <span className="text-stone-300">·</span>
                           <span>
-                            {new Date(r.start_time).toLocaleTimeString(
-                              [],
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}{" "}
+                            {new Date(r.start_time).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}{" "}
                             -{" "}
                             {new Date(r.end_time).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -226,150 +370,38 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               );
             })()
           )
-        ) : loadingUpcomingReservations ? (
-          <LoadingSpinner centered label={t("admin.dashboard.loading") || "Loading upcoming schedule..."} />
+        ) : dashboardSubTab === "upcoming" ? (
+          loadingUpcomingReservations ? (
+            <LoadingSpinner
+              centered
+              label={
+                t("admin.dashboard.loading") || "Loading upcoming schedule..."
+              }
+            />
+          ) : (
+            renderGroupedSchedule(
+              upcomingReservations,
+              t("admin.dashboard.emptyUpcoming"),
+              false,
+            )
+          )
+        ) : loadingPastReservations ? (
+          <LoadingSpinner
+            centered
+            label={
+              t("admin.dashboard.loadingPast", {
+                defaultValue: "Loading past schedule...",
+              })
+            }
+          />
         ) : (
-          (() => {
-            const sorted = [
-              ...filterDashboardReservations(upcomingReservations),
-            ].sort(
-              (a, b) =>
-                new Date(a.start_time).getTime() -
-                new Date(b.start_time).getTime(),
-            );
-            if (sorted.length === 0) {
-              return (
-                <EmptyStateCard
-                  description={t("admin.dashboard.emptyUpcoming")}
-                />
-              );
-            }
-            // Group by calendar day (Cairo time)
-            const groups: Record<string, any[]> = {};
-            for (const r of sorted) {
-              const d = new Date(r.start_time);
-              const key = `${d.getFullYear()}-${String(
-                d.getMonth() + 1,
-              ).padStart(2, "0")}-${String(d.getDate()).padStart(
-                2,
-                "0",
-              )}`;
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(r);
-            }
-            const dayKeys = Object.keys(groups).sort();
-            return (
-              <div className="space-y-5">
-                {dayKeys.map((dayKey) => {
-                  const dayRows = groups[dayKey];
-                  const d = new Date(dayRows[0].start_time);
-                  const weekday = d.toLocaleDateString(
-                    isAr ? "ar-EG" : "en-US",
-                    { weekday: "short" },
-                  );
-                  const dd = String(d.getDate()).padStart(2, "0");
-                  const mm = String(d.getMonth() + 1).padStart(2, "0");
-                  const yyyy = d.getFullYear();
-                  const dayLabel = `${weekday} - ${dd}/${mm}/${yyyy}`;
-                  return (
-                    <div key={dayKey} className="space-y-2">
-                      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-xs py-1.5 flex items-center gap-2.5">
-                        <CalendarDays className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span className="text-xs font-extrabold text-amber-950 tracking-wide whitespace-nowrap">
-                          {dayLabel}
-                        </span>
-                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 shrink-0">
-                          {dayRows.length}
-                        </span>
-                        {/* Primary-colored separator line beside the date */}
-                        <span
-                          className="flex-1 h-0.5 rounded-full bg-amber-700"
-                          aria-hidden="true"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        {dayRows.map((r) => (
-                          <div
-                            key={r.id}
-                            role={
-                              onOpenReservationDetail
-                                ? "button"
-                                : undefined
-                            }
-                            tabIndex={
-                              onOpenReservationDetail ? 0 : undefined
-                            }
-                            onClick={
-                              onOpenReservationDetail
-                                ? () => onOpenReservationDetail(r.id)
-                                : undefined
-                            }
-                            onKeyDown={
-                              onOpenReservationDetail
-                                ? (e) => {
-                                    if (
-                                      e.key === "Enter" ||
-                                      e.key === " "
-                                    ) {
-                                      e.preventDefault();
-                                      onOpenReservationDetail(r.id);
-                                    }
-                                  }
-                                : undefined
-                            }
-                            className={`flex items-center justify-between gap-3 p-3 rounded-xl border border-stone-200 bg-stone-50/50 transition ${
-                              onOpenReservationDetail
-                                ? "cursor-pointer hover:border-amber-400 hover:bg-amber-50/40 hover:shadow-xs active:scale-[0.995] focus:outline-none focus:ring-2 focus:ring-amber-600/30"
-                                : ""
-                            }`}
-                          >
-                            <div className="min-w-0">
-                              <div className="font-semibold text-stone-900 text-xs truncate">
-                                {r.instrument_name} — {r.service_name}
-                              </div>
-                              <div className="text-[11px] text-stone-500 flex items-center gap-1.5 flex-wrap">
-                                {isReservationAdminBooked(r) ? (
-                                  <span className="inline-flex items-center gap-1 font-bold text-amber-800">
-                                    <Shield className="w-3 h-3 text-amber-700 shrink-0" />
-                                    <span>{getAdminDisplayName(r)}</span>
-                                  </span>
-                                ) : (
-                                  <span>{r.user_name || "Member"}</span>
-                                )}
-                                <span className="text-stone-300">·</span>
-                                <span>
-                                  {new Date(
-                                    r.start_time,
-                                  ).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}{" "}
-                                  -{" "}
-                                  {new Date(
-                                    r.end_time,
-                                  ).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-                            <span
-                              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(
-                                r.status,
-                              )}`}
-                            >
-                              {translateStatus(r.status)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()
+          renderGroupedSchedule(
+            pastReservations,
+            t("admin.dashboard.emptyPast", {
+              defaultValue: "No past approved reservations found.",
+            }),
+            true,
+          )
         )}
       </div>
     </div>

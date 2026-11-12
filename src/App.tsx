@@ -147,13 +147,16 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin;
+  const isRoomServant = profile?.role === "room_servant";
+  const hasAdminTabAccess = Boolean(isAdminOrSuperAdmin || isRoomServant);
+  const canViewCalendarDetails = Boolean(isAdminOrSuperAdmin || isRoomServant);
   const [policyExplainerEnabled, setPolicyExplainerEnabled] = useState(true);
-  // Auto-open policy explainer modal after auth only for regular users (not for admins or superadmins)
+  // Auto-open policy explainer modal after auth only for regular users (not for admins, superadmins, or room servants)
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
 
   useEffect(() => {
-    // Only automatically pop up for regular users, never for admins or superadmins
-    if (profile && !isAdminOrSuperAdmin) {
+    // Only automatically pop up for regular users, never for admins, superadmins, or room servants
+    if (profile && !hasAdminTabAccess) {
       let hasSeenPolicy = false;
       try {
         hasSeenPolicy =
@@ -166,7 +169,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
     } else {
       setIsPolicyModalOpen(false);
     }
-  }, [profile?.id, profile?.role, isAdminOrSuperAdmin]);
+  }, [profile?.id, profile?.role, hasAdminTabAccess]);
 
   // Hook managing PWA installation state and native/iOS prompts
   const {
@@ -626,7 +629,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
               )}
             </button>
 
-            {isAdminOrSuperAdmin && (
+            {hasAdminTabAccess && (
               <button
                 id="nav-btn-admin-portal"
                 type="button"
@@ -697,7 +700,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
             <LanguageProfileDropdown
               onOpenMinistryProfile={() => setIsMinistryProfileModalOpen(true)}
               hideMinistryProfile={
-                currentView === "admin_portal" || isAdminOrSuperAdmin
+                currentView === "admin_portal" || hasAdminTabAccess
               }
             />
           </div>
@@ -729,7 +732,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
             onLoadedInstruments={(insts) => setAllInstruments(insts)}
             onReservationSuccess={handleReservationSuccess}
             onOpenReservationDetail={
-              isAdminOrSuperAdmin
+              canViewCalendarDetails
                 ? (reservationId) => {
                     setSelectedReservationDetailId(reservationId);
                     setReservationDetailInitialTab("details");
@@ -811,9 +814,9 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
             preselectedReservationId={selectedReservationDetailId}
           />
         )}
-        {currentView === "admin_portal" && isAdminOrSuperAdmin && (
+        {currentView === "admin_portal" && hasAdminTabAccess && (
           <AdminPortal
-            initialTab={initialAdminTab}
+            initialTab={isRoomServant ? "dashboard" : initialAdminTab}
             initialReservationId={selectedReservationDetailId}
             onBackToMemberView={() => setCurrentView("calendar")}
             onOpenReservationDetail={(id) => {
@@ -1282,8 +1285,8 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
             </span>
           </button>
 
-          {/* Admin Portal — admins only */}
-          {isAdminOrSuperAdmin && (
+          {/* Admin Portal — admins and room servants */}
+          {hasAdminTabAccess && (
             <button
               type="button"
               id="bottom-nav-admin"

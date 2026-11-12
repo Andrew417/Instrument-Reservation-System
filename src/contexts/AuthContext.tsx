@@ -20,7 +20,7 @@ export interface UserProfile {
   name: string;
   email: string;
   phoneNumber: string;
-  role: "user" | "admin" | "super_admin";
+  role: "user" | "musician" | "room_servant" | "admin" | "super_admin";
   isTrusted?: boolean;
   isMusician?: boolean;
   isActive?: boolean;

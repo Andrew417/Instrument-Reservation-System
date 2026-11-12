@@ -68,6 +68,7 @@ export function useAdminPortalData({
   const isAr = i18n.language === "ar";
   const isRTL = isAr;
   const isSuperAdmin = profile?.role === "super_admin" || profile?.isSuperAdmin;
+  const isRoomServant = profile?.role === "room_servant";
 
   const [internalSelectedUserId, setInternalSelectedUserId] = useState<
     string | null
@@ -89,16 +90,22 @@ export function useAdminPortalData({
   };
 
   const [activeTab, setActiveTab] = useState<AdminTab>(
-    initialTab || "dashboard",
+    isRoomServant ? "dashboard" : initialTab || "dashboard",
   );
 
   useEffect(() => {
-    if (initialTab) {
+    if (isRoomServant) {
+      setActiveTab("dashboard");
+    } else if (initialTab) {
       setActiveTab(initialTab);
     }
-  }, [initialTab]);
+  }, [initialTab, isRoomServant]);
 
   useEffect(() => {
+    if (isRoomServant && activeTab !== "dashboard") {
+      setActiveTab("dashboard");
+      return;
+    }
     const superAdminOnlyTabs: AdminTab[] = [
       "admin_accounts",
       "trusted_status",
@@ -108,7 +115,7 @@ export function useAdminPortalData({
     if (!isSuperAdmin && superAdminOnlyTabs.includes(activeTab)) {
       setActiveTab("dashboard");
     }
-  }, [activeTab, isSuperAdmin]);
+  }, [activeTab, isSuperAdmin, isRoomServant]);
 
   const [stats, setStats] = useState<{
     totalInstruments: number;
@@ -133,11 +140,14 @@ export function useAdminPortalData({
   const [todaysReservations, setTodaysReservations] = useState<any[]>([]);
   const [loadingTodaysReservations, setLoadingTodaysReservations] =
     useState<boolean>(false);
-  const [dashboardSubTab, setDashboardSubTab] = useState<"today" | "upcoming">(
-    "today",
-  );
+  const [dashboardSubTab, setDashboardSubTab] = useState<
+    "today" | "upcoming" | "past"
+  >("today");
   const [upcomingReservations, setUpcomingReservations] = useState<any[]>([]);
   const [loadingUpcomingReservations, setLoadingUpcomingReservations] =
+    useState<boolean>(false);
+  const [pastReservations, setPastReservations] = useState<any[]>([]);
+  const [loadingPastReservations, setLoadingPastReservations] =
     useState<boolean>(false);
   const [showDashboardFilters, setShowDashboardFilters] =
     useState<boolean>(false);
@@ -194,7 +204,11 @@ export function useAdminPortalData({
   };
 
   const dashboardFilterOptions = useMemo(() => {
-    const source = [...todaysReservations, ...upcomingReservations];
+    const source = [
+      ...todaysReservations,
+      ...upcomingReservations,
+      ...pastReservations,
+    ];
     const unique = (key: string) =>
       Array.from(
         new Set(
@@ -218,7 +232,12 @@ export function useAdminPortalData({
       categories: unique("instrument_type"),
       statuses: unique("status"),
     };
-  }, [todaysReservations, upcomingReservations, getRowOwnerName]);
+  }, [
+    todaysReservations,
+    upcomingReservations,
+    pastReservations,
+    getRowOwnerName,
+  ]);
 
   const reviewFilterOptions = useMemo(() => {
     const unique = (key: string) =>
@@ -434,16 +453,18 @@ export function useAdminPortalData({
     phoneNumber: "",
     password: "",
     isSuperAdmin: false,
+    role: "admin" as "admin" | "room_servant" | "super_admin",
   });
 
   const [promoteModal, setPromoteModal] = useState<{
     isOpen: boolean;
     userId: string;
     userName: string;
-    role: "user" | "admin" | "super_admin" | "musician";
+    role: "user" | "musician" | "room_servant" | "admin" | "super_admin";
     isMusician?: boolean;
     isCurrentlyAdmin?: boolean;
     isCurrentlySuperAdmin?: boolean;
+    isCurrentlyRoomServant?: boolean;
   } | null>(null);
 
   const [assignModal, setAssignModal] = useState<{
@@ -473,10 +494,15 @@ export function useAdminPortalData({
     baseAdminFetch(endpoint, options, sessionToken);
 
   const refreshAllStats = () => {
-    fetchStats();
+    if (!isRoomServant) {
+      fetchStats();
+    }
     if (activeTab === "dashboard") {
       fetchTodaysReservations();
       fetchUpcomingReservations();
+      if (dashboardSubTab === "past") {
+        fetchPastReservations();
+      }
     }
   };
 
@@ -550,6 +576,22 @@ export function useAdminPortalData({
       showNotice(err.message || "Failed to load upcoming schedule", "error");
     } finally {
       setLoadingUpcomingReservations(false);
+    }
+  };
+
+  const fetchPastReservations = async () => {
+    setLoadingPastReservations(true);
+    try {
+      const res = await adminFetch("/reservations?past=true");
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to load past schedule");
+      }
+      setPastReservations(data.reservations || []);
+    } catch (err: any) {
+      showNotice(err.message || "Failed to load past schedule", "error");
+    } finally {
+      setLoadingPastReservations(false);
     }
   };
 
@@ -1361,11 +1403,17 @@ export function useAdminPortalData({
   const handleDemoteAdmin = (
     adminId: string,
     adminName: string,
-    targetRole: "user" | "musician" | "admin" | "super_admin" = "user",
+    targetRole:
+      | "user"
+      | "musician"
+      | "room_servant"
+      | "admin"
+      | "super_admin" = "user",
   ) => {
     const labelMap: Record<string, string> = {
       user: "Regular Member",
       musician: "Musician",
+      room_servant: "Room Servant",
       admin: "Admin",
       super_admin: "Super Admin",
     };
@@ -1441,6 +1489,7 @@ export function useAdminPortalData({
     isMusician?: boolean,
     isCurrentlyAdmin?: boolean,
     isCurrentlySuperAdmin?: boolean,
+    isCurrentlyRoomServant?: boolean,
   ) => {
     setPromoteModal({
       isOpen: true,
@@ -1448,28 +1497,37 @@ export function useAdminPortalData({
       userName,
       role: isCurrentlySuperAdmin
         ? "super_admin"
-        : isCurrentlyAdmin
-          ? "admin"
-          : isMusician
-            ? "musician"
-            : "user",
+        : isCurrentlyRoomServant
+          ? "room_servant"
+          : isCurrentlyAdmin
+            ? "admin"
+            : isMusician
+              ? "musician"
+              : "user",
       isMusician: Boolean(isMusician),
-      isCurrentlyAdmin: Boolean(isCurrentlyAdmin),
+      isCurrentlyAdmin: Boolean(isCurrentlyAdmin || isCurrentlyRoomServant),
       isCurrentlySuperAdmin: Boolean(isCurrentlySuperAdmin),
+      isCurrentlyRoomServant: Boolean(isCurrentlyRoomServant),
     });
   };
 
   const executePromoteUser = async (
-    targetRole: "user" | "admin" | "super_admin" | "musician",
+    targetRole:
+      | "user"
+      | "musician"
+      | "room_servant"
+      | "admin"
+      | "super_admin",
   ) => {
     if (!promoteModal) return;
 
     const fromAdminSide =
       Boolean(promoteModal.isCurrentlyAdmin) ||
-      Boolean(promoteModal.isCurrentlySuperAdmin);
+      Boolean(promoteModal.isCurrentlySuperAdmin) ||
+      Boolean(promoteModal.isCurrentlyRoomServant);
 
     try {
-      // ─── Case A: Currently ADMIN / SUPER ADMIN → /admins/:id/demote ───
+      // ─── Case A: Currently ADMIN / ROOM SERVANT / SUPER ADMIN → /admins/:id/demote ───
       if (fromAdminSide) {
         const res = await adminFetch(`/admins/${promoteModal.userId}/demote`, {
           method: "POST",
@@ -1480,6 +1538,7 @@ export function useAdminPortalData({
           const labelMap: Record<string, string> = {
             user: "Regular Member",
             musician: "Musician",
+            room_servant: "Room Servant",
             admin: "Admin",
             super_admin: "Super Admin",
           };
@@ -1539,11 +1598,13 @@ export function useAdminPortalData({
       });
       const data = await res.json();
       if (data.success) {
-        showNotice(
-          `Promoted ${promoteModal.userName} to ${
-            targetRole === "super_admin" ? "Super Admin" : "Admin"
-          }`,
-        );
+        const promotedLabel =
+          targetRole === "super_admin"
+            ? "Super Admin"
+            : targetRole === "room_servant"
+              ? "Room Servant"
+              : "Admin";
+        showNotice(`Promoted ${promoteModal.userName} to ${promotedLabel}`);
         setPromoteModal(null);
         fetchUsers();
         fetchAdmins();
@@ -1798,12 +1859,24 @@ export function useAdminPortalData({
       setIsSelectionMode(false);
     }
     firstLoadRef.current = false;
+    if (isRoomServant) {
+      if (dashboardSubTab === "today") {
+        fetchTodaysReservations();
+      } else if (dashboardSubTab === "upcoming") {
+        fetchUpcomingReservations();
+      } else {
+        fetchPastReservations();
+      }
+      return;
+    }
     fetchStats();
     if (activeTab === "dashboard") {
       if (dashboardSubTab === "today") {
         fetchTodaysReservations();
-      } else {
+      } else if (dashboardSubTab === "upcoming") {
         fetchUpcomingReservations();
+      } else {
+        fetchPastReservations();
       }
     } else if (activeTab === "review") {
       fetchReservations();
@@ -1834,6 +1907,7 @@ export function useAdminPortalData({
       fetchUnreadMessageCount();
     }
   }, [
+    isRoomServant,
     activeTab,
     filterQuickTab,
     reviewFilters.statuses.join(","),
@@ -1847,6 +1921,7 @@ export function useAdminPortalData({
 
   // Polling unread chat count & active conversation messages
   useEffect(() => {
+    if (isRoomServant) return;
     fetchUnreadMessageCount();
     const interval = setInterval(() => {
       fetchUnreadMessageCount();
@@ -1859,6 +1934,7 @@ export function useAdminPortalData({
     }, 12000);
     return () => clearInterval(interval);
   }, [
+    isRoomServant,
     activeTab,
     selectedMsgReservation?.id,
     conversationFilter,
@@ -1867,6 +1943,7 @@ export function useAdminPortalData({
 
   // Push prefs on entering push tab
   useEffect(() => {
+    if (isRoomServant) return;
     if (
       activeTab === "notification_settings" ||
       activeTab === "push_notifications"
@@ -1879,7 +1956,7 @@ export function useAdminPortalData({
         fetchNotificationSettings();
       }
     }
-  }, [activeTab, sessionToken, isSuperAdmin]);
+  }, [isRoomServant, activeTab, sessionToken, isSuperAdmin]);
 
   // ESC key for modals
   useEffect(() => {
@@ -1919,63 +1996,87 @@ export function useAdminPortalData({
   ]);
 
   const operationsTabs = useMemo(
-    () => [
-      { id: "dashboard" as const, label: t("admin.tabDashboard"), count: 0 },
-      {
-        id: "review" as const,
-        label: t("admin.tabReview"),
-        count: stats.pendingRequests,
-      },
-      {
-        id: "approvals" as const,
-        label: t("admin.tabApprovals"),
-        count: stats.pendingUserApprovals || 0,
-      },
-      {
-        id: "instruments" as const,
-        label: t("admin.tabInstruments"),
-        count: stats.totalInstruments,
-      },
-      {
-        id: "services" as const,
-        label: t("admin.tabServices", { defaultValue: "Services" }),
-        count: 0,
-      },
-      {
-        id: "users" as const,
-        label: t("admin.tabUsers"),
-        count: stats.activeUsers,
-      },
-      { id: "analytics" as const, label: t("admin.tabAnalytics"), count: 0 },
-      {
-        id: "notification_settings" as const,
-        label: t("admin.tabNotificationSettings"),
-        count: 0,
-      },
-    ],
-    [t, stats],
+    () =>
+      isRoomServant
+        ? [
+            {
+              id: "dashboard" as const,
+              label: t("admin.tabDashboard"),
+              count: 0,
+            },
+          ]
+        : [
+            {
+              id: "dashboard" as const,
+              label: t("admin.tabDashboard"),
+              count: 0,
+            },
+            {
+              id: "review" as const,
+              label: t("admin.tabReview"),
+              count: stats.pendingRequests,
+            },
+            {
+              id: "approvals" as const,
+              label: t("admin.tabApprovals"),
+              count: stats.pendingUserApprovals || 0,
+            },
+            {
+              id: "instruments" as const,
+              label: t("admin.tabInstruments"),
+              count: stats.totalInstruments,
+            },
+            {
+              id: "services" as const,
+              label: t("admin.tabServices", { defaultValue: "Services" }),
+              count: 0,
+            },
+            {
+              id: "users" as const,
+              label: t("admin.tabUsers"),
+              count: stats.activeUsers,
+            },
+            {
+              id: "analytics" as const,
+              label: t("admin.tabAnalytics"),
+              count: 0,
+            },
+            {
+              id: "notification_settings" as const,
+              label: t("admin.tabNotificationSettings"),
+              count: 0,
+            },
+          ],
+    [t, stats, isRoomServant],
   );
 
   const superAdminTabs = useMemo(
-    () => [
-      {
-        id: "admin_accounts" as const,
-        label: t("admin.tabAdminAccounts"),
-        count: adminAccountsList.length,
-      },
-      {
-        id: "trusted_status" as const,
-        label: t("admin.tabTrustedStatus"),
-        count: 0,
-      },
-      { id: "hard_limits" as const, label: t("admin.tabHardLimits"), count: 0 },
-      {
-        id: "payment_settings" as const,
-        label: t("admin.tabPaymentSettings"),
-        count: 0,
-      },
-    ],
-    [t, adminAccountsList.length],
+    () =>
+      isRoomServant
+        ? []
+        : [
+            {
+              id: "admin_accounts" as const,
+              label: t("admin.tabAdminAccounts"),
+              count: adminAccountsList.length,
+            },
+            {
+              id: "trusted_status" as const,
+              label: t("admin.tabTrustedStatus"),
+              count: 0,
+            },
+            {
+              id: "hard_limits" as const,
+              label: t("admin.tabHardLimits"),
+              count: 0,
+            },
+            {
+              id: "payment_settings" as const,
+              label: t("admin.tabPaymentSettings"),
+              count: 0,
+            },
+          ],
+    [t, adminAccountsList.length, isRoomServant],
   );
 
   useEffect(() => {
@@ -2003,12 +2104,14 @@ export function useAdminPortalData({
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as { id: string };
-      if (detail?.id) setActiveTab(detail.id as AdminTab);
+      if (detail?.id) {
+        setActiveTab(isRoomServant ? "dashboard" : (detail.id as AdminTab));
+      }
     };
     window.addEventListener(ADMIN_TABS_EVENT + ":select", handler);
     return () =>
       window.removeEventListener(ADMIN_TABS_EVENT + ":select", handler);
-  }, []);
+  }, [isRoomServant]);
 
   const activeTabTitle = useMemo(() => {
     return (
@@ -2025,6 +2128,7 @@ export function useAdminPortalData({
     isAr,
     isRTL,
     isSuperAdmin,
+    isRoomServant,
     internalSelectedUserId,
     setInternalSelectedUserId,
     internalSelectedEntityType,
@@ -2044,6 +2148,8 @@ export function useAdminPortalData({
     setDashboardSubTab,
     upcomingReservations,
     loadingUpcomingReservations,
+    pastReservations,
+    loadingPastReservations,
     showDashboardFilters,
     setShowDashboardFilters,
     showReviewFilters,
@@ -2175,6 +2281,7 @@ export function useAdminPortalData({
     fetchReservations,
     fetchTodaysReservations,
     fetchUpcomingReservations,
+    fetchPastReservations,
     fetchInstruments,
     fetchUsers,
     fetchApprovals,

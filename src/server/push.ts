@@ -25,12 +25,14 @@ async function resolveAccount(req: Request) {
     const { valid, session } = await validateSession(token);
     if (!valid || !session) return null;
 
-    const isAdmin =
-      session.role === "admin" || session.role === "super_admin";
+    const hasAdminTableIdentity =
+      session.role === "admin" ||
+      session.role === "super_admin" ||
+      session.role === "room_servant";
 
     return {
-      userId: isAdmin ? null : session.userId,
-      adminId: isAdmin ? session.adminId : null,
+      userId: hasAdminTableIdentity ? null : session.userId,
+      adminId: hasAdminTableIdentity ? session.adminId : null,
       role: session.role,
     };
   } catch {
@@ -237,7 +239,11 @@ router.post("/test", async (req: Request, res: Response): Promise<void> => {
 router.get("/preferences", async (req: Request, res: Response): Promise<void> => {
   try {
     const account = await resolveAccount(req);
-    if (!account || !account.adminId) {
+    if (
+      !account ||
+      !account.adminId ||
+      (account.role !== "admin" && account.role !== "super_admin")
+    ) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }
@@ -274,7 +280,11 @@ router.get("/preferences", async (req: Request, res: Response): Promise<void> =>
 router.post("/preferences", async (req: Request, res: Response): Promise<void> => {
   try {
     const account = await resolveAccount(req);
-    if (!account || !account.adminId) {
+    if (
+      !account ||
+      !account.adminId ||
+      (account.role !== "admin" && account.role !== "super_admin")
+    ) {
       res.status(403).json({ success: false, error: "Admin access required" });
       return;
     }

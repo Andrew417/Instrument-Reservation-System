@@ -15,7 +15,7 @@ export interface AdminAccountItem {
   email?: string;
   phoneNumber?: string;
   isSuperAdmin: boolean;
-  role?: "admin" | "super_admin";
+  role?: "admin" | "super_admin" | "room_servant";
   createdAt: string;
 }
 
@@ -33,6 +33,7 @@ interface AdminAccountsTabProps {
     adminId: string,
     adminName: string,
     isSuperAdmin: boolean,
+    role?: "admin" | "super_admin" | "room_servant",
   ) => void;
   onRemoveAdmin: (adminId: string, adminName: string) => void;
 }
@@ -112,6 +113,7 @@ export const AdminAccountsTab: React.FC<AdminAccountsTabProps> = ({
                   adm.email?.toLowerCase() === "andrewehab417@gmail.com";
                 const currentIsSuperAdmin =
                   adm.isSuperAdmin || adm.role === "super_admin";
+                const currentIsRoomServant = adm.role === "room_servant";
 
                 return (
                   <tr key={adm.id} className="hover:bg-stone-50/60 transition">
@@ -132,12 +134,18 @@ export const AdminAccountsTab: React.FC<AdminAccountsTabProps> = ({
                         className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
                           currentIsSuperAdmin
                             ? "bg-amber-100 text-amber-950 border border-amber-300"
-                            : "bg-stone-100 text-stone-700 border border-stone-200"
+                            : currentIsRoomServant
+                              ? "bg-teal-50 text-teal-900 border border-teal-200"
+                              : "bg-stone-100 text-stone-700 border border-stone-200"
                         }`}
                       >
                         {currentIsSuperAdmin
                           ? t("admin.adminAccounts.superAdminBadge")
-                          : t("admin.adminAccounts.adminBadge")}
+                          : currentIsRoomServant
+                            ? t("admin.adminAccounts.roomServantBadge", {
+                                defaultValue: "🔑 Room Servant",
+                              })
+                            : t("admin.adminAccounts.adminBadge")}
                       </span>
                     </td>
                     <td className="py-3 px-3 text-stone-500">
@@ -153,6 +161,7 @@ export const AdminAccountsTab: React.FC<AdminAccountsTabProps> = ({
                                 adm.id,
                                 adm.name,
                                 currentIsSuperAdmin,
+                                adm.role,
                               )
                             }
                             className="px-2.5 py-1 rounded-lg bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold cursor-pointer inline-flex items-center gap-1.5 transition touch-manipulation"

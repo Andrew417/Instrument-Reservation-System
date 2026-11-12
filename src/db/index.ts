@@ -22,6 +22,12 @@ function handleIdleClientError(err: any) {
 
 export const createPool = () => {
   if (!global._postgresPool) {
+    const connectionTarget = process.env.SQL_HOST
+      ? `SQL_HOST=${process.env.SQL_HOST}`
+      : process.env.DATABASE_URL
+        ? `DATABASE_URL host=${new URL(process.env.DATABASE_URL).host}`
+        : "127.0.0.1 fallback";
+    console.log("[DB] connecting via:", connectionTarget);
     const isServerless =
       process.env.VERCEL === "1" ||
       Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);

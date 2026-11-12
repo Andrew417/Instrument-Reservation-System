@@ -122,6 +122,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin,
   );
+  const isRoomServant = profile?.role === "room_servant";
 
   const [activeTab, setActiveTab] = useState<"details" | "chat">(
     initialTab || "details",
@@ -276,8 +277,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             (isAdminViewer
               ? t("reservationDetail.churchAdministration")
               : t("reservationDetail.member")),
-          userId: !isAdminViewer ? profile?.id : undefined,
-          adminId: isAdminViewer ? profile?.id : undefined,
+          userId:
+            !isAdminViewer && !isRoomServant ? profile?.id : undefined,
+          adminId:
+            isAdminViewer || isRoomServant ? profile?.id : undefined,
         }),
       });
 
@@ -302,7 +305,12 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/reservations/${reservationId}`);
+      const authHeaders = sessionToken
+        ? { Authorization: `Bearer ${sessionToken}` }
+        : undefined;
+      const res = await fetch(`/api/reservations/${reservationId}`, {
+        headers: authHeaders,
+      });
       const data = await res.json();
       if (!res.ok || !data.success || !data.reservation) {
         setErrorMsg(data.error || t("reservationDetail.loadError"));
@@ -311,7 +319,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       }
       setReservation(data.reservation);
 
-      if (data.reservation.admin_id) {
+      if (data.reservation.admin_id && isAdminViewer) {
         try {
           const adminRes = await fetch(
             `/api/admin/admins/${data.reservation.admin_id}`,
@@ -337,7 +345,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
         }
       }
 
-      const msgRes = await fetch(`/api/reservations/${reservationId}/messages`);
+      const msgRes = await fetch(
+        `/api/reservations/${reservationId}/messages`,
+        { headers: authHeaders },
+      );
       const msgData = await msgRes.json();
       if (msgData.success && Array.isArray(msgData.messages)) {
         setAdminMessages(msgData.messages);
@@ -359,6 +370,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       if (data.reservation.series_id) {
         const seriesRes = await fetch(
           `/api/reservations?seriesId=${data.reservation.series_id}`,
+          { headers: authHeaders },
         );
         const seriesData = await seriesRes.json();
         if (seriesData.success && Array.isArray(seriesData.reservations)) {
@@ -972,6 +984,13 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       expired: t("reservationDetail.expired") || "Expired",
     })[status] || status;
 
+  const isOwner = Boolean(
+    (reservation.user_id && profile?.id === reservation.user_id) ||
+      (!reservation.user_id &&
+        reservation.admin_id &&
+        profile?.id === reservation.admin_id),
+  );
+  const canManageReservation = isAdminViewer || isOwner;
   const canCancelNow = !isPast && !isCancelled && !isCompleted;
   const needsAssignment = Boolean(
     reservation.is_type_request && !reservation.instrument_id,
@@ -984,15 +1003,20 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
     Boolean(onAssignInstrument);
   const showReject = isAdminViewer && isPending;
   const showSavePayment =
+    isOwner &&
     !isAdminViewer &&
     isOutsideChurch &&
     isApprovedOutsideChurch &&
     canCancelNow;
-  const showCancel = canCancelNow && !showApprove && !showAssign;
+  const showCancel =
+    canManageReservation && canCancelNow && !showApprove && !showAssign;
   const showNoShowToggle =
     isAdminViewer && isCompleted && (canMarkNoShow || canUnmarkNoShow);
   const showMoreButton =
-    reservation.status !== "cancelled" && !isPast && !isCompleted;
+    canManageReservation &&
+    reservation.status !== "cancelled" &&
+    !isPast &&
+    !isCompleted;
   const showFooter =
     showApprove ||
     showAssign ||
@@ -1048,20 +1072,23 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               {statusLabel(reservation.status)}
             </span>
 
-            {/* 🚫 Edit button — hidden for completed OR cancelled/rejected reservations */}
-            {(!isPast || isAdminViewer) && !isCancelled && !isCompleted && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onEdit(reservation);
-                }}
-                aria-label={t("reservationDetail.editSlot")}
-                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
-              >
-                <Edit className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
-              </button>
-            )}
+            {/* 🚫 Edit button — hidden for read-only viewers, completed, or cancelled/rejected reservations */}
+            {canManageReservation &&
+              (!isPast || isAdminViewer) &&
+              !isCancelled &&
+              !isCompleted && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onEdit(reservation);
+                  }}
+                  aria-label={t("reservationDetail.editSlot")}
+                  className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer touch-manipulation"
+                >
+                  <Edit className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+                </button>
+              )}
 
             <button
               type="button"
@@ -1254,7 +1281,10 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
             )}
 
             {/* Summary card */}
-            {(isAdminViewer || reservation.user_name) && (
+            {(isAdminViewer ||
+              isRoomServant ||
+              reservation.user_name ||
+              reservation.admin_name) && (
               <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-2.5">
                 <div className="min-w-0">
                   <span className="text-[10px] text-stone-500 font-semibold uppercase tracking-wider block">
@@ -1303,7 +1333,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 <div className="border-t border-stone-200 pt-2.5 flex flex-wrap items-start justify-between gap-3 text-[11px] sm:text-xs">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
-                      {reservation.user_id && onOpenUserProfile ? (
+                      {isAdminViewer &&
+                      reservation.user_id &&
+                      onOpenUserProfile ? (
                         <button
                           type="button"
                           onClick={() => onOpenUserProfile(reservation.user_id)}
@@ -1378,7 +1410,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   <div className="text-red-800 leading-relaxed break-words">
                     {reservation.rejection_reason}
                   </div>
-                  {!isAdminViewer && (
+                  {canManageReservation && !isAdminViewer && (
                     <button
                       type="button"
                       onClick={focusChat}
@@ -1655,7 +1687,8 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     </div>
                   </div>
 
-                  {!isAdminViewer &&
+                  {isOwner &&
+                    !isAdminViewer &&
                     isApprovedOutsideChurch &&
                     paymentSettings?.instapayLink && (
                       <a
@@ -1671,7 +1704,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                 </div>
               )}
 
-              {isOutsideChurch && isAdminViewer && (
+              {isOutsideChurch && (isAdminViewer || !isOwner) && (
                 <div className="flex items-center gap-1.5 text-[10px] text-stone-500 mt-1.5">
                   <Info className="w-3 h-3 shrink-0" />
                   {t("reservationDetail.memberPaysViaInstapay")}
@@ -1706,7 +1739,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                           "Pending Upload"}
                   </span>
 
-                  {!isAdminViewer && hasAnyScreenshot && (
+                  {isOwner && !isAdminViewer && hasAnyScreenshot && (
                     <>
                       <label
                         htmlFor="payment-screenshot-input"
@@ -1764,7 +1797,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       </div>
                     )}
                   </div>
-                ) : isAdminViewer ? (
+                ) : isAdminViewer || !isOwner ? (
                   <div className="text-[11px] text-stone-500 italic text-center py-1">
                     {t("reservationDetail.memberUploadsScreenshot") ||
                       "Member uploads the payment screenshot"}
@@ -1937,19 +1970,21 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     </div>
                   )}
 
-                  {conditionCheckWindowOpen && !isCompleted && (
-                    <div className="pt-1 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setIsConditionModalOpen(true)}
-                        className="text-[11px] sm:text-xs font-bold text-emerald-800 hover:text-emerald-950 transition cursor-pointer"
-                      >
-                        {isRTL
-                          ? "تعديل أو تحديث الفحص"
-                          : "Update Condition Check"}
-                      </button>
-                    </div>
-                  )}
+                  {canManageReservation &&
+                    conditionCheckWindowOpen &&
+                    !isCompleted && (
+                      <div className="pt-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setIsConditionModalOpen(true)}
+                          className="text-[11px] sm:text-xs font-bold text-emerald-800 hover:text-emerald-950 transition cursor-pointer"
+                        >
+                          {isRTL
+                            ? "تعديل أو تحديث الفحص"
+                            : "Update Condition Check"}
+                        </button>
+                      </div>
+                    )}
                 </div>
               ) : (
                 <div className="p-3 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl space-y-2 text-[11px] sm:text-xs">
@@ -1958,7 +1993,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                       ? "💡 لحمايتك من أي تلفيات سابقة أو أوتار قديمة، وثّق حالة الآلة عند استلامها لضمان إخلاء مسؤوليتك."
                       : "To protect yourself from liability for pre-existing scratches or issues, record the condition at pickup."}
                   </p>
-                  {conditionCheckWindowOpen && !isCompleted ? (
+                  {canManageReservation &&
+                  conditionCheckWindowOpen &&
+                  !isCompleted ? (
                     <button
                       type="button"
                       onClick={() => setIsConditionModalOpen(true)}
@@ -1973,13 +2010,17 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                     </button>
                   ) : (
                     <p className="text-[11px] font-semibold text-stone-600">
-                      {isCompleted
+                      {!canManageReservation
                         ? isRTL
-                          ? "الحجز مكتمل — لا يمكن تعديل الفحص."
-                          : "Reservation completed — condition check is locked."
-                        : isRTL
-                          ? "انتهت نافذة الفحص بعد مرور 30 دقيقة من بدء الحجز."
-                          : "The condition-check window closed 30 minutes after the reservation started."}
+                          ? "لم يتم تسجيل فحص الحالة بعد."
+                          : "No condition check recorded yet."
+                        : isCompleted
+                          ? isRTL
+                            ? "الحجز مكتمل — لا يمكن تعديل الفحص."
+                            : "Reservation completed — condition check is locked."
+                          : isRTL
+                            ? "انتهت نافذة الفحص بعد مرور 30 دقيقة من بدء الحجز."
+                            : "The condition-check window closed 30 minutes after the reservation started."}
                     </p>
                   )}
                 </div>
@@ -2011,16 +2052,22 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               </div>
 
               {adminMessages.length === 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("chat");
-                    setTimeout(() => chatInputRef.current?.focus(), 80);
-                  }}
-                  className="w-full p-2.5 bg-white rounded-xl border border-stone-200 text-[11px] sm:text-xs text-stone-500 italic cursor-pointer"
-                >
-                  {t("reservationDetail.noMessages")}
-                </button>
+                canManageReservation ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("chat");
+                      setTimeout(() => chatInputRef.current?.focus(), 80);
+                    }}
+                    className="w-full p-2.5 bg-white rounded-xl border border-stone-200 text-[11px] sm:text-xs text-stone-500 italic cursor-pointer"
+                  >
+                    {t("reservationDetail.noMessages")}
+                  </button>
+                ) : (
+                  <div className="w-full p-2.5 bg-white rounded-xl border border-stone-200 text-[11px] sm:text-xs text-stone-500 italic text-center">
+                    {t("reservationDetail.noMessages")}
+                  </div>
+                )
               ) : (
                 (() => {
                   const lastMsg = adminMessages[adminMessages.length - 1];
@@ -2118,8 +2165,9 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                             {statusLabel(occ.status)}
                           </span>
 
-                          {/* 🚫 Edit pencil — hidden for completed OR cancelled occurrence */}
-                          {(!isPastOcc || isAdminViewer) &&
+                          {/* 🚫 Edit pencil — hidden for read-only viewers, completed, or cancelled occurrence */}
+                          {canManageReservation &&
+                            (!isPastOcc || isAdminViewer) &&
                             !isCancelledOcc &&
                             !isOccCompleted && (
                               <button
@@ -2146,8 +2194,11 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
                   })}
                 </div>
 
-                {/* 🚫 Edit Entire Series — hidden when reservation is completed OR cancelled/rejected */}
-                {(!isPast || isAdminViewer) && !isCancelled && !isCompleted && (
+                {/* 🚫 Edit Entire Series — hidden for read-only viewers, completed, or cancelled/rejected */}
+                {canManageReservation &&
+                  (!isPast || isAdminViewer) &&
+                  !isCancelled &&
+                  !isCompleted && (
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <button
                       type="button"
@@ -2264,45 +2315,54 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
               )}
             </div>
 
-            <form
-              onSubmit={handleSendMessage}
-              className="p-3 bg-white border-t border-stone-200 shrink-0 space-y-2"
-            >
-              <textarea
-                ref={chatInputRef}
-                rows={2}
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder={
-                  isAdminViewer
-                    ? t("reservationDetail.adminPlaceholder")
-                    : t("reservationDetail.userPlaceholder")
-                }
-                className="w-full px-3 py-2 text-[13px] bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-700/30 resize-none"
-                disabled={sendingReply}
-              />
-              {replyError && (
-                <p className="text-[11px] text-red-600">{replyError}</p>
-              )}
-              <button
-                type="submit"
-                disabled={!replyContent.trim() || sendingReply}
-                className="w-full h-9 bg-amber-800 hover:bg-amber-900 disabled:opacity-40 text-white text-[13px] font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+            {canManageReservation ? (
+              <form
+                onSubmit={handleSendMessage}
+                className="p-3 bg-white border-t border-stone-200 shrink-0 space-y-2"
               >
-                {sendingReply ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
+                <textarea
+                  ref={chatInputRef}
+                  rows={2}
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder={
+                    isAdminViewer
+                      ? t("reservationDetail.adminPlaceholder")
+                      : t("reservationDetail.userPlaceholder")
+                  }
+                  className="w-full px-3 py-2 text-[13px] bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-700/30 resize-none"
+                  disabled={sendingReply}
+                />
+                {replyError && (
+                  <p className="text-[11px] text-red-600">{replyError}</p>
                 )}
-                {t("reservationDetail.sendMessageButton")}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={!replyContent.trim() || sendingReply}
+                  className="w-full h-9 bg-amber-800 hover:bg-amber-900 disabled:opacity-40 text-white text-[13px] font-bold rounded-lg flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {sendingReply ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  {t("reservationDetail.sendMessageButton")}
+                </button>
+              </form>
+            ) : (
+              <div className="p-3 bg-stone-100 border-t border-stone-200 shrink-0 text-center text-[11px] text-stone-500">
+                {t("reservationDetail.readOnlyChatNotice", {
+                  defaultValue:
+                    "Read-only view — messaging is restricted to the booking owner and church administration.",
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -2444,7 +2504,7 @@ export const ReservationDetailModal: React.FC<ReservationDetailModalProps> = ({
       </div>
 
       {/* More actions sheet */}
-      {showMoreMenu && (
+      {canManageReservation && showMoreMenu && (
         <div
           className="absolute inset-0 z-30 bg-stone-900/50 flex items-end"
           onClick={() => setShowMoreMenu(false)}

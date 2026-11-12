@@ -170,6 +170,8 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
     Boolean(profile?.isSuperAdmin);
+  const isRoomServant = profile?.role === "room_servant";
+  const canViewCalendarDetails = isAdminOrSuperAdmin || isRoomServant;
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     return getTodayDateString();
@@ -758,7 +760,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                 <span className="w-3.5 h-3.5 rounded-md bg-white border border-stone-300 inline-block" />
                 <span>{t("common.available")}</span>
               </div>
-              {isAdminOrSuperAdmin ? (
+              {canViewCalendarDetails ? (
                 <div className="flex items-center gap-1.5">
                   <span className="w-3.5 h-3.5 rounded-md bg-indigo-950 border border-indigo-600 inline-block" />
                   <span>{t("calendar.assignedColor")}</span>
@@ -1138,7 +1140,7 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
                               slotHhmm,
                             );
 
-                            if (isAdminOrSuperAdmin) {
+                            if (canViewCalendarDetails) {
                               const reservantKey =
                                 slotRes?.userId ||
                                 slotRes?.userName ||

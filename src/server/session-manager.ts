@@ -15,7 +15,7 @@ export interface SessionUser {
   name: string;
   email: string;
   phoneNumber: string;
-  role: "user" | "admin" | "super_admin";
+  role: "user" | "room_servant" | "admin" | "super_admin";
   isTrusted?: boolean;
   isMusician?: boolean;
   isActive?: boolean;
@@ -29,7 +29,7 @@ export interface ActiveSession {
   token: string;
   userId: string | null;
   adminId: string | null;
-  role: "user" | "admin" | "super_admin";
+  role: "user" | "room_servant" | "admin" | "super_admin";
   lastActiveAt: Date;
   expiresAt: Date;
   user: SessionUser;
@@ -47,14 +47,15 @@ export function generateSessionToken(): string {
  */
 export async function createSession(
   accountId: string,
-  role: "user" | "admin" | "super_admin",
+  role: "user" | "room_servant" | "admin" | "super_admin",
 ): Promise<{ token: string; session: ActiveSession }> {
   const token = generateSessionToken();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_MS);
 
   const isUser = role === "user";
-  const isAdm = role === "admin" || role === "super_admin";
+  const isAdm =
+    role === "admin" || role === "super_admin" || role === "room_servant";
 
   const [inserted] = await db
     .insert(sessions)
@@ -104,7 +105,11 @@ export async function createSession(
       name: a.name,
       email: a.email,
       phoneNumber: a.phoneNumber,
-      role: a.isSuperAdmin ? "super_admin" : "admin",
+      role: a.isSuperAdmin
+        ? "super_admin"
+        : a.role === "room_servant"
+          ? "room_servant"
+          : "admin",
       isSuperAdmin: a.isSuperAdmin,
       approvalStatus: a.approvalStatus || "approved",
       createdAt: a.createdAt.toISOString(),
@@ -199,7 +204,12 @@ export async function validateSession(
         createdAt: u.createdAt.toISOString(),
       };
     }
-  } else if ((s.role === "admin" || s.role === "super_admin") && s.adminId) {
+  } else if (
+    (s.role === "admin" ||
+      s.role === "super_admin" ||
+      s.role === "room_servant") &&
+    s.adminId
+  ) {
     const [a] = await db
       .select()
       .from(admins)
@@ -211,7 +221,11 @@ export async function validateSession(
         name: a.name,
         email: a.email,
         phoneNumber: a.phoneNumber,
-        role: a.isSuperAdmin ? "super_admin" : "admin",
+        role: a.isSuperAdmin
+          ? "super_admin"
+          : a.role === "room_servant"
+            ? "room_servant"
+            : "admin",
         isSuperAdmin: a.isSuperAdmin,
         approvalStatus: a.approvalStatus || "approved",
         createdAt: a.createdAt.toISOString(),
@@ -282,7 +296,7 @@ export async function requireAuth(
  * Execute a PostgreSQL query within the logged-in user's RLS session context
  */
 export async function withUserContext<T>(
-  user: { id: string; role: "user" | "admin" | "super_admin" },
+  user: { id: string; role: "user" | "room_servant" | "admin" | "super_admin" },
   callback: (client: any) => Promise<T>,
 ): Promise<T> {
   const client = await pool.connect();

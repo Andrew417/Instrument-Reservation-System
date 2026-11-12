@@ -201,6 +201,7 @@ ensureSampleInstruments().catch((err: any) => {
  */
 async function resolveUserRoleFromRequest(req: Request): Promise<{
   isAdmin: boolean;
+  isRoomServant: boolean;
   isMusician: boolean;
   userId: string | null;
 }> {
@@ -210,7 +211,12 @@ async function resolveUserRoleFromRequest(req: Request): Promise<{
     : (req.headers["x-session-token"] as string);
 
   if (!token) {
-    return { isAdmin: false, isMusician: false, userId: null };
+    return {
+      isAdmin: false,
+      isRoomServant: false,
+      isMusician: false,
+      userId: null,
+    };
   }
 
   try {
@@ -222,6 +228,7 @@ async function resolveUserRoleFromRequest(req: Request): Promise<{
         Boolean(session.user?.isSuperAdmin);
       return {
         isAdmin: isAdm,
+        isRoomServant: session.role === "room_servant",
         isMusician: Boolean(session.user?.isMusician),
         userId: session.user?.id || session.userId || null,
       };
@@ -230,7 +237,12 @@ async function resolveUserRoleFromRequest(req: Request): Promise<{
     // Ignore and fallback to guest
   }
 
-  return { isAdmin: false, isMusician: false, userId: null };
+  return {
+    isAdmin: false,
+    isRoomServant: false,
+    isMusician: false,
+    userId: null,
+  };
 }
 
 /**
@@ -347,12 +359,12 @@ router.get(
       await ensureCurrentReservationStatuses().catch(() => {});
       const dateStr = (req.query.date as string) || getCairoDateString();
 
-      const { isAdmin, isMusician, userId } =
+      const { isAdmin, isRoomServant, isMusician, userId } =
         await resolveUserRoleFromRequest(req);
 
-      // Filter visible instruments
+      // Filter visible instruments (Room Servants can view the full room schedule on calendar)
       const whereClause = buildInstrumentVisibilityFilter(
-        isAdmin,
+        isAdmin || isRoomServant,
         isMusician,
         userId,
       );
@@ -440,10 +452,11 @@ router.get(
             status: r.status,
             reservationType: r.reservation_type,
             isFullDay,
-            // Only reveal reservant identity, userId & service name to admins/super admins
-            userId: isAdmin ? r.user_id || r.admin_id : undefined,
-            userName: isAdmin ? r.user_name : undefined,
-            serviceName: isAdmin ? r.service_name : undefined,
+            // Reveal reservant identity, userId & service name to admins, super admins, and room servants
+            userId:
+              isAdmin || isRoomServant ? r.user_id || r.admin_id : undefined,
+            userName: isAdmin || isRoomServant ? r.user_name : undefined,
+            serviceName: isAdmin || isRoomServant ? r.service_name : undefined,
             startTime: r.start_time,
             endTime: r.end_time,
             startHhmm: r.start_hhmm,

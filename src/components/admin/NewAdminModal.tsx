@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Eye, EyeOff } from "lucide-react";
 
@@ -8,6 +8,7 @@ export interface NewAdminFormState {
   phoneNumber: string;
   password: string;
   isSuperAdmin: boolean;
+  role: "admin" | "room_servant" | "super_admin";
 }
 
 interface NewAdminModalProps {
@@ -16,26 +17,39 @@ interface NewAdminModalProps {
   onSubmit: (formData: NewAdminFormState) => void;
 }
 
+const INITIAL_NEW_ADMIN_FORM: NewAdminFormState = {
+  name: "",
+  email: "",
+  phoneNumber: "",
+  password: "",
+  isSuperAdmin: false,
+  role: "admin",
+};
+
 export const NewAdminModal: React.FC<NewAdminModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
 }) => {
   const { t } = useTranslation();
-  const [form, setForm] = useState<NewAdminFormState>({
-    name: "",
-    email: "",
-    phoneNumber: "",
-    password: "",
-    isSuperAdmin: false,
-  });
+  const [form, setForm] = useState<NewAdminFormState>(INITIAL_NEW_ADMIN_FORM);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm(INITIAL_NEW_ADMIN_FORM);
+      setShowPassword(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(form);
+    onSubmit({
+      ...form,
+      isSuperAdmin: form.role === "super_admin",
+    });
   };
 
   return (
@@ -145,25 +159,47 @@ export const NewAdminModal: React.FC<NewAdminModalProps> = ({
             </div>
           </div>
 
-          <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="check-is-super-admin"
-              checked={form.isSuperAdmin}
-              onChange={(e) =>
+          <div>
+            <label
+              htmlFor="select-new-admin-role"
+              className="block font-bold text-stone-700 mb-1"
+            >
+              {t("admin.modals.provisionAdmin.roleLabel", {
+                defaultValue: "Account Role",
+              })}
+            </label>
+            <select
+              id="select-new-admin-role"
+              value={form.role}
+              onChange={(e) => {
+                const nextRole = e.target.value as
+                  | "admin"
+                  | "room_servant"
+                  | "super_admin";
                 setForm({
                   ...form,
-                  isSuperAdmin: e.target.checked,
-                })
-              }
-              className="w-4 h-4 accent-amber-800 rounded cursor-pointer"
-            />
-            <label
-              htmlFor="check-is-super-admin"
-              className="text-amber-950 cursor-pointer text-xs"
+                  role: nextRole,
+                  isSuperAdmin: nextRole === "super_admin",
+                });
+              }}
+              className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:border-amber-700"
             >
-              {t("admin.modals.provisionAdmin.superAdminCheckbox")}
-            </label>
+              <option value="admin">
+                {t("admin.modals.promote.adminTitle", {
+                  defaultValue: "Administrator",
+                })}
+              </option>
+              <option value="room_servant">
+                {t("admin.modals.promote.roomServantTitle", {
+                  defaultValue: "Room Servant",
+                })}
+              </option>
+              <option value="super_admin">
+                {t("admin.modals.promote.superAdminTitle", {
+                  defaultValue: "Super Administrator",
+                })}
+              </option>
+            </select>
           </div>
 
           <div className="pt-2 flex items-center justify-end gap-2">
