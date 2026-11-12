@@ -226,7 +226,7 @@ export const PromoteUserModal: React.FC<PromoteUserModalProps> = ({
   if (!modal) return null;
 
   return (
-    <div className="fixed inset-0 z-[130] bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[160] bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-4 sm:p-6 space-y-4 shadow-xl max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-3 shrink-0">

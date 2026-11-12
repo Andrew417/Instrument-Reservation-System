@@ -3597,19 +3597,6 @@ router.post(
         return;
       }
 
-      const [existingAdmin] = await db
-        .select({ id: admins.id })
-        .from(admins)
-        .where(eq(admins.phoneNumber, user.phoneNumber))
-        .limit(1);
-      if (existingAdmin) {
-        res.status(409).json({
-          success: false,
-          error: "An administrator account already exists for this member.",
-        });
-        return;
-      }
-
       const resolvedRole: "super_admin" | "admin" | "room_servant" =
         role === "super_admin"
           ? "super_admin"
@@ -3617,38 +3604,82 @@ router.post(
             ? "room_servant"
             : "admin";
 
-      const [newAdmin] = await db
-        .insert(admins)
-        .values({
-          name: user.name,
-          email: user.email,
-          phoneNumber: user.phoneNumber,
-          passwordHash: user.passwordHash,
-          isSuperAdmin: resolvedRole === "super_admin",
-          role: resolvedRole,
-          approvalStatus: "approved",
-        })
-        .returning();
+      const promotedAdmin = await db.transaction(async (tx) => {
+        const [existingAdmin] = await tx
+          .select()
+          .from(admins)
+          .where(sql`lower(${admins.email}) = lower(${user.email})`)
+          .limit(1);
 
-      await db
-        .update(reservations)
-        .set({ adminId: newAdmin.id, userId: null })
-        .where(eq(reservations.userId, user.id));
-      await db
-        .update(reservationSeries)
-        .set({ adminId: newAdmin.id, userId: null })
-        .where(eq(reservationSeries.userId, user.id));
-      await db.delete(sessions).where(eq(sessions.userId, user.id));
-      await db.delete(notifications).where(eq(notifications.userId, user.id));
-      await db.delete(users).where(eq(users.id, user.id));
+        let targetAdmin: typeof admins.$inferSelect;
+        if (existingAdmin) {
+          const [updatedAdmin] = await tx
+            .update(admins)
+            .set({
+              name: user.name,
+              phoneNumber: user.phoneNumber,
+              passwordHash: user.passwordHash,
+              isSuperAdmin: resolvedRole === "super_admin",
+              role: resolvedRole,
+              approvalStatus: "approved",
+            })
+            .where(eq(admins.id, existingAdmin.id))
+            .returning();
+          targetAdmin = updatedAdmin;
+        } else {
+          const [insertedAdmin] = await tx
+            .insert(admins)
+            .values({
+              name: user.name,
+              email: user.email,
+              phoneNumber: user.phoneNumber,
+              passwordHash: user.passwordHash,
+              isSuperAdmin: resolvedRole === "super_admin",
+              role: resolvedRole,
+              approvalStatus: "approved",
+              createdAt: user.createdAt || new Date(),
+            })
+            .returning();
+          targetAdmin = insertedAdmin;
+        }
+
+        await tx
+          .update(reservations)
+          .set({ adminId: targetAdmin.id, userId: null })
+          .where(eq(reservations.userId, user.id));
+        await tx
+          .update(reservationSeries)
+          .set({ adminId: targetAdmin.id, userId: null })
+          .where(eq(reservationSeries.userId, user.id));
+        await tx
+          .update(messages)
+          .set({ adminId: targetAdmin.id, userId: null })
+          .where(eq(messages.userId, user.id));
+        await tx
+          .update(pushSubscriptions)
+          .set({ adminId: targetAdmin.id, userId: null })
+          .where(eq(pushSubscriptions.userId, user.id));
+        await tx.delete(sessions).where(eq(sessions.userId, user.id));
+        await tx.delete(notifications).where(eq(notifications.userId, user.id));
+        await tx.delete(users).where(eq(users.id, user.id));
+
+        return targetAdmin;
+      });
+
+      const roleLabel =
+        resolvedRole === "super_admin"
+          ? "Super Admin"
+          : resolvedRole === "room_servant"
+            ? "Room Servant"
+            : "Administrator";
 
       res.json({
         success: true,
-        admin: newAdmin,
-        message: `${user.name} was promoted to administrator and reservation ownership was reassigned successfully.`,
+        admin: promotedAdmin,
+        message: `${user.name} was promoted to ${roleLabel} and reservation ownership was reassigned successfully.`,
       });
     } catch (err: any) {
-      sendSafeErrorResponse(res, "[Admin] Mark notifications read error:", err);
+      sendSafeErrorResponse(res, "[Admin] Promote user error:", err);
     }
   },
 );
@@ -3738,52 +3769,64 @@ router.post(
       }
 
       // Case B: Admin → User or Musician (move row from admins → users)
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.phoneNumber, admin.phoneNumber))
-        .limit(1);
-
       const nextIsMusician = finalRole === "musician";
 
-      let targetUser: any;
-      if (existingUser) {
-        const [updated] = await db
-          .update(users)
-          .set({ isMusician: nextIsMusician, isActive: true })
-          .where(eq(users.id, existingUser.id))
-          .returning();
-        targetUser = updated;
-      } else {
-        const [inserted] = await db
-          .insert(users)
-          .values({
-            name: admin.name,
-            email: admin.email,
-            phoneNumber: admin.phoneNumber,
-            passwordHash: admin.passwordHash,
-            isTrusted: false,
-            isMusician: nextIsMusician,
-            isActive: true,
-            approvalStatus: "approved",
-            // ✅ Preserve the original join date so they don't appear at the top of the Member Directory
-            createdAt: admin.createdAt || new Date(),
-          })
-          .returning();
-        targetUser = inserted;
-      }
+      const targetUser = await db.transaction(async (tx) => {
+        const [existingUser] = await tx
+          .select()
+          .from(users)
+          .where(sql`lower(${users.email}) = lower(${admin.email})`)
+          .limit(1);
 
-      await db
-        .update(reservations)
-        .set({ userId: targetUser.id, adminId: null })
-        .where(eq(reservations.adminId, admin.id));
-      await db
-        .update(reservationSeries)
-        .set({ userId: targetUser.id, adminId: null })
-        .where(eq(reservationSeries.adminId, admin.id));
-      await db.delete(sessions).where(eq(sessions.adminId, admin.id));
-      await db.delete(messages).where(eq(messages.adminId, admin.id));
-      await db.delete(admins).where(eq(admins.id, admin.id));
+        let resolvedUser: typeof users.$inferSelect;
+        if (existingUser) {
+          const [updated] = await tx
+            .update(users)
+            .set({ isMusician: nextIsMusician, isActive: true })
+            .where(eq(users.id, existingUser.id))
+            .returning();
+          resolvedUser = updated;
+        } else {
+          const [inserted] = await tx
+            .insert(users)
+            .values({
+              name: admin.name,
+              email: admin.email,
+              phoneNumber: admin.phoneNumber,
+              passwordHash: admin.passwordHash,
+              isTrusted: false,
+              isMusician: nextIsMusician,
+              isActive: true,
+              approvalStatus: "approved",
+              // ✅ Preserve the original join date so they don't appear at the top of the Member Directory
+              createdAt: admin.createdAt || new Date(),
+            })
+            .returning();
+          resolvedUser = inserted;
+        }
+
+        await tx
+          .update(reservations)
+          .set({ userId: resolvedUser.id, adminId: null })
+          .where(eq(reservations.adminId, admin.id));
+        await tx
+          .update(reservationSeries)
+          .set({ userId: resolvedUser.id, adminId: null })
+          .where(eq(reservationSeries.adminId, admin.id));
+        await tx
+          .update(messages)
+          .set({ userId: resolvedUser.id, adminId: null })
+          .where(eq(messages.adminId, admin.id));
+        await tx
+          .update(pushSubscriptions)
+          .set({ userId: resolvedUser.id, adminId: null })
+          .where(eq(pushSubscriptions.adminId, admin.id));
+        await tx.delete(sessions).where(eq(sessions.adminId, admin.id));
+        await tx.delete(notifications).where(eq(notifications.adminId, admin.id));
+        await tx.delete(admins).where(eq(admins.id, admin.id));
+
+        return resolvedUser;
+      });
 
       // Notify the demoted user
       try {
@@ -3808,7 +3851,7 @@ router.post(
             : `${admin.name} was demoted to Member and reservation ownership was reassigned.`,
       });
     } catch (err: any) {
-      sendSafeErrorResponse(res, "[Admin] Hard limits update error:", err);
+      sendSafeErrorResponse(res, "[Admin] Demote admin error:", err);
     }
   },
 );

@@ -42,7 +42,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[140] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[170] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-start gap-3">
           <div

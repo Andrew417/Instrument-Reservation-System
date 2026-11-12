@@ -64,7 +64,7 @@ export interface AppNotification {
 export interface NotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectReservation: (
+  onSelectReservation?: (
     reservationId: string,
     initialTab?: "details" | "chat",
   ) => void;
@@ -279,7 +279,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       onOpenAccountApprovals?.();
       return;
     }
-    if (notif.reservation_id) {
+    if (notif.reservation_id && onSelectReservation) {
       const tab =
         preferredTab ||
         (notif.type === "reservation_message" ? "chat" : "details");
