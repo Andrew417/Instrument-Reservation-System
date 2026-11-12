@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { db, withRetry } from "../db/index.js";
 import { instruments, reservations, services, userServices } from "../db/schema.js";
 import { eq, and, sql, asc } from "drizzle-orm";
+import { sendSafeErrorResponse } from "./error-response.js";
 import { validateSession } from "./session-manager.js";
 import { ensureCurrentReservationStatuses } from "../services/reservation-logic.js";
 import { getCairoDateString } from "../lib/date-utils.js";
@@ -266,7 +267,7 @@ router.get("/types", async (_req: Request, res: Response): Promise<void> => {
       })),
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Instruments] Requestable types error:", err);
   }
 });
 
@@ -344,7 +345,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, instruments: formatted });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Instruments] List error:", err);
   }
 });
 
@@ -465,7 +466,7 @@ router.get(
         }),
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Instruments] Availability error:", err);
     }
   },
 );
@@ -591,7 +592,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Instruments] Detail error:", err);
   }
 });
 
@@ -663,7 +664,7 @@ router.put("/:id/mode", async (req: Request, res: Response): Promise<void> => {
       message: `Instrument mode updated to ${bookingMode}`,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Instruments] Update mode error:", err);
   }
 });
 

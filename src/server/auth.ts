@@ -23,6 +23,7 @@ import {
   validateSession,
   destroySession,
 } from "./session-manager.js";
+import { sendSafeErrorResponse } from "./error-response.js";
 import { getNotificationSettings } from "../services/reservation-logic.js";
 import { sendPushToAdmins } from "../lib/push-service.js";
 
@@ -107,8 +108,7 @@ router.post(
         attemptsRemaining: Math.max(0, 5 - failures),
       });
     } catch (error) {
-      console.error("Error checking lock status:", error);
-      res.status(500).json({ error: "Internal server error" });
+      sendSafeErrorResponse(res, "Error checking lock status:", error);
     }
   },
 );
@@ -277,15 +277,15 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error: any) {
-    console.error("Error during registration:", error);
-    if (error.code === "23505") {
+    if (error?.code === "23505") {
       res.status(409).json({
+        success: false,
         error:
           "An account with this email is already registered. Please log in.",
       });
       return;
     }
-    res.status(500).json({ error: "Failed to create user account" });
+    sendSafeErrorResponse(res, "Error during registration:", error);
   }
 });
 
@@ -475,8 +475,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       profile: session.user,
     });
   } catch (error) {
-    console.error("Error during login:", error);
-    res.status(500).json({ error: "Internal server error during login" });
+    sendSafeErrorResponse(res, "Error during login:", error);
   }
 });
 
@@ -512,8 +511,7 @@ router.get("/me", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    console.error("Error fetching active session:", error);
-    res.status(500).json({ error: "Internal server error" });
+    sendSafeErrorResponse(res, "Error fetching active session:", error);
   }
 });
 
@@ -532,8 +530,7 @@ router.post("/logout", async (req: Request, res: Response): Promise<void> => {
     }
     res.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
-    console.error("Error during logout:", error);
-    res.status(500).json({ error: "Internal server error" });
+    sendSafeErrorResponse(res, "Error during logout:", error);
   }
 });
 
@@ -692,8 +689,7 @@ router.post(
         });
       }
     } catch (error) {
-      console.error("Error requesting password reset OTP:", error);
-      res.status(500).json({ error: "Failed to generate verification code" });
+      sendSafeErrorResponse(res, "Error requesting password reset OTP:", error);
     }
   },
 );
@@ -827,8 +823,7 @@ router.post(
           : "A new 6-digit verification code has been generated.",
       });
     } catch (error) {
-      console.error("Error resending OTP:", error);
-      res.status(500).json({ error: "Failed to resend verification code" });
+      sendSafeErrorResponse(res, "Error resending OTP:", error);
     }
   },
 );
@@ -930,8 +925,7 @@ router.post(
         message: "Email address verified successfully.",
       });
     } catch (error) {
-      console.error("Error verifying OTP:", error);
-      res.status(500).json({ error: "Failed to verify code" });
+      sendSafeErrorResponse(res, "Error verifying OTP:", error);
     }
   },
 );
@@ -1039,8 +1033,7 @@ router.post(
           "Your password has been reset successfully. You may now log in with your new password.",
       });
     } catch (error) {
-      console.error("Error resetting password:", error);
-      res.status(500).json({ error: "Failed to reset password" });
+      sendSafeErrorResponse(res, "Error resetting password:", error);
     }
   },
 );

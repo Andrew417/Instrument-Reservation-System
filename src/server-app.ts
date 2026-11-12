@@ -5,6 +5,7 @@ import instrumentsRouter from "./server/instruments.js";
 import notificationsRouter from "./server/notifications.js";
 import adminRouter from "./server/admin.js";
 import pushRouter from "./server/push.js";
+import { sendSafeErrorResponse } from "./server/error-response.js";
 
 export function createExpressApp() {
   const app = express();
@@ -42,11 +43,7 @@ export function createExpressApp() {
       res: express.Response,
       _next: express.NextFunction,
     ) => {
-      console.error("[API Error]", err);
-      res.status(err.status || 500).json({
-        success: false,
-        error: err.message || "Internal server error",
-      });
+      sendSafeErrorResponse(res, "[API Error]", err);
     },
   );
 

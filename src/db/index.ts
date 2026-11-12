@@ -22,18 +22,18 @@ function handleIdleClientError(err: any) {
 
 export const createPool = () => {
   if (!global._postgresPool) {
-    const connectionTarget = process.env.SQL_HOST
-      ? `SQL_HOST=${process.env.SQL_HOST}`
-      : process.env.DATABASE_URL
-        ? `DATABASE_URL host=${new URL(process.env.DATABASE_URL).host}`
-        : "127.0.0.1 fallback";
-    console.log("[DB] connecting via:", connectionTarget);
     const isServerless =
       process.env.VERCEL === "1" ||
       Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 
+    const dbUrl = process.env.DATABASE_URL?.trim();
+    const isLocalDbUrl =
+      !dbUrl || dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
+
     // In AI Studio / Cloud Run, SQL_HOST provides the Cloud SQL Unix socket path
-    if (process.env.SQL_HOST) {
+    // (AI Studio also sets a localhost DATABASE_URL alongside SQL_HOST)
+    if (process.env.SQL_HOST && isLocalDbUrl) {
+      console.log(`[DB] connecting via: ${process.env.SQL_HOST}`);
       global._postgresPool = new Pool({
         host: process.env.SQL_HOST,
         user: process.env.SQL_USER,
@@ -48,17 +48,21 @@ export const createPool = () => {
 
       // Prevent unhandled pool-level errors from crashing the application
       global._postgresPool.on("error", handleIdleClientError);
-    } else if (process.env.DATABASE_URL) {
+    } else if (dbUrl) {
       // In Vercel / Neon / standalone production environments
-      const isLocalhost =
-        process.env.DATABASE_URL.includes("localhost") ||
-        process.env.DATABASE_URL.includes("127.0.0.1");
+      let dbHost = "DATABASE_URL";
+      try {
+        dbHost = new URL(dbUrl).host || "DATABASE_URL";
+      } catch {
+        dbHost = "DATABASE_URL";
+      }
+      console.log(`[DB] connecting via: ${dbHost}`);
       const requiresSsl =
-        process.env.DATABASE_URL.includes("sslmode=require") ||
-        (!isLocalhost && process.env.NODE_ENV === "production");
+        dbUrl.includes("sslmode=require") ||
+        (!isLocalDbUrl && process.env.NODE_ENV === "production");
 
       global._postgresPool = new Pool({
-        connectionString: process.env.DATABASE_URL,
+        connectionString: dbUrl,
         max: isServerless ? 1 : 10,
         idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 45000,
@@ -69,6 +73,7 @@ export const createPool = () => {
 
       global._postgresPool.on("error", handleIdleClientError);
     } else {
+      console.log("[DB] connecting via: 127.0.0.1");
       global._postgresPool = new Pool({
         host: "127.0.0.1",
         user: "postgres",
@@ -89,6 +94,9 @@ export const createPool = () => {
 
 export const pool = createPool();
 export const db = drizzle(pool, { schema });
+export type DatabaseExecutor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Generic retry helper for database operations to gracefully handle
@@ -128,17 +136,29 @@ export async function withRetry<T>(
         err?.code === "ENOENT" ||
         err?.code === "57P01";
 
+      const cause = err instanceof Error ? err.cause : undefined;
+      console.warn(
+        `[${label}] Attempt ${attempt}/${retries} failed (${msg || "Unknown error"}). Cause:`,
+        cause ?? err,
+      );
+
       if (!isTransient || attempt === retries) {
-        throw err;
+        if (err instanceof Error) {
+          throw err;
+        }
+        throw new Error(msg || `${label} failed`, { cause: err });
       }
       const waitTime = delayMs * Math.pow(1.5, attempt - 1);
       console.warn(
-        `[${label}] Attempt ${attempt} encountered transient error (${msg}). Retrying in ${Math.round(waitTime)}ms...`,
+        `[${label}] Retrying in ${Math.round(waitTime)}ms...`,
       );
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
   }
-  throw lastError;
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error(`${label} failed`, { cause: lastError });
 }
 
 /**

@@ -22,8 +22,16 @@ import {
   parseLocalDate,
 } from "../lib/date-utils.js";
 import { sendPushToUser, sendPushToAdmins } from "../lib/push-service.js";
+import { sendSafeErrorResponse } from "./error-response.js";
 
 const router = Router();
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(value: string): boolean {
+  return UUID_REGEX.test(value);
+}
 
 /**
  * 0. Get current hard limits
@@ -37,7 +45,7 @@ router.get("/limits", async (_req: Request, res: Response): Promise<void> => {
     const limits = await getHardLimits();
     res.json({ success: true, limits });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Reservations] Limits fetch error:", err);
   }
 });
 
@@ -184,10 +192,7 @@ router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
     const result = await evaluateReservationSubmission(payload);
     res.json({ success: true, evaluation: result });
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    sendSafeErrorResponse(res, "[Reservations] Evaluate error:", err);
   }
 });
 
@@ -242,27 +247,8 @@ router.post("/series", async (req: Request, res: Response): Promise<void> => {
     const result = await createReservationSeries(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
-    console.error("Reservation series create error:", err);
-    console.error(
-      "DB cause:",
-      err instanceof Error ? err.cause : err,
-    );
-    const msg: string = err.message || "Failed to create reservation series.";
-    const status =
-      err.code === "SUBMISSION_BLOCKED"
-        ? 400
-        : /not authorized/i.test(msg)
-          ? 403
-          : /not found/i.test(msg)
-            ? 404
-            : /conflicts?|working hours|maximum duration|exceeds|overlap|future|at least|at most|selected|invalid date|duration must|limit/i.test(
-                  msg,
-                )
-              ? 400
-              : 500;
-    res.status(status).json({
-      success: false,
-      error: msg,
+    sendSafeErrorResponse(res, "Reservation series create error:", err, {
+      includeConflicts: true,
     });
   }
 });
@@ -290,26 +276,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     const result = await createReservation(payload);
     res.status(201).json({ success: true, ...result });
   } catch (err: any) {
-    console.error("Reservation create error:", err);
-    console.error(
-      "DB cause:",
-      err instanceof Error ? err.cause : err,
-    );
-    const msg: string = err.message || "Failed to create reservation.";
-    const status =
-      err.code === "SUBMISSION_BLOCKED"
-        ? 400
-        : /not authorized/i.test(msg)
-          ? 403
-          : /not found/i.test(msg)
-            ? 404
-            : /conflicts?|working hours|maximum duration|exceeds/i.test(msg)
-              ? 400
-              : 500;
-    res.status(status).json({
-      success: false,
-      error: msg,
-    });
+    sendSafeErrorResponse(res, "Reservation create error:", err);
   }
 });
 
@@ -321,6 +288,10 @@ router.patch(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { seriesId } = req.params;
+      if (!isValidUuid(seriesId)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const sessionIdentity = await extractSessionIdentity(req);
       const rawBody = (req.body ?? {}) as Record<string, unknown>;
 
@@ -347,19 +318,8 @@ router.patch(
         ...(result.message ? { message: result.message } : {}),
       });
     } catch (err: any) {
-      console.error("Series edit error:", err);
-      const msg: string = err.message || "Failed to edit recurring series.";
-      const status = /not authorized/i.test(msg)
-        ? 403
-        : /not found/i.test(msg)
-          ? 404
-          : /conflict|working hours|past/i.test(msg)
-            ? 400
-            : 500;
-      res.status(status).json({
-        success: false,
-        error: msg,
-        conflicts: err.conflicts || undefined,
+      sendSafeErrorResponse(res, "Series edit error:", err, {
+        includeConflicts: true,
       });
     }
   },
@@ -373,6 +333,10 @@ router.patch(
 router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    if (!isValidUuid(id)) {
+      res.status(404).json({ success: false, error: "Reservation not found" });
+      return;
+    }
 
     const rawBody = (req.body ?? {}) as Record<string, unknown>;
     const updates: Record<string, unknown> = { ...rawBody };
@@ -408,20 +372,7 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
     );
     res.json({ success: true, reservation: updated });
   } catch (err: any) {
-    console.error("Reservation edit error:", err);
-    const msg: string = err.message || "Failed to edit reservation.";
-    const status = /not authorized/i.test(msg)
-      ? 403
-      : /not found/i.test(msg)
-        ? 404
-        : /conflicts?/i.test(msg) || /working hours/i.test(msg)
-          ? 400
-          : 500;
-    res.status(status).json({
-      success: false,
-      error: msg,
-      cause: err.cause?.message,
-    });
+    sendSafeErrorResponse(res, "Reservation edit error:", err);
   }
 });
 
@@ -433,6 +384,10 @@ router.put(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const { status, notes, photoUrl, tags, checkedBy } = req.body;
 
       const lookup = await db.execute(sql`
@@ -506,11 +461,7 @@ router.put(
         reservation: updated,
       });
     } catch (err: any) {
-      console.error("Condition check error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message || "Failed to save condition check.",
-      });
+      sendSafeErrorResponse(res, "Condition check error:", err);
     }
   },
 );
@@ -523,6 +474,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const { userId, adminId, cancelMode, cancellationReason } = req.body;
       const sessionIdentity = await extractSessionIdentity(req);
       const result = await cancelReservation(
@@ -538,12 +493,7 @@ router.post(
       );
       res.json({ success: true, ...result });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Reservations] Cancel error:", err);
     }
   },
 );
@@ -558,12 +508,7 @@ router.post(
       const result = await runStatusTransitions();
       res.json({ success: true, ...result });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Reservations] Status transitions error:", err);
     }
   },
 );
@@ -589,12 +534,7 @@ router.get(
       }
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Reservations] Payment settings error:", err);
     }
   },
 );
@@ -674,8 +614,7 @@ router.get(
       const conversations = (rows as any).rows || [];
       res.json({ success: true, conversations });
     } catch (err: any) {
-      console.error("User conversations fetch error:", err);
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "User conversations fetch error:", err);
     }
   },
 );
@@ -708,7 +647,7 @@ router.get(
       const count = Number((result as any).rows?.[0]?.unread_count || 0);
       res.json({ success: true, unreadCount: count });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Reservations] Unread count error:", err);
     }
   },
 );
@@ -721,6 +660,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const sessionIdentity = await extractSessionIdentity(req);
       const actorId = sessionIdentity?.userId || sessionIdentity?.adminId;
 
@@ -746,7 +689,7 @@ router.post(
       const markedCount = (updateRes as any).rows?.length || 0;
       res.json({ success: true, markedCount });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Reservations] Mark user read error:", err);
     }
   },
 );
@@ -759,6 +702,10 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const result = await db.execute(sql`
       SELECT 
         m.id,
@@ -782,12 +729,7 @@ router.get(
 
       res.json({ success: true, messages: (result as any).rows || [] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Reservations] Messages fetch error:", err);
     }
   },
 );
@@ -800,6 +742,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const { screenshotUrl } = req.body;
 
       if (!screenshotUrl) {
@@ -858,12 +804,11 @@ router.post(
 
       res.json({ success: true, reservation: rows[0] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(
+        res,
+        "[Reservations] Payment screenshot upload error:",
+        err,
+      );
     }
   },
 );
@@ -876,6 +821,10 @@ router.delete(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
 
       const sessionIdentity = await extractSessionIdentity(req);
 
@@ -927,12 +876,11 @@ router.delete(
 
       res.json({ success: true, reservation: rows[0] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(
+        res,
+        "[Reservations] Payment screenshot delete error:",
+        err,
+      );
     }
   },
 );
@@ -945,6 +893,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
 
       const sessionIdentity = await extractSessionIdentity(req);
 
@@ -1056,12 +1008,7 @@ router.post(
         recipientCount,
       });
     } catch (err: any) {
-      console.error("Confirm-paid error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "Confirm-paid error:", err);
     }
   },
 );
@@ -1074,6 +1021,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (!isValidUuid(id)) {
+        res.status(404).json({ success: false, error: "Reservation not found" });
+        return;
+      }
       const { content, senderRole: bodyRole, senderName: bodyName } = req.body;
       let { adminId, userId } = req.body;
 
@@ -1399,12 +1350,7 @@ router.post(
         },
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Reservations] Post message error:", err);
     }
   },
 );
@@ -1587,8 +1533,7 @@ router.get(
         },
       });
     } catch (err: any) {
-      console.error("Ministry stats error:", err);
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "Ministry stats error:", err);
     }
   },
 );
@@ -1888,166 +1833,13 @@ router.get(
         allSuggestions: dedupedSuggestions,
       });
     } catch (err: any) {
-      console.error("Quick rebook suggestion error:", err);
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "Quick rebook suggestion error:", err);
     }
   },
 );
 
 /**
- * 16. Get single reservation detail
- */
-router.get("/:id", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-
-    await ensureCurrentReservationStatuses().catch(() => {});
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.substring(7)
-      : (req.headers["x-session-token"] as string);
-
-    let isAdmin = false;
-    if (token) {
-      try {
-        const { valid, session } = await validateSession(token);
-        if (
-          valid &&
-          session &&
-          (session.role === "admin" ||
-            session.role === "super_admin" ||
-            session.user?.isSuperAdmin)
-        ) {
-          isAdmin = true;
-        }
-      } catch {
-        // Continue with standard permissions
-      }
-    }
-
-    const result = await db.execute(sql`
-      SELECT 
-        r.id,
-        r.series_id,
-        r.user_id,
-        r.admin_id,
-        r.instrument_id,
-        r.service_name,
-        r.service_location,
-        r.musician_name,
-        r.note,
-        r.reservation_type,
-        r.fee_snapshot,
-        r.status,
-        r.rejection_reason,
-        r.payment_screenshot_url,
-        r.band_pack_id,
-        r.condition_status,
-        r.condition_notes,
-        r.condition_photo_url,
-        r.condition_tags,
-        r.condition_checked_at,
-        r.condition_checked_by,
-        r.created_at,
-        r.is_no_show,
-        r.no_show_marked_at,
-        r.no_show_admin_id,
-        r.booked_by_admin,
-        lower(r.time_range) as start_time,
-        upper(r.time_range) as end_time,
-        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
-        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
-        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
-        COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
-        i.alias as instrument_alias,
-        COALESCE(i.type, r.requested_type) as instrument_type,
-        i.booking_mode,
-        i.visibility_level,
-        i.is_out_of_service,
-        i.outside_fee_per_day,
-        i.is_reserve_pool,
-        i.is_removed as instrument_is_removed,
-        i.photo_url as instrument_photo_url,
-        i.description as instrument_description,
-        r.is_type_request,
-        r.requested_type,
-        r.exceeded_limits,
-        s.pattern_type as series_pattern_type,
-        u.name as user_name,
-        u.phone_number as user_phone,
-        u.is_trusted as user_is_trusted,
-        a.name as admin_name
-      FROM reservations r
-      LEFT JOIN instruments i ON r.instrument_id = i.id
-      LEFT JOIN reservation_series s ON r.series_id = s.id
-      LEFT JOIN users u ON r.user_id = u.id
-      LEFT JOIN admins a ON r.admin_id = a.id
-      WHERE r.id = ${id}
-      LIMIT 1
-    `);
-
-    const rows = (result as any).rows || [];
-    if (rows.length === 0) {
-      res.status(404).json({ success: false, error: "Reservation not found" });
-      return;
-    }
-
-    const r = rows[0];
-    const isFullDay =
-      (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
-      Number(r.duration_hours) >= 13;
-
-    let bandPackItems: any[] = [];
-    if (r.band_pack_id) {
-      const packRes = await db.execute(sql`
-        SELECT 
-          r2.id,
-          r2.instrument_id,
-          r2.musician_name,
-          r2.status,
-          r2.condition_status,
-          i2.name as instrument_name,
-          i2.alias as instrument_alias,
-          i2.type as instrument_type,
-          i2.photo_url as instrument_photo_url,
-          i2.is_removed as instrument_is_removed,
-          i2.is_reserve_pool
-        FROM reservations r2
-        JOIN instruments i2 ON r2.instrument_id = i2.id
-        WHERE r2.band_pack_id = ${r.band_pack_id}
-        ORDER BY r2.created_at ASC
-      `);
-      bandPackItems = ((packRes as any).rows || []).map((bp: any) => {
-        return {
-          ...bp,
-          instrument_is_masked: false,
-        };
-      });
-    }
-
-    const processedReservation = {
-      ...r,
-      instrument_is_masked: false,
-      is_full_day: isFullDay,
-      isFullDay,
-      band_pack_items: bandPackItems,
-    };
-
-    res.json({
-      success: true,
-      reservation: processedReservation,
-    });
-  } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
-  }
-});
-
-/**
- * 17. Query reservations (with bounds extracted)
+ * 16. Query reservations (with bounds extracted)
  */
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -2229,10 +2021,160 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, reservations: sanitizedRows });
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    sendSafeErrorResponse(res, "Reservations list error:", err);
+  }
+});
+
+/**
+ * 17. Get single reservation detail (registered after all literal GET routes)
+ */
+router.get("/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    if (!isValidUuid(id)) {
+      res.status(404).json({ success: false, error: "Reservation not found" });
+      return;
+    }
+
+    await ensureCurrentReservationStatuses().catch(() => {});
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.substring(7)
+      : (req.headers["x-session-token"] as string);
+
+    let isAdmin = false;
+    if (token) {
+      try {
+        const { valid, session } = await validateSession(token);
+        if (
+          valid &&
+          session &&
+          (session.role === "admin" ||
+            session.role === "super_admin" ||
+            session.user?.isSuperAdmin)
+        ) {
+          isAdmin = true;
+        }
+      } catch {
+        // Continue with standard permissions
+      }
+    }
+
+    const result = await db.execute(sql`
+      SELECT 
+        r.id,
+        r.series_id,
+        r.user_id,
+        r.admin_id,
+        r.instrument_id,
+        r.service_name,
+        r.service_location,
+        r.musician_name,
+        r.note,
+        r.reservation_type,
+        r.fee_snapshot,
+        r.status,
+        r.rejection_reason,
+        r.payment_screenshot_url,
+        r.band_pack_id,
+        r.condition_status,
+        r.condition_notes,
+        r.condition_photo_url,
+        r.condition_tags,
+        r.condition_checked_at,
+        r.condition_checked_by,
+        r.created_at,
+        r.is_no_show,
+        r.no_show_marked_at,
+        r.no_show_admin_id,
+        r.booked_by_admin,
+        lower(r.time_range) as start_time,
+        upper(r.time_range) as end_time,
+        to_char(lower(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as start_hhmm,
+        to_char(upper(r.time_range) AT TIME ZONE 'Africa/Cairo', 'HH24:MI') as end_hhmm,
+        ROUND(EXTRACT(EPOCH FROM (upper(r.time_range) - lower(r.time_range))) / 3600.0, 1) as duration_hours,
+        COALESCE(i.name, r.requested_type, 'Awaiting assignment') as instrument_name,
+        i.alias as instrument_alias,
+        COALESCE(i.type, r.requested_type) as instrument_type,
+        i.booking_mode,
+        i.visibility_level,
+        i.is_out_of_service,
+        i.outside_fee_per_day,
+        i.is_reserve_pool,
+        i.is_removed as instrument_is_removed,
+        i.photo_url as instrument_photo_url,
+        i.description as instrument_description,
+        r.is_type_request,
+        r.requested_type,
+        r.exceeded_limits,
+        s.pattern_type as series_pattern_type,
+        u.name as user_name,
+        u.phone_number as user_phone,
+        u.is_trusted as user_is_trusted,
+        a.name as admin_name
+      FROM reservations r
+      LEFT JOIN instruments i ON r.instrument_id = i.id
+      LEFT JOIN reservation_series s ON r.series_id = s.id
+      LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN admins a ON r.admin_id = a.id
+      WHERE r.id = ${id}
+      LIMIT 1
+    `);
+
+    const rows = (result as any).rows || [];
+    if (rows.length === 0) {
+      res.status(404).json({ success: false, error: "Reservation not found" });
+      return;
+    }
+
+    const r = rows[0];
+    const isFullDay =
+      (r.start_hhmm === "09:00" && r.end_hhmm === "22:00") ||
+      Number(r.duration_hours) >= 13;
+
+    let bandPackItems: any[] = [];
+    if (r.band_pack_id) {
+      const packRes = await db.execute(sql`
+        SELECT 
+          r2.id,
+          r2.instrument_id,
+          r2.musician_name,
+          r2.status,
+          r2.condition_status,
+          i2.name as instrument_name,
+          i2.alias as instrument_alias,
+          i2.type as instrument_type,
+          i2.photo_url as instrument_photo_url,
+          i2.is_removed as instrument_is_removed,
+          i2.is_reserve_pool
+        FROM reservations r2
+        JOIN instruments i2 ON r2.instrument_id = i2.id
+        WHERE r2.band_pack_id = ${r.band_pack_id}
+        ORDER BY r2.created_at ASC
+      `);
+      bandPackItems = ((packRes as any).rows || []).map((bp: any) => {
+        return {
+          ...bp,
+          instrument_is_masked: false,
+        };
+      });
+    }
+
+    const processedReservation = {
+      ...r,
+      instrument_is_masked: false,
+      is_full_day: isFullDay,
+      isFullDay,
+      band_pack_items: bandPackItems,
+    };
+
+    res.json({
+      success: true,
+      reservation: processedReservation,
+    });
+  } catch (err: any) {
+    sendSafeErrorResponse(res, "Reservation detail error:", err);
   }
 });
 

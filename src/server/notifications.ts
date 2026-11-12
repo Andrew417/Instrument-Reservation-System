@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { db } from "../db/index.js";
 import { sql } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
+import { sendSafeErrorResponse } from "./error-response.js";
 
 const router = Router();
 
@@ -82,7 +83,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       unreadCount: Number((countRes as any).rows?.[0]?.unread_count || 0),
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Notifications] Fetch error:", err);
   }
 });
 /**
@@ -102,7 +103,7 @@ router.post("/:id/read", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, notification: (result as any).rows?.[0] });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Notifications] Mark read error:", err);
   }
 });
 
@@ -132,7 +133,7 @@ router.post(
 
       res.json({ success: true, message: "All notifications marked as read" });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Notifications] Mark all read error:", err);
     }
   },
 );

@@ -23,6 +23,7 @@ import {
 } from "../db/schema.js";
 import { eq, ne, and, sql, desc, asc, inArray } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
+import { classifyError, sendSafeErrorResponse } from "./error-response.js";
 import { getCairoDateString } from "../lib/date-utils.js";
 import {
   normalizePhoneNumber,
@@ -111,10 +112,7 @@ async function requireAdminAuth(req: Request, res: Response, next: () => void) {
     (req as any).adminUser = session.user;
     next();
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    sendSafeErrorResponse(res, "[Admin] Auth check error:", err);
   }
 }
 
@@ -161,10 +159,7 @@ async function requireSuperAdminAuth(
     (req as any).adminUser = session.user;
     next();
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    sendSafeErrorResponse(res, "[Admin] Super admin auth check error:", err);
   }
 }
 
@@ -252,12 +247,7 @@ router.get(
         },
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Stats error:", err);
     }
   },
 );
@@ -565,11 +555,7 @@ router.get("/analytics", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err: any) {
-    console.error("Admin analytics error:", err);
-    res.status(500).json({
-      success: false,
-      error: err.message || "Failed to load analytics data",
-    });
+    sendSafeErrorResponse(res, "Admin analytics error:", err);
   }
 });
 
@@ -745,12 +731,7 @@ router.get(
       });
       res.json({ success: true, reservations: mapped });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Pending reservations error:", err);
     }
   },
 );
@@ -829,12 +810,7 @@ router.get(
         reservations: rows,
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Reservations list error:", err);
     }
   },
 );
@@ -919,12 +895,7 @@ router.get(
         },
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Approvals summary error:", err);
     }
   },
 );
@@ -970,7 +941,7 @@ router.post(
         message: "Reservation approved successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Approve reservation error:", err);
     }
   },
 );
@@ -1102,8 +1073,7 @@ router.get(
         options,
       });
     } catch (err: any) {
-      console.error("Assignment options error:", err);
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "Assignment options error:", err);
     }
   },
 );
@@ -1157,8 +1127,7 @@ router.post(
         message: "Instrument assigned and reservation approved successfully.",
       });
     } catch (err: any) {
-      console.error("Assign and approve error:", err);
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "Assign and approve error:", err);
     }
   },
 );
@@ -1181,7 +1150,7 @@ router.post(
         message: "Reservation transformed to Full Day successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1200,7 +1169,7 @@ router.post(
         message: "Reservation transformed to Full Day successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1227,7 +1196,7 @@ router.post(
         message: "Reservation rejected.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1243,7 +1212,7 @@ router.get(
       const data = await getTypeRequestCandidates(id);
       res.json({ success: true, ...data });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1259,7 +1228,7 @@ router.get(
       const data = await getReassignCandidates(id);
       res.json({ success: true, ...data });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1274,7 +1243,7 @@ router.get(
       const data = await getSeriesTypeRequestCandidates(seriesId);
       res.json({ success: true, ...data });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1303,7 +1272,7 @@ router.post(
         message: "Instrument assigned and reservation approved successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1341,7 +1310,7 @@ router.post(
         message: "Series assigned successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1376,7 +1345,7 @@ router.post(
         message: "Reservation instrument reallocated successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation route error:", err);
     }
   },
 );
@@ -1416,7 +1385,7 @@ router.post(
       const result = await adminBulkApprove(ids, adminId);
       res.json(result);
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Bulk approve error:", err);
     }
   },
 );
@@ -1438,7 +1407,7 @@ router.post(
       );
       res.json(result);
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Bulk reject error:", err);
     }
   },
 );
@@ -1456,7 +1425,7 @@ router.post(
       const result = await adminBulkCancel(ids, adminId, cancellationReason);
       res.json(result);
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Bulk cancel error:", err);
     }
   },
 );
@@ -1505,7 +1474,13 @@ router.post(
             .returning();
           deleted.push(removed);
         } catch (err: any) {
-          errors.push({ id, error: err.message });
+          console.error(
+            "[Admin] Bulk delete item error:",
+            err,
+            "\nCause:",
+            err instanceof Error ? err.cause : undefined,
+          );
+          errors.push({ id, error: classifyError(err).message });
         }
       }
 
@@ -1517,7 +1492,7 @@ router.post(
         errors,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Bulk delete error:", err);
     }
   },
 );
@@ -1558,7 +1533,7 @@ router.delete(
         message: "Reservation permanently deleted from database.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation action error:", err);
     }
   },
 );
@@ -1580,7 +1555,7 @@ router.post(
         message: "Reservation marked as No-Show.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation action error:", err);
     }
   },
 );
@@ -1602,7 +1577,7 @@ router.post(
         message: "Reservation No-Show status removed.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation action error:", err);
     }
   },
 );
@@ -1629,7 +1604,7 @@ router.post(
           : "Reservation No-Show status removed.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Reservation action error:", err);
     }
   },
 );
@@ -1674,7 +1649,7 @@ router.post(
         message: "All pending series occurrences approved.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Series approve error:", err);
     }
   },
 );
@@ -1705,7 +1680,7 @@ router.post(
         message: "All series occurrences rejected.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Series reject error:", err);
     }
   },
 );
@@ -1745,7 +1720,7 @@ router.post(
         message: "Entire recurring series cancelled.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Series cancel error:", err);
     }
   },
 );
@@ -1777,12 +1752,7 @@ router.get(
     `);
       res.json({ success: true, occurrences: (result as any).rows || [] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Series occurrences fetch error:", err);
     }
   },
 );
@@ -1868,12 +1838,7 @@ router.get(
       );
       res.json({ success: true, instruments: formatted });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Series fetch error:", err);
     }
   },
 );
@@ -2002,7 +1967,7 @@ router.post(
         message: "Instrument created successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2171,7 +2136,7 @@ router.put(
         message: "Instrument updated successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2197,7 +2162,7 @@ router.post(
         message: "Image uploaded successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2238,7 +2203,7 @@ router.put(
         message: "Instrument photo updated successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2264,7 +2229,7 @@ router.post(
 
       res.json({ success: true, ...result });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2298,7 +2263,7 @@ router.post(
         message: `"${updated.name}" is now Available and visible to members again.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2315,7 +2280,7 @@ router.get(
       const bookings = await getFutureBookingsForInstrument(id);
       res.json({ success: true, bookings, count: bookings.length });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments fetch error:", err);
     }
   },
 );
@@ -2375,7 +2340,7 @@ router.delete(
         message: `Instrument "${existing.name}" was permanently removed from the database.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2398,7 +2363,7 @@ router.get("/types", async (_req: Request, res: Response): Promise<void> => {
     `);
     res.json({ success: true, types: (result as any).rows || [] });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Admin] Instruments fetch error:", err);
   }
 });
 
@@ -2454,7 +2419,7 @@ router.put(
         message: `Type settings for "${type}" updated successfully.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Instruments action error:", err);
     }
   },
 );
@@ -2539,10 +2504,7 @@ router.get("/users", async (req: Request, res: Response): Promise<void> => {
     }));
     res.json({ success: true, users: transformedUsers });
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    sendSafeErrorResponse(res, "[Admin] Users fetch error:", err);
   }
 });
 
@@ -2712,7 +2674,7 @@ router.get(
         messages: adminMessages,
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] User approval error:", err);
     }
   },
 );
@@ -2721,8 +2683,16 @@ router.get(
   "/notification-settings",
   requireSuperAdminAuth,
   async (_req, res) => {
-    const settings = await getNotificationSettings();
-    res.json({ success: true, settings });
+    try {
+      const settings = await getNotificationSettings();
+      res.json({ success: true, settings });
+    } catch (err: any) {
+      sendSafeErrorResponse(
+        res,
+        "[Admin] Notification settings fetch error:",
+        err,
+      );
+    }
   },
 );
 
@@ -2730,19 +2700,27 @@ router.put(
   "/notification-settings",
   requireSuperAdminAuth,
   async (req, res) => {
-    const { muteAccountApprovalEmails, muteReservationRequestEmails } =
-      req.body;
-    const existing = await getNotificationSettings();
-    const [updated] = await db
-      .update(notificationSettings)
-      .set({
-        muteAccountApprovalEmails: Boolean(muteAccountApprovalEmails),
-        muteReservationRequestEmails: Boolean(muteReservationRequestEmails),
-        updatedAt: new Date(),
-      })
-      .where(eq(notificationSettings.id, existing.id))
-      .returning();
-    res.json({ success: true, settings: updated });
+    try {
+      const { muteAccountApprovalEmails, muteReservationRequestEmails } =
+        req.body;
+      const existing = await getNotificationSettings();
+      const [updated] = await db
+        .update(notificationSettings)
+        .set({
+          muteAccountApprovalEmails: Boolean(muteAccountApprovalEmails),
+          muteReservationRequestEmails: Boolean(muteReservationRequestEmails),
+          updatedAt: new Date(),
+        })
+        .where(eq(notificationSettings.id, existing.id))
+        .returning();
+      res.json({ success: true, settings: updated });
+    } catch (err: any) {
+      sendSafeErrorResponse(
+        res,
+        "[Admin] Notification settings update error:",
+        err,
+      );
+    }
   },
 );
 
@@ -2864,7 +2842,7 @@ router.post(
         message: `User account has been ${result.updated.isActive ? "reactivated" : "deactivated"}.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] User status toggle error:", err);
     }
   },
 );
@@ -2957,10 +2935,7 @@ router.get("/approvals", async (req: Request, res: Response): Promise<void> => {
       pendingCount: Number(counts.pending || 0),
     });
   } catch (err: any) {
-    console.error("Reservations list error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: err.message, cause: err.cause?.message });
+    sendSafeErrorResponse(res, "[Admin] User reservations fetch error:", err);
   }
 });
 
@@ -3006,7 +2981,7 @@ router.post(
         message: `Account for ${updated.name} has been approved. They can now log in normally.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] User trusted update error:", err);
     }
   },
 );
@@ -3051,7 +3026,7 @@ router.post(
         message: `Registration for ${updated.name} has been rejected. Record preserved in audit log.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] User musician update error:", err);
     }
   },
 );
@@ -3080,7 +3055,7 @@ router.delete(
         message: `Account for ${deleted.name} deleted successfully.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] User delete error:", err);
     }
   },
 );
@@ -3220,7 +3195,7 @@ router.post(
         message: "Reservation created and auto-approved on behalf of user.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Book on behalf error:", err);
     }
   },
 );
@@ -3301,11 +3276,8 @@ router.post(
           "Recurring series created and auto-approved on behalf of user.",
       });
     } catch (err: any) {
-      console.error("Admin book-series-on-behalf error:", err);
-      res.status(400).json({
-        success: false,
-        error: err.message,
-        conflicts: err.conflicts || undefined,
+      sendSafeErrorResponse(res, "Admin book-series-on-behalf error:", err, {
+        includeConflicts: true,
       });
     }
   },
@@ -3334,17 +3306,8 @@ router.patch(
         ...(result.message ? { message: result.message } : {}),
       });
     } catch (err: any) {
-      console.error("Admin series edit error:", err);
-      const msg = err.message || "Failed to edit recurring series.";
-      const status = /not found/i.test(msg)
-        ? 404
-        : /conflict|working hours|past/i.test(msg)
-          ? 400
-          : 500;
-      res.status(status).json({
-        success: false,
-        error: msg,
-        conflicts: err.conflicts || undefined,
+      sendSafeErrorResponse(res, "Admin series edit error:", err, {
+        includeConflicts: true,
       });
     }
   },
@@ -3480,8 +3443,7 @@ router.get(
         totalCount: conversations.length,
       });
     } catch (err: any) {
-      console.error("Fetch conversations error:", err);
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "Fetch conversations error:", err);
     }
   },
 );
@@ -3501,7 +3463,7 @@ router.get(
       const count = Number((result as any).rows?.[0]?.unread_count || 0);
       res.json({ success: true, unreadCount: count });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Unread count error:", err);
     }
   },
 );
@@ -3535,7 +3497,7 @@ router.post(
       const markedCount = (updateRes as any).rows?.length || 0;
       res.json({ success: true, markedCount });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Mark read error:", err);
     }
   },
 );
@@ -3605,12 +3567,7 @@ router.post(
         notice: "Message sent to member.",
       });
     } catch (err: any) {
-      console.error("Reservations message error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "Reservations message error:", err);
     }
   },
 );
@@ -3691,7 +3648,7 @@ router.post(
         message: `${user.name} was promoted to administrator and reservation ownership was reassigned successfully.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Mark notifications read error:", err);
     }
   },
 );
@@ -3851,7 +3808,7 @@ router.post(
             : `${admin.name} was demoted to Member and reservation ownership was reassigned.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Hard limits update error:", err);
     }
   },
 );
@@ -3875,12 +3832,7 @@ router.get(
         admins: (result as any).rows || [],
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Payment settings fetch error:", err);
     }
   },
 );
@@ -3915,12 +3867,7 @@ router.get(
         admin: rows[0],
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Admins list error:", err);
     }
   },
 );
@@ -4016,12 +3963,7 @@ router.post(
         message: "Administrator account created successfully.",
       });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Create admin error:", err);
     }
   },
 );
@@ -4082,7 +4024,7 @@ router.delete(
 
       res.json({ success: true, message: `Admin ${deleted.name} removed.` });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Delete admin error:", err);
     }
   },
 );
@@ -4140,7 +4082,7 @@ router.post(
         message: `Trusted status ${action} for ${updatedUser.name}.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Promote user error:", err);
     }
   },
 );
@@ -4170,12 +4112,7 @@ router.get(
 
       res.json({ success: true, auditLogs: (result as any).rows || [] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Admin approvals fetch error:", err);
     }
   },
 );
@@ -4253,7 +4190,7 @@ router.post(
         message: `Musician status ${action} for ${updatedUser.name}.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Admin approval error:", err);
     }
   },
 );
@@ -4283,10 +4220,7 @@ router.get(
 
       res.json({ success: true, auditLogs: (result as any).rows || [] });
     } catch (err: any) {
-      res.status(500).json({
-        success: false,
-        error: err.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Services fetch error:", err);
     }
   },
 );
@@ -4322,7 +4256,7 @@ router.get("/services", async (_req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, services: formatted });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Admin] Services fetch error:", err);
   }
 });
 
@@ -4372,7 +4306,7 @@ router.post("/services", async (req: Request, res: Response): Promise<void> => {
       message: `Service "${created.name}" created successfully.`,
     });
   } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Admin] Service create error:", err);
   }
 });
 
@@ -4427,7 +4361,7 @@ router.put(
         message: `Service renamed to "${updated.name}".`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Service update error:", err);
     }
   },
 );
@@ -4454,7 +4388,7 @@ router.post(
         message: `Service "${updated.name}" has been archived.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Service archive error:", err);
     }
   },
 );
@@ -4481,7 +4415,7 @@ router.post(
         message: `Service "${updated.name}" has been restored.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Service restore error:", err);
     }
   },
 );
@@ -4530,7 +4464,7 @@ router.delete(
         message: `Service "${row.name}" was permanently deleted.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Service delete error:", err);
     }
   },
 );
@@ -4601,7 +4535,7 @@ router.get(
         })),
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Service users fetch error:", err);
     }
   },
 );
@@ -4631,7 +4565,7 @@ router.get(
         })),
       });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] User services fetch error:", err);
     }
   },
 );
@@ -4746,7 +4680,7 @@ router.post(
         message: `Assigned "${srv.name}" to ${u.name}.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Grant service error:", err);
     }
   },
 );
@@ -4895,7 +4829,7 @@ router.post(
         message: `Revoked "${targetService.name}" from ${targetUser.name}. ${cancelledReservations.length} future booking(s) cancelled.`,
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Revoke service error:", err);
     }
   },
 );
@@ -4926,7 +4860,7 @@ router.get(
 
       res.json({ success: true, auditLogs: (result as any).rows || [] });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Audit log fetch error:", err);
     }
   },
 );
@@ -4942,7 +4876,7 @@ router.get("/types", async (_req: Request, res: Response): Promise<void> => {
       .orderBy(asc(instrumentTypeSettings.type));
     res.json({ success: true, types });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Admin] Type settings fetch error:", err);
   }
 });
 
@@ -4975,7 +4909,7 @@ router.put(
 
       res.json({ success: true, type: updated });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Type settings update error:", err);
     }
   },
 );
@@ -5018,7 +4952,7 @@ router.post(
 
       res.json({ success: true, type: saved });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Update admin role error:", err);
     }
   },
 );
@@ -5038,12 +4972,7 @@ router.get(
       const limits = await getHardLimits();
       res.json({ success: true, limits });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Hard limits fetch error:", err);
     }
   },
 );
@@ -5179,7 +5108,7 @@ router.put(
         message: "System reservation hard limits updated successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Trusted status toggle error:", err);
     }
   },
 );
@@ -5206,12 +5135,7 @@ router.get(
       }
       res.json({ success: true, settings: rows[0] });
     } catch (err: any) {
-      console.error("Reservations list error:", err);
-      res.status(500).json({
-        success: false,
-        error: err.message,
-        cause: err.cause?.message,
-      });
+      sendSafeErrorResponse(res, "[Admin] Trusted audit fetch error:", err);
     }
   },
 );
@@ -5254,7 +5178,7 @@ router.put(
         message: "Instapay payment settings updated successfully.",
       });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message });
+      sendSafeErrorResponse(res, "[Admin] Payment settings update error:", err);
     }
   },
 );

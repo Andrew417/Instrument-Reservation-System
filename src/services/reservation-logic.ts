@@ -1,4 +1,4 @@
-import { db, pool } from "../db/index.js";
+import { db, type DatabaseExecutor } from "../db/index.js";
 import {
   sendSuperAdminNotificationEmail,
   sendReservationApprovedEmail,
@@ -28,6 +28,7 @@ import {
   shiftDateToWeekday,
 } from "../lib/date-utils.js";
 import { sendPushToUser, sendPushToAdmins } from "../lib/push-service.js";
+import { classifyError } from "../server/error-response.js";
 
 export interface TimeSlot {
   date: string; // 'YYYY-MM-DD'
@@ -173,18 +174,20 @@ export function validateWorkingHours(start: Date, end: Date) {
 /**
  * Fetches default or current hard limits from DB (ordered by latest update)
  */
-export async function getNotificationSettings() {
-  const rows = await db.select().from(notificationSettings).limit(1);
+export async function getNotificationSettings(
+  executor: DatabaseExecutor = db,
+) {
+  const rows = await executor.select().from(notificationSettings).limit(1);
   if (rows.length > 0) return rows[0];
-  const [inserted] = await db
+  const [inserted] = await executor
     .insert(notificationSettings)
     .values({})
     .returning();
   return inserted;
 }
 
-export async function getHardLimits() {
-  const limits = await db
+export async function getHardLimits(executor: DatabaseExecutor = db) {
+  const limits = await executor
     .select()
     .from(hardLimits)
     .orderBy(desc(hardLimits.updatedAt))
@@ -245,6 +248,7 @@ export function toNullableString(val: any): string | null {
 export async function resolveUserAndAdminIds(
   rawUserId?: string | null,
   rawAdminId?: string | null,
+  executor: DatabaseExecutor = db,
 ): Promise<{
   resolvedUserId: string | null;
   resolvedAdminId: string | null;
@@ -261,7 +265,7 @@ export async function resolveUserAndAdminIds(
   // 1. If adminId provided, verify it against admins or fallback to users
   if (adminId) {
     try {
-      const adminRows = await db
+      const adminRows = await executor
         .select({
           id: admins.id,
           role: admins.role,
@@ -276,7 +280,7 @@ export async function resolveUserAndAdminIds(
           adminRows[0].isSuperAdmin || adminRows[0].role !== "room_servant",
         );
       } else {
-        const userRows = await db
+        const userRows = await executor
           .select({
             id: users.id,
             isTrusted: users.isTrusted,
@@ -303,7 +307,7 @@ export async function resolveUserAndAdminIds(
   // 2. If userId provided, check if it's actually in users table or in admins table
   if (userId) {
     try {
-      const userRows = await db
+      const userRows = await executor
         .select({
           id: users.id,
           isTrusted: users.isTrusted,
@@ -317,7 +321,7 @@ export async function resolveUserAndAdminIds(
         isTrusted = Boolean(userRows[0].isTrusted);
         isMusician = Boolean(userRows[0].isMusician);
       } else {
-        const adminRows = await db
+        const adminRows = await executor
           .select({
             id: admins.id,
             role: admins.role,
@@ -358,7 +362,12 @@ export async function resolveUserAndAdminIds(
  */
 export async function evaluateReservationSubmission(
   input: ReservationSubmissionInput,
-  options?: { skipRateLimitCheck?: boolean; preloadedLimits?: any },
+  options?: {
+    skipRateLimitCheck?: boolean;
+    preloadedLimits?: any;
+    executor?: DatabaseExecutor;
+  },
+  executor: DatabaseExecutor = options?.executor ?? db,
 ): Promise<EvaluationResult> {
   const {
     userId,
@@ -374,7 +383,7 @@ export async function evaluateReservationSubmission(
   } = input;
 
   const { resolvedUserId, resolvedAdminId, isTrusted, isMusician, isAdmin } =
-    await resolveUserAndAdminIds(userId, adminId);
+    await resolveUserAndAdminIds(userId, adminId, executor);
   const cleanUserId = resolvedUserId;
   const cleanAdminId = resolvedAdminId;
   const isTrustedOrAdmin = isTrusted || isAdmin;
@@ -387,7 +396,7 @@ export async function evaluateReservationSubmission(
   );
   validateWorkingHours(start, end);
 
-  const limits = options?.preloadedLimits || (await getHardLimits());
+  const limits = options?.preloadedLimits || (await getHardLimits(executor));
 
   const ownerCondition = cleanUserId
     ? eq(reservations.userId, cleanUserId)
@@ -403,7 +412,7 @@ export async function evaluateReservationSubmission(
     !limits.bypassHardLimits
   ) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentSubmissions = await db
+    const recentSubmissions = await executor
       .select({ count: sql<number>`count(*)::int` })
       .from(reservations)
       .where(
@@ -429,7 +438,7 @@ export async function evaluateReservationSubmission(
     }
 
     // Verify type is configured and can be requested
-    const typeRes = await db.execute(sql`
+    const typeRes = await executor.execute(sql`
       SELECT type, can_be_requested, flat_fee_outside
       FROM instrument_type_settings
       WHERE type ILIKE ${cleanType}
@@ -457,8 +466,8 @@ export async function evaluateReservationSubmission(
     // - Regular user cannot submit if active reservations limit reached (Pending type requests count, series counts as 1).
     // - Trusted users and admins bypass this limit.
     if (!isTrustedOrAdmin && !limits.bypassHardLimits && ownerCondition) {
-      await ensureCurrentReservationStatuses().catch(() => {});
-      const activeRes = await db
+      await ensureCurrentReservationStatuses(executor).catch(() => {});
+      const activeRes = await executor
         .select({
           activeCount: sql<number>`COUNT(DISTINCT COALESCE(${reservations.seriesId}, ${reservations.id}))::int`,
         })
@@ -483,7 +492,7 @@ export async function evaluateReservationSubmission(
     const exceededLimits: string[] = [];
     if (!limits.bypassHardLimits && ownerCondition && !isAdmin) {
       const dateStr = getCairoDateString(start);
-      const dayRes = await db
+      const dayRes = await executor
         .select({ count: sql<number>`count(*)::int` })
         .from(reservations)
         .where(
@@ -509,7 +518,7 @@ export async function evaluateReservationSubmission(
       const concurrentOwnerSql = cleanUserId
         ? sql`r.user_id = ${cleanUserId}`
         : sql`(r.admin_id = ${cleanAdminId} AND r.user_id IS NULL)`;
-      const concurrentRes = await db.execute(sql`
+      const concurrentRes = await executor.execute(sql`
         SELECT count(*)::int as count
         FROM reservations r
         LEFT JOIN instruments i ON r.instrument_id = i.id
@@ -555,7 +564,7 @@ export async function evaluateReservationSubmission(
   }
 
   // Fetch instrument
-  const instrumentRes = await db
+  const instrumentRes = await executor
     .select()
     .from(instruments)
     .where(
@@ -594,7 +603,7 @@ export async function evaluateReservationSubmission(
     }
 
     // service instruments of archived services are hidden from booking for everyone
-    const [srv] = await db
+    const [srv] = await executor
       .select({ id: services.id, isArchived: services.isArchived })
       .from(services)
       .where(eq(services.id, instrument.serviceId))
@@ -613,7 +622,7 @@ export async function evaluateReservationSubmission(
         );
       }
 
-      const [holdsService] = await db
+      const [holdsService] = await executor
         .select()
         .from(userServices)
         .where(
@@ -633,7 +642,7 @@ export async function evaluateReservationSubmission(
   }
 
   // Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
-  const conflicts = await db
+  const conflicts = await executor
     .select({ id: reservations.id, timeRange: reservations.timeRange })
     .from(reservations)
     .where(
@@ -681,13 +690,13 @@ export async function evaluateReservationSubmission(
     calculatedStatus = "approved";
     reasons.push("Auto-approved via Trusted User / Admin privilege");
   } else {
-    await ensureCurrentReservationStatuses().catch(() => {});
+    await ensureCurrentReservationStatuses(executor).catch(() => {});
 
     let limitExceeded = false;
 
     if (!limits.bypassHardLimits) {
       if (ownerCondition) {
-        const activeRes = await db
+        const activeRes = await executor
           .select({
             activeCount: sql<number>`COUNT(DISTINCT COALESCE(${reservations.seriesId}, ${reservations.id}))::int`,
           })
@@ -710,7 +719,7 @@ export async function evaluateReservationSubmission(
 
       if (ownerCondition) {
         const dateStr = getCairoDateString(start);
-        const dayRes = await db
+        const dayRes = await executor
           .select({ count: sql<number>`count(*)::int` })
           .from(reservations)
           .where(
@@ -738,7 +747,7 @@ export async function evaluateReservationSubmission(
       }
 
       if (ownerCondition) {
-        const concurrentRes = await db
+        const concurrentRes = await executor
           .select({ count: sql<number>`count(*)::int` })
           .from(reservations)
           .innerJoin(instruments, eq(reservations.instrumentId, instruments.id))
@@ -792,6 +801,7 @@ export async function autoRejectOverlappingPending(
   start: Date,
   end: Date,
   approvedReservationId?: string,
+  executor: DatabaseExecutor = db,
 ) {
   const query = sql`
     UPDATE reservations
@@ -805,13 +815,13 @@ export async function autoRejectOverlappingPending(
     RETURNING id, user_id, service_name, time_range;
   `;
 
-  const result = await db.execute(query);
+  const result = await executor.execute(query);
   const autoRejectedRows = (result as any).rows || [];
 
   // Notify affected users in-app
   for (const row of autoRejectedRows) {
     if (row.user_id) {
-      await db.insert(notifications).values({
+      await executor.insert(notifications).values({
         userId: row.user_id,
         reservationId: row.id,
         type: "reservation_auto_rejected",
@@ -898,9 +908,6 @@ export async function createReservation(input: ReservationSubmissionInput) {
     .values(reservationParams)
     .returning();
 
-  // Return as soon as the reservation row exists. Non-critical bookkeeping and
-  // notifications must not make the user wait for email or push delivery.
-  void (async () => {
   // If requester provided a note, also record it as the initial message in the reservation thread
   if (cleanNote) {
     try {
@@ -1177,9 +1184,6 @@ export async function createReservation(input: ReservationSubmissionInput) {
       "new_requests",
     ).catch((e) => console.warn("[Push new reservation error]:", e.message));
   }
-  })().catch((err) => {
-    console.error("Background reservation notification failed:", err);
-  });
 
   return {
     reservation: newReservation,
@@ -1428,7 +1432,8 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
           isTypeRequest: input.isTypeRequest,
           requestedType: cleanRequestedType,
         },
-        { skipRateLimitCheck: true, preloadedLimits: limits },
+        { skipRateLimitCheck: true, preloadedLimits: limits, executor: tx },
+        tx,
       );
 
       const cleanFeeSnapshot = toNullableString(
@@ -1772,16 +1777,19 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
  * 3. EDITING A RESERVATION
  * =========================================================================
  */
-export async function checkCallerAdminPrivilege(caller: {
-  adminId?: string | null;
-  isAdminPrivilege?: boolean;
-}): Promise<boolean> {
+export async function checkCallerAdminPrivilege(
+  caller: {
+    adminId?: string | null;
+    isAdminPrivilege?: boolean;
+  },
+  executor: DatabaseExecutor = db,
+): Promise<boolean> {
   if (typeof caller.isAdminPrivilege === "boolean") {
     return caller.isAdminPrivilege;
   }
   const cleanAdminId = toNullableString(caller.adminId);
   if (!cleanAdminId) return false;
-  const [adm] = await db
+  const [adm] = await executor
     .select({ role: admins.role, isSuperAdmin: admins.isSuperAdmin })
     .from(admins)
     .where(eq(admins.id, cleanAdminId))
@@ -3443,7 +3451,8 @@ export async function adminBulkApprove(
       const approved = await adminApproveReservation(id, cleanAdminId);
       approvedList.push(approved);
     } catch (err: any) {
-      errors.push({ id, error: err.message });
+      console.error("[ReservationLogic] Bulk approve item error:", err, "\nCause:", err instanceof Error ? err.cause : undefined);
+      errors.push({ id, error: classifyError(err).message });
     }
   }
 
@@ -3542,7 +3551,8 @@ export async function adminBulkCancel(
         cancelled.push(result.reservation || result);
       }
     } catch (err: any) {
-      errors.push({ id, error: err.message });
+      console.error("[ReservationLogic] Bulk cancel item error:", err, "\nCause:", err instanceof Error ? err.cause : undefined);
+      errors.push({ id, error: classifyError(err).message });
     }
   }
 
@@ -3568,10 +3578,12 @@ export const NO_SHOW_WINDOW_HOURS = 48;
  * 6. STATUS TRANSITIONS (Scheduled Check / Background Job / Lazy-on-read)
  * =========================================================================
  */
-export async function ensureCurrentReservationStatuses() {
+export async function ensureCurrentReservationStatuses(
+  executor: DatabaseExecutor = db,
+) {
   // 0. Auto-reject unassigned type requests whose start time has arrived
   // Spec: "If nobody assigns an instrument before the start time, the request is automatically rejected with the reason 'Not assigned before the start time', and the user is notified. For a series, only the dates already in the past are affected."
-  const unassignedTypeReqs = await db.execute(sql`
+  const unassignedTypeReqs = await executor.execute(sql`
     UPDATE reservations
     SET status = 'rejected',
         rejection_reason = 'Not assigned before the start time'
@@ -3584,7 +3596,7 @@ export async function ensureCurrentReservationStatuses() {
   const rejectedTypeRows = (unassignedTypeReqs as any).rows || [];
   for (const row of rejectedTypeRows) {
     if (row.user_id) {
-      await db
+      await executor
         .insert(notifications)
         .values({
           userId: row.user_id,
@@ -3607,7 +3619,7 @@ export async function ensureCurrentReservationStatuses() {
   }
 
   // 1. Expired: A regular pending direct reservation whose start datetime has passed transitions to Expired
-  const toExpiredRes = await db.execute(sql`
+  const toExpiredRes = await executor.execute(sql`
     UPDATE reservations
     SET status = 'expired'
     WHERE status = 'pending'
@@ -3617,7 +3629,7 @@ export async function ensureCurrentReservationStatuses() {
   `);
 
   // 2. Ongoing: Approved reservations whose start time has arrived and end time is in future
-  const toOngoingRes = await db.execute(sql`
+  const toOngoingRes = await executor.execute(sql`
     UPDATE reservations
     SET status = 'ongoing'
     WHERE status = 'approved'
@@ -3627,7 +3639,7 @@ export async function ensureCurrentReservationStatuses() {
   `);
 
   // 3. Completed: Ongoing or approved reservations whose end time has passed
-  const toCompletedRes = await db.execute(sql`
+  const toCompletedRes = await executor.execute(sql`
     UPDATE reservations
     SET status = 'completed'
     WHERE status IN ('ongoing', 'approved')
@@ -3642,8 +3654,8 @@ export async function ensureCurrentReservationStatuses() {
   return { expiredCount, ongoingCount, completedCount };
 }
 
-export async function runStatusTransitions() {
-  return ensureCurrentReservationStatuses();
+export async function runStatusTransitions(executor: DatabaseExecutor = db) {
+  return ensureCurrentReservationStatuses(executor);
 }
 
 /**

@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { validateSession } from "./session-manager.js";
 import { getVapidPublicKey, isPushConfigured } from "../lib/push-vapid.js";
 import { sendTestPushToSubscription } from "../lib/push-service.js";
+import { sendSafeErrorResponse } from "./error-response.js";
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.get("/public-key", (_req: Request, res: Response) => {
     const publicKey = getVapidPublicKey();
     res.json({ success: true, enabled: true, publicKey });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Push Public Key Error]:", err);
   }
 });
 
@@ -115,8 +116,7 @@ router.post("/subscribe", async (req: Request, res: Response): Promise<void> => 
 
     res.json({ success: true, message: "Subscription saved successfully" });
   } catch (err: any) {
-    console.error("[Push Subscribe Error]:", err);
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Push Subscribe Error]:", err);
   }
 });
 
@@ -154,7 +154,7 @@ router.post("/unsubscribe", async (req: Request, res: Response): Promise<void> =
       deleted,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Push Unsubscribe Error]:", err);
   }
 });
 
@@ -227,8 +227,7 @@ router.post("/test", async (req: Request, res: Response): Promise<void> => {
       });
     }
   } catch (err: any) {
-    console.error("[Push Test Error]:", err);
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Push Test Error]:", err);
   }
 });
 
@@ -269,7 +268,7 @@ router.get("/preferences", async (req: Request, res: Response): Promise<void> =>
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Push Preferences Fetch Error]:", err);
   }
 });
 
@@ -317,7 +316,7 @@ router.post("/preferences", async (req: Request, res: Response): Promise<void> =
       },
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    sendSafeErrorResponse(res, "[Push Preferences Update Error]:", err);
   }
 });
 
