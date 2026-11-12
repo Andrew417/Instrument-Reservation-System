@@ -5,7 +5,15 @@ import { Instrument } from "./AvailabilityCalendar.tsx";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { PolicyExplainerModal } from "./PolicyExplainerModal.tsx";
 import { ReservationUsageTypeSelector } from "./ReservationUsageTypeSelector.tsx";
-import { formatHhmmTo12Hour, getTodayDateString } from "../lib/date-utils";
+import {
+  addDaysToDateString,
+  cairoDateTimeToDate,
+  formatHhmmTo12Hour,
+  getCairoParts,
+  getCairoTimeString,
+  getTodayDateString,
+} from "../lib/date-utils";
+import { getAuthSessionToken } from "../lib/auth-helpers";
 import { buildOwnerPayload, OnBehalfOf } from "../lib/reservation-owner";
 import {
   getInstrumentDisplayName,
@@ -13,15 +21,14 @@ import {
 } from "../lib/instrument-display";
 import {
   Calendar,
+  CalendarDays,
   Clock,
   Music2,
-  DollarSign,
   AlertCircle,
   CheckCircle2,
   AlertTriangle,
   X,
   Repeat,
-  ListFilter,
   Shield,
   HelpCircle,
   ChevronRight,
@@ -31,25 +38,11 @@ import {
   Church,
   Zap,
   Sparkles,
+  Layers,
+  Info,
+  Plus,
+  Trash2,
 } from "lucide-react";
-import {
-  INSTRUMENT_CATEGORIES,
-  DEFAULT_INSTRUMENT_TYPE,
-} from "../constants/instruments";
-
-export interface SeriesPrefill {
-  instrument: Instrument;
-  serviceName: string;
-  musicianName: string;
-  date: string;
-  startTime: string;
-  duration: number;
-  reservationType: "in_church" | "outside_church";
-  note?: string;
-  isTypeRequest?: boolean;
-  requestedType?: string;
-  flatFeeOutside?: string;
-}
 
 export interface ReservationFormProps {
   onBehalfOf?: OnBehalfOf;
@@ -64,7 +57,6 @@ export interface ReservationFormProps {
   initialRequestedType?: string;
   onClose: () => void;
   onSuccess: (reservationData: any) => void;
-  onOpenSeriesBuilder?: (prefill: SeriesPrefill) => void;
 }
 
 import { START_TIME_SLOTS as TIME_SLOTS } from "../constants/reservationTimes";
@@ -95,9 +87,36 @@ interface TypeSettingResponse {
   active_instruments_count?: number;
 }
 
+interface OccurrenceItem {
+  id: string;
+  date: string;
+  startTime: string;
+  duration: number;
+}
+
+interface SeriesConflictDetail {
+  type: "existing_reservation" | "self_overlap" | "working_hours";
+  occurrenceIndex: number;
+  occurrenceDate: string;
+  occurrenceTime: string;
+  message: string;
+}
+
 const getValidFee = (value: unknown): number => {
   const fee = Number(value);
   return Number.isFinite(fee) && fee >= 0 ? fee : 0;
+};
+
+const calculateEndTime = (startHhmm: string, durationHours: number): string => {
+  try {
+    const [h, m] = startHhmm.split(":").map(Number);
+    const totalMinutes = h * 60 + m + Math.round(durationHours * 60);
+    const endH = Math.floor(totalMinutes / 60);
+    const endM = totalMinutes % 60;
+    return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+  } catch {
+    return "--:--";
+  }
 };
 
 const getLimitMessage = (reason: string): LimitMessage | null => {
@@ -200,18 +219,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   onBehalfOf,
   onClose,
   onSuccess,
-  onOpenSeriesBuilder,
 }) => {
   const { profile, sessionToken } = useAuth();
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
 
-  const isMusicianUser = Boolean(profile?.isMusician);
   const isAdmin = Boolean(
     profile?.role === "admin" ||
     profile?.role === "super_admin" ||
     profile?.isSuperAdmin,
   );
+
   // Real instruments list state & fetching (never inject fake 'Grand Piano' or 'Piano' defaults)
   const [instrumentsList, setInstrumentsList] = useState<Instrument[]>(() => {
     if (Array.isArray(allInstruments) && allInstruments.length > 0) {
@@ -230,19 +248,20 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     return [];
   });
 
-  const [isLoadingInstruments, setIsLoadingInstruments] = useState<boolean>(() => {
-    const hasInstruments =
-      (Array.isArray(allInstruments) && allInstruments.length > 0) ||
-      Boolean(
-        initialInstrument &&
-          typeof initialInstrument === "object" &&
-          initialInstrument.id &&
-          initialInstrument.id !== "default-piano",
-      );
-    return !hasInstruments;
-  });
+  const [isLoadingInstruments, setIsLoadingInstruments] = useState<boolean>(
+    () => {
+      const hasInstruments =
+        (Array.isArray(allInstruments) && allInstruments.length > 0) ||
+        Boolean(
+          initialInstrument &&
+            typeof initialInstrument === "object" &&
+            initialInstrument.id &&
+            initialInstrument.id !== "default-piano",
+        );
+      return !hasInstruments;
+    },
+  );
 
-  // Sync instrumentsList when allInstruments prop updates
   useEffect(() => {
     if (Array.isArray(allInstruments) && allInstruments.length > 0) {
       const valid = allInstruments.filter(
@@ -255,7 +274,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     }
   }, [allInstruments]);
 
-  // Fetch from /api/instruments if instrumentsList is empty
   useEffect(() => {
     if (instrumentsList.length > 0) return;
     let isCancelled = false;
@@ -295,7 +313,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     if (Array.isArray(allInstruments) && allInstruments.length > 0) {
       const valid = allInstruments.filter(
         (inst): inst is Instrument =>
-          Boolean(inst && typeof inst === "object" && inst.id && inst.id !== "default-piano"),
+          Boolean(
+            inst &&
+              typeof inst === "object" &&
+              inst.id &&
+              inst.id !== "default-piano",
+          ),
       );
       if (valid.length > 0) return valid;
     }
@@ -310,7 +333,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     return [];
   }, [instrumentsList, allInstruments, initialInstrument]);
 
-  // Categories derived exclusively from instruments visible to the current user
   const availableCategories = useMemo(() => {
     const set = new Set<string>();
     safeAllInstruments.forEach((i) => {
@@ -319,7 +341,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       }
     });
     const list = Array.from(set).filter(Boolean);
-    // Sort with Piano first if present, then alphabetically
     return list.sort((a, b) => {
       if (a.toLowerCase() === "piano") return -1;
       if (b.toLowerCase() === "piano") return 1;
@@ -331,7 +352,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     isLoadingInstruments ||
     (safeAllInstruments.length === 0 && availableCategories.length === 0);
 
-  // Category state (only pre-filled if initial requested type or valid initial instrument type is passed; otherwise empty until categories load)
   const [selectedCategory, setSelectedCategory] = useState<string>(() => {
     if (initialRequestedType) return initialRequestedType;
     if (
@@ -345,13 +365,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     return "";
   });
 
-  // Ensure selectedCategory is automatically selected when categories become available
   useEffect(() => {
     if (availableCategories.length === 0) return;
-    if (
-      !selectedCategory ||
-      !availableCategories.includes(selectedCategory)
-    ) {
+    if (!selectedCategory || !availableCategories.includes(selectedCategory)) {
       const piano = availableCategories.find(
         (c) => c.toLowerCase() === "piano",
       );
@@ -359,7 +375,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     }
   }, [availableCategories, selectedCategory]);
 
-  // Available categories & type settings from server
   const [availableTypes, setAvailableTypes] = useState<
     Array<{
       type: string;
@@ -368,10 +383,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       active_instruments_count: number;
     }>
   >([]);
-  const [isLoadingTypes, setIsLoadingTypes] = useState<boolean>(false);
 
   useEffect(() => {
-    setIsLoadingTypes(true);
     fetch("/api/instruments/types")
       .then((res) => res.json())
       .then((data) => {
@@ -388,24 +401,38 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           );
         }
       })
-      .catch(console.error)
-      .finally(() => setIsLoadingTypes(false));
+      .catch(console.error);
   }, []);
 
-  // Instrument dropdown selection:
-  // Defaults to "" (-- Any [Category] --) so that admin assigns by default
-  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>("");
-
-  // If selectedInstrumentId is empty or whitespace, this reservation is submitted as a category request for admin assignment
+  // Pre-fill specific instrument when opened from a calendar/instrument slot;
+  // otherwise default to "" (-- Any [Category] --) for admin assignment.
+  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>(
+    () => {
+      if (initialIsTypeRequest) return "";
+      if (
+        initialInstrument &&
+        typeof initialInstrument === "object" &&
+        initialInstrument.id &&
+        initialInstrument.id !== "default-piano"
+      ) {
+        return initialInstrument.id;
+      }
+      return "";
+    },
+  );
   const isTypeRequest =
     !selectedInstrumentId || selectedInstrumentId.trim() === "";
+
   const [serviceName, setServiceName] = useState<string>(
     initialServiceName || "",
   );
   const [serviceLocation, setServiceLocation] = useState<string>("");
-  const [musicianName, setMusicianName] = useState<string>("");
+  const [musicianName, setMusicianName] = useState<string>(
+    initialMusicianName || "",
+  );
   const [note, setNote] = useState<string>("");
   const noteRef = useRef<HTMLTextAreaElement>(null);
+
   const [date, setDate] = useState<string>(initialDate);
   const [startTime, setStartTime] = useState<string>(
     initialTimeHhmm || "10:00",
@@ -415,7 +442,19 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     "in_church" | "outside_church"
   >("in_church");
   const [feeAcknowledged, setFeeAcknowledged] = useState<boolean>(false);
+
+  // Unified Recurring / Repeat State
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
+  const [patternType, setPatternType] = useState<"weekly" | "custom">("weekly");
+  const [weeklyInterval, setWeeklyInterval] = useState<number>(1);
+  const [weeklyCount, setWeeklyCount] = useState<number>(4);
+  const [customDates, setCustomDates] = useState<string[]>([initialDate]);
+  const [hasEditedCustomDates, setHasEditedCustomDates] =
+    useState<boolean>(false);
+  const [newCustomDateInput, setNewCustomDateInput] = useState<string>("");
+  const [skippedNotice, setSkippedNotice] = useState<number | null>(null);
+  const [maxSeriesLimit, setMaxSeriesLimit] = useState<number>(8);
+
   const [showPolicyExplainer, setShowPolicyExplainer] =
     useState<boolean>(false);
   const [showConflictPopup, setShowConflictPopup] = useState<boolean>(false);
@@ -424,18 +463,44 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Availability & conflict checking for selected date
+  // Single-date availability & conflict checking
   const [dateReservations, setDateReservations] = useState<any[]>([]);
-  const [isLoadingDateReservations, setIsLoadingDateReservations] =
-    useState<boolean>(false);
+  // Multi-date availability for recurring series checking
+  const [instrumentReservations, setInstrumentReservations] = useState<any[]>(
+    [],
+  );
 
+  // Keep customDates synced with primary `date` until user manually customizes dates
+  useEffect(() => {
+    if (!hasEditedCustomDates && date) {
+      setCustomDates([date]);
+    }
+  }, [date, hasEditedCustomDates]);
+
+  // Fetch recurring limits once
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/reservations/limits")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && data.limits?.maxSeriesOccurrences) {
+          setMaxSeriesLimit(data.limits.maxSeriesOccurrences);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load runtime limits, defaulting to 8:", err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Fetch single-date reservations for conflict check
   useEffect(() => {
     if (!date) return;
     let isCancelled = false;
-    setIsLoadingDateReservations(true);
 
-    const token =
-      sessionToken || localStorage.getItem("church_session_token_v1");
+    const token = getAuthSessionToken(sessionToken);
     fetch(
       `/api/instruments/availability/date?date=${encodeURIComponent(date)}`,
       {
@@ -456,17 +521,45 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           "Failed to fetch reservations for date conflict check:",
           err,
         );
-      })
-      .finally(() => {
-        if (!isCancelled) {
-          setIsLoadingDateReservations(false);
-        }
       });
 
     return () => {
       isCancelled = true;
     };
   }, [date, sessionToken]);
+
+  // Fetch instrument-wide reservations when recurring is enabled for a specific instrument
+  useEffect(() => {
+    if (!isRecurring || isTypeRequest || !selectedInstrumentId) {
+      setInstrumentReservations([]);
+      return;
+    }
+    let isMounted = true;
+    const token = getAuthSessionToken(sessionToken);
+
+    fetch(
+      `/api/reservations?instrumentId=${encodeURIComponent(selectedInstrumentId)}&status=approved,ongoing,completed`,
+      {
+        headers: {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && Array.isArray(data.reservations)) {
+          setInstrumentReservations(data.reservations);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch existing reservations for series:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isRecurring, isTypeRequest, selectedInstrumentId, sessionToken]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -505,6 +598,20 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       startTimeUtc: string;
       endTimeUtc: string;
     };
+  } | null>(null);
+
+  const [seriesResult, setSeriesResult] = useState<{
+    series: any;
+    occurrences: Array<{
+      reservation: any;
+      evaluation: {
+        status: "approved" | "pending";
+        reasons: string[];
+        outsideFeeSnapshot: string | null;
+        startTimeUtc: string;
+        endTimeUtc: string;
+      };
+    }>;
   } | null>(null);
 
   const sortedInstruments = useMemo(() => {
@@ -546,7 +653,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       .map(({ instrument }) => instrument);
   }, [safeAllInstruments]);
 
-  // Instruments in currently selected category
   const categoryInstruments = useMemo(() => {
     const targetCat = (selectedCategory || "").trim().toLowerCase();
     return sortedInstruments.filter(
@@ -569,7 +675,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
   const handleCategoryChange = (newCategory: string) => {
     setSelectedCategory(newCategory);
-    // When changing category, default the specific instrument to -- Any [Category] --
     setSelectedInstrumentId("");
   };
 
@@ -624,6 +729,183 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       .join(isAr ? "، " : ", ");
   }, [conflictingReservations, isAr]);
 
+  // Recurring occurrences generation
+  const generatedOccurrences: OccurrenceItem[] = useMemo(() => {
+    if (!isRecurring) return [];
+    if (patternType === "weekly") {
+      const list: OccurrenceItem[] = [];
+      const count = Math.min(Math.max(1, weeklyCount), maxSeriesLimit);
+      for (let i = 0; i < count; i++) {
+        const dateStr = addDaysToDateString(date, i * 7 * weeklyInterval);
+        list.push({
+          id: `weekly-${i}-${dateStr}`,
+          date: dateStr,
+          startTime,
+          duration,
+        });
+      }
+      return list;
+    }
+    return customDates.slice(0, maxSeriesLimit).map((d, index) => ({
+      id: `custom-${index}-${d}`,
+      date: d,
+      startTime,
+      duration,
+    }));
+  }, [
+    isRecurring,
+    patternType,
+    date,
+    startTime,
+    duration,
+    weeklyInterval,
+    weeklyCount,
+    customDates,
+    maxSeriesLimit,
+  ]);
+
+  // Recurring conflicts detection
+  const seriesConflicts: SeriesConflictDetail[] = useMemo(() => {
+    if (!isRecurring || generatedOccurrences.length === 0) return [];
+    const list: SeriesConflictDetail[] = [];
+    const parsed = generatedOccurrences.map((occ, idx) => {
+      const start = cairoDateTimeToDate(occ.date, occ.startTime);
+      const end = new Date(
+        start.getTime() + Math.round(occ.duration * 3600 * 1000),
+      );
+      return { ...occ, start, end, index: idx + 1 };
+    });
+
+    parsed.forEach((occ) => {
+      const startParts = getCairoParts(occ.start);
+      const endParts = getCairoParts(occ.end);
+      const startHour = startParts.hour + startParts.minute / 60;
+      const endHour = endParts.hour + endParts.minute / 60;
+      if (startHour < 9 || endHour > 22 || startHour >= endHour) {
+        list.push({
+          type: "working_hours",
+          occurrenceIndex: occ.index,
+          occurrenceDate: occ.date,
+          occurrenceTime: `${formatHhmmTo12Hour(occ.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(occ.startTime, occ.duration))}`,
+          message: t("seriesBuilder.occurrenceWorkingHoursMsg", {
+            index: occ.index,
+            date: occ.date,
+            time: formatHhmmTo12Hour(occ.startTime),
+          }),
+        });
+      }
+    });
+
+    for (let i = 0; i < parsed.length; i++) {
+      for (let j = i + 1; j < parsed.length; j++) {
+        const a = parsed[i];
+        const b = parsed[j];
+        if (a.start < b.end && b.start < a.end) {
+          list.push({
+            type: "self_overlap",
+            occurrenceIndex: a.index,
+            occurrenceDate: a.date,
+            occurrenceTime: `${formatHhmmTo12Hour(a.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(a.startTime, a.duration))}`,
+            message: t("seriesBuilder.occurrenceSelfOverlapMsg", {
+              indexA: a.index,
+              dateA: a.date,
+              timeA: formatHhmmTo12Hour(a.startTime),
+              indexB: b.index,
+              dateB: b.date,
+              timeB: formatHhmmTo12Hour(b.startTime),
+            }),
+          });
+        }
+      }
+    }
+
+    if (!isTypeRequest && selectedInstrumentId) {
+      parsed.forEach((occ) => {
+        for (const res of instrumentReservations) {
+          const resStart = new Date(res.start_time || res.startTime);
+          const resEnd = new Date(res.end_time || res.endTime);
+          if (occ.start < resEnd && resStart < occ.end) {
+            const resStartHhmm = res.start_hhmm || getCairoTimeString(resStart);
+            const resEndHhmm = res.end_hhmm || getCairoTimeString(resEnd);
+            list.push({
+              type: "existing_reservation",
+              occurrenceIndex: occ.index,
+              occurrenceDate: occ.date,
+              occurrenceTime: `${formatHhmmTo12Hour(occ.startTime)} - ${formatHhmmTo12Hour(calculateEndTime(occ.startTime, occ.duration))}`,
+              message: t("seriesBuilder.occurrenceConflictMsg", {
+                index: occ.index,
+                date: occ.date,
+                time: formatHhmmTo12Hour(occ.startTime),
+                resStart: formatHhmmTo12Hour(resStartHhmm),
+                resEnd: formatHhmmTo12Hour(resEndHhmm),
+              }),
+            });
+          }
+        }
+      });
+    }
+
+    return list;
+  }, [
+    isRecurring,
+    generatedOccurrences,
+    isTypeRequest,
+    selectedInstrumentId,
+    instrumentReservations,
+    t,
+  ]);
+
+  const hasSeriesConflicts = seriesConflicts.length > 0;
+  const isAtMaxLimit = generatedOccurrences.length >= maxSeriesLimit;
+
+  const handleAddCustomDate = () => {
+    if (!newCustomDateInput) return;
+    if (customDates.includes(newCustomDateInput)) {
+      setErrorMsg(t("seriesBuilder.dateAlreadyAdded"));
+      return;
+    }
+    if (customDates.length >= maxSeriesLimit) {
+      setErrorMsg(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
+      return;
+    }
+    setErrorMsg(null);
+    setHasEditedCustomDates(true);
+    setCustomDates([...customDates, newCustomDateInput].sort());
+    setNewCustomDateInput("");
+  };
+
+  const handleRemoveCustomDate = (dateToRemove: string) => {
+    if (customDates.length <= 1) {
+      setErrorMsg(t("seriesBuilder.mustHaveOneOccurrence"));
+      return;
+    }
+    setErrorMsg(null);
+    setHasEditedCustomDates(true);
+    setCustomDates(customDates.filter((d) => d !== dateToRemove));
+  };
+
+  const handleSkipConflicts = () => {
+    if (seriesConflicts.length === 0) return;
+    const conflictingDates = new Set(
+      seriesConflicts.map((c) => c.occurrenceDate),
+    );
+    const validDates = generatedOccurrences
+      .map((o) => o.date)
+      .filter((d) => !conflictingDates.has(d));
+
+    if (validDates.length === 0) {
+      setErrorMsg(t("seriesBuilder.mustHaveOneOccurrence"));
+      return;
+    }
+
+    setErrorMsg(null);
+    setSkippedNotice(conflictingDates.size);
+    setHasEditedCustomDates(true);
+    setPatternType("custom");
+    setCustomDates(validDates);
+    if (validDates[0]) setDate(validDates[0]);
+  };
+
   const todayStr = getTodayDateString();
 
   const selectedTypeSetting = (availableTypes || []).find(
@@ -667,10 +949,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       setErrorMsg(t("reservationForm.musicianNameRequired"));
       return;
     }
-    if (
-      isTypeRequest &&
-      (!selectedCategory || !selectedCategory.trim())
-    ) {
+    if (isTypeRequest && (!selectedCategory || !selectedCategory.trim())) {
       setErrorMsg(
         t("reservationForm.msgSelectCategory", {
           defaultValue: "Please select an instrument category.",
@@ -683,28 +962,81 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       return;
     }
 
-    // Intercept if there is an active conflict
-    if (hasConflict) {
-      setShowConflictPopup(true);
+    const token = getAuthSessionToken(sessionToken);
+
+    if (isRecurring) {
+      if (generatedOccurrences.length === 0) {
+        setErrorMsg(t("seriesBuilder.errNoOccurrences"));
+        return;
+      }
+      if (generatedOccurrences.length > maxSeriesLimit) {
+        setErrorMsg(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
+        return;
+      }
+      if (hasSeriesConflicts) {
+        setErrorMsg(t("seriesBuilder.errResolveConflicts"));
+        return;
+      }
+
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      try {
+        const payload = {
+          ...buildOwnerPayload(profile, onBehalfOf),
+          instrumentId: isTypeRequest ? null : selectedInstrumentId,
+          isTypeRequest: Boolean(isTypeRequest),
+          requestedType: isTypeRequest ? selectedCategory : null,
+          serviceName: serviceName.trim(),
+          serviceLocation: serviceLocation.trim() || undefined,
+          musicianName: musicianName.trim(),
+          note: note.trim() || undefined,
+          patternType,
+          reservationType,
+          feeAcknowledged:
+            reservationType === "outside_church" ? feeAcknowledged : false,
+          occurrences: generatedOccurrences.map(
+            ({ date: occDate, startTime: occStart, duration: occDur }) => ({
+              date: occDate,
+              startTime: occStart,
+              duration: occDur,
+            }),
+          ),
+        };
+
+        const res = await fetch("/api/reservations/series", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          setErrorMsg(data.error || t("seriesBuilder.errCreateFailed"));
+          setIsSubmitting(false);
+          return;
+        }
+
+        setSeriesResult({
+          series: data.series,
+          occurrences: data.occurrences || [],
+        });
+        setIsSubmitting(false);
+        onSuccess(data);
+      } catch (err: any) {
+        setErrorMsg(err.message || t("seriesBuilder.errNetwork"));
+        setIsSubmitting(false);
+      }
       return;
     }
 
-    if (isRecurring && onOpenSeriesBuilder) {
-      const seriesInst = currentInstrument || safeAllInstruments[0];
-      if (!seriesInst) return;
-      onOpenSeriesBuilder({
-        instrument: seriesInst,
-        serviceName: serviceName.trim(),
-        musicianName: musicianName.trim(),
-        date,
-        startTime,
-        duration,
-        reservationType,
-        note: note.trim() || undefined,
-        isTypeRequest,
-        requestedType: selectedCategory,
-        flatFeeOutside: String(feeNumber),
-      });
+    // Single reservation submission
+    if (hasConflict) {
+      setShowConflictPopup(true);
       return;
     }
 
@@ -733,7 +1065,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -770,7 +1102,25 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     !serviceName.trim() ||
     !musicianName.trim() ||
     (reservationType === "outside_church" && !feeAcknowledged) ||
-    (isTypeRequest && !selectedCategory);
+    (isTypeRequest && !selectedCategory) ||
+    (isRecurring && (hasSeriesConflicts || generatedOccurrences.length === 0));
+
+  const formatShortDateWithWeekday = (dateStr: string) => {
+    try {
+      const d = cairoDateTimeToDate(dateStr, "12:00");
+      return d.toLocaleDateString(isAr ? "ar-EG" : "en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "Africa/Cairo",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const hasResult = Boolean(submissionResult || seriesResult);
 
   return (
     <>
@@ -787,18 +1137,24 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           <div className="shrink-0 bg-stone-900 text-white px-4 sm:px-5 py-3 sm:py-3.5 flex items-center justify-between border-b border-stone-800">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-2xl bg-amber-800 text-amber-100 flex items-center justify-center font-bold shadow-xs shrink-0">
-                <Music2 className="w-4.5 h-4.5" />
+                {isRecurring ? (
+                  <Repeat className="w-4.5 h-4.5" />
+                ) : (
+                  <Music2 className="w-4.5 h-4.5" />
+                )}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h2 className="text-[13px] sm:text-sm font-bold text-white leading-tight truncate">
-                    {submissionResult
-                      ? t("reservationForm.confirmTitle")
-                      : onBehalfOf
-                        ? t("reservationForm.bookedOnBehalf", {
-                            name: onBehalfOf.name,
-                          })
-                        : t("reservationForm.title")}
+                    {seriesResult
+                      ? t("seriesBuilder.confirmationTitle")
+                      : submissionResult
+                        ? t("reservationForm.confirmTitle")
+                        : onBehalfOf
+                          ? t("reservationForm.bookedOnBehalf", {
+                              name: onBehalfOf.name,
+                            })
+                          : t("reservationForm.title")}
                   </h2>
                   {isInstrumentsLoading ? (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700 hidden sm:inline-flex items-center gap-1">
@@ -821,9 +1177,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   ) : null}
                 </div>
                 <p className="text-[10px] sm:text-[11px] text-stone-400 truncate mt-0.5">
-                  {submissionResult
-                    ? t("reservationForm.confirmSubtitle")
-                    : t("reservationForm.formSubtitle")}
+                  {seriesResult
+                    ? t("seriesBuilder.confirmationSubtitle")
+                    : submissionResult
+                      ? t("reservationForm.confirmSubtitle")
+                      : t("reservationForm.formSubtitle")}
                 </p>
               </div>
             </div>
@@ -840,6 +1198,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
               <button
                 id="btn-close-reservation-modal"
+                type="button"
                 onClick={onClose}
                 className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl bg-stone-800/90 text-stone-300 hover:text-white hover:bg-stone-700 active:bg-stone-600 transition cursor-pointer border border-stone-700/70"
                 aria-label="Close modal"
@@ -849,11 +1208,365 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             </div>
           </div>
 
-          {/* ── RECEIPT VIEW ── */}
-          {submissionResult ? (
+          {/* ── SERIES RECEIPT VIEW ── */}
+          {seriesResult ? (
             <>
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 bg-white">
-                {/* Status Hero Card */}
+                {(() => {
+                  const occurrences = seriesResult.occurrences || [];
+                  const approvedCount = occurrences.filter(
+                    (o) => o.evaluation.status === "approved",
+                  ).length;
+                  const pendingCount = occurrences.filter(
+                    (o) => o.evaluation.status === "pending",
+                  ).length;
+                  const totalCount = occurrences.length;
+                  const allApproved =
+                    approvedCount === totalCount && totalCount > 0;
+
+                  return (
+                    <>
+                      {allApproved ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 sm:p-4 text-emerald-900 flex items-start gap-3 shadow-2xs">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                            <CheckCircle2 className="w-5 h-5" />
+                          </div>
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm sm:text-[15px] text-emerald-950">
+                                {t("seriesBuilder.allApprovedTitle", {
+                                  defaultValue: "All Occurrences Approved!",
+                                })}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 uppercase tracking-wide whitespace-nowrap">
+                                {t("reservationForm.resultInstantBadge", {
+                                  defaultValue: "Instant Approval",
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-[11px] sm:text-xs text-emerald-800 leading-relaxed">
+                              {t("seriesBuilder.allApprovedDesc", {
+                                defaultValue:
+                                  "All dates in this recurring series have been approved and booked on the calendar.",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 sm:p-4 text-amber-900 flex items-start gap-3 shadow-2xs">
+                          <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                            <Clock className="w-4.5 h-4.5" />
+                          </div>
+                          <div className="space-y-1.5 min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-bold text-[13px] sm:text-sm text-amber-950">
+                                {pendingCount === totalCount
+                                  ? t("seriesBuilder.allPendingTitle", {
+                                      defaultValue:
+                                        "Recurring schedule submitted for admin review",
+                                    })
+                                  : t("seriesBuilder.mixedApprovalTitle", {
+                                      approved: approvedCount,
+                                      pending: pendingCount,
+                                      defaultValue: `${approvedCount} approved, ${pendingCount} pending admin review`,
+                                    })}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase tracking-wide whitespace-nowrap">
+                                {t("reservationForm.resultPendingBadge", {
+                                  defaultValue: "Pending Review",
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+                              {t("seriesBuilder.pendingReviewDesc", {
+                                defaultValue:
+                                  "Your series has been created. Dates requiring admin review will be evaluated by church leadership.",
+                              })}
+                            </p>
+                            {reservationType === "outside_church" && (
+                              <div className="pt-2 text-[10px] sm:text-[11px] text-amber-800/90 font-medium">
+                                {t("seriesBuilder.whatsappNotice", {
+                                  defaultValue:
+                                    "If your reservation is approved, the admin will contact you on WhatsApp for confirmation and payment.",
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Series Receipt Summary */}
+                      <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 sm:p-4 space-y-2.5 text-xs shadow-2xs">
+                        <div className="font-bold text-stone-900 text-[13px] border-b border-stone-200 pb-1.5 flex items-center justify-between">
+                          <span>
+                            {t("reservationForm.bookingDetailsTitle", {
+                              defaultValue: "Booking Details",
+                            })}
+                          </span>
+                          <span className="text-[10px] text-stone-500 font-mono">
+                            #{seriesResult.series.id?.slice(0, 8)}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          {isTypeRequest ? (
+                            <div className="min-w-0">
+                              <span className="text-stone-500 font-medium block text-[11px]">
+                                {t("reservationForm.requestedCategory", {
+                                  defaultValue: "Requested Category",
+                                })}
+                              </span>
+                              <span className="font-bold text-stone-900 text-xs block truncate">
+                                {selectedCategory}
+                              </span>
+                              <span className="text-[10px] text-purple-700 font-semibold block truncate">
+                                {t("reservations.awaitingAssignment", {
+                                  defaultValue: "Awaiting Admin Assignment",
+                                })}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="min-w-0">
+                              <span className="text-stone-500 font-medium block text-[11px]">
+                                {t("reservationForm.instrumentColonLabel")}
+                              </span>
+                              <span className="font-bold text-stone-900 text-xs block truncate">
+                                {getInstrumentDisplayName(
+                                  currentInstrument,
+                                  isAdmin,
+                                )}
+                              </span>
+                              <span className="text-[10px] text-stone-500 block truncate">
+                                {currentInstrument?.type || selectedCategory}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <span className="text-stone-500 font-medium block text-[11px]">
+                              {t("reservationForm.typeColonLabel")}
+                            </span>
+                            <span className="font-bold text-stone-900 text-xs capitalize">
+                              {reservationType === "in_church"
+                                ? t("reservationForm.inChurchFreeLabel")
+                                : t("reservationForm.outsideChurchPaidLabel")}
+                            </span>
+                            {reservationType === "outside_church" &&
+                              feeNumber > 0 && (
+                                <span className="text-[10px] text-purple-700 font-semibold block">
+                                  {t("reservationForm.feePerDayLabel", {
+                                    fee: feeNumber,
+                                  })}
+                                </span>
+                              )}
+                          </div>
+                        </div>
+
+                        <div className="pt-1.5 border-t border-stone-200">
+                          <span className="text-stone-500 font-medium block text-[11px]">
+                            {t("reservationForm.purposeColonLabel")}
+                          </span>
+                          <span className="font-bold text-stone-900 text-xs">
+                            {serviceName ||
+                              t("reservationForm.notSpecifiedLabel")}
+                          </span>
+                        </div>
+
+                        {serviceLocation && (
+                          <div className="pt-1.5 border-t border-stone-200">
+                            <span className="text-stone-500 font-medium flex items-center gap-1 text-[11px]">
+                              <Church className="w-3 h-3 text-amber-800 shrink-0" />
+                              <span>
+                                {t("reservationForm.serviceLocationLabel")}
+                              </span>
+                            </span>
+                            <span className="font-bold text-stone-900 text-xs">
+                              {serviceLocation}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="pt-1.5 border-t border-stone-200">
+                          <span className="text-stone-500 font-medium block text-[11px]">
+                            {t("reservationForm.musicianNameLabel")}
+                          </span>
+                          <span className="font-bold text-stone-900 text-xs">
+                            {musicianName}
+                          </span>
+                        </div>
+
+                        <div className="pt-1.5 border-t border-stone-200">
+                          <span className="text-stone-500 font-medium block text-[11px]">
+                            {t("seriesBuilder.patternLabel")}
+                          </span>
+                          <span className="font-bold text-stone-900 text-xs capitalize">
+                            {seriesResult.series.patternType === "weekly"
+                              ? t("seriesBuilder.weeklyCadenceTitle")
+                              : t("seriesBuilder.customDatesTitle")}{" "}
+                            (
+                            {t("admin.review.datesCount", {
+                              count: totalCount,
+                              defaultValue: `${totalCount} dates`,
+                            })}
+                            )
+                          </span>
+                        </div>
+
+                        {note.trim() && (
+                          <div className="pt-1.5 border-t border-stone-200">
+                            <span className="text-stone-500 font-medium block text-[11px]">
+                              {t("reservationForm.leaveANoteLabel")}
+                            </span>
+                            <span className="font-medium text-stone-900 text-[11px] whitespace-pre-wrap">
+                              {note.trim()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Per-Occurrence Breakdown */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-stone-900">
+                            <CalendarDays className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            <span>
+                              {t("seriesBuilder.perOccurrenceBreakdown")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {approvedCount > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
+                                <span>
+                                  {approvedCount}{" "}
+                                  {t("common.approved", {
+                                    defaultValue: "Approved",
+                                  })}
+                                </span>
+                              </span>
+                            )}
+                            {pendingCount > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                                <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
+                                <span>
+                                  {pendingCount}{" "}
+                                  {t("seriesBuilder.pendingReviewBadge")}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {occurrences.map((item, idx) => {
+                            const isApproved =
+                              item.evaluation.status === "approved";
+                            const startUtc = new Date(
+                              item.evaluation.startTimeUtc,
+                            );
+                            const endUtc = new Date(item.evaluation.endTimeUtc);
+
+                            const weekdayStr = startUtc.toLocaleDateString(
+                              isAr ? "ar-EG" : "en-US",
+                              { weekday: "short", timeZone: "Africa/Cairo" },
+                            );
+                            const dateStr = startUtc.toLocaleDateString(
+                              isAr ? "ar-EG" : "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                timeZone: "Africa/Cairo",
+                              },
+                            );
+                            const fullDateDisplay = `${weekdayStr}, ${dateStr}`;
+                            const timeStr = `${formatHhmmTo12Hour(
+                              getCairoTimeString(startUtc),
+                            )} – ${formatHhmmTo12Hour(
+                              getCairoTimeString(endUtc),
+                            )}`;
+
+                            return (
+                              <div
+                                key={item.reservation?.id || idx}
+                                className={`border rounded-xl p-2.5 sm:px-3 sm:py-2.5 shadow-2xs flex items-center justify-between gap-2 transition ${
+                                  isApproved
+                                    ? "bg-emerald-50/30 border-emerald-200/80"
+                                    : "bg-stone-50 border-stone-200"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <span
+                                    className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] shadow-2xs ${
+                                      isApproved
+                                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                                    }`}
+                                  >
+                                    #{idx + 1}
+                                  </span>
+                                  <div className="font-semibold text-stone-900 text-[11px] sm:text-xs leading-tight">
+                                    <div className="flex flex-wrap items-center gap-x-1.5">
+                                      <span>{fullDateDisplay}</span>
+                                      <span className="text-stone-400 font-normal hidden xs:inline">
+                                        -
+                                      </span>
+                                      <span className="text-stone-600 font-medium">
+                                        {timeStr}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <span
+                                  className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
+                                    isApproved
+                                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                                      : "bg-amber-100 text-amber-900 border border-amber-300"
+                                  }`}
+                                >
+                                  {isApproved ? (
+                                    <>
+                                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-700 stroke-[2.5]" />
+                                      <span>
+                                        {t("common.approved", {
+                                          defaultValue: "Approved",
+                                        })}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-2.5 h-2.5 text-amber-700 stroke-[2.5]" />
+                                      <span>
+                                        {t("seriesBuilder.pendingReviewBadge")}
+                                      </span>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="shrink-0 p-3 sm:px-5 sm:pb-4 border-t border-stone-200 bg-white shadow-xs">
+                <button
+                  type="button"
+                  id="btn-series-done"
+                  onClick={onClose}
+                  className="w-full py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-xs sm:text-[13px] font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation bg-stone-900 hover:bg-stone-800 active:bg-stone-950"
+                >
+                  {t("seriesBuilder.doneReturnToCalendar")}
+                </button>
+              </div>
+            </>
+          ) : submissionResult ? (
+            /* ── SINGLE RECEIPT VIEW ── */
+            <>
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 bg-white">
                 {submissionResult.evaluation.status === "approved" ? (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 sm:p-4 text-emerald-900 flex items-start gap-3 shadow-2xs">
                     <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
@@ -1004,7 +1717,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   {(submissionResult.reservation.serviceLocation ||
                     serviceLocation) && (
                     <div className="pt-1.5 border-t border-stone-200">
-                      <span className="text-stone-500 font-medium block flex items-center gap-1 text-[11px]">
+                      <span className="text-stone-500 font-medium flex items-center gap-1 text-[11px]">
                         <Church className="w-3 h-3 text-amber-800" />
                         <span>{t("reservationForm.serviceLocationLabel")}</span>
                       </span>
@@ -1073,13 +1786,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
             </>
           ) : (
-            /* ── FORM VIEW ── */
+            /* ── UNIFIED FORM VIEW ── */
             <form
               onSubmit={handleSubmit}
               className="flex flex-col flex-1 min-h-0"
             >
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3.5 sm:p-5 space-y-3 sm:space-y-3.5">
-                {/* Errors are shown in the fixed alert overlay below. */}
                 {/* Section 1: Category & Instrument Selection */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-2">
@@ -1163,7 +1875,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           <select
                             id="select-category"
                             value={selectedCategory}
-                            onChange={(e) => handleCategoryChange(e.target.value)}
+                            onChange={(e) =>
+                              handleCategoryChange(e.target.value)
+                            }
                             className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
                           >
                             {availableCategories.map((cat) => (
@@ -1209,7 +1923,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           <select
                             id="select-instrument"
                             value={selectedInstrumentId}
-                            onChange={(e) => setSelectedInstrumentId(e.target.value)}
+                            onChange={(e) =>
+                              setSelectedInstrumentId(e.target.value)
+                            }
                             className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
                           >
                             <option value="">
@@ -1239,71 +1955,83 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         </div>
                       )}
 
-                      {/* Simple, quick inline note if left as Any [Category] */}
-                      {!isInstrumentsLoading && isTypeRequest && selectedCategory && (
-                        <p className="mt-1.5 text-[11px] text-purple-800 font-medium flex items-center gap-1.5 leading-snug">
-                          <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                          <span>
-                            {t("reservationForm.adminAssignInlineNote", {
-                              category: selectedCategory,
-                              defaultValue: `Admin will assign an available ${selectedCategory} for your booking.`,
-                            })}
-                          </span>
-                        </p>
-                      )}
+                      {!isInstrumentsLoading &&
+                        isTypeRequest &&
+                        selectedCategory && (
+                          <p className="mt-1.5 text-[11px] text-purple-800 font-medium flex items-center gap-1.5 leading-snug">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                            <span>
+                              {t("reservationForm.adminAssignInlineNote", {
+                                category: selectedCategory,
+                                defaultValue: `Admin will assign an available ${selectedCategory} for your booking.`,
+                              })}
+                            </span>
+                          </p>
+                        )}
                     </div>
                   </div>
 
-                  {/* Instrument Details (shown only when a specific instrument is chosen and loaded) */}
-                  {!isInstrumentsLoading && !isTypeRequest && currentInstrument && (
-                    <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-stone-50 border border-stone-200">
-                      <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-                        {currentInstrument?.photoUrl ? (
-                          <img
-                            src={currentInstrument.photoUrl}
-                            alt={currentInstrument?.name || "Instrument"}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Music2 className="w-5 h-5 text-amber-800" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-xs sm:text-[13px] text-stone-900 truncate">
-                            {getInstrumentDisplayName(currentInstrument, isAdmin)}
-                          </span>
+                  {/* Instrument Details (shown only when a specific instrument is chosen) */}
+                  {!isInstrumentsLoading &&
+                    !isTypeRequest &&
+                    currentInstrument && (
+                      <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-stone-50 border border-stone-200">
+                        <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                          {currentInstrument?.photoUrl ? (
+                            <img
+                              src={currentInstrument.photoUrl}
+                              alt={currentInstrument?.name || "Instrument"}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Music2 className="w-5 h-5 text-amber-800" />
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-[11px] text-stone-500">
-                          <span className="font-medium">
-                            {currentInstrument?.type || selectedCategory}
-                          </span>
-                        </div>
-
-                        {currentInstrument?.description?.trim() && (
-                          <div
-                            className="mt-1 flex items-start gap-1 text-[10px] leading-snug text-stone-500"
-                            title={currentInstrument.description}
-                          >
-                            <FileText className="w-3 h-3 mt-0.5 shrink-0 text-stone-400" />
-                            <p className="line-clamp-1">
-                              {currentInstrument.description.trim()}
-                            </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-xs sm:text-[13px] text-stone-900 truncate">
+                              {getInstrumentDisplayName(
+                                currentInstrument,
+                                isAdmin,
+                              )}
+                            </span>
                           </div>
-                        )}
+
+                          <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-[11px] text-stone-500">
+                            <span className="font-medium">
+                              {currentInstrument?.type || selectedCategory}
+                            </span>
+                          </div>
+
+                          {currentInstrument?.description?.trim() && (
+                            <div
+                              className="mt-1 flex items-start gap-1 text-[10px] leading-snug text-stone-500"
+                              title={currentInstrument.description}
+                            >
+                              <FileText className="w-3 h-3 mt-0.5 shrink-0 text-stone-400" />
+                              <p className="line-clamp-1">
+                                {currentInstrument.description.trim()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
 
                 {/* Section 2: Service & Musician */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
                   <div className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5 border-b border-stone-100 pb-1.5">
                     <User className="w-3.5 h-3.5 text-amber-800" />
-                    <span>بيانات الخدمة والعازف والمكان</span>
+                    <span>
+                      {t("reservationForm.serviceSectionTitle", {
+                        defaultValue: isAr
+                          ? "بيانات الخدمة والعازف والمكان"
+                          : "Service, Musician & Location",
+                      })}
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1400,12 +2128,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </div>
                 </div>
 
-                {/* Section 3: Date, Time & Duration */}
+                {/* Section 3: Date, Time & Duration (الموعد والتوقيت) */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between border-b border-stone-100 pb-1.5">
                     <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-amber-800" />
-                      <span>الموعد والتوقيت</span>
+                      <span>
+                        {t("reservationForm.dateTimeSectionTitle", {
+                          defaultValue: isAr ? "الموعد والتوقيت" : "Date & Time",
+                        })}
+                      </span>
                     </span>
                     <span className="text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
                       {isAr ? (
@@ -1425,7 +2157,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <label className="block text-[11px] sm:text-xs font-bold text-stone-700">
-                        {t("reservationForm.dateLabel")}
+                        {isRecurring && patternType === "weekly"
+                          ? t("seriesBuilder.firstSessionDateLabel")
+                          : t("reservationForm.dateLabel")}
                       </label>
                       <input
                         id="input-reservation-date"
@@ -1499,8 +2233,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                   </div>
 
-                  {/* Minimal Conflict Warning Card - Mobile Friendly & Structured */}
-                  {hasConflict && (
+                  {/* Single-Booking Conflict Warning Card */}
+                  {!isRecurring && hasConflict && (
                     <div
                       id="reservation-conflict-warning-panel"
                       className="rounded-xl border border-rose-200/90 bg-rose-50/80 p-3 sm:p-3.5 space-y-2.5 animate-in fade-in"
@@ -1513,7 +2247,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           <div className="flex flex-wrap items-center gap-1.5 text-xs">
                             <span className="font-semibold text-rose-950">
                               {t("reservationForm.conflictLineWarning", {
-                                defaultValue: isAr ? "الآلة محجوزة بالفعل في هذا الوقت:" : "This instrument is already booked:",
+                                defaultValue: isAr
+                                  ? "الآلة محجوزة بالفعل في هذا الوقت:"
+                                  : "This instrument is already booked:",
                               })}
                             </span>
                             <span className="inline-flex items-center font-mono font-bold text-rose-800 bg-white/90 border border-rose-200/90 px-2 py-0.5 rounded-md text-[11px] shadow-2xs">
@@ -1522,7 +2258,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </div>
                           <p className="text-[11px] sm:text-xs text-rose-800/90 leading-relaxed">
                             {t("reservationForm.conflictResolutionHint", {
-                              defaultValue: isAr ? "يرجى تغيير الوقت أو اختيار آلة أخرى." : "Please change the time or choose another instrument.",
+                              defaultValue: isAr
+                                ? "يرجى تغيير الوقت أو اختيار آلة أخرى."
+                                : "Please change the time or choose another instrument.",
                             })}
                           </p>
                         </div>
@@ -1549,48 +2287,428 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   )}
                 </div>
 
-                {/* Section 4: Recurring toggle */}
+                {/* Section 4: Inline Repeat / Recurring Option (Right after الموعد والتوقيت) */}
                 <div
-                  className={`rounded-2xl p-2.5 sm:p-3 shadow-2xs transition border ${
+                  className={`rounded-2xl p-3 sm:p-3.5 shadow-2xs transition border space-y-3 ${
                     isRecurring
-                      ? "bg-brand-50 border-brand-500 ring-2 ring-brand-300"
-                      : "bg-brand-50 border-brand-300"
+                      ? "bg-white border-amber-800/50 ring-2 ring-amber-800/15"
+                      : "bg-white border-stone-200 hover:border-stone-300"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <Repeat className="w-3.5 h-3.5" />
+                  {/* Clickable Toggle Button / Check Row */}
+                  <button
+                    type="button"
+                    id="toggle-recurring-series"
+                    role="switch"
+                    aria-checked={isRecurring}
+                    onClick={() => setIsRecurring((prev) => !prev)}
+                    className="w-full flex items-center justify-between gap-3 text-start cursor-pointer touch-manipulation"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition ${
+                          isRecurring
+                            ? "bg-amber-800 text-white"
+                            : "bg-amber-50 text-amber-800 border border-amber-200"
+                        }`}
+                      >
+                        <Repeat className="w-4 h-4" />
                       </div>
-                      <div>
-                        <span className="text-[11px] sm:text-xs font-extrabold text-brand-950 block">
-                          {t("reservationForm.recurringToggleLabel")}
+                      <div className="min-w-0">
+                        <span className="text-[11px] sm:text-xs font-extrabold text-stone-900 block">
+                          {t("reservationForm.recurringToggleLabel", {
+                            defaultValue: isAr
+                              ? "هل تريد تكرار الحجز؟"
+                              : "Want to repeat this reservation?",
+                          })}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] text-brand-800 block">
-                          تكرار الحجز أسبوعياً أو في تواريخ متعددة
+                        <span className="text-[10px] sm:text-[11px] text-stone-500 block">
+                          {t("reservationForm.recurringToggleSubtitle", {
+                            defaultValue: isAr
+                              ? "تكرار أسبوعي أو اختيار تواريخ مخصصة"
+                              : "Repeat weekly or choose custom dates",
+                          })}
                         </span>
                       </div>
                     </div>
 
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        id="toggle-recurring-series"
-                        type="checkbox"
-                        checked={isRecurring}
-                        onChange={(e) => setIsRecurring(e.target.checked)}
-                        className="sr-only peer"
+                    <div
+                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                        isRecurring ? "bg-amber-800" : "bg-stone-300"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-[2px] w-5 h-5 bg-white rounded-full shadow-xs transition-transform ${
+                          isAr
+                            ? isRecurring
+                              ? "left-[2px]"
+                              : "left-[22px]"
+                            : isRecurring
+                              ? "left-[22px]"
+                              : "left-[2px]"
+                        }`}
                       />
-                      <div className="w-11 h-6 bg-brand-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-brand-400 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-700" />
-                    </label>
-                  </div>
+                    </div>
+                  </button>
 
+                  {/* Expanded Recurrence Options */}
                   {isRecurring && (
-                    <div className="mt-2 pt-1.5 border-t border-brand-200 text-[11px] text-brand-900 bg-brand-100 p-2 rounded-xl flex items-center justify-between gap-2">
-                      <span>{t("reservationForm.recurringNextStepNote")}</span>
-                      {isAr ? (
-                        <ArrowRight className="w-3.5 h-3.5 rotate-180 shrink-0" />
+                    <div className="pt-3 border-t border-stone-200 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {/* Pattern Selector: Weekly vs Custom */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-stone-700">
+                            {t("seriesBuilder.recurrencePatternLabel")}
+                          </span>
+                          <span className="text-[10px] font-semibold text-stone-500 flex items-center gap-1">
+                            <Layers className="w-3 h-3 text-amber-800" />
+                            {t("seriesBuilder.occurrenceCounter", {
+                              count: generatedOccurrences.length,
+                              max: maxSeriesLimit,
+                            })}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            id="btn-pattern-weekly"
+                            onClick={() => setPatternType("weekly")}
+                            className={`p-2.5 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
+                              patternType === "weekly"
+                                ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/25"
+                                : "bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1 gap-2">
+                              <span className="font-bold text-[11px] sm:text-xs text-stone-900">
+                                {t("seriesBuilder.weeklyCadenceTitle")}
+                              </span>
+                              <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            </div>
+                            <p className="text-[10px] text-stone-500 leading-tight text-start">
+                              {t("seriesBuilder.weeklyCadenceDesc")}
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            id="btn-pattern-custom"
+                            onClick={() => setPatternType("custom")}
+                            className={`p-2.5 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
+                              patternType === "custom"
+                                ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/25"
+                                : "bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1 gap-2">
+                              <span className="font-bold text-[11px] sm:text-xs text-stone-900">
+                                {t("seriesBuilder.customDatesTitle")}
+                              </span>
+                              <Calendar className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            </div>
+                            <p className="text-[10px] text-stone-500 leading-tight text-start">
+                              {t("seriesBuilder.customDatesDesc")}
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Pattern-specific Configuration */}
+                      {patternType === "weekly" ? (
+                        <div className="bg-stone-50/80 rounded-xl border border-stone-200/80 p-2.5 sm:p-3 space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div className="space-y-1">
+                              <label className="block text-[11px] font-bold text-stone-700">
+                                {t("seriesBuilder.repeatCadenceLabel")}
+                              </label>
+                              <div className="relative">
+                                <select
+                                  id="select-weekly-interval"
+                                  value={weeklyInterval}
+                                  onChange={(e) =>
+                                    setWeeklyInterval(Number(e.target.value))
+                                  }
+                                  className="w-full appearance-none bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pr-8 cursor-pointer"
+                                >
+                                  <option value={1}>
+                                    {t("seriesBuilder.everyWeek")}
+                                  </option>
+                                  <option value={2}>
+                                    {t("seriesBuilder.everyTwoWeeks")}
+                                  </option>
+                                  <option value={3}>
+                                    {t("seriesBuilder.everyThreeWeeks")}
+                                  </option>
+                                  <option value={4}>
+                                    {t("seriesBuilder.everyFourWeeks")}
+                                  </option>
+                                </select>
+                                <div
+                                  className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
+                                    isAr ? "left-0" : "right-0"
+                                  }`}
+                                >
+                                  <ChevronRight
+                                    className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="block text-[11px] font-bold text-stone-700">
+                                {t("seriesBuilder.totalOccurrences", {
+                                  max: maxSeriesLimit,
+                                })}
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  id="input-weekly-count"
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={maxSeriesLimit}
+                                  value={weeklyCount}
+                                  onChange={(e) => {
+                                    const raw = Number(e.target.value);
+                                    if (!Number.isFinite(raw)) return;
+                                    const val = Math.min(
+                                      Math.max(1, raw),
+                                      maxSeriesLimit,
+                                    );
+                                    setWeeklyCount(val);
+                                  }}
+                                  className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                                />
+                                <span className="text-[11px] text-stone-500 font-medium shrink-0">
+                                  {t("seriesBuilder.sessionsUnit")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {weeklyCount >= maxSeriesLimit && (
+                            <div className="text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
+                              <Info className="w-3 h-3 shrink-0" />
+                              <span>
+                                {t("seriesBuilder.reachedMax", {
+                                  max: maxSeriesLimit,
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                        <div className="bg-stone-50/80 rounded-xl border border-stone-200/80 p-2.5 sm:p-3 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-stone-800 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-amber-800" />
+                              <span>
+                                {t("seriesBuilder.customDatesListTitle")}
+                              </span>
+                            </span>
+                            <span className="text-[10px] text-stone-500">
+                              {t("seriesBuilder.allowedDates", {
+                                count: customDates.length,
+                                max: maxSeriesLimit,
+                              })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <input
+                              id="input-custom-date"
+                              type="date"
+                              value={newCustomDateInput}
+                              min={todayStr}
+                              disabled={isAtMaxLimit}
+                              onChange={(e) =>
+                                setNewCustomDateInput(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddCustomDate();
+                                }
+                              }}
+                              className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition disabled:bg-stone-100 disabled:text-stone-400"
+                            />
+                            <button
+                              type="button"
+                              id="btn-add-custom-date"
+                              disabled={isAtMaxLimit || !newCustomDateInput}
+                              onClick={handleAddCustomDate}
+                              className="shrink-0 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 disabled:bg-stone-300 text-white text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed touch-manipulation"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>{t("seriesBuilder.addCustomDate")}</span>
+                            </button>
+                          </div>
+
+                          {isAtMaxLimit && (
+                            <div className="text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
+                              <AlertTriangle className="w-3 h-3 shrink-0" />
+                              <span>
+                                {t("seriesBuilder.reachedMax", {
+                                  max: maxSeriesLimit,
+                                })}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto overscroll-contain pt-1">
+                            {customDates.map((d, idx) => (
+                              <div
+                                key={d}
+                                className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-800 shadow-2xs"
+                              >
+                                <span>
+                                  #{idx + 1}: {d}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCustomDate(d)}
+                                  className="w-6 h-6 flex items-center justify-center rounded-md text-stone-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 transition cursor-pointer touch-manipulation"
+                                  title={t("seriesBuilder.removeDate")}
+                                  aria-label={t("seriesBuilder.removeDate")}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Calculated Occurrence Schedule Preview */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-[11px] font-bold text-stone-700 flex items-center gap-1.5">
+                            <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
+                            <span>
+                              {t("seriesBuilder.calculatedScheduleTitle")}
+                            </span>
+                          </span>
+                          {!hasSeriesConflicts && (
+                            <span className="text-[10px] text-stone-500 flex items-center gap-1">
+                              <Info className="w-3 h-3 shrink-0" />
+                              <span>
+                                {t("seriesBuilder.allSessionsLabel", {
+                                  start: formatHhmmTo12Hour(startTime),
+                                  end: formatHhmmTo12Hour(endTimeStr),
+                                  duration,
+                                })}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="border border-stone-200 rounded-xl overflow-hidden divide-y divide-stone-100 max-h-36 overflow-y-auto overscroll-contain bg-stone-50/70">
+                          {generatedOccurrences.map((occ, idx) => {
+                            const hasOccConflict = seriesConflicts.some(
+                              (c) => c.occurrenceIndex === idx + 1,
+                            );
+                            return (
+                              <div
+                                key={occ.id}
+                                className={`px-2.5 py-1.5 flex items-center justify-between text-[11px] gap-2 ${
+                                  hasOccConflict ? "bg-rose-50/80" : ""
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className={`w-5 h-5 rounded-md font-bold flex items-center justify-center text-[9px] shrink-0 border ${
+                                      hasOccConflict
+                                        ? "bg-rose-100 border-rose-300 text-rose-800"
+                                        : "bg-white border-stone-200 text-stone-600"
+                                    }`}
+                                  >
+                                    {idx + 1}
+                                  </span>
+                                  <span
+                                    className={`font-semibold truncate ${
+                                      hasOccConflict
+                                        ? "text-rose-900"
+                                        : "text-stone-900"
+                                    }`}
+                                  >
+                                    {formatShortDateWithWeekday(occ.date)}
+                                  </span>
+                                </div>
+                                <span className="text-stone-500 text-[10px] whitespace-nowrap shrink-0">
+                                  {formatHhmmTo12Hour(occ.startTime)} –{" "}
+                                  {formatHhmmTo12Hour(
+                                    calculateEndTime(
+                                      occ.startTime,
+                                      occ.duration,
+                                    ),
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Recurring Conflicts Warning Panel */}
+                      {hasSeriesConflicts && (
+                        <div
+                          id="series-conflict-warning-panel"
+                          className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2.5 animate-in fade-in shadow-2xs"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-red-950 font-bold text-[11px] sm:text-xs">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                              <span>
+                                {t("seriesBuilder.conflictsDetectedTitle", {
+                                  count: seriesConflicts.length,
+                                })}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSkipConflicts}
+                              className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-[11px] rounded-lg shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>{t("seriesBuilder.skipConflicts")}</span>
+                            </button>
+                          </div>
+                          <div className="space-y-1 pt-0.5">
+                            {seriesConflicts.map((conf, i) => (
+                              <div
+                                key={i}
+                                className="bg-white/80 border border-red-200 rounded-lg p-1.5 text-[11px] text-red-900 flex items-start gap-2"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0" />
+                                <span className="leading-snug">
+                                  {conf.message}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {skippedNotice !== null && !hasSeriesConflicts && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 flex items-center justify-between gap-2 text-[11px] text-emerald-900 font-medium animate-in fade-in shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                              {t("seriesBuilder.skippedConflictsNotice", {
+                                count: skippedNotice,
+                              })}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSkippedNotice(null)}
+                            className="text-stone-400 hover:text-stone-700 text-xs px-1.5 py-0.5 rounded-md cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1623,20 +2741,26 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   className={`flex-1 py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-[11px] sm:text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                     isSubmitDisabled
                       ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
-                      : isRecurring
-                        ? "bg-brand-700 hover:bg-brand-800 active:scale-[0.99] ring-2 ring-brand-300 ring-offset-2"
-                        : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
+                      : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
                   }`}
                 >
                   {isSubmitting ? (
                     <>
                       <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>{t("reservationForm.processingSubmission")}</span>
+                      <span>
+                        {isRecurring
+                          ? t("seriesBuilder.creatingSessions", {
+                              count: generatedOccurrences.length,
+                            })
+                          : t("reservationForm.processingSubmission")}
+                      </span>
                     </>
                   ) : isRecurring ? (
                     <>
                       <span>
-                        {t("reservationForm.continueToSeriesBuilder")}
+                        {t("seriesBuilder.submitSeriesButton", {
+                          count: generatedOccurrences.length,
+                        })}
                       </span>
                       {isAr ? (
                         <ArrowRight className="w-3.5 h-3.5 rotate-180" />
@@ -1661,7 +2785,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         </div>
       </div>
 
-      {errorMsg && (
+      {errorMsg && !hasResult && (
         <div
           id="reservation-form-error-alert"
           role="alert"
@@ -1705,7 +2829,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         </div>
       )}
 
-      {/* Schedule Conflict Popup Dialog - Minimal & Actionable */}
+      {/* Schedule Conflict Popup Dialog - Single Booking */}
       {showConflictPopup && (
         <div
           id="reservation-conflict-popup-backdrop"

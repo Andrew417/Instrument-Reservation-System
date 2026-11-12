@@ -8,7 +8,6 @@ import {
   Instrument,
 } from "./components/AvailabilityCalendar.tsx";
 import { ReservationFormModal } from "./components/ReservationFormModal.tsx";
-import { SeriesBuilderModal } from "./components/SeriesBuilderModal.tsx";
 import { InstrumentDetailModal } from "./components/InstrumentDetailModal.tsx";
 import { MyReservations } from "./components/MyReservations.tsx";
 import { ReservationDetailModal } from "./components/ReservationDetailModal.tsx";
@@ -64,26 +63,12 @@ import {
 } from "lucide-react";
 
 interface SelectedSlotInfo {
-  instrument: Instrument;
+  instrument?: Instrument | null;
   date: string;
   timeHhmm: string;
   duration: number;
   initialServiceName?: string;
   initialMusicianName?: string;
-}
-
-interface SeriesPrefillInfo {
-  instrument: Instrument;
-  serviceName: string;
-  musicianName: string;
-  date: string;
-  startTime: string;
-  duration: number;
-  reservationType: "in_church" | "outside_church";
-  note?: string;
-  isTypeRequest?: boolean;
-  requestedType?: string;
-  flatFeeOutside?: string;
 }
 
 // Simple event bus so AdminPortal can publish its tab list to the App
@@ -253,9 +238,6 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
   const [selectedSlot, setSelectedSlot] = useState<SelectedSlotInfo | null>(
     null,
   );
-  const [seriesPrefill, setSeriesPrefill] = useState<SeriesPrefillInfo | null>(
-    null,
-  );
   const [selectedInstrument, setSelectedInstrument] =
     useState<Instrument | null>(null);
 
@@ -344,7 +326,6 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
   const isAnyModalActive = Boolean(
     editingReservation ||
     selectedSlot ||
-    seriesPrefill ||
     selectedReservationDetailId ||
     isMinistryProfileModalOpen ||
     conditionCheckReservation ||
@@ -794,7 +775,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
             onOpenConditionCheck={(res) => setConditionCheckReservation(res)}
             onOpenNewReservation={() => {
               setSelectedSlot({
-                instrument: allInstruments[0],
+                instrument: null,
                 date: getTodayDateString(),
                 timeHhmm: "10:00",
                 duration: 2,
@@ -868,34 +849,6 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
           initialServiceName={selectedSlot.initialServiceName}
           initialMusicianName={selectedSlot.initialMusicianName}
           onClose={() => setSelectedSlot(null)}
-          onSuccess={handleReservationSuccess}
-          onOpenSeriesBuilder={(prefill) => {
-            setSelectedSlot(null);
-            setSeriesPrefill(prefill);
-          }}
-        />
-      )}
-
-      {/* Screen 3b: Recurring Series Builder Modal */}
-      {seriesPrefill && (
-        <SeriesBuilderModal
-          initialInstrument={seriesPrefill.instrument}
-          allInstruments={
-            allInstruments.length > 0
-              ? allInstruments
-              : [seriesPrefill.instrument]
-          }
-          isTypeRequest={seriesPrefill.isTypeRequest}
-          requestedType={seriesPrefill.requestedType}
-          flatFeeOutside={seriesPrefill.flatFeeOutside}
-          initialServiceName={seriesPrefill.serviceName}
-          initialMusicianName={seriesPrefill.musicianName}
-          initialDate={seriesPrefill.date}
-          initialTimeHhmm={seriesPrefill.startTime}
-          initialDuration={seriesPrefill.duration}
-          initialReservationType={seriesPrefill.reservationType}
-          initialNote={seriesPrefill.note}
-          onClose={() => setSeriesPrefill(null)}
           onSuccess={handleReservationSuccess}
         />
       )}
@@ -1117,7 +1070,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
           onClick={() => {
             if (allInstruments.length > 0) {
               setSelectedSlot({
-                instrument: allInstruments[0],
+                instrument: null,
                 date: getTodayDateString(),
                 timeHhmm: "10:00",
                 duration: 2,

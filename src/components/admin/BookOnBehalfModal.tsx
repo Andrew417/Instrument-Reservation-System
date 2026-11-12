@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { ReservationFormModal, SeriesPrefill } from "../ReservationFormModal";
-import { SeriesBuilderModal } from "../SeriesBuilderModal";
+import React, { useMemo } from "react";
+import { ReservationFormModal } from "../ReservationFormModal";
 import { getTodayDateString } from "../../lib/date-utils";
 
 export interface BookOnBehalfUserState {
@@ -29,10 +28,6 @@ export const BookOnBehalfModal: React.FC<BookOnBehalfModalProps> = ({
   onSubmit,
   onSuccess,
 }) => {
-  const [seriesPrefill, setSeriesPrefill] = useState<SeriesPrefill | null>(
-    null,
-  );
-
   const bookableInstruments = useMemo(
     () => (instrumentsList || []).filter((i) => !(i.isRemoved ?? i.is_removed)),
     [instrumentsList],
@@ -46,35 +41,14 @@ export const BookOnBehalfModal: React.FC<BookOnBehalfModalProps> = ({
     onSuccess?.();
   };
 
-  if (seriesPrefill) {
-    return (
-      <SeriesBuilderModal
-        initialInstrument={seriesPrefill.instrument}
-        allInstruments={bookableInstruments}
-        initialServiceName={seriesPrefill.serviceName}
-        initialMusicianName={seriesPrefill.musicianName}
-        initialNote={seriesPrefill.note}
-        initialDate={seriesPrefill.date}
-        initialTimeHhmm={seriesPrefill.startTime}
-        initialDuration={seriesPrefill.duration}
-        initialReservationType={seriesPrefill.reservationType}
-        onBehalfOf={onBehalfOf}
-        onBack={() => setSeriesPrefill(null)}
-        onClose={onClose}
-        onSuccess={handleSuccess}
-      />
-    );
-  }
-
   return (
     <ReservationFormModal
-      initialInstrument={bookableInstruments[0]}
+      initialInstrument={null}
       allInstruments={bookableInstruments}
       initialDate={getTodayDateString()}
       initialTimeHhmm={DEFAULT_START_TIME}
       initialMusicianName={user.musicianName || user.name}
       onBehalfOf={onBehalfOf}
-      onOpenSeriesBuilder={setSeriesPrefill}
       onClose={onClose}
       onSuccess={handleSuccess}
     />

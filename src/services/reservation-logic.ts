@@ -881,6 +881,9 @@ export async function createReservation(input: ReservationSubmissionInput) {
     .values(reservationParams)
     .returning();
 
+  // Return as soon as the reservation row exists. Non-critical bookkeeping and
+  // notifications must not make the user wait for email or push delivery.
+  void (async () => {
   // If requester provided a note, also record it as the initial message in the reservation thread
   if (cleanNote) {
     try {
@@ -1139,6 +1142,9 @@ export async function createReservation(input: ReservationSubmissionInput) {
       "new_requests",
     ).catch((e) => console.warn("[Push new reservation error]:", e.message));
   }
+  })().catch((err) => {
+    console.error("Background reservation notification failed:", err);
+  });
 
   return {
     reservation: newReservation,
