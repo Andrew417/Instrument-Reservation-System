@@ -149,7 +149,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
     profile?.isSuperAdmin;
   const isRoomServant = profile?.role === "room_servant";
   const hasAdminTabAccess = Boolean(isAdminOrSuperAdmin || isRoomServant);
-  const canViewCalendarDetails = Boolean(isAdminOrSuperAdmin || isRoomServant);
+  const canViewCalendarDetails = Boolean(isAdminOrSuperAdmin);
   const [policyExplainerEnabled, setPolicyExplainerEnabled] = useState(true);
   // Auto-open policy explainer modal after auth only for regular users (not for admins, superadmins, or room servants)
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
@@ -377,7 +377,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
         const tab = params.get("tab") as "details" | "chat" | null;
         const adminTab = params.get("adminTab");
 
-        if (resId) {
+        if (resId && !isRoomServant) {
           setSelectedReservationDetailId(resId);
           if (adminTab === "messaging") {
             setCurrentView("chat");
@@ -418,7 +418,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
     const onSwMessage = (e: MessageEvent) => {
       if (e.data?.type === "NOTIFICATION_CLICKED" && e.data?.payload) {
         const payload = e.data.payload;
-        if (payload.reservationId) {
+        if (payload.reservationId && !isRoomServant) {
           setSelectedReservationDetailId(payload.reservationId);
           if (payload.adminTab === "messaging" || payload.tab === "chat") {
             setCurrentView("chat");
@@ -645,7 +645,11 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
                 }`}
               >
                 <Shield className="w-3.5 h-3.5 text-amber-800" />
-                <span>{t("nav.adminPortal")}</span>
+                <span>
+                  {isRoomServant
+                    ? t("admin.roomServantTitle", { defaultValue: "Room Schedule" })
+                    : t("nav.adminPortal")}
+                </span>
               </button>
             )}
           </div>
@@ -755,17 +759,25 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
               setActiveMobileTab(defaultView);
             }}
             onUnreadCountChange={(cnt) => setUnreadCount(cnt)}
-            onOpenAccountApprovals={() => {
-              setInitialAdminTab("approvals");
-              setCurrentView("admin_portal");
-            }}
-            onSelectReservation={(reservationId, initialTab) => {
-              setSelectedReservationDetailId(reservationId);
-              setReservationDetailInitialTab(initialTab || "details");
-              setReservationDetailFromNotifications(true);
-              setReservationDetailFromUserProfile(false);
-              setModalStackOrder("reservation_over_user");
-            }}
+            onOpenAccountApprovals={
+              isRoomServant
+                ? undefined
+                : () => {
+                    setInitialAdminTab("approvals");
+                    setCurrentView("admin_portal");
+                  }
+            }
+            onSelectReservation={
+              isRoomServant
+                ? undefined
+                : (reservationId, initialTab) => {
+                    setSelectedReservationDetailId(reservationId);
+                    setReservationDetailInitialTab(initialTab || "details");
+                    setReservationDetailFromNotifications(true);
+                    setReservationDetailFromUserProfile(false);
+                    setModalStackOrder("reservation_over_user");
+                  }
+            }
             onOpenUserProfile={
               isAdminOrSuperAdmin ? handleOpenUserProfile : undefined
             }
@@ -799,13 +811,17 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
         )}
         {currentView === "chat" && (
           <UserChatView
-            onOpenReservationDetail={(reservationId) => {
-              setSelectedReservationDetailId(reservationId);
-              setReservationDetailInitialTab("details");
-              setReservationDetailFromNotifications(false);
-              setReservationDetailFromUserProfile(false);
-              setModalStackOrder("reservation_over_user");
-            }}
+            onOpenReservationDetail={
+              isRoomServant
+                ? undefined
+                : (reservationId) => {
+                    setSelectedReservationDetailId(reservationId);
+                    setReservationDetailInitialTab("details");
+                    setReservationDetailFromNotifications(false);
+                    setReservationDetailFromUserProfile(false);
+                    setModalStackOrder("reservation_over_user");
+                  }
+            }
             onNavigateToCalendar={() => {
               setCurrentView("calendar");
               setActiveMobileTab("calendar");
@@ -819,12 +835,16 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
             initialTab={isRoomServant ? "dashboard" : initialAdminTab}
             initialReservationId={selectedReservationDetailId}
             onBackToMemberView={() => setCurrentView("calendar")}
-            onOpenReservationDetail={(id) => {
-              setSelectedReservationDetailId(id);
-              setReservationDetailFromNotifications(false);
-              setReservationDetailFromUserProfile(false);
-              setModalStackOrder("reservation_over_user");
-            }}
+            onOpenReservationDetail={
+              isRoomServant
+                ? undefined
+                : (id) => {
+                    setSelectedReservationDetailId(id);
+                    setReservationDetailFromNotifications(false);
+                    setReservationDetailFromUserProfile(false);
+                    setModalStackOrder("reservation_over_user");
+                  }
+            }
             onEditReservation={(res) => {
               setEditingReservation(res);
               setReservationDetailFromNotifications(false);
@@ -1323,7 +1343,9 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
                     : "text-stone-500 group-hover:text-stone-700"
                 }`}
               >
-                {t("nav.adminShort")}
+                {isRoomServant
+                  ? t("admin.roomServantTitle", { defaultValue: "Room Schedule" })
+                  : t("nav.adminShort")}
               </span>
             </button>
           )}
