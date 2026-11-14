@@ -233,8 +233,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   // Real instruments list state & fetching (never inject fake 'Grand Piano' or 'Piano' defaults)
   const [instrumentsList, setInstrumentsList] = useState<Instrument[]>(() => {
     if (Array.isArray(allInstruments) && allInstruments.length > 0) {
-      return allInstruments.filter(
-        (i) => Boolean(i && i.id && i.id !== "default-piano"),
+      return allInstruments.filter((i) =>
+        Boolean(i && i.id && i.id !== "default-piano"),
       );
     }
     if (
@@ -254,9 +254,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         (Array.isArray(allInstruments) && allInstruments.length > 0) ||
         Boolean(
           initialInstrument &&
-            typeof initialInstrument === "object" &&
-            initialInstrument.id &&
-            initialInstrument.id !== "default-piano",
+          typeof initialInstrument === "object" &&
+          initialInstrument.id &&
+          initialInstrument.id !== "default-piano",
         );
       return !hasInstruments;
     },
@@ -264,8 +264,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
   useEffect(() => {
     if (Array.isArray(allInstruments) && allInstruments.length > 0) {
-      const valid = allInstruments.filter(
-        (i) => Boolean(i && i.id && i.id !== "default-piano"),
+      const valid = allInstruments.filter((i) =>
+        Boolean(i && i.id && i.id !== "default-piano"),
       );
       if (valid.length > 0) {
         setInstrumentsList(valid);
@@ -279,15 +279,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     let isCancelled = false;
     setIsLoadingInstruments(true);
     fetch("/api/instruments", {
-      headers: sessionToken
-        ? { Authorization: `Bearer ${sessionToken}` }
-        : {},
+      headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
     })
       .then((res) => res.json())
       .then((data) => {
         if (!isCancelled && data.success && Array.isArray(data.instruments)) {
-          const valid = data.instruments.filter(
-            (i: any) => Boolean(i && i.id && i.id !== "default-piano"),
+          const valid = data.instruments.filter((i: any) =>
+            Boolean(i && i.id && i.id !== "default-piano"),
           );
           setInstrumentsList(valid);
         }
@@ -311,14 +309,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       return instrumentsList;
     }
     if (Array.isArray(allInstruments) && allInstruments.length > 0) {
-      const valid = allInstruments.filter(
-        (inst): inst is Instrument =>
-          Boolean(
-            inst &&
-              typeof inst === "object" &&
-              inst.id &&
-              inst.id !== "default-piano",
-          ),
+      const valid = allInstruments.filter((inst): inst is Instrument =>
+        Boolean(
+          inst &&
+          typeof inst === "object" &&
+          inst.id &&
+          inst.id !== "default-piano",
+        ),
       );
       if (valid.length > 0) return valid;
     }
@@ -688,11 +685,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
   const isServiceInstant = Boolean(
     !isTypeRequest &&
-      currentInstrument &&
-      (currentInstrument.visibilityLevel ||
-        (currentInstrument as any).visibility_level) === "service" &&
-      (currentInstrument.bookingMode ||
-        (currentInstrument as any).booking_mode) === "instant",
+    currentInstrument &&
+    (currentInstrument.visibilityLevel ||
+      (currentInstrument as any).visibility_level) === "service" &&
+    (currentInstrument.bookingMode ||
+      (currentInstrument as any).booking_mode) === "instant",
   );
   const effectiveMaxSeriesLimit = isServiceInstant ? 52 : maxSeriesLimit;
 
@@ -971,10 +968,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         setErrorMsg(t("seriesBuilder.errNoOccurrences"));
         return;
       }
-      if (
-        !isServiceInstant &&
-        generatedOccurrences.length > maxSeriesLimit
-      ) {
+      if (!isServiceInstant && generatedOccurrences.length > maxSeriesLimit) {
         setErrorMsg(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
         return;
       }
@@ -1340,9 +1334,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                   currentInstrument,
                                   isAdmin,
                                 )}
-                              </span>
-                              <span className="text-[10px] text-stone-500 block truncate">
-                                {currentInstrument?.type || selectedCategory}
                               </span>
                             </div>
                           )}
@@ -2016,12 +2007,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] sm:text-[11px] text-stone-500">
-                            <span className="font-medium">
-                              {currentInstrument?.type || selectedCategory}
-                            </span>
-                          </div>
-
                           {currentInstrument?.description?.trim() && (
                             <div className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-stone-600 min-w-0">
                               <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-stone-400" />
@@ -2097,7 +2082,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         className="block text-[11px] sm:text-xs font-bold text-stone-700 flex items-center gap-1 truncate"
                       >
                         <Church className="w-3 h-3 text-amber-800 shrink-0" />
-                        <span className="truncate">{t("reservationForm.serviceLocationLabel")}</span>
+                        <span className="truncate">
+                          {t("reservationForm.serviceLocationLabel")}
+                        </span>
                       </label>
                       <input
                         id="input-service-location"
@@ -2149,7 +2136,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       <Calendar className="w-3.5 h-3.5 text-amber-800" />
                       <span>
                         {t("reservationForm.dateTimeSectionTitle", {
-                          defaultValue: isAr ? "الموعد والتوقيت" : "Date & Time",
+                          defaultValue: isAr
+                            ? "الموعد والتوقيت"
+                            : "Date & Time",
                         })}
                       </span>
                     </span>
