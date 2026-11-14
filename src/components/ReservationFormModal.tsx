@@ -40,7 +40,6 @@ import {
   Sparkles,
   Layers,
   Info,
-  Plus,
   Trash2,
 } from "lucide-react";
 
@@ -451,7 +450,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const [customDates, setCustomDates] = useState<string[]>([initialDate]);
   const [hasEditedCustomDates, setHasEditedCustomDates] =
     useState<boolean>(false);
-  const [newCustomDateInput, setNewCustomDateInput] = useState<string>("");
   const [skippedNotice, setSkippedNotice] = useState<number | null>(null);
   const [maxSeriesLimit, setMaxSeriesLimit] = useState<number>(8);
 
@@ -673,6 +671,22 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     return categoryInstruments[0] || null;
   }, [selectedInstrumentId, safeAllInstruments, categoryInstruments]);
 
+  const isServiceInstant = Boolean(
+    !isTypeRequest &&
+      currentInstrument &&
+      (currentInstrument.visibilityLevel ||
+        (currentInstrument as any).visibility_level) === "service" &&
+      (currentInstrument.bookingMode ||
+        (currentInstrument as any).booking_mode) === "instant",
+  );
+  const effectiveMaxSeriesLimit = isServiceInstant ? 52 : maxSeriesLimit;
+
+  useEffect(() => {
+    if (!isServiceInstant && weeklyCount > maxSeriesLimit) {
+      setWeeklyCount(maxSeriesLimit);
+    }
+  }, [isServiceInstant, maxSeriesLimit, weeklyCount]);
+
   const handleCategoryChange = (newCategory: string) => {
     setSelectedCategory(newCategory);
     setSelectedInstrumentId("");
@@ -734,7 +748,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     if (!isRecurring) return [];
     if (patternType === "weekly") {
       const list: OccurrenceItem[] = [];
-      const count = Math.min(Math.max(1, weeklyCount), maxSeriesLimit);
+      const count = Math.min(Math.max(1, weeklyCount), effectiveMaxSeriesLimit);
       for (let i = 0; i < count; i++) {
         const dateStr = addDaysToDateString(date, i * 7 * weeklyInterval);
         list.push({
@@ -746,7 +760,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
       }
       return list;
     }
-    return customDates.slice(0, maxSeriesLimit).map((d, index) => ({
+    return customDates.slice(0, effectiveMaxSeriesLimit).map((d, index) => ({
       id: `custom-${index}-${d}`,
       date: d,
       startTime,
@@ -761,7 +775,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     weeklyInterval,
     weeklyCount,
     customDates,
-    maxSeriesLimit,
+    effectiveMaxSeriesLimit,
   ]);
 
   // Recurring conflicts detection
@@ -856,33 +870,6 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   ]);
 
   const hasSeriesConflicts = seriesConflicts.length > 0;
-  const isAtMaxLimit = generatedOccurrences.length >= maxSeriesLimit;
-
-  const handleAddCustomDate = () => {
-    if (!newCustomDateInput) return;
-    if (customDates.includes(newCustomDateInput)) {
-      setErrorMsg(t("seriesBuilder.dateAlreadyAdded"));
-      return;
-    }
-    if (customDates.length >= maxSeriesLimit) {
-      setErrorMsg(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
-      return;
-    }
-    setErrorMsg(null);
-    setHasEditedCustomDates(true);
-    setCustomDates([...customDates, newCustomDateInput].sort());
-    setNewCustomDateInput("");
-  };
-
-  const handleRemoveCustomDate = (dateToRemove: string) => {
-    if (customDates.length <= 1) {
-      setErrorMsg(t("seriesBuilder.mustHaveOneOccurrence"));
-      return;
-    }
-    setErrorMsg(null);
-    setHasEditedCustomDates(true);
-    setCustomDates(customDates.filter((d) => d !== dateToRemove));
-  };
 
   const handleSkipConflicts = () => {
     if (seriesConflicts.length === 0) return;
@@ -969,7 +956,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
         setErrorMsg(t("seriesBuilder.errNoOccurrences"));
         return;
       }
-      if (generatedOccurrences.length > maxSeriesLimit) {
+      if (
+        !isServiceInstant &&
+        generatedOccurrences.length > maxSeriesLimit
+      ) {
         setErrorMsg(t("seriesBuilder.reachedMax", { max: maxSeriesLimit }));
         return;
       }
@@ -1850,19 +1840,19 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </div>
 
                   {/* Connected Dropdowns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {/* Dropdown 1: Category */}
-                    <div>
+                    <div className="min-w-0">
                       <label
                         htmlFor="select-category"
-                        className="block text-[11px] font-bold text-stone-700 mb-1"
+                        className="block text-[11px] font-bold text-stone-700 mb-1 truncate"
                       >
                         {t("reservationForm.chooseCategoryLabel", {
                           defaultValue: "Category / Type",
                         })}
                       </label>
                       {isInstrumentsLoading ? (
-                        <div className="w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-xs sm:text-[13px] font-medium text-stone-500 flex items-center gap-2 select-none h-[38px]">
+                        <div className="w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-medium text-stone-500 flex items-center gap-2 select-none h-[38px] min-w-0">
                           <span className="w-3.5 h-3.5 border-2 border-stone-300 border-t-amber-800 rounded-full animate-spin shrink-0" />
                           <span className="truncate">
                             {t("common.loadingCategories", {
@@ -1871,14 +1861,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </span>
                         </div>
                       ) : (
-                        <div className="relative">
+                        <div className="relative min-w-0">
                           <select
                             id="select-category"
                             value={selectedCategory}
                             onChange={(e) =>
                               handleCategoryChange(e.target.value)
                             }
-                            className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
+                            className="w-full min-w-0 truncate appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pe-8"
                           >
                             {availableCategories.map((cat) => (
                               <option key={cat} value={cat}>
@@ -1886,11 +1876,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               </option>
                             ))}
                           </select>
-                          <div
-                            className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
-                              isAr ? "left-0" : "right-0"
-                            }`}
-                          >
+                          <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center px-2 text-stone-500">
                             <ChevronRight
                               className={`w-3.5 h-3.5 ${isAr ? "-rotate-90" : "rotate-90"}`}
                             />
@@ -1900,17 +1886,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
 
                     {/* Dropdown 2: Specific Instrument */}
-                    <div>
+                    <div className="min-w-0">
                       <label
                         htmlFor="select-instrument"
-                        className="block text-[11px] font-bold text-stone-700 mb-1"
+                        className="block text-[11px] font-bold text-stone-700 mb-1 truncate"
                       >
                         {t("reservationForm.chooseInstrumentLabel", {
                           defaultValue: "Specific Instrument",
                         })}
                       </label>
                       {isInstrumentsLoading ? (
-                        <div className="w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-xs sm:text-[13px] font-medium text-stone-500 flex items-center gap-2 select-none h-[38px]">
+                        <div className="w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-medium text-stone-500 flex items-center gap-2 select-none h-[38px] min-w-0">
                           <span className="w-3.5 h-3.5 border-2 border-stone-300 border-t-amber-800 rounded-full animate-spin shrink-0" />
                           <span className="truncate">
                             {t("common.loadingInstruments", {
@@ -1919,14 +1905,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </span>
                         </div>
                       ) : (
-                        <div className="relative">
+                        <div className="relative min-w-0">
                           <select
                             id="select-instrument"
                             value={selectedInstrumentId}
                             onChange={(e) =>
                               setSelectedInstrumentId(e.target.value)
                             }
-                            className="w-full appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-xs sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pr-8"
+                            className="w-full min-w-0 truncate appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pe-8"
                           >
                             <option value="">
                               {t("reservationForm.adminAssignOption", {
@@ -1943,11 +1929,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               </option>
                             ))}
                           </select>
-                          <div
-                            className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
-                              isAr ? "left-0" : "right-0"
-                            }`}
-                          >
+                          <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center px-2 text-stone-500">
                             <ChevronRight
                               className={`w-3.5 h-3.5 ${isAr ? "-rotate-90" : "rotate-90"}`}
                             />
@@ -2034,11 +2016,11 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div className="space-y-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1 min-w-0">
                       <label
                         htmlFor="input-service-name"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700"
+                        className="block text-[11px] sm:text-xs font-bold text-stone-700 truncate"
                       >
                         {t("reservationForm.purposeQuestionLabel")}{" "}
                         <span className="text-amber-800 font-bold">*</span>
@@ -2051,15 +2033,15 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         placeholder={t(
                           "reservationForm.serviceNamePlaceholder",
                         )}
-                        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className="w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                         required
                       />
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <label
                         htmlFor="input-musician-name"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700"
+                        className="block text-[11px] sm:text-xs font-bold text-stone-700 truncate"
                       >
                         {t("reservationForm.musicianNameLabel")}{" "}
                         <span className="text-amber-800 font-bold">*</span>
@@ -2072,18 +2054,18 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         placeholder={t(
                           "reservationForm.musicianNamePlaceholder",
                         )}
-                        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className="w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                         required
                       />
                     </div>
 
-                    <div className="space-y-1 sm:col-span-2">
+                    <div className="space-y-1 col-span-2 min-w-0">
                       <label
                         htmlFor="input-service-location"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700 flex items-center gap-1"
+                        className="block text-[11px] sm:text-xs font-bold text-stone-700 flex items-center gap-1 truncate"
                       >
-                        <Church className="w-3 h-3 text-amber-800" />
-                        <span>{t("reservationForm.serviceLocationLabel")}</span>
+                        <Church className="w-3 h-3 text-amber-800 shrink-0" />
+                        <span className="truncate">{t("reservationForm.serviceLocationLabel")}</span>
                       </label>
                       <input
                         id="input-service-location"
@@ -2093,7 +2075,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         placeholder={t(
                           "reservationForm.serviceLocationPlaceholder",
                         )}
-                        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className="w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                       />
                     </div>
                   </div>
@@ -2157,7 +2139,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <label className="block text-[11px] sm:text-xs font-bold text-stone-700">
-                        {isRecurring && patternType === "weekly"
+                        {isRecurring
                           ? t("seriesBuilder.firstSessionDateLabel")
                           : t("reservationForm.dateLabel")}
                       </label>
@@ -2166,7 +2148,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         type="date"
                         value={date}
                         min={todayStr}
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={(e) => {
+                          setDate(e.target.value);
+                          if (patternType !== "weekly") {
+                            setPatternType("weekly");
+                            setHasEditedCustomDates(false);
+                            setSkippedNotice(null);
+                          }
+                        }}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
                         required
                       />
@@ -2301,7 +2290,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     id="toggle-recurring-series"
                     role="switch"
                     aria-checked={isRecurring}
-                    onClick={() => setIsRecurring((prev) => !prev)}
+                    onClick={() => {
+                      setIsRecurring((prev) => !prev);
+                      setPatternType("weekly");
+                      setHasEditedCustomDates(false);
+                      setSkippedNotice(null);
+                    }}
                     className="w-full flex items-center justify-between gap-3 text-start cursor-pointer touch-manipulation"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -2325,8 +2319,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         <span className="text-[10px] sm:text-[11px] text-stone-500 block">
                           {t("reservationForm.recurringToggleSubtitle", {
                             defaultValue: isAr
-                              ? "تكرار أسبوعي أو اختيار تواريخ مخصصة"
-                              : "Repeat weekly or choose custom dates",
+                              ? "تكرار أسبوعي في نفس اليوم والوقت"
+                              : "Repeat weekly on the same day and time",
                           })}
                         </span>
                       </div>
@@ -2354,232 +2348,120 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   {/* Expanded Recurrence Options */}
                   {isRecurring && (
                     <div className="pt-3 border-t border-stone-200 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
-                      {/* Pattern Selector: Weekly vs Custom */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-stone-700">
-                            {t("seriesBuilder.recurrencePatternLabel")}
-                          </span>
-                          <span className="text-[10px] font-semibold text-stone-500 flex items-center gap-1">
-                            <Layers className="w-3 h-3 text-amber-800" />
-                            {t("seriesBuilder.occurrenceCounter", {
-                              count: generatedOccurrences.length,
-                              max: maxSeriesLimit,
-                            })}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            id="btn-pattern-weekly"
-                            onClick={() => setPatternType("weekly")}
-                            className={`p-2.5 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
-                              patternType === "weekly"
-                                ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/25"
-                                : "bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-700"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1 gap-2">
-                              <span className="font-bold text-[11px] sm:text-xs text-stone-900">
-                                {t("seriesBuilder.weeklyCadenceTitle")}
-                              </span>
-                              <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                            </div>
-                            <p className="text-[10px] text-stone-500 leading-tight text-start">
-                              {t("seriesBuilder.weeklyCadenceDesc")}
-                            </p>
-                          </button>
-
-                          <button
-                            type="button"
-                            id="btn-pattern-custom"
-                            onClick={() => setPatternType("custom")}
-                            className={`p-2.5 rounded-xl border text-start transition cursor-pointer flex flex-col justify-between active:scale-[0.98] touch-manipulation ${
-                              patternType === "custom"
-                                ? "bg-amber-50/70 border-amber-800 ring-2 ring-amber-800/25"
-                                : "bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-700"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1 gap-2">
-                              <span className="font-bold text-[11px] sm:text-xs text-stone-900">
-                                {t("seriesBuilder.customDatesTitle")}
-                              </span>
-                              <Calendar className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                            </div>
-                            <p className="text-[10px] text-stone-500 leading-tight text-start">
-                              {t("seriesBuilder.customDatesDesc")}
-                            </p>
-                          </button>
-                        </div>
+                      {/* Weekly Cadence Header & Occurrence Counter */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-stone-700 flex items-center gap-1.5">
+                          <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                          <span>{t("seriesBuilder.weeklyCadenceTitle")}</span>
+                        </span>
+                        <span className="text-[10px] font-semibold text-stone-500 flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-amber-800" />
+                          {isServiceInstant
+                            ? t("seriesBuilder.occurrenceCountNoCap", {
+                                count: generatedOccurrences.length,
+                                defaultValue: `${generatedOccurrences.length} Occurrences`,
+                              })
+                            : t("seriesBuilder.occurrenceCounter", {
+                                count: generatedOccurrences.length,
+                                max: maxSeriesLimit,
+                              })}
+                        </span>
                       </div>
 
-                      {/* Pattern-specific Configuration */}
-                      {patternType === "weekly" ? (
-                        <div className="bg-stone-50/80 rounded-xl border border-stone-200/80 p-2.5 sm:p-3 space-y-2.5">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <div className="space-y-1">
-                              <label className="block text-[11px] font-bold text-stone-700">
-                                {t("seriesBuilder.repeatCadenceLabel")}
-                              </label>
-                              <div className="relative">
-                                <select
-                                  id="select-weekly-interval"
-                                  value={weeklyInterval}
-                                  onChange={(e) =>
-                                    setWeeklyInterval(Number(e.target.value))
+                      {/* Weekly Configuration */}
+                      <div className="bg-stone-50/80 rounded-xl border border-stone-200/80 p-2.5 sm:p-3 space-y-2.5">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1 min-w-0">
+                            <label className="block text-[11px] font-bold text-stone-700 truncate">
+                              {t("seriesBuilder.repeatCadenceLabel")}
+                            </label>
+                            <div className="relative min-w-0">
+                              <select
+                                id="select-weekly-interval"
+                                value={weeklyInterval}
+                                onChange={(e) => {
+                                  setWeeklyInterval(Number(e.target.value));
+                                  if (patternType !== "weekly") {
+                                    setPatternType("weekly");
+                                    setHasEditedCustomDates(false);
+                                    setSkippedNotice(null);
                                   }
-                                  className="w-full appearance-none bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pr-8 cursor-pointer"
-                                >
-                                  <option value={1}>
-                                    {t("seriesBuilder.everyWeek")}
-                                  </option>
-                                  <option value={2}>
-                                    {t("seriesBuilder.everyTwoWeeks")}
-                                  </option>
-                                  <option value={3}>
-                                    {t("seriesBuilder.everyThreeWeeks")}
-                                  </option>
-                                  <option value={4}>
-                                    {t("seriesBuilder.everyFourWeeks")}
-                                  </option>
-                                </select>
-                                <div
-                                  className={`pointer-events-none absolute inset-y-0 flex items-center px-2 text-stone-500 ${
-                                    isAr ? "left-0" : "right-0"
-                                  }`}
-                                >
-                                  <ChevronRight
-                                    className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="block text-[11px] font-bold text-stone-700">
-                                {t("seriesBuilder.totalOccurrences", {
-                                  max: maxSeriesLimit,
-                                })}
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  id="input-weekly-count"
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  max={maxSeriesLimit}
-                                  value={weeklyCount}
-                                  onChange={(e) => {
-                                    const raw = Number(e.target.value);
-                                    if (!Number.isFinite(raw)) return;
-                                    const val = Math.min(
-                                      Math.max(1, raw),
-                                      maxSeriesLimit,
-                                    );
-                                    setWeeklyCount(val);
-                                  }}
-                                  className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                                }}
+                                className="w-full min-w-0 truncate appearance-none bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pe-8 cursor-pointer"
+                              >
+                                <option value={1}>
+                                  {t("seriesBuilder.everyWeek")}
+                                </option>
+                                <option value={2}>
+                                  {t("seriesBuilder.everyTwoWeeks")}
+                                </option>
+                                <option value={3}>
+                                  {t("seriesBuilder.everyThreeWeeks")}
+                                </option>
+                                <option value={4}>
+                                  {t("seriesBuilder.everyFourWeeks")}
+                                </option>
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center px-2 text-stone-500">
+                                <ChevronRight
+                                  className={`w-3 h-3 ${isAr ? "-rotate-90" : "rotate-90"}`}
                                 />
-                                <span className="text-[11px] text-stone-500 font-medium shrink-0">
-                                  {t("seriesBuilder.sessionsUnit")}
-                                </span>
                               </div>
                             </div>
                           </div>
 
-                          {weeklyCount >= maxSeriesLimit && (
-                            <div className="text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
-                              <Info className="w-3 h-3 shrink-0" />
-                              <span>
-                                {t("seriesBuilder.reachedMax", {
-                                  max: maxSeriesLimit,
-                                })}
+                          <div className="space-y-1 min-w-0">
+                            <label className="block text-[11px] font-bold text-stone-700 truncate">
+                              {isServiceInstant
+                                ? t("seriesBuilder.totalOccurrencesNoCap", {
+                                    defaultValue: "Total Occurrences",
+                                  })
+                                : t("seriesBuilder.totalOccurrences", {
+                                    max: maxSeriesLimit,
+                                  })}
+                            </label>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <input
+                                id="input-weekly-count"
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={effectiveMaxSeriesLimit}
+                                value={weeklyCount}
+                                onChange={(e) => {
+                                  const raw = Number(e.target.value);
+                                  if (!Number.isFinite(raw)) return;
+                                  const val = Math.min(
+                                    Math.max(1, raw),
+                                    effectiveMaxSeriesLimit,
+                                  );
+                                  setWeeklyCount(val);
+                                  if (patternType !== "weekly") {
+                                    setPatternType("weekly");
+                                    setHasEditedCustomDates(false);
+                                    setSkippedNotice(null);
+                                  }
+                                }}
+                                className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                              />
+                              <span className="text-[11px] text-stone-500 font-medium shrink-0">
+                                {t("seriesBuilder.sessionsUnit")}
                               </span>
                             </div>
-                          )}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="bg-stone-50/80 rounded-xl border border-stone-200/80 p-2.5 sm:p-3 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-stone-800 flex items-center gap-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-amber-800" />
-                              <span>
-                                {t("seriesBuilder.customDatesListTitle")}
-                              </span>
-                            </span>
-                            <span className="text-[10px] text-stone-500">
-                              {t("seriesBuilder.allowedDates", {
-                                count: customDates.length,
+
+                        {!isServiceInstant && weeklyCount >= maxSeriesLimit && (
+                          <div className="text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
+                            <Info className="w-3 h-3 shrink-0" />
+                            <span>
+                              {t("seriesBuilder.reachedMax", {
                                 max: maxSeriesLimit,
                               })}
                             </span>
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <input
-                              id="input-custom-date"
-                              type="date"
-                              value={newCustomDateInput}
-                              min={todayStr}
-                              disabled={isAtMaxLimit}
-                              onChange={(e) =>
-                                setNewCustomDateInput(e.target.value)
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleAddCustomDate();
-                                }
-                              }}
-                              className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition disabled:bg-stone-100 disabled:text-stone-400"
-                            />
-                            <button
-                              type="button"
-                              id="btn-add-custom-date"
-                              disabled={isAtMaxLimit || !newCustomDateInput}
-                              onClick={handleAddCustomDate}
-                              className="shrink-0 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 disabled:bg-stone-300 text-white text-[11px] sm:text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed touch-manipulation"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>{t("seriesBuilder.addCustomDate")}</span>
-                            </button>
-                          </div>
-
-                          {isAtMaxLimit && (
-                            <div className="text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
-                              <AlertTriangle className="w-3 h-3 shrink-0" />
-                              <span>
-                                {t("seriesBuilder.reachedMax", {
-                                  max: maxSeriesLimit,
-                                })}
-                              </span>
-                            </div>
-                          )}
-
-                          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto overscroll-contain pt-1">
-                            {customDates.map((d, idx) => (
-                              <div
-                                key={d}
-                                className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 bg-white border border-stone-300 rounded-lg text-[11px] font-medium text-stone-800 shadow-2xs"
-                              >
-                                <span>
-                                  #{idx + 1}: {d}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveCustomDate(d)}
-                                  className="w-6 h-6 flex items-center justify-center rounded-md text-stone-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 transition cursor-pointer touch-manipulation"
-                                  title={t("seriesBuilder.removeDate")}
-                                  aria-label={t("seriesBuilder.removeDate")}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       {/* Calculated Occurrence Schedule Preview */}
                       <div className="space-y-1.5">
@@ -2721,6 +2603,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   feeAcknowledged={feeAcknowledged}
                   onFeeAcknowledgedChange={setFeeAcknowledged}
                   feePerDay={feeNumber}
+                  isServiceInstant={isServiceInstant}
                 />
               </div>
 

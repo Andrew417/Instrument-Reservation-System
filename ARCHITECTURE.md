@@ -47,9 +47,8 @@
 │   │   ├── ReservationChatView.tsx           # Two-pane desktop / single-pane mobile reservation messenger: decoupled top back nav, active slot pill, auto-grow composer & grace period
 │   │   ├── ReservationDetailModal.tsx        # Unified reservation sheet: metadata, type request indicator, chat tab, condition checks, Instapay
 │   │   ├── ReservationFiltersPopover.tsx     # Timetable filter popover: instrument type, date range, status
-│   │   ├── ReservationFormModal.tsx          # Single-slot & Band Pack form: Direct booking vs Category Type Request switcher, 2-column grid, outside flat fee acknowledgment
+│   │   ├── ReservationFormModal.tsx          # Single-slot, recurring weekly series & Band Pack form: Direct booking vs Category Type Request switcher, compact 2-column grid, outside flat fee acknowledgment
 │   │   ├── ReservationUsageTypeSelector.tsx  # In-church (free) vs Outside-church (paid) selector with fee notice
-│   │   ├── SeriesBuilderModal.tsx            # Recurring weekly / custom date series builder with type request support & conflict skip
 │   │   ├── UserChatView.tsx                  # User Portal chat tab wrapper for ReservationChatView (with role detection)
 │   │   ├── UserDetailModal.tsx               # Admin user profile modal: active bookings, no-show counters, Super Admin Musician toggle, role actions
 │   │   └── admin/                            # Modular sub-components extracted from AdminPortal
@@ -168,7 +167,7 @@
    - `public`: Everyone sees and books directly.
    - `musician`: Visible and bookable directly by Musicians and Admins only. Regular users cannot see them anywhere (filtered at DB query level).
    - `room_stock`: Visible to Admins only. Nobody books directly; admins assign them to type requests.
-   - `service`: Visible and bookable only by assigned members of that service + Admins/Super Admins. Hidden from booking for everyone if service is archived. Excluded from type request assignment candidates. Requires valid non-null `serviceId`.
+   - `service`: Visible and bookable only by assigned members of that service + Admins/Super Admins. Hidden from booking for everyone if service is archived. Excluded from type request assignment candidates. Requires valid non-null `serviceId`. When paired with `bookingMode = 'instant'`, bypasses all hard limits 1–6 and auto-approves immediately (including `outside_church`).
    - `out_of_service`: Unavailable/broken; cannot be booked or assigned to anyone. Disabled across calendar and forms.
 4. **Musician Status (`is_musician`):** Independent boolean flag, separate from `is_trusted`. Only Super Admins can grant or revoke it (via User Profile or Promote modal). Each change is recorded in `musician_status_audit_log`. Musicians book visible instruments directly and do not use type requests.
 5. **Category Type Requests:**
@@ -187,10 +186,11 @@
 8. **Instant vs Manual Modes:**
    - *Instant Mode:* Regular user submissions auto-approve if within all limits.
    - *Manual Mode:* Regular user submissions always start in `pending` awaiting admin approval.
-9. **Outside Church Use:** Always requires admin review (`pending`), snapshots daily fee upon submission, and enables Instapay screenshot upload.
+9. **Outside Church Use:** Normally requires admin review (`pending`), **except** `service` + `instant` instruments which auto-approve immediately. Always snapshots daily fee (`fee_snapshot`) upon submission, requires fee acknowledgment, and enables Instapay screenshot upload once approved.
 10. **Hard Limits Structure:**
     - *Soft Caps (1–4):* (Active count, Day count, Max duration, Concurrent same-type) -> Exceeding downgrades status to `pending`, never blocks submission.
     - *Hard Caps (5–6):* (Series occurrence cap, hourly rate limit) -> Exceeding blocks submission with user-facing validation error.
+    - *Exemptions:* Trusted users, Admins, global `bypassHardLimits`, and `service` + `instant` instruments bypass limits 1–6 (approved-slot conflict checks and working hours still apply).
 11. **🎸 Band Pack:** Multi-instrument co-booking sharing a `band_pack_id`. Validated atomically (if 1 instrument conflicts, entire pack fails submission). Requires musician name per instrument.
 12. **⚡ Quick Re-Book:** Analyzes past 90-day booking history for routine day-of-week/time patterns; presents 1-tap confirmation with Cairo date calculation.
 13. **🔑 Key-Holder Handover Sheet:** Chronologically sorted list of approved bookings with Day/Week selector, exported to styled XLSX, CSV, or formatted WhatsApp message using `\u2066` directional Unicode marks for phone numbers.

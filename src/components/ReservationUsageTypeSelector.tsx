@@ -8,6 +8,7 @@ export interface ReservationUsageTypeSelectorProps {
   feeAcknowledged: boolean;
   onFeeAcknowledgedChange: (acknowledged: boolean) => void;
   feePerDay: number;
+  isServiceInstant?: boolean;
   containerClassName?: string;
 }
 
@@ -19,6 +20,7 @@ export const ReservationUsageTypeSelector: React.FC<
   feeAcknowledged,
   onFeeAcknowledgedChange,
   feePerDay,
+  isServiceInstant = false,
   containerClassName = "bg-white rounded-2xl border border-stone-200 p-3.5 sm:p-4 shadow-2xs space-y-3",
 }) => {
   const { t, i18n } = useTranslation();
@@ -121,12 +123,19 @@ export const ReservationUsageTypeSelector: React.FC<
                 })}
               </div>
               <div className="text-purple-900 text-[11px] leading-relaxed">
-                {t("reservationForm.policyFeeDesc", {
-                  fee: isAr ? `${feePerDay} ج.م` : `EGP ${feePerDay}`,
-                  defaultValue: isAr
-                    ? `تحتوي هذه الآلة على رسم استخدام خارجي قدره ${feePerDay} ج.م لكل يوم تقويمي. تتطلب الحجوزات الخارجية إعادة الآلة بحالتها الأصلية وتصريح الإدارة.`
-                    : `This instrument has an outside usage fee of EGP ${feePerDay} per calendar day. Outside reservations require return in original condition and admin authorization.`,
-                })}
+                {isServiceInstant
+                  ? t("reservationForm.policyFeeDescServiceInstant", {
+                      fee: isAr ? `${feePerDay} ج.م` : `EGP ${feePerDay}`,
+                      defaultValue: isAr
+                        ? `تحتوي هذه الآلة على رسم استخدام خارجي قدره ${feePerDay} ج.م لكل يوم تقويمي. يتم اعتماد الحجوزات الخارجية فوراً عند الإرسال مع الالتزام بإعادة الآلة بحالتها الأصلية.`
+                        : `This instrument has an outside usage fee of EGP ${feePerDay} per calendar day. Outside reservations are approved immediately upon submission and require return in original condition.`,
+                    })
+                  : t("reservationForm.policyFeeDesc", {
+                      fee: isAr ? `${feePerDay} ج.م` : `EGP ${feePerDay}`,
+                      defaultValue: isAr
+                        ? `تحتوي هذه الآلة على رسم استخدام خارجي قدره ${feePerDay} ج.م لكل يوم تقويمي. تتطلب الحجوزات الخارجية إعادة الآلة بحالتها الأصلية وتصريح الإدارة.`
+                        : `This instrument has an outside usage fee of EGP ${feePerDay} per calendar day. Outside reservations require return in original condition and admin authorization.`,
+                    })}
               </div>
             </div>
           </div>

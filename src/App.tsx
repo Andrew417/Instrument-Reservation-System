@@ -117,8 +117,6 @@ const getAdminTabIcon = (
   }
 };
 
-const POLICY_EXPLAINER_SEEN_KEY = "policy_explainer_seen";
-
 interface UserPortalMainProps {
   installPrompt: InstallPromptState;
 }
@@ -151,25 +149,8 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
   const hasAdminTabAccess = Boolean(isAdminOrSuperAdmin || isRoomServant);
   const canViewCalendarDetails = Boolean(isAdminOrSuperAdmin);
   const [policyExplainerEnabled, setPolicyExplainerEnabled] = useState(true);
-  // Auto-open policy explainer modal after auth only for regular users (not for admins, superadmins, or room servants)
+  // Policy explainer modal opens only when triggered manually by the user
   const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
-
-  useEffect(() => {
-    // Only automatically pop up for regular users, never for admins, superadmins, or room servants
-    if (profile && !hasAdminTabAccess) {
-      let hasSeenPolicy = false;
-      try {
-        hasSeenPolicy =
-          localStorage.getItem(`${POLICY_EXPLAINER_SEEN_KEY}:${profile.id}`) ===
-          "true";
-      } catch {
-        hasSeenPolicy = false;
-      }
-      setIsPolicyModalOpen(!hasSeenPolicy);
-    } else {
-      setIsPolicyModalOpen(false);
-    }
-  }, [profile?.id, profile?.role, hasAdminTabAccess]);
 
   // Hook managing PWA installation state and native/iOS prompts
   const {
@@ -1014,19 +995,7 @@ const UserPortalMain: React.FC<UserPortalMainProps> = ({ installPrompt }) => {
 
       <PolicyExplainerModal
         isOpen={isPolicyModalOpen}
-        onClose={() => {
-          if (profile?.id) {
-            try {
-              localStorage.setItem(
-                `${POLICY_EXPLAINER_SEEN_KEY}:${profile.id}`,
-                "true",
-              );
-            } catch {
-              console.warn("[InstallPrompt] Unable to persist policy state");
-            }
-          }
-          setIsPolicyModalOpen(false);
-        }}
+        onClose={() => setIsPolicyModalOpen(false)}
       />
 
       {/* Add to Home Screen / Install App Prompt Modal */}

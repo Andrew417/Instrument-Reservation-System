@@ -140,13 +140,13 @@ export interface ReservationFiltersPopoverProps
 export const ReservationFiltersPopover: React.FC<
 ```
 
-### `src/components/ReservationFormModal.tsx` (2918 lines)
+### `src/components/ReservationFormModal.tsx` (2801 lines)
 ```typescript
 export interface ReservationFormProps
 export const ReservationFormModal: React.FC<ReservationFormProps> = (
 ```
 
-### `src/components/ReservationUsageTypeSelector.tsx` (156 lines)
+### `src/components/ReservationUsageTypeSelector.tsx` (165 lines)
 ```typescript
 export interface ReservationUsageTypeSelectorProps
 export const ReservationUsageTypeSelector: React.FC<
@@ -357,7 +357,7 @@ export const ReservationStatusBadge: React.FC<ReservationStatusBadgeProps> = (
 
 ## Server Routes (API)
 
-### `src/server/admin.ts` (5187 lines)
+### `src/server/admin.ts` (5230 lines)
 ```typescript
 Route: GET /analytics
 Route: GET /types
@@ -409,7 +409,7 @@ Route: GET /preferences
 Route: POST /preferences
 ```
 
-### `src/server/reservations.ts` (2182 lines)
+### `src/server/reservations.ts` (2180 lines)
 ```typescript
 export function isValidUuid(value: string): boolean
 Route: GET /limits
@@ -436,7 +436,7 @@ export async function withUserContext<T>(
 
 ## Services & Business Logic
 
-### `src/services/reservation-logic.ts` (4669 lines)
+### `src/services/reservation-logic.ts` (4721 lines)
 ```typescript
 export interface TimeSlot
 export interface ReservationSubmissionInput
@@ -623,7 +623,7 @@ export const getReservationTypeColor = (type: string)
 ### `src/db/drizzle.config.ts` (27 lines)
 *No top-level exports or routes detected*
 
-### `src/db/index.ts` (269 lines)
+### `src/db/index.ts` (271 lines)
 ```typescript
 export const createPool = ()
 export const pool = createPool();
@@ -662,7 +662,7 @@ export async function seedSuperAdmin(): Promise<void>
 
 ## Contexts & Core
 
-### `src/App.tsx` (1720 lines)
+### `src/App.tsx` (1711 lines)
 *No top-level exports or routes detected*
 
 ### `src/contexts/AuthContext.tsx` (404 lines)

@@ -182,12 +182,10 @@ export function getMaskedInstrumentName(type?: string | null): string {
  */
 router.post("/evaluate", async (req: Request, res: Response): Promise<void> => {
   try {
-    const sessionIdentity = await extractSessionIdentity(req);
+    const owner = await resolveBookingOwner(req);
     const payload = {
       ...req.body,
-      ...(sessionIdentity
-        ? { userId: sessionIdentity.userId, adminId: sessionIdentity.adminId }
-        : {}),
+      ...owner,
     };
     const result = await evaluateReservationSubmission(payload);
     res.json({ success: true, evaluation: result });

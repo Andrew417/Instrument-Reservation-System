@@ -404,34 +404,37 @@ export async function evaluateReservationSubmission(
       ? and(eq(reservations.adminId, cleanAdminId), sql`${reservations.userId} IS NULL`)
       : null;
 
-  // 2. Submission rate limit (skip if series-level check already evaluated it or bypass enabled, or admin booking)
-  if (
-    !options?.skipRateLimitCheck &&
-    ownerCondition &&
-    !isAdmin &&
-    !limits.bypassHardLimits
-  ) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentSubmissions = await executor
-      .select({ count: sql<number>`count(*)::int` })
-      .from(reservations)
-      .where(
-        and(
-          ownerCondition,
-          gte(reservations.createdAt, oneHourAgo),
-        ),
-      );
+  // Helper for submission rate limit (#6) so Branch B can check isServiceInstant first
+  const enforceHourlyRateLimit = async () => {
+    if (
+      !options?.skipRateLimitCheck &&
+      ownerCondition &&
+      !isAdmin &&
+      !limits.bypassHardLimits
+    ) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const recentSubmissions = await executor
+        .select({ count: sql<number>`count(*)::int` })
+        .from(reservations)
+        .where(
+          and(
+            ownerCondition,
+            gte(reservations.createdAt, oneHourAgo),
+          ),
+        );
 
-    const submissionCount = Number(recentSubmissions[0]?.count || 0);
-    if (submissionCount >= limits.maxSubmissionsPerHour) {
-      throw new Error(
-        `You've hit the limit of ${limits.maxSubmissionsPerHour} submissions per hour. Please wait a bit and try again.`,
-      );
+      const submissionCount = Number(recentSubmissions[0]?.count || 0);
+      if (submissionCount >= limits.maxSubmissionsPerHour) {
+        throw new Error(
+          `You've hit the limit of ${limits.maxSubmissionsPerHour} submissions per hour. Please wait a bit and try again.`,
+        );
+      }
     }
-  }
+  };
 
   // BRANCH A: TYPE REQUEST
   if (isTypeRequest) {
+    await enforceHourlyRateLimit();
     const cleanType = requestedType?.trim();
     if (!cleanType) {
       throw new Error("Requested instrument type is required.");
@@ -641,6 +644,15 @@ export async function evaluateReservationSubmission(
     }
   }
 
+  const isServiceInstant =
+    instrument.visibilityLevel === "service" &&
+    instrument.bookingMode === "instant";
+
+  // Submission rate limit (#6): bypassed for service + instant instruments
+  if (!isServiceInstant) {
+    await enforceHourlyRateLimit();
+  }
+
   // Conflict check: does this time range overlap an existing APPROVED reservation for this instrument?
   const conflicts = await executor
     .select({ id: reservations.id, timeRange: reservations.timeRange })
@@ -674,7 +686,14 @@ export async function evaluateReservationSubmission(
   let calculatedStatus: "approved" | "pending" = "pending";
   const reasons: string[] = [];
 
-  if (reservationType === "outside_church") {
+  if (isServiceInstant) {
+    calculatedStatus = "approved";
+    reasons.push(
+      reservationType === "outside_church"
+        ? "Auto-approved via Instant Booking mode (Service instrument; outside-church fee snapshotted)"
+        : "Auto-approved via Instant Booking mode (Service instrument)",
+    );
+  } else if (reservationType === "outside_church") {
     if (isAdmin) {
       calculatedStatus = "approved";
       reasons.push(
@@ -1287,11 +1306,31 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     }
   }
 
-  // 1. Occurrence count check: reject if > max_series_occurrences (unless bypass enabled or user is Trusted/Admin)
+  let isServiceInstant = false;
+  if (!input.isTypeRequest && instrumentId) {
+    const [instRow] = await db
+      .select({
+        visibilityLevel: instruments.visibilityLevel,
+        bookingMode: instruments.bookingMode,
+      })
+      .from(instruments)
+      .where(
+        and(eq(instruments.id, instrumentId), eq(instruments.isRemoved, false)),
+      )
+      .limit(1);
+    if (instRow) {
+      isServiceInstant =
+        instRow.visibilityLevel === "service" &&
+        instRow.bookingMode === "instant";
+    }
+  }
+
+  // 1. Occurrence count check: reject if > max_series_occurrences (unless bypass enabled, service+instant, or user is Trusted/Admin)
   if (
     !limits.bypassHardLimits &&
     !isTrusted &&
     !isAdmin &&
+    !isServiceInstant &&
     occurrences.length > limits.maxSeriesOccurrences
   ) {
     throw new Error(
@@ -1371,8 +1410,13 @@ export async function createReservationSeries(input: SeriesSubmissionInput) {
     }
   }
 
-  // 5. Rate limit check for the series submission (bypassed for admin)
-  if (seriesOwnerCondition && !isAdmin && !limits.bypassHardLimits) {
+  // 5. Rate limit check for the series submission (bypassed for admin and service+instant)
+  if (
+    seriesOwnerCondition &&
+    !isAdmin &&
+    !limits.bypassHardLimits &&
+    !isServiceInstant
+  ) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const recentSubmissions = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -1983,10 +2027,14 @@ export async function editReservation(
       outsideFee = null;
     }
 
-    if (resType === "outside_church" && !isTrustedOrAdmin) {
-      newStatus = "pending";
-    } else if (isTrustedOrAdmin) {
+    const isServiceInstant =
+      instrument.visibilityLevel === "service" &&
+      instrument.bookingMode === "instant";
+
+    if (isServiceInstant || isTrustedOrAdmin) {
       newStatus = "approved";
+    } else if (resType === "outside_church") {
+      newStatus = "pending";
     } else if (existing.status === "pending") {
       newStatus = "pending";
     } else if (existing.status === "approved") {
@@ -2406,6 +2454,10 @@ export async function editReservationSeries(
   let approvedCount = 0;
   let pendingCount = 0;
 
+  const isTargetServiceInstant =
+    targetInstrument.visibilityLevel === "service" &&
+    targetInstrument.bookingMode === "instant";
+
   const evaluatedOccurrences = plannedOccurrences.map((p) => {
     const instrumentChanged = p.newInstrumentId !== p.currentInstrumentId;
     let feeSnapshot = p.currentFeeSnapshot;
@@ -2426,7 +2478,7 @@ export async function editReservationSeries(
       // Admin editor:
       // Occurrences that were Approved remain Approved; occurrences that were Pending remain Pending.
       newStatus = p.currentStatus === "approved" ? "approved" : "pending";
-    } else if (isOwnerTrusted) {
+    } else if (isOwnerTrusted || isTargetServiceInstant) {
       newStatus = "approved";
     } else if (p.currentStatus === "pending") {
       newStatus = "pending";

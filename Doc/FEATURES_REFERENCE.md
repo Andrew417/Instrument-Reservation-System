@@ -111,8 +111,9 @@
 - **Edit Reset:** Editing date, time, or duration on an approved type request resets its status to `pending` and clears `instrument_id = null`.
 
 ### 2.4 Booking Modes: Instant vs. Manual
-- **Instant Mode:** Submissions from regular members on public instruments within fair-usage limits are **automatically approved** immediately upon submission.
-- **Manual Mode:** Submissions from regular members enter `pending` status, requiring an administrator to explicitly review and approve/reject.
+- **Instant Mode:** Submissions from regular members on public/musician instruments within fair-usage limits are **automatically approved** immediately upon submission (for `in_church` usage).
+- **Service + Instant Rule (`visibilityLevel === 'service'` AND `bookingMode === 'instant'`):** Bypasses all hard limits 1–6 and **auto-approves immediately** for all authorized service members and admins, **including `outside_church` bookings** (while still enforcing approved-slot conflicts, working hours, and fee snapshot/acknowledgment).
+- **Manual Mode:** Submissions from regular members (including `service` + `manual` instruments) enter `pending` status, requiring an administrator to explicitly review and approve/reject.
 - **Mid-flight Mode Changes:** Modifying an instrument's mode only affects future submissions. Existing pending requests retain their submission-time evaluation.
 
 ### 2.5 Instrument Removal & Cascade Handling
@@ -135,8 +136,8 @@
 - **Outside-Church Usage:**
   - Carries a per-day rental fee configured per instrument.
   - **Fee Snapshot:** The fee is locked at submission time onto `fee_snapshot`. Subsequent admin price adjustments do not retroactively modify existing bookings.
-  - **Mandatory Review:** Outside-church bookings **always default to `pending`**, requiring admin verification regardless of whether the instrument is in Instant mode.
-  - **Payment Flow:** User acknowledges the fee at submission. Once approved, user uploads an Instapay transfer receipt screenshot via the Reservation Detail modal. Admins can view, verify, and remove the receipt.
+  - **Default Review vs. Service+Instant Exception:** Outside-church bookings normally default to `pending` (requiring admin verification regardless of Instant mode), **except** `service` + `instant` instruments which auto-approve immediately.
+  - **Payment Flow:** User acknowledges the fee at submission. Once approved (by admin or auto-approved on `service` + `instant`), user uploads an Instapay transfer receipt screenshot via the Reservation Detail modal or My Reservations. Admins can view, verify, and remove the receipt.
 
 ### 3.3 Conflict Invariant
 - At no point can two approved reservations overlap on the same physical instrument.
@@ -152,6 +153,7 @@ All 6 limits are configured live in Settings by the Super Admin:
 5. **Max Occurrences Per Series (`max_series_occurrences`, default 8):** Maximum dates allowed in a single recurring series submission. *(Hard Cap -> Blocks submission outright)*.
 6. **Submission Rate Limit (`max_submissions_per_hour`, default 10):** Rolling 1-hour submission window. *(Hard Cap -> Blocks submission outright)*.
 - **Global Limit Bypass:** Super Admin can toggle `bypass_hard_limits` in settings to temporarily suspend all limits system-wide for all users during busy seasons (e.g. Christmas / Easter praise festivals).
+- **Service + Instant Bypass:** Direct bookings on `service` + `instant` instruments automatically bypass all limits 1–6 for authorized service members and admins (approved-slot conflicts and working hours still apply).
 
 ### 3.5 Floating Error Alert Overlay & Dynamic Form Ergonomics
 - **Fixed Floating Alert Overlay (`z-[220]`):** When a reservation submission violates limits or encounters an error, the error banner floats as a prominent alert overlay at the top of the viewport instead of taking static layout space inside the scroll container.
@@ -168,13 +170,13 @@ All 6 limits are configured live in Settings by the Super Admin:
 ## 4. Recurring Series Booking
 
 ### 4.1 Series Patterns
-- **Weekly Pattern:** Selects a day of the week, start time, duration, and recurrence count (e.g., Every Friday for 4 weeks).
-- **Custom Pattern:** Manually pick multiple non-consecutive dates on the calendar sharing the same time and service name.
+- **Weekly Pattern (Only User-Facing Pattern):** Selects a day of the week, start time, duration, and occurrence count (e.g., Every Friday for 4 weeks).
+- **Internal Custom Pattern:** The manual Custom Dates selector/picker is removed from the UI, while `patternType = 'custom'` remains supported on the backend (`reservation_series` and `createReservationSeries`) for conflict-pruned submissions.
 
 ### 4.2 Conflict Prevention & 1-Click Skip
 - The series builder runs a real-time conflict simulation across all requested dates.
 - If conflicts exist with existing approved bookings, the UI highlights conflicting dates in red.
-- **"Skip Conflicting Dates" Button:** 1-click action that automatically prunes the conflicting occurrences and converts the request into a clean Custom pattern, enabling immediate submission without manual date deletion.
+- **"Skip Conflicting Dates" Button:** 1-click action that automatically prunes the conflicting occurrences and converts the request internally into `patternType = 'custom'`, enabling immediate submission without manual date deletion.
 
 ### 4.3 Series Admin Management & Structured Rejection
 - **Grouped Series Cards:** The Admin Portal groups recurring occurrences into an expandable card displaying dates, times, and progress.
@@ -411,7 +413,7 @@ Specifically designed for the church sexton / key-holder holding the instrument 
 
 - Specially crafted for older church members, youth, and users unfamiliar with complex apps.
 - **Always in Arabic (`dir="rtl"`):** Consistently presented in warm, welcoming, crystal-clear Egyptian church Arabic regardless of general language selection.
-- Automatically pops up on first login, and accessible anytime via the top header ("دليل الحجز").
+- Accessible manually anytime via the top header ("دليل الحجز" / "كيف تحجز؟") — does not auto-open on login.
 - **Simplified to 2 Clear Steps:**
   1. **الخطوة ١: اختر الآلة والميعاد المناسب** — اضغط على أي ميعاد متاح (فترة بيضاء) في جدول الآلات، أو اضغط زر «حجز جديد».
   2. **الخطوة ٢: اكتب اسم الخدمة واضغط «تأكيد الحجز»** — اكتب اسم خدمتك مع اسم العازف والمدة، واضغط تأكيد... ويتم حجز وتثبيت الآلة باسمك فوراً.
