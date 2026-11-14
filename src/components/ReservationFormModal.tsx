@@ -41,6 +41,7 @@ import {
   Layers,
   Info,
   Trash2,
+  ZoomIn,
 } from "lucide-react";
 
 export interface ReservationFormProps {
@@ -456,6 +457,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   const [showPolicyExplainer, setShowPolicyExplainer] =
     useState<boolean>(false);
   const [showConflictPopup, setShowConflictPopup] = useState<boolean>(false);
+  const [showImageLightbox, setShowImageLightbox] = useState<boolean>(false);
 
   // Status & Submission States
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -563,7 +565,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        if (showConflictPopup) {
+        if (showImageLightbox) {
+          setShowImageLightbox(false);
+        } else if (showConflictPopup) {
           setShowConflictPopup(false);
         } else if (showPolicyExplainer) {
           setShowPolicyExplainer(false);
@@ -574,7 +578,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showConflictPopup, showPolicyExplainer, onClose]);
+  }, [showImageLightbox, showConflictPopup, showPolicyExplainer, onClose]);
 
   const durationOptions = useMemo(() => {
     if (isAdmin) {
@@ -670,6 +674,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
     }
     return categoryInstruments[0] || null;
   }, [selectedInstrumentId, safeAllInstruments, categoryInstruments]);
+
+  const currentInstrumentPhotoUrl =
+    currentInstrument?.photoUrl ||
+    (currentInstrument as any)?.photo_url ||
+    null;
+
+  useEffect(() => {
+    if (!currentInstrumentPhotoUrl || isTypeRequest) {
+      setShowImageLightbox(false);
+    }
+  }, [currentInstrumentPhotoUrl, isTypeRequest]);
 
   const isServiceInstant = Boolean(
     !isTypeRequest &&
@@ -1957,23 +1972,43 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   {!isInstrumentsLoading &&
                     !isTypeRequest &&
                     currentInstrument && (
-                      <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-stone-50 border border-stone-200">
-                        <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
-                          {currentInstrument?.photoUrl ? (
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-stone-50 border border-stone-200 min-w-0">
+                        {currentInstrumentPhotoUrl ? (
+                          <button
+                            id="btn-expand-instrument-photo"
+                            type="button"
+                            onClick={() => setShowImageLightbox(true)}
+                            title={
+                              isAr
+                                ? "اضغط لعرض الصورة بحجم أكبر"
+                                : "Click to view larger image"
+                            }
+                            aria-label={
+                              isAr
+                                ? "عرض صورة الآلة بحجم أكبر"
+                                : "View instrument image in larger screen"
+                            }
+                            className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs relative group cursor-zoom-in hover:ring-2 hover:ring-amber-700/50 transition touch-manipulation"
+                          >
                             <img
-                              src={currentInstrument.photoUrl}
+                              src={currentInstrumentPhotoUrl}
                               alt={currentInstrument?.name || "Instrument"}
                               referrerPolicy="no-referrer"
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-150"
                             />
-                          ) : (
+                            <span className="absolute bottom-0.5 end-0.5 w-4 h-4 rounded-md bg-stone-900/75 text-white flex items-center justify-center shadow-xs opacity-85 group-hover:opacity-100 transition-opacity">
+                              <ZoomIn className="w-2.5 h-2.5" />
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
                             <Music2 className="w-5 h-5 text-amber-800" />
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-xs sm:text-[13px] text-stone-900 truncate">
+                            <span className="font-bold text-xs sm:text-[13px] text-stone-900 break-words">
                               {getInstrumentDisplayName(
                                 currentInstrument,
                                 isAdmin,
@@ -1988,12 +2023,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </div>
 
                           {currentInstrument?.description?.trim() && (
-                            <div
-                              className="mt-1 flex items-start gap-1 text-[10px] leading-snug text-stone-500"
-                              title={currentInstrument.description}
-                            >
-                              <FileText className="w-3 h-3 mt-0.5 shrink-0 text-stone-400" />
-                              <p className="line-clamp-1">
+                            <div className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-stone-600 min-w-0">
+                              <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-stone-400" />
+                              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">
                                 {currentInstrument.description.trim()}
                               </p>
                             </div>
@@ -2794,6 +2826,59 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           isOpen={showPolicyExplainer}
           onClose={() => setShowPolicyExplainer(false)}
         />
+      )}
+
+      {showImageLightbox && currentInstrument && currentInstrumentPhotoUrl && (
+        <div
+          id="instrument-image-lightbox-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={getInstrumentDisplayName(currentInstrument, isAdmin)}
+          className="fixed inset-0 z-[210] bg-stone-950/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-150"
+          dir={isAr ? "rtl" : "ltr"}
+          onClick={() => setShowImageLightbox(false)}
+        >
+          <div
+            className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center gap-3 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between gap-3 text-white px-1">
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-white truncate">
+                  {getInstrumentDisplayName(currentInstrument, isAdmin)}
+                </h3>
+                <p className="text-[11px] sm:text-xs text-stone-300 truncate">
+                  {currentInstrument.type || selectedCategory}
+                </p>
+              </div>
+              <button
+                id="btn-close-instrument-lightbox"
+                type="button"
+                onClick={() => setShowImageLightbox(false)}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white flex items-center justify-center transition cursor-pointer shrink-0 border border-white/15"
+                aria-label={t("common.close", { defaultValue: "Close" })}
+                title={t("common.close", { defaultValue: "Close" })}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="w-full flex items-center justify-center rounded-2xl overflow-hidden bg-stone-900/90 border border-white/10 shadow-2xl p-2 sm:p-3">
+              <img
+                src={currentInstrumentPhotoUrl}
+                alt={getInstrumentDisplayName(currentInstrument, isAdmin)}
+                referrerPolicy="no-referrer"
+                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-xl select-none"
+              />
+            </div>
+
+            {currentInstrument.description?.trim() && (
+              <p className="max-w-2xl text-center text-xs sm:text-[13px] text-stone-200 leading-relaxed whitespace-pre-wrap break-words px-2">
+                {currentInstrument.description.trim()}
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </>
   );
