@@ -206,6 +206,20 @@ const getLimitMessage = (reason: string): LimitMessage | null => {
   return null;
 };
 
+/* ─────────────────────────────────────────────────────────────
+   Typography tokens (single source of truth)
+   ───────────────────────────────────────────────────────────── */
+const TYPO = {
+  sectionTitle: "text-sm font-bold",
+  label: "text-sm font-bold",
+  hint: "text-xs font-medium text-stone-500",
+  input: "text-base sm:text-sm font-medium",
+  body: "text-sm",
+  value: "text-sm font-bold text-stone-900",
+  button: "text-sm font-bold",
+  badge: "text-xs font-bold uppercase tracking-wide",
+} as const;
+
 export const ReservationFormModal: React.FC<ReservationFormProps> = ({
   initialInstrument,
   allInstruments,
@@ -1144,7 +1158,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[13px] sm:text-sm font-bold text-white leading-tight truncate">
+                  <h2 className="text-sm font-bold text-white leading-tight truncate">
                     {seriesResult
                       ? t("seriesBuilder.confirmationTitle")
                       : submissionResult
@@ -1156,13 +1170,17 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           : t("reservationForm.title")}
                   </h2>
                   {isInstrumentsLoading ? (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700 hidden sm:inline-flex items-center gap-1">
+                    <span
+                      className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 border border-stone-700 hidden sm:inline-flex items-center gap-1`}
+                    >
                       <span className="w-2 h-2 border-2 border-stone-400 border-t-amber-400 rounded-full animate-spin shrink-0" />
                       <span>{t("common.loading", "Loading...")}</span>
                     </span>
                   ) : isTypeRequest ? (
                     selectedCategory ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-900/60 text-purple-200 border border-purple-700/50 hidden sm:inline-block">
+                      <span
+                        className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-purple-900/60 text-purple-200 border border-purple-700/50 hidden sm:inline-block`}
+                      >
                         {t("reservationForm.categoryBookingLabel", {
                           category: selectedCategory,
                           defaultValue: `${selectedCategory} (Admin Assignment)`,
@@ -1170,12 +1188,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       </span>
                     ) : null
                   ) : currentInstrument ? (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-200 border border-amber-700/50 hidden sm:inline-block">
+                    <span
+                      className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-200 border border-amber-700/50 hidden sm:inline-block`}
+                    >
                       {getInstrumentDisplayName(currentInstrument, isAdmin)}
                     </span>
                   ) : null}
                 </div>
-                <p className="text-[10px] sm:text-[11px] text-stone-400 truncate mt-0.5">
+                <p className="text-xs text-stone-400 truncate mt-0.5">
                   {seriesResult
                     ? t("seriesBuilder.confirmationSubtitle")
                     : submissionResult
@@ -1232,18 +1252,24 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </div>
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-sm sm:text-[15px] text-emerald-950">
+                              <span
+                                className={`${TYPO.body} font-bold text-emerald-950`}
+                              >
                                 {t("seriesBuilder.allApprovedTitle", {
                                   defaultValue: "All Occurrences Approved!",
                                 })}
                               </span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 uppercase tracking-wide whitespace-nowrap">
+                              <span
+                                className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 whitespace-nowrap`}
+                              >
                                 {t("reservationForm.resultInstantBadge", {
                                   defaultValue: "Instant Approval",
                                 })}
                               </span>
                             </div>
-                            <p className="text-[11px] sm:text-xs text-emerald-800 leading-relaxed">
+                            <p
+                              className={`${TYPO.body} text-emerald-800 leading-relaxed`}
+                            >
                               {t("seriesBuilder.allApprovedDesc", {
                                 defaultValue:
                                   "All dates in this recurring series have been approved and booked on the calendar.",
@@ -1258,7 +1284,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </div>
                           <div className="space-y-1.5 min-w-0">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="font-bold text-[13px] sm:text-sm text-amber-950">
+                              <span
+                                className={`${TYPO.body} font-bold text-amber-950`}
+                              >
                                 {pendingCount === totalCount
                                   ? t("seriesBuilder.allPendingTitle", {
                                       defaultValue:
@@ -1270,20 +1298,26 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                       defaultValue: `${approvedCount} approved, ${pendingCount} pending admin review`,
                                     })}
                               </span>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase tracking-wide whitespace-nowrap">
+                              <span
+                                className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 whitespace-nowrap`}
+                              >
                                 {t("reservationForm.resultPendingBadge", {
                                   defaultValue: "Pending Review",
                                 })}
                               </span>
                             </div>
-                            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+                            <p
+                              className={`${TYPO.body} text-amber-800 leading-relaxed`}
+                            >
                               {t("seriesBuilder.pendingReviewDesc", {
                                 defaultValue:
                                   "Your series has been created. Dates requiring admin review will be evaluated by church leadership.",
                               })}
                             </p>
                             {reservationType === "outside_church" && (
-                              <div className="pt-2 text-[10px] sm:text-[11px] text-amber-800/90 font-medium">
+                              <div
+                                className={`${TYPO.body} pt-2 text-amber-800/90 font-medium`}
+                              >
                                 {t("seriesBuilder.whatsappNotice", {
                                   defaultValue:
                                     "If your reservation is approved, the admin will contact you on WhatsApp for confirmation and payment.",
@@ -1295,14 +1329,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       )}
 
                       {/* Series Receipt Summary */}
-                      <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 sm:p-4 space-y-2.5 text-xs shadow-2xs">
-                        <div className="font-bold text-stone-900 text-[13px] border-b border-stone-200 pb-1.5 flex items-center justify-between">
+                      <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
+                        <div
+                          className={`${TYPO.label} text-stone-900 border-b border-stone-200 pb-1.5 flex items-center justify-between`}
+                        >
                           <span>
                             {t("reservationForm.bookingDetailsTitle", {
                               defaultValue: "Booking Details",
                             })}
                           </span>
-                          <span className="text-[10px] text-stone-500 font-mono">
+                          <span className="text-xs text-stone-500 font-mono font-normal normal-case tracking-normal">
                             #{seriesResult.series.id?.slice(0, 8)}
                           </span>
                         </div>
@@ -1310,15 +1346,15 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         <div className="grid grid-cols-2 gap-3">
                           {isTypeRequest ? (
                             <div className="min-w-0">
-                              <span className="text-stone-500 font-medium block text-[11px]">
+                              <span className={`${TYPO.hint} block`}>
                                 {t("reservationForm.requestedCategory", {
                                   defaultValue: "Requested Category",
                                 })}
                               </span>
-                              <span className="font-bold text-stone-900 text-xs block truncate">
+                              <span className={`${TYPO.value} block truncate`}>
                                 {selectedCategory}
                               </span>
-                              <span className="text-[10px] text-purple-700 font-semibold block truncate">
+                              <span className="text-xs text-purple-700 font-semibold block truncate">
                                 {t("reservations.awaitingAssignment", {
                                   defaultValue: "Awaiting Admin Assignment",
                                 })}
@@ -1326,30 +1362,33 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             </div>
                           ) : (
                             <div className="min-w-0">
-                              <span className="text-stone-500 font-medium block text-[11px]">
+                              <span className={`${TYPO.hint} block`}>
                                 {t("reservationForm.instrumentColonLabel")}
                               </span>
-                              <span className="font-bold text-stone-900 text-xs block truncate">
+                              <span className={`${TYPO.value} block truncate`}>
                                 {getInstrumentDisplayName(
                                   currentInstrument,
                                   isAdmin,
                                 )}
                               </span>
+                              <span className="text-xs text-stone-500 font-medium block truncate">
+                                {currentInstrument?.type || selectedCategory}
+                              </span>
                             </div>
                           )}
 
                           <div className="min-w-0">
-                            <span className="text-stone-500 font-medium block text-[11px]">
+                            <span className={`${TYPO.hint} block`}>
                               {t("reservationForm.typeColonLabel")}
                             </span>
-                            <span className="font-bold text-stone-900 text-xs capitalize">
+                            <span className={`${TYPO.value} capitalize`}>
                               {reservationType === "in_church"
                                 ? t("reservationForm.inChurchFreeLabel")
                                 : t("reservationForm.outsideChurchPaidLabel")}
                             </span>
                             {reservationType === "outside_church" &&
                               feeNumber > 0 && (
-                                <span className="text-[10px] text-purple-700 font-semibold block">
+                                <span className="text-xs text-purple-700 font-semibold block">
                                   {t("reservationForm.feePerDayLabel", {
                                     fee: feeNumber,
                                   })}
@@ -1359,10 +1398,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         </div>
 
                         <div className="pt-1.5 border-t border-stone-200">
-                          <span className="text-stone-500 font-medium block text-[11px]">
+                          <span className={`${TYPO.hint} block`}>
                             {t("reservationForm.purposeColonLabel")}
                           </span>
-                          <span className="font-bold text-stone-900 text-xs">
+                          <span className={`${TYPO.value} truncate block`}>
                             {serviceName ||
                               t("reservationForm.notSpecifiedLabel")}
                           </span>
@@ -1370,32 +1409,34 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
                         {serviceLocation && (
                           <div className="pt-1.5 border-t border-stone-200">
-                            <span className="text-stone-500 font-medium flex items-center gap-1 text-[11px]">
+                            <span
+                              className={`${TYPO.hint} flex items-center gap-1`}
+                            >
                               <Church className="w-3 h-3 text-amber-800 shrink-0" />
                               <span>
                                 {t("reservationForm.serviceLocationLabel")}
                               </span>
                             </span>
-                            <span className="font-bold text-stone-900 text-xs">
+                            <span className={`${TYPO.value} truncate block`}>
                               {serviceLocation}
                             </span>
                           </div>
                         )}
 
                         <div className="pt-1.5 border-t border-stone-200">
-                          <span className="text-stone-500 font-medium block text-[11px]">
+                          <span className={`${TYPO.hint} block`}>
                             {t("reservationForm.musicianNameLabel")}
                           </span>
-                          <span className="font-bold text-stone-900 text-xs">
+                          <span className={`${TYPO.value} truncate block`}>
                             {musicianName}
                           </span>
                         </div>
 
                         <div className="pt-1.5 border-t border-stone-200">
-                          <span className="text-stone-500 font-medium block text-[11px]">
+                          <span className={`${TYPO.hint} block`}>
                             {t("seriesBuilder.patternLabel")}
                           </span>
-                          <span className="font-bold text-stone-900 text-xs capitalize">
+                          <span className={`${TYPO.value} capitalize`}>
                             {seriesResult.series.patternType === "weekly"
                               ? t("seriesBuilder.weeklyCadenceTitle")
                               : t("seriesBuilder.customDatesTitle")}{" "}
@@ -1410,10 +1451,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
                         {note.trim() && (
                           <div className="pt-1.5 border-t border-stone-200">
-                            <span className="text-stone-500 font-medium block text-[11px]">
+                            <span className={`${TYPO.hint} block`}>
                               {t("reservationForm.leaveANoteLabel")}
                             </span>
-                            <span className="font-medium text-stone-900 text-[11px] whitespace-pre-wrap">
+                            <span
+                              className={`${TYPO.body} font-medium text-stone-900 whitespace-pre-wrap`}
+                            >
                               {note.trim()}
                             </span>
                           </div>
@@ -1423,7 +1466,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       {/* Per-Occurrence Breakdown */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-stone-900">
+                          <div
+                            className={`${TYPO.label} text-stone-900 flex items-center gap-1.5`}
+                          >
                             <CalendarDays className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                             <span>
                               {t("seriesBuilder.perOccurrenceBreakdown")}
@@ -1431,7 +1476,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {approvedCount > 0 && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                              <span
+                                className={`${TYPO.badge} inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200`}
+                              >
                                 <CheckCircle2 className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
                                 <span>
                                   {approvedCount}{" "}
@@ -1442,7 +1489,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               </span>
                             )}
                             {pendingCount > 0 && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                              <span
+                                className={`${TYPO.badge} inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200`}
+                              >
                                 <Clock className="w-3 h-3 text-amber-700 stroke-[2.5]" />
                                 <span>
                                   {pendingCount}{" "}
@@ -1493,7 +1542,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               >
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
                                   <span
-                                    className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] shadow-2xs ${
+                                    className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs shadow-2xs ${
                                       isApproved
                                         ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                         : "bg-amber-100 text-amber-800 border border-amber-200"
@@ -1501,7 +1550,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                   >
                                     #{idx + 1}
                                   </span>
-                                  <div className="font-semibold text-stone-900 text-[11px] sm:text-xs leading-tight">
+                                  <div
+                                    className={`font-semibold text-stone-900 ${TYPO.body} leading-tight`}
+                                  >
                                     <div className="flex flex-wrap items-center gap-x-1.5">
                                       <span>{fullDateDisplay}</span>
                                       <span className="text-stone-400 font-normal hidden xs:inline">
@@ -1514,7 +1565,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                   </div>
                                 </div>
                                 <span
-                                  className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wide whitespace-nowrap shadow-2xs ${
+                                  className={`${TYPO.badge} shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full whitespace-nowrap shadow-2xs ${
                                     isApproved
                                       ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
                                       : "bg-amber-100 text-amber-900 border border-amber-300"
@@ -1553,7 +1604,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="button"
                   id="btn-series-done"
                   onClick={onClose}
-                  className="w-full py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-xs sm:text-[13px] font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation bg-stone-900 hover:bg-stone-800 active:bg-stone-950"
+                  className={`w-full py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl ${TYPO.button} text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation bg-stone-900 hover:bg-stone-800 active:bg-stone-950`}
                 >
                   {t("seriesBuilder.doneReturnToCalendar")}
                 </button>
@@ -1570,18 +1621,26 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm sm:text-[15px] text-emerald-950">
+                        <span
+                          className={`${TYPO.body} font-bold text-emerald-950`}
+                        >
                           {t("reservationForm.resultApprovedTitle")}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900 uppercase tracking-wide whitespace-nowrap">
+                        <span
+                          className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 whitespace-nowrap`}
+                        >
                           {t("reservationForm.resultInstantBadge")}
                         </span>
                       </div>
-                      <p className="text-[11px] sm:text-xs text-emerald-800 leading-relaxed">
+                      <p
+                        className={`${TYPO.body} text-emerald-800 leading-relaxed`}
+                      >
                         {t("reservationForm.resultApprovedDesc")}
                       </p>
                       {submissionResult.evaluation.reasons.length > 0 && (
-                        <div className="pt-1.5 text-[10px] sm:text-[11px] text-emerald-900 font-medium space-y-1">
+                        <div
+                          className={`${TYPO.body} pt-1.5 text-emerald-900 font-medium space-y-1`}
+                        >
                           {submissionResult.evaluation.reasons.map((r, i) => (
                             <div key={i} className="flex items-start gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
@@ -1599,26 +1658,34 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </div>
                     <div className="space-y-1.5 min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-bold text-[13px] sm:text-sm text-amber-950">
+                        <span
+                          className={`${TYPO.body} font-bold text-amber-950`}
+                        >
                           {t("reservationForm.resultPendingTitle")}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 uppercase tracking-wide whitespace-nowrap">
+                        <span
+                          className={`${TYPO.badge} px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 whitespace-nowrap`}
+                        >
                           {t("reservationForm.resultPendingBadge")}
                         </span>
                       </div>
-                      <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+                      <p
+                        className={`${TYPO.body} text-amber-800 leading-relaxed`}
+                      >
                         {t("reservationForm.queuedForAdmin")}
                       </p>
 
                       {submissionResult.evaluation.reasons.length > 0 && (
                         <div className="pt-1.5 border-t border-amber-200/80 space-y-1">
-                          <span className="text-[10px] sm:text-[11px] font-bold text-amber-950 block">
+                          <span
+                            className={`${TYPO.label} text-amber-950 block`}
+                          >
                             {t("reservationForm.whyPendingLabel")}
                           </span>
                           {submissionResult.evaluation.reasons.map((r, i) => (
                             <div
                               key={i}
-                              className="text-[10px] sm:text-[11px] text-amber-900 flex items-start gap-1.5"
+                              className={`${TYPO.body} text-amber-900 flex items-start gap-1.5`}
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-1.5 shrink-0" />
                               <span>{r}</span>
@@ -1628,7 +1695,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       )}
 
                       {reservationType === "outside_church" && (
-                        <div className="pt-1.5 text-[10px] sm:text-[11px] text-amber-800/90 font-medium">
+                        <div
+                          className={`${TYPO.body} pt-1.5 text-amber-800/90 font-medium`}
+                        >
                           {t("reservationForm.msgWhatsAppNotice")}
                         </div>
                       )}
@@ -1637,10 +1706,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 )}
 
                 {/* Receipt Summary */}
-                <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 sm:p-4 space-y-2.5 text-xs shadow-2xs">
-                  <div className="font-bold text-stone-900 text-[13px] border-b border-stone-200 pb-1.5 flex items-center justify-between">
+                <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
+                  <div
+                    className={`${TYPO.label} text-stone-900 border-b border-stone-200 pb-1.5 flex items-center justify-between`}
+                  >
                     <span>{t("reservationForm.bookingDetailsTitle")}</span>
-                    <span className="text-[10px] text-stone-500 font-mono">
+                    <span className="text-xs text-stone-500 font-mono font-normal normal-case tracking-normal">
                       #{submissionResult.reservation.id?.slice(0, 8)}
                     </span>
                   </div>
@@ -1648,16 +1719,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     {submissionResult.reservation.is_type_request ? (
                       <div className="min-w-0">
-                        <span className="text-stone-500 font-medium block text-[11px]">
+                        <span className={`${TYPO.hint} block`}>
                           {t("reservationForm.requestedCategory", {
                             defaultValue: "Requested Category",
                           })}
                         </span>
-                        <span className="font-bold text-stone-900 text-xs block truncate">
+                        <span className={`${TYPO.value} block truncate`}>
                           {submissionResult.reservation.requested_type ||
                             selectedCategory}
                         </span>
-                        <span className="text-[10px] text-purple-700 font-semibold block truncate">
+                        <span className="text-xs text-purple-700 font-semibold block truncate">
                           {submissionResult.reservation.instrument_id
                             ? t("reservationForm.assigned", {
                                 defaultValue: "Assigned",
@@ -1669,29 +1740,29 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       </div>
                     ) : (
                       <div className="min-w-0">
-                        <span className="text-stone-500 font-medium block text-[11px]">
+                        <span className={`${TYPO.hint} block`}>
                           {t("reservationForm.instrumentColonLabel")}
                         </span>
-                        <span className="font-bold text-stone-900 text-xs block truncate">
+                        <span className={`${TYPO.value} block truncate`}>
                           {getInstrumentDisplayName(currentInstrument, isAdmin)}
                         </span>
-                        <span className="text-[10px] text-stone-500 block truncate">
+                        <span className="text-xs text-stone-500 font-medium block truncate">
                           {currentInstrument?.type || selectedCategory}
                         </span>
                       </div>
                     )}
                     <div className="min-w-0">
-                      <span className="text-stone-500 font-medium block text-[11px]">
+                      <span className={`${TYPO.hint} block`}>
                         {t("reservationForm.typeColonLabel")}
                       </span>
-                      <span className="font-bold text-stone-900 text-xs capitalize">
+                      <span className={`${TYPO.value} capitalize`}>
                         {submissionResult.reservation.reservationType ===
                         "in_church"
                           ? t("reservationForm.inChurchFreeLabel")
                           : t("reservationForm.outsideChurchPaidLabel")}
                       </span>
                       {submissionResult.reservation.feeSnapshot && (
-                        <span className="text-[10px] text-purple-700 font-semibold block">
+                        <span className="text-xs text-purple-700 font-semibold block">
                           {t("reservationForm.feePerDayLabel", {
                             fee: submissionResult.reservation.feeSnapshot,
                           })}
@@ -1701,10 +1772,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </div>
 
                   <div className="pt-1.5 border-t border-stone-200">
-                    <span className="text-stone-500 font-medium block text-[11px]">
+                    <span className={`${TYPO.hint} block`}>
                       {t("reservationForm.purposeColonLabel")}
                     </span>
-                    <span className="font-bold text-stone-900 text-xs">
+                    <span className={`${TYPO.value} truncate block`}>
                       {submissionResult.reservation.serviceName ||
                         serviceName ||
                         t("reservationForm.notSpecifiedLabel")}
@@ -1713,21 +1784,21 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   {(submissionResult.reservation.serviceLocation ||
                     serviceLocation) && (
                     <div className="pt-1.5 border-t border-stone-200">
-                      <span className="text-stone-500 font-medium flex items-center gap-1 text-[11px]">
+                      <span className={`${TYPO.hint} flex items-center gap-1`}>
                         <Church className="w-3 h-3 text-amber-800" />
                         <span>{t("reservationForm.serviceLocationLabel")}</span>
                       </span>
-                      <span className="font-bold text-stone-900 text-xs">
+                      <span className={`${TYPO.value} truncate block`}>
                         {submissionResult.reservation.serviceLocation ||
                           serviceLocation}
                       </span>
                     </div>
                   )}
                   <div className="pt-1.5 border-t border-stone-200">
-                    <span className="text-stone-500 font-medium block text-[11px]">
+                    <span className={`${TYPO.hint} block`}>
                       {t("reservationForm.musicianNameLabel")}
                     </span>
-                    <span className="font-bold text-stone-900 text-xs">
+                    <span className={`${TYPO.value} truncate block`}>
                       {submissionResult.reservation.musicianName ||
                         musicianName}
                     </span>
@@ -1735,10 +1806,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
                   {(submissionResult.reservation.note || note) && (
                     <div className="pt-1.5 border-t border-stone-200">
-                      <span className="text-stone-500 font-medium block text-[11px]">
+                      <span className={`${TYPO.hint} block`}>
                         {t("reservationForm.leaveANoteLabel") || "Notes"}
                       </span>
-                      <span className="font-medium text-stone-900 text-[11px] whitespace-pre-wrap">
+                      <span
+                        className={`${TYPO.body} font-medium text-stone-900 whitespace-pre-wrap`}
+                      >
                         {submissionResult.reservation.note || note}
                       </span>
                     </div>
@@ -1746,23 +1819,25 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1.5 border-t border-stone-200">
                     <div>
-                      <span className="text-stone-500 font-medium block text-[11px]">
+                      <span className={`${TYPO.hint} block`}>
                         {t("reservationForm.dateTimeColonLabel")}
                       </span>
-                      <span className="font-semibold text-stone-900 text-xs">
+                      <span
+                        className={`${TYPO.body} font-semibold text-stone-900`}
+                      >
                         {date}
                       </span>
-                      <span className="text-[10px] text-stone-600 block">
+                      <span className="text-xs text-stone-600 block font-medium">
                         {formatHhmmTo12Hour(startTime)} –{" "}
                         {formatHhmmTo12Hour(endTimeStr)} ({duration}h)
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-stone-500 font-medium block text-[11px]">
+                      <span className={`${TYPO.hint} block`}>
                         {t("reservationForm.reservationIdColonLabel")}
                       </span>
-                      <span className="font-mono text-stone-800 text-[10px] break-all">
+                      <span className="font-mono text-stone-800 text-xs break-all">
                         {submissionResult.reservation.id}
                       </span>
                     </div>
@@ -1775,7 +1850,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="button"
                   id="btn-done-back-calendar"
                   onClick={onClose}
-                  className="w-full py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-xs sm:text-[13px] font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation bg-stone-900 hover:bg-stone-800 active:bg-stone-950"
+                  className={`w-full py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl ${TYPO.button} text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation bg-stone-900 hover:bg-stone-800 active:bg-stone-950`}
                 >
                   {t("reservationForm.doneBackToCalendar")}
                 </button>
@@ -1791,7 +1866,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 {/* Section 1: Category & Instrument Selection */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between gap-2 border-b border-stone-100 pb-2">
-                    <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                    <span
+                      className={`${TYPO.sectionTitle} text-stone-800 flex items-center gap-1.5`}
+                    >
                       <Music2 className="w-3.5 h-3.5 text-amber-800" />
                       <span>
                         {t("reservationForm.chooseCategoryLabel", {
@@ -1801,12 +1878,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     </span>
                     <div className="inline-flex items-center gap-1.5 flex-wrap justify-end">
                       {isInstrumentsLoading ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium text-stone-500 bg-stone-100 border border-stone-200">
+                        <span
+                          className={`${TYPO.badge} inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-stone-500 bg-stone-100 border border-stone-200 normal-case tracking-normal`}
+                        >
                           <span className="w-2 h-2 border-2 border-stone-400 border-t-amber-800 rounded-full animate-spin shrink-0" />
                           <span>{t("common.loading", "Loading...")}</span>
                         </span>
                       ) : isTypeRequest ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider bg-purple-100 text-purple-900 border border-purple-200">
+                        <span
+                          className={`${TYPO.badge} inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200`}
+                        >
                           <Shield className="w-2.5 h-2.5" />
                           <span>
                             {t("reservations.adminAssignment", {
@@ -1817,12 +1898,14 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       ) : (
                         <>
                           {currentInstrument?.serviceName?.trim() && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold text-blue-900 bg-blue-100 border border-blue-200">
+                            <span
+                              className={`${TYPO.badge} inline-flex items-center px-2 py-0.5 rounded-full text-blue-900 bg-blue-100 border border-blue-200`}
+                            >
                               {currentInstrument.serviceName.trim()}
                             </span>
                           )}
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider ${
+                            className={`${TYPO.badge} inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
                               currentInstrument?.bookingMode === "instant"
                                 ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
                                 : "bg-amber-100 text-amber-900 border border-amber-200"
@@ -1851,14 +1934,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="min-w-0">
                       <label
                         htmlFor="select-category"
-                        className="block text-[11px] font-bold text-stone-700 mb-1 truncate"
+                        className={`${TYPO.label} text-stone-700 block mb-1 truncate`}
                       >
                         {t("reservationForm.chooseCategoryLabel", {
                           defaultValue: "Category / Type",
                         })}
                       </label>
                       {isInstrumentsLoading ? (
-                        <div className="w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-medium text-stone-500 flex items-center gap-2 select-none h-[38px] min-w-0">
+                        <div
+                          className={`${TYPO.input} w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-stone-500 flex items-center gap-2 select-none h-[38px] min-w-0`}
+                        >
                           <span className="w-3.5 h-3.5 border-2 border-stone-300 border-t-amber-800 rounded-full animate-spin shrink-0" />
                           <span className="truncate">
                             {t("common.loadingCategories", {
@@ -1874,7 +1959,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             onChange={(e) =>
                               handleCategoryChange(e.target.value)
                             }
-                            className="w-full min-w-0 truncate appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pe-8"
+                            className={`${TYPO.input} w-full min-w-0 truncate appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pe-8`}
                           >
                             {availableCategories.map((cat) => (
                               <option key={cat} value={cat}>
@@ -1895,14 +1980,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="min-w-0">
                       <label
                         htmlFor="select-instrument"
-                        className="block text-[11px] font-bold text-stone-700 mb-1 truncate"
+                        className={`${TYPO.label} text-stone-700 block mb-1 truncate`}
                       >
                         {t("reservationForm.chooseInstrumentLabel", {
                           defaultValue: "Specific Instrument",
                         })}
                       </label>
                       {isInstrumentsLoading ? (
-                        <div className="w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-medium text-stone-500 flex items-center gap-2 select-none h-[38px] min-w-0">
+                        <div
+                          className={`${TYPO.input} w-full bg-stone-100/90 border border-stone-200 rounded-xl px-2.5 py-2 text-stone-500 flex items-center gap-2 select-none h-[38px] min-w-0`}
+                        >
                           <span className="w-3.5 h-3.5 border-2 border-stone-300 border-t-amber-800 rounded-full animate-spin shrink-0" />
                           <span className="truncate">
                             {t("common.loadingInstruments", {
@@ -1918,7 +2005,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             onChange={(e) =>
                               setSelectedInstrumentId(e.target.value)
                             }
-                            className="w-full min-w-0 truncate appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 text-sm sm:text-[13px] font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pe-8"
+                            className={`${TYPO.input} w-full min-w-0 truncate appearance-none bg-stone-50 hover:bg-stone-100/80 border border-stone-200 rounded-xl px-2.5 py-2 font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition cursor-pointer pe-8`}
                           >
                             <option value="">
                               {t("reservationForm.adminAssignOption", {
@@ -1946,7 +2033,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       {!isInstrumentsLoading &&
                         isTypeRequest &&
                         selectedCategory && (
-                          <p className="mt-1.5 text-[11px] text-purple-800 font-medium flex items-center gap-1.5 leading-snug">
+                          <p
+                            className={`${TYPO.body} mt-1.5 text-purple-800 font-medium flex items-center gap-1.5 leading-snug`}
+                          >
                             <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                             <span>
                               {t("reservationForm.adminAssignInlineNote", {
@@ -1963,7 +2052,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   {!isInstrumentsLoading &&
                     !isTypeRequest &&
                     currentInstrument && (
-                      <div className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-stone-50 border border-stone-200 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2.5 p-2.5 rounded-2xl bg-stone-50 border border-stone-200 min-w-0">
                         {currentInstrumentPhotoUrl ? (
                           <button
                             id="btn-expand-instrument-photo"
@@ -1998,31 +2087,38 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-xs sm:text-[13px] text-stone-900 break-words">
+                          <div className="flex items-center justify-start gap-1.5 flex-wrap">
+                            <Music2 className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                            <span
+                              className={`${TYPO.value} break-words text-start`}
+                            >
                               {getInstrumentDisplayName(
                                 currentInstrument,
                                 isAdmin,
                               )}
                             </span>
                           </div>
-
-                          {currentInstrument?.description?.trim() && (
-                            <div className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed text-stone-600 min-w-0">
-                              <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-stone-400" />
-                              <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                                {currentInstrument.description.trim()}
-                              </p>
-                            </div>
-                          )}
                         </div>
+
+                        {currentInstrument?.description?.trim() && (
+                          <div
+                            className={`${TYPO.body} w-full mt-2 pt-2 border-t border-stone-200 flex items-start gap-1.5 leading-relaxed text-stone-600 min-w-0`}
+                          >
+                            <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-stone-400" />
+                            <p className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+                              {currentInstrument.description.trim()}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                 </div>
 
                 {/* Section 2: Service & Musician */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-2.5">
-                  <div className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5 border-b border-stone-100 pb-1.5">
+                  <div
+                    className={`${TYPO.sectionTitle} text-stone-800 flex items-center gap-1.5 border-b border-stone-100 pb-1.5`}
+                  >
                     <User className="w-3.5 h-3.5 text-amber-800" />
                     <span>
                       {t("reservationForm.serviceSectionTitle", {
@@ -2037,7 +2133,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="space-y-1 min-w-0">
                       <label
                         htmlFor="input-service-name"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700 truncate"
+                        className={`${TYPO.label} text-stone-700 block truncate`}
                       >
                         {t("reservationForm.purposeQuestionLabel")}{" "}
                         <span className="text-amber-800 font-bold">*</span>
@@ -2050,7 +2146,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         placeholder={t(
                           "reservationForm.serviceNamePlaceholder",
                         )}
-                        className="w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className={`${TYPO.input} w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition`}
                         required
                       />
                     </div>
@@ -2058,7 +2154,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="space-y-1 min-w-0">
                       <label
                         htmlFor="input-musician-name"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700 truncate"
+                        className={`${TYPO.label} text-stone-700 block truncate`}
                       >
                         {t("reservationForm.musicianNameLabel")}{" "}
                         <span className="text-amber-800 font-bold">*</span>
@@ -2071,7 +2167,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         placeholder={t(
                           "reservationForm.musicianNamePlaceholder",
                         )}
-                        className="w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className={`${TYPO.input} w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition`}
                         required
                       />
                     </div>
@@ -2079,7 +2175,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="space-y-1 col-span-2 min-w-0">
                       <label
                         htmlFor="input-service-location"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700 flex items-center gap-1 truncate"
+                        className={`${TYPO.label} text-stone-700 flex items-center gap-1 truncate`}
                       >
                         <Church className="w-3 h-3 text-amber-800 shrink-0" />
                         <span className="truncate">
@@ -2094,7 +2190,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         placeholder={t(
                           "reservationForm.serviceLocationPlaceholder",
                         )}
-                        className="w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className={`${TYPO.input} w-full min-w-0 bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition`}
                       />
                     </div>
                   </div>
@@ -2103,7 +2199,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="input-reservation-note"
-                        className="block text-[11px] sm:text-xs font-bold text-stone-700"
+                        className={`${TYPO.label} text-stone-700 block`}
                       >
                         {t("reservationForm.leaveANoteLabel", {
                           defaultValue: "Notes",
@@ -2124,7 +2220,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         defaultValue:
                           "أي طلبات خاصة أو مستلزمات مثل محول أو كابل...",
                       })}
-                      className="w-full min-h-9 overflow-hidden bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none"
+                      className={`${TYPO.input} w-full min-h-9 overflow-hidden bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition resize-none`}
                     />
                   </div>
                 </div>
@@ -2132,7 +2228,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 {/* Section 3: Date, Time & Duration (الموعد والتوقيت) */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-3 sm:p-3.5 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between border-b border-stone-100 pb-1.5">
-                    <span className="text-[11px] sm:text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                    <span
+                      className={`${TYPO.sectionTitle} text-stone-800 flex items-center gap-1.5`}
+                    >
                       <Calendar className="w-3.5 h-3.5 text-amber-800" />
                       <span>
                         {t("reservationForm.dateTimeSectionTitle", {
@@ -2142,7 +2240,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         })}
                       </span>
                     </span>
-                    <span className="text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                    <span className="text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
                       {isAr ? (
                         <>
                           {formatHhmmTo12Hour(startTime)} ←{" "}
@@ -2159,7 +2257,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
 
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
-                      <label className="block text-[11px] sm:text-xs font-bold text-stone-700">
+                      <label className={`${TYPO.label} text-stone-700 block`}>
                         {isRecurring
                           ? t("seriesBuilder.firstSessionDateLabel")
                           : t("reservationForm.dateLabel")}
@@ -2177,13 +2275,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             setSkippedNotice(null);
                           }
                         }}
-                        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                        className={`${TYPO.input} w-full bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition`}
                         required
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="block text-[11px] sm:text-xs font-bold text-stone-700">
+                      <label className={`${TYPO.label} text-stone-700 block`}>
                         {t("reservationForm.startTimeLabel")}
                       </label>
                       <div className="relative">
@@ -2191,7 +2289,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           id="select-start-time"
                           value={startTime}
                           onChange={(e) => setStartTime(e.target.value)}
-                          className="w-full appearance-none bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-xs sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pr-8 cursor-pointer"
+                          className={`${TYPO.input} w-full appearance-none bg-stone-50 border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pr-8 cursor-pointer`}
                         >
                           {TIME_SLOTS.map((slot) => (
                             <option key={slot} value={slot}>
@@ -2213,7 +2311,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   </div>
 
                   <div className="space-y-1.5 pt-1">
-                    <label className="block text-[11px] sm:text-xs font-bold text-stone-700">
+                    <label className={`${TYPO.label} text-stone-700 block`}>
                       {t("reservationForm.durationLabel")}
                     </label>
                     <div className="grid grid-cols-4 gap-1.5">
@@ -2227,7 +2325,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                               setStartTime("09:00");
                             }
                           }}
-                          className={`py-1.5 px-1.5 rounded-xl text-[10px] sm:text-[11px] font-bold text-center transition cursor-pointer border active:scale-[0.98] touch-manipulation ${
+                          className={`py-1.5 px-1.5 rounded-xl ${TYPO.button} text-center transition cursor-pointer border active:scale-[0.98] touch-manipulation ${
                             duration === opt.value
                               ? "bg-amber-800 text-white border-amber-900 shadow-xs ring-2 ring-amber-800/20"
                               : "bg-stone-50 hover:bg-stone-100 text-stone-700 border-stone-200"
@@ -2254,7 +2352,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
                         </div>
                         <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <div
+                            className={`${TYPO.body} flex flex-wrap items-center gap-1.5`}
+                          >
                             <span className="font-semibold text-rose-950">
                               {t("reservationForm.conflictLineWarning", {
                                 defaultValue: isAr
@@ -2262,11 +2362,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                   : "This instrument is already booked:",
                               })}
                             </span>
-                            <span className="inline-flex items-center font-mono font-bold text-rose-800 bg-white/90 border border-rose-200/90 px-2 py-0.5 rounded-md text-[11px] shadow-2xs">
+                            <span className="inline-flex items-center font-mono font-bold text-rose-800 bg-white/90 border border-rose-200/90 px-2 py-0.5 rounded-md shadow-2xs">
                               {conflictingTimesFormatted}
                             </span>
                           </div>
-                          <p className="text-[11px] sm:text-xs text-rose-800/90 leading-relaxed">
+                          <p
+                            className={`${TYPO.body} text-rose-800/90 leading-relaxed`}
+                          >
                             {t("reservationForm.conflictResolutionHint", {
                               defaultValue: isAr
                                 ? "يرجى تغيير الوقت أو اختيار آلة أخرى."
@@ -2280,7 +2382,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         <button
                           type="button"
                           onClick={() => setSelectedInstrumentId("")}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-100/70 active:bg-rose-200/50 border border-rose-300 text-rose-900 font-semibold text-xs rounded-lg shadow-2xs transition cursor-pointer touch-manipulation"
+                          className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-100/70 active:bg-rose-200/50 border border-rose-300 text-rose-900 ${TYPO.button} rounded-lg shadow-2xs transition cursor-pointer touch-manipulation`}
                         >
                           <Sparkles className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                           <span>
@@ -2330,14 +2432,16 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         <Repeat className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <span className="text-[11px] sm:text-xs font-extrabold text-stone-900 block">
+                        <span
+                          className={`${TYPO.sectionTitle} text-stone-900 block`}
+                        >
                           {t("reservationForm.recurringToggleLabel", {
                             defaultValue: isAr
                               ? "هل تريد تكرار الحجز؟"
                               : "Want to repeat this reservation?",
                           })}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] text-stone-500 block">
+                        <span className={`${TYPO.hint} block`}>
                           {t("reservationForm.recurringToggleSubtitle", {
                             defaultValue: isAr
                               ? "تكرار أسبوعي في نفس اليوم والوقت"
@@ -2371,11 +2475,15 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                     <div className="pt-3 border-t border-stone-200 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
                       {/* Weekly Cadence Header & Occurrence Counter */}
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-stone-700 flex items-center gap-1.5">
+                        <span
+                          className={`${TYPO.label} text-stone-700 flex items-center gap-1.5`}
+                        >
                           <Repeat className="w-3.5 h-3.5 text-amber-800 shrink-0" />
                           <span>{t("seriesBuilder.weeklyCadenceTitle")}</span>
                         </span>
-                        <span className="text-[10px] font-semibold text-stone-500 flex items-center gap-1">
+                        <span
+                          className={`${TYPO.hint} flex items-center gap-1`}
+                        >
                           <Layers className="w-3 h-3 text-amber-800" />
                           {isServiceInstant
                             ? t("seriesBuilder.occurrenceCountNoCap", {
@@ -2393,7 +2501,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       <div className="bg-stone-50/80 rounded-xl border border-stone-200/80 p-2.5 sm:p-3 space-y-2.5">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1 min-w-0">
-                            <label className="block text-[11px] font-bold text-stone-700 truncate">
+                            <label
+                              className={`${TYPO.label} text-stone-700 block truncate`}
+                            >
                               {t("seriesBuilder.repeatCadenceLabel")}
                             </label>
                             <div className="relative min-w-0">
@@ -2408,7 +2518,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                     setSkippedNotice(null);
                                   }
                                 }}
-                                className="w-full min-w-0 truncate appearance-none bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pe-8 cursor-pointer"
+                                className={`${TYPO.input} w-full min-w-0 truncate appearance-none bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition pe-8 cursor-pointer`}
                               >
                                 <option value={1}>
                                   {t("seriesBuilder.everyWeek")}
@@ -2432,7 +2542,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           </div>
 
                           <div className="space-y-1 min-w-0">
-                            <label className="block text-[11px] font-bold text-stone-700 truncate">
+                            <label
+                              className={`${TYPO.label} text-stone-700 block truncate`}
+                            >
                               {isServiceInstant
                                 ? t("seriesBuilder.totalOccurrencesNoCap", {
                                     defaultValue: "Total Occurrences",
@@ -2463,9 +2575,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                     setSkippedNotice(null);
                                   }
                                 }}
-                                className="flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-sm sm:text-[13px] font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition"
+                                className={`${TYPO.input} flex-1 min-w-0 bg-white border border-stone-300 rounded-xl px-2.5 py-1.5 text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-800/40 focus:border-amber-800 transition`}
                               />
-                              <span className="text-[11px] text-stone-500 font-medium shrink-0">
+                              <span className="text-xs text-stone-500 font-medium shrink-0">
                                 {t("seriesBuilder.sessionsUnit")}
                               </span>
                             </div>
@@ -2473,7 +2585,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                         </div>
 
                         {!isServiceInstant && weeklyCount >= maxSeriesLimit && (
-                          <div className="text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
+                          <div className="text-xs text-amber-900 bg-amber-50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 font-medium border border-amber-200">
                             <Info className="w-3 h-3 shrink-0" />
                             <span>
                               {t("seriesBuilder.reachedMax", {
@@ -2487,14 +2599,18 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       {/* Calculated Occurrence Schedule Preview */}
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className="text-[11px] font-bold text-stone-700 flex items-center gap-1.5">
+                          <span
+                            className={`${TYPO.label} text-stone-700 flex items-center gap-1.5`}
+                          >
                             <CalendarDays className="w-3.5 h-3.5 text-amber-800" />
                             <span>
                               {t("seriesBuilder.calculatedScheduleTitle")}
                             </span>
                           </span>
                           {!hasSeriesConflicts && (
-                            <span className="text-[10px] text-stone-500 flex items-center gap-1">
+                            <span
+                              className={`${TYPO.hint} flex items-center gap-1`}
+                            >
                               <Info className="w-3 h-3 shrink-0" />
                               <span>
                                 {t("seriesBuilder.allSessionsLabel", {
@@ -2515,13 +2631,13 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             return (
                               <div
                                 key={occ.id}
-                                className={`px-2.5 py-1.5 flex items-center justify-between text-[11px] gap-2 ${
+                                className={`px-2.5 py-1.5 flex items-center justify-between ${TYPO.body} gap-2 ${
                                   hasOccConflict ? "bg-rose-50/80" : ""
                                 }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <span
-                                    className={`w-5 h-5 rounded-md font-bold flex items-center justify-center text-[9px] shrink-0 border ${
+                                    className={`w-6 h-6 rounded-md font-bold flex items-center justify-center text-xs shrink-0 border ${
                                       hasOccConflict
                                         ? "bg-rose-100 border-rose-300 text-rose-800"
                                         : "bg-white border-stone-200 text-stone-600"
@@ -2539,7 +2655,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                                     {formatShortDateWithWeekday(occ.date)}
                                   </span>
                                 </div>
-                                <span className="text-stone-500 text-[10px] whitespace-nowrap shrink-0">
+                                <span className="text-stone-500 text-xs whitespace-nowrap shrink-0">
                                   {formatHhmmTo12Hour(occ.startTime)} –{" "}
                                   {formatHhmmTo12Hour(
                                     calculateEndTime(
@@ -2560,7 +2676,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                           id="series-conflict-warning-panel"
                           className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2.5 animate-in fade-in shadow-2xs"
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-red-950 font-bold text-[11px] sm:text-xs">
+                          <div
+                            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-red-950 font-bold ${TYPO.label}`}
+                          >
                             <div className="flex items-center gap-2">
                               <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
                               <span>
@@ -2572,7 +2690,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             <button
                               type="button"
                               onClick={handleSkipConflicts}
-                              className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-[11px] rounded-lg shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation"
+                              className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white ${TYPO.button} rounded-lg shadow-xs transition cursor-pointer self-start sm:self-auto touch-manipulation`}
                             >
                               <Trash2 className="w-3 h-3" />
                               <span>{t("seriesBuilder.skipConflicts")}</span>
@@ -2582,7 +2700,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                             {seriesConflicts.map((conf, i) => (
                               <div
                                 key={i}
-                                className="bg-white/80 border border-red-200 rounded-lg p-1.5 text-[11px] text-red-900 flex items-start gap-2"
+                                className={`${TYPO.body} bg-white/80 border border-red-200 rounded-lg p-1.5 text-red-900 flex items-start gap-2`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0" />
                                 <span className="leading-snug">
@@ -2595,7 +2713,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                       )}
 
                       {skippedNotice !== null && !hasSeriesConflicts && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 flex items-center justify-between gap-2 text-[11px] text-emerald-900 font-medium animate-in fade-in shadow-2xs">
+                        <div
+                          className={`${TYPO.body} bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 flex items-center justify-between gap-2 text-emerald-900 font-medium animate-in fade-in shadow-2xs`}
+                        >
                           <div className="flex items-center gap-2">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                             <span>
@@ -2633,7 +2753,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="py-2 sm:py-2.5 px-3.5 sm:px-4 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 text-[11px] sm:text-xs font-bold rounded-2xl transition cursor-pointer touch-manipulation"
+                  className={`py-2 sm:py-2.5 px-3.5 sm:px-4 bg-stone-100 hover:bg-stone-200 active:bg-stone-300 text-stone-700 ${TYPO.button} rounded-2xl transition cursor-pointer touch-manipulation`}
                 >
                   {t("common.cancel")}
                 </button>
@@ -2642,7 +2762,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   type="submit"
                   id="btn-submit-reservation"
                   disabled={isSubmitDisabled}
-                  className={`flex-1 py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl text-[11px] sm:text-xs font-bold text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
+                  className={`flex-1 py-2 sm:py-2.5 px-4 sm:px-5 rounded-2xl ${TYPO.button} text-white transition flex items-center justify-center gap-2 shadow-md cursor-pointer touch-manipulation ${
                     isSubmitDisabled
                       ? "bg-stone-300 cursor-not-allowed text-stone-500 shadow-none"
                       : "bg-amber-800 hover:bg-amber-900 active:scale-[0.99]"
@@ -2703,8 +2823,8 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
               <AlertCircle className="w-5 h-5 text-red-700" />
             </div>
-            <div className="space-y-1 text-xs flex-1 min-w-0">
-              <div className="font-bold text-sm">
+            <div className={`${TYPO.body} space-y-1 flex-1 min-w-0`}>
+              <div className={`${TYPO.body} font-bold`}>
                 {getLimitMessage(errorMsg)?.title ||
                   t("reservationForm.submissionBlocked")}
               </div>
@@ -2753,10 +2873,12 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-sm sm:text-base text-stone-900 leading-tight">
+                <h3 className="font-bold text-sm text-stone-900 leading-tight">
                   {isAr ? "تعارض في الموعد" : "Schedule Conflict"}
                 </h3>
-                <p className="text-xs sm:text-[13px] text-stone-600 mt-1 leading-relaxed">
+                <p
+                  className={`${TYPO.body} text-stone-600 mt-1 leading-relaxed`}
+                >
                   {t("reservationForm.conflictPopupText", {
                     defaultValue: isAr
                       ? "هذه الآلة محجوزة بالفعل خلال هذا الوقت. يرجى تغيير الوقت أو اختيار آلة أخرى."
@@ -2767,7 +2889,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             </div>
 
             {conflictingTimesFormatted && (
-              <div className="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs flex items-center justify-between gap-2">
+              <div
+                className={`${TYPO.body} bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 flex items-center justify-between gap-2`}
+              >
                 <span className="text-stone-500 font-medium">
                   {t("reservationForm.conflictingTimesLabel", {
                     defaultValue: isAr ? "الوقت المحجوز:" : "Booked time:",
@@ -2786,7 +2910,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                   setSelectedInstrumentId("");
                   setShowConflictPopup(false);
                 }}
-                className="flex-1 py-2 px-3 rounded-xl border border-stone-200 hover:bg-stone-50 active:bg-stone-100 text-stone-700 font-semibold text-xs transition cursor-pointer text-center inline-flex items-center justify-center gap-1.5"
+                className={`flex-1 py-2 px-3 rounded-xl border border-stone-200 hover:bg-stone-50 active:bg-stone-100 text-stone-700 ${TYPO.button} transition cursor-pointer text-center inline-flex items-center justify-center gap-1.5`}
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                 <span>
@@ -2799,7 +2923,7 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
                 type="button"
                 id="btn-close-conflict-popup"
                 onClick={() => setShowConflictPopup(false)}
-                className="flex-1 py-2 px-3 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white font-semibold text-xs transition cursor-pointer shadow-xs text-center"
+                className={`flex-1 py-2 px-3 rounded-xl bg-amber-800 hover:bg-amber-900 active:bg-amber-950 text-white ${TYPO.button} transition cursor-pointer shadow-xs text-center`}
               >
                 {t("reservationForm.conflictAdjustTime", {
                   defaultValue: isAr ? "تعديل الموعد" : "Adjust Time",
@@ -2833,10 +2957,10 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
           >
             <div className="w-full flex items-center justify-between gap-3 text-white px-1">
               <div className="min-w-0">
-                <h3 className="text-sm sm:text-base font-bold text-white truncate">
+                <h3 className="text-sm font-bold text-white truncate">
                   {getInstrumentDisplayName(currentInstrument, isAdmin)}
                 </h3>
-                <p className="text-[11px] sm:text-xs text-stone-300 truncate">
+                <p className={`${TYPO.hint} text-stone-300 truncate`}>
                   {currentInstrument.type || selectedCategory}
                 </p>
               </div>
@@ -2862,7 +2986,9 @@ export const ReservationFormModal: React.FC<ReservationFormProps> = ({
             </div>
 
             {currentInstrument.description?.trim() && (
-              <p className="max-w-2xl text-center text-xs sm:text-[13px] text-stone-200 leading-relaxed whitespace-pre-wrap break-words px-2">
+              <p
+                className={`${TYPO.body} max-w-2xl text-center text-stone-200 leading-relaxed whitespace-pre-wrap break-words px-2`}
+              >
                 {currentInstrument.description.trim()}
               </p>
             )}
